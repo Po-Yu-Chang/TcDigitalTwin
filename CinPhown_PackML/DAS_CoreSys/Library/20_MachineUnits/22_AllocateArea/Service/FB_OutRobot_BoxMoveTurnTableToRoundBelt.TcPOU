@@ -1,0 +1,852 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt" Id="{c565a47a-9a73-42bd-ace5-577cda7be70e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OutRobot_BoxMoveTurnTableToRoundBelt EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+//    Execute    :BOOL;   // True : This prog will start.
+//    Abort      :BOOL;   // True : This prog will be abort.
+//    Reset      :BOOL;   // True : This prog will be reset.
+//    ObjectName :STRING; // Set this fb name(About it's action)
+	INPUT            			   : REFERENCE TO ST_InputTable;
+	Cylinders					   : REFERENCE TO ARRAY[0..1] OF FB_Cylinder;
+	Clips						   : REFERENCE TO ARRAY[0..1] OF FB_Cylinder;
+	AutoMode_TurnTableToRoundBelt : st_AutoMode_ClampingBoxesJob;	
+END_VAR
+
+VAR_OUTPUT
+//    Busy    :BOOL;        // True : This prog is running.
+//    Done    :BOOL;        // True : Command has been executed.
+//    Aborted :BOOL;        // True : This prog is aborted.
+//    Error   :BOOL;        // True : This prog has an error.
+//    ErrorID :UINT;       // Output ErrorID
+//    Status  :T_MaxString; // Output this prog status by string(255bytes)
+END_VAR
+
+VAR
+//    eState :E_MethodStatus_Basic;
+//	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+//	uiResettingStep : UDINT;
+//	uiAbortingStep : UDINT;
+//	_Executed :BOOL; // Executing process completed.
+//	_Error : BOOL; // FB has an error.
+//	_ResetCompleted : BOOL; // FB resetting completed.
+//	_AbortCompleted : BOOL; // FB aborting completed.
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+	tonTimeOut   :TON;
+	tonTimeDelay   :TON;
+	iWorkingIndex : INT;
+	_UniqueErrorCode :STRING;	
+	PickingPos	: ARRAY[0..1] OF ST_PositionTable;
+	PlacingPos  : ARRAY[0..1] OF ST_PositionTable;
+	bSyncPick	: BOOL;
+	bSyncPlace	: BOOL;	
+	UseA	: BOOL;
+	UseB	: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{54c021e8-903c-4c87-86d1-07bf3dcd049e}" />
+    <Folder Name="STATE" Id="{44c5b617-5355-4820-8843-0d57589ea95a}" />
+    <Action Name="A00_BasicUnits" Id="{f443de30-d582-456f-a66c-955d9cad232f}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT:=T#15S);
+tonTimeDelay(PT:=T#1.5s);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GetModelState" Id="{b467df99-03ec-47c3-ad84-bf3ac65ce1ef}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_OUTPUT
+    xDone    :BOOL;
+    xBusy    :BOOL;
+    xError   :BOOL;
+    xAborted :BOOL;
+    iErrorID :UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xDone    := Done;
+xBusy    := Busy;
+xError   := Error;
+xAborted := Abort;
+iErrorID := ErrorID;
+UniqueErrorCode := THIS^.UniqueErrorCode;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{a3ec3af2-b036-4a2c-a113-ff07b578e210}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := ObjectName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckCommand" Id="{a29fac7b-4e8b-4642-8a60-a6f765b8d7a6}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+M_CheckCommand := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetWorkingConditions" Id="{6ae280d7-2ad1-464e-9b4c-3454ce766049}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GetWorkingConditions : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//For rare box move , Boxes must place on same position , therefor only work with TargetPosition of ClipA
+
+IF AutoMode_TurnTableToRoundBelt.ClampingInfo.UseClibA THEN
+	PickingPos[0] :=FUN_GetPositionTableData('R',1,0);
+	PlacingPos[0] :=FUN_GetPositionTableData('A',5,0);
+	UseA := TRUE;
+END_IF
+
+IF AutoMode_TurnTableToRoundBelt.ClampingInfo.UseClibB THEN
+	PickingPos[1] :=FUN_GetPositionTableData('R',2,1);
+	PlacingPos[1] :=FUN_GetPositionTableData('A',6,1);
+	UseB :=TRUE;
+END_IF
+
+IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos[1].Y_Pos AND UseA AND UseB THEN
+		bSyncPlace:=TRUE;
+	ELSE
+		bSyncPlace:=FALSE;	
+END_IF
+IF PickingPos[0].X_Pos =PickingPos[1].X_Pos AND PickingPos[0].Y_Pos = PickingPos[1].Y_Pos AND UseA AND UseB THEN
+		bSyncPick:=TRUE;
+	ELSE
+		bSyncPick:=FALSE;	
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RecoveryAllObjects" Id="{14e9b72e-6402-4009-9b41-438d9a88b60e}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_RecoveryAllObjects : BOOL
+VAR_INPUT
+END_VAR
+VAR 
+	i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i:=0 TO 1 DO
+	IF Clips[i].xError THEN
+		Clips[i].M_Reset();
+		ELSE
+		Clips[i].M_Retract();		
+	END_IF
+	IF Cylinders[i].xError THEN
+	Cylinders[i].M_Reset();	
+	ELSE
+	Cylinders[i].M_Retract();	
+	END_IF
+END_FOR
+
+IF arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error THEN
+
+	arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.ClearError:= TRUE;
+ELSE
+	arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.ClearError:= FALSE;
+END_IF
+
+IF arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error THEN
+
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.ClearError:= TRUE;
+ELSE
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.ClearError:= FALSE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{d4845048-9779-4e6c-9fcf-93ce434ae95a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy    := FALSE;
+Aborted := TRUE;
+Status := strStatus;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+//	uiExecutingStep :=uiResumeStep;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{93e90db1-874a-46ce-8d6b-c7c05e601fca}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+VAR
+	
+i : int;
+	bCylinderCheck: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		bCylinderCheck:=TRUE;
+		FOR i :=0 TO 1 DO		
+	    	Cylinders[i].M_Reset();
+			Cylinders[i].M_Retract();
+			bCylinderCheck:=bCylinderCheck AND Cylinders[i].InRearPosition;	
+		END_FOR
+		IF bCylinderCheck THEN		
+			uiAbortingStep:=9999;
+		END_IF
+	
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{6973f3fb-94b1-47a9-8b7c-13312ddece6d}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy 	:= FALSE;
+Done	:=TRUE;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{3d6f79a1-d758-494e-ab82-886c23f43abb}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+tonTimeOut.IN :=TRUE;
+_UniqueErrorCode:='0';
+iWorkingIndex :=0;
+bSyncPick :=FALSE;
+bSyncPlace := FALSE;
+UseA := FALSE;
+UseB :=FALSE;
+
+IF Execute THEN
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{bc7653ad-6a09-4749-9e5e-a301806467ca}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+Status := strStatus;
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{fa13af65-b2ec-40bb-8dbc-0297d8aad580}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	
+
+END_VAR
+
+VAR
+	bCylinderCheck : BOOL := TRUE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy :=TRUE;
+
+CASE uiExecutingStep OF
+	
+
+0: //Idle
+	tonTimeDelay.IN :=FALSE;
+	tonTimeOut.IN := FALSE;
+	iWorkingIndex :=0;	
+	M_GetWorkingConditions();
+	M_RecoveryAllObjects();
+	uiExecutingStep := 100;
+	
+100: //Check command
+	IF M_CheckCommand()THEN	
+		uiExecutingStep:=200;
+	END_IF
+	
+200: // Check  boxes on turntable
+
+	IF (UseA AND NOT INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND NOT INPUT.bTurnTable_R2Detect_Sensor) THEN
+		_Error:=TRUE;
+		strStatus :='Box Not on Turntable';
+	ELSE
+		IF UseA THEN
+			iWorkingIndex :=0;
+		ELSE
+			iWorkingIndex :=1;	
+		END_IF
+		
+		uiExecutingStep:=1000;	
+	END_IF
+
+	
+1000: 
+	// Move OutRobot to First clip picking	
+	 	 
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PickingPos[iWorkingIndex].X_Pos;		
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PickingPos[iWorkingIndex].Y_Pos;	
+	uiExecutingStep:=1100;
+		// todo : Check axes is moving
+1100:
+	// Check outRobot arrived
+	IF		(arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone) 
+	AND (arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone) 
+	THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=1200;
+	END_IF	
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Error :=TRUE;
+		strStatus :='Robot move to picking position timeout';
+	END_IF
+	
+1200: //Clip Down Pick	  
+	bCylinderCheck := TRUE;
+	Cylinders[iWorkingIndex].M_Extend();
+	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPick THEN
+		Cylinders[1].M_Extend();
+		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=1300;
+	END_IF 
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Abort :=TRUE;
+		strStatus :='Cylinder pick down timeout';
+	END_IF
+	
+1300: // Clip close Pick
+	bCylinderCheck := TRUE;
+	Clips[iWorkingIndex].M_Extend();
+	bCylinderCheck := Clips[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPick THEN
+		Clips[1].M_Extend();
+		bCylinderCheck := Clips[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=1400;
+	END_IF 
+	
+		tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Abort :=TRUE;
+		strStatus :='clip pick close timeout';
+	END_IF
+	
+1400: // Clip Up Pick	  
+	bCylinderCheck := TRUE;
+	Cylinders[iWorkingIndex].M_Retract();
+	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPick THEN
+		Cylinders[1].M_Retract();
+		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=1500;
+	END_IF 
+	
+		tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Abort :=TRUE;
+		strStatus :='cylinder pick up timeout';
+	END_IF
+	  
+1500: // If Next pick
+	  IF iWorkingIndex>=1 OR bSyncPick OR NOT UseB THEN
+		//Go to placing step
+			IF UseA THEN
+				iWorkingIndex:=0;
+			ELSE
+				iWorkingIndex:=1;	
+			END_IF
+			uiExecutingStep:=1600;
+		ELSE
+			iWorkingIndex :=iWorkingIndex +1;
+			uiExecutingStep:=1000;	
+	  END_IF
+	  
+1600: // Check box
+		
+	IF (UseA AND  INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND  INPUT.bTurnTable_R2Detect_Sensor) THEN
+		
+		//
+	ELSE
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=2000;
+	END_IF
+		tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Error :=TRUE;
+		strStatus :='Box still on Turntable';
+	END_IF
+
+2000: // Move to Placing pos	 
+	 arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PlacingPos[iWorkingIndex].X_Pos;		
+	 arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PlacingPos[iWorkingIndex].Y_Pos;	
+	 uiExecutingStep:=2100;
+
+2100: // Waiting outRobot move to placing pos	 	
+	 IF	(arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone) 
+	AND (arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone)
+	AND  tonTimeDelay.Q
+	THEN		
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=2200;
+	END_IF	
+
+		tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Error :=TRUE;
+		strStatus :='robot move to placing position timeout';
+	END_IF
+
+
+2200: //Cllp Down place
+	bCylinderCheck := TRUE;
+	Cylinders[iWorkingIndex].M_Extend();
+	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPlace THEN
+		Cylinders[1].M_Extend();
+		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=2300;
+	END_IF 
+		tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Abort :=TRUE;
+		strStatus :='Cylinder place down timeout';
+	END_IF
+	
+2300: // Clip open Place
+	bCylinderCheck := TRUE;
+	Clips[iWorkingIndex].M_Retract();
+	bCylinderCheck := Clips[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPlace THEN
+		Clips[1].M_Retract();
+		bCylinderCheck := Clips[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=2400;
+	END_IF 
+	  
+		tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Abort :=TRUE;
+		strStatus :='clip place open timeout';
+	END_IF
+	  
+2400: // Clip up Placing
+	bCylinderCheck := TRUE;
+	Cylinders[iWorkingIndex].M_Retract();
+	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPlace THEN
+		Cylinders[1].M_Retract();
+		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep:=2500;
+	END_IF 
+		tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN := FALSE;
+		_Abort :=TRUE;
+		strStatus :='cylinder place up timeout';
+	END_IF
+	
+2500: // If Next place
+	IF iWorkingIndex>=1 OR bSyncPlace OR NOT UseB THEN
+		uiExecutingStep:=2600;
+		// Finish
+	ELSE	
+		iWorkingIndex := iWorkingIndex+1;
+	  	uiExecutingStep:=2000;
+	END_IF
+	
+2600: // Finish	
+	_Executed:=TRUE;
+	
+END_CASE
+	
+IF NOT Execute THEN
+	eState:=STATE_RESETTING;
+END_IF
+IF _Error THEN
+	eState:=STATE_ERROR;
+END_IF
+IF _Abort THEN
+	eSTATE:=STATE_ABORTING;
+END_IF
+IF _Executed THEN
+	eSTATE:=STATE_Done;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{5fc3bb5a-7008-45c2-b42f-391f35dcbf68}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=_Error;
+Done :=_Executed;
+Busy := FALSE;
+
+
+CASE uiResettingStep OF
+	
+	0:
+		M_RecoveryAllObjects();
+		uiResettingStep:=9999;
+
+
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt">
+      <LineId Id="23" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.GetModelState">
+      <LineId Id="17" Count="3" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="29" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.GetName">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_CheckCommand">
+      <LineId Id="14" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_GetWorkingConditions">
+      <LineId Id="35" Count="1" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="25" Count="3" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_RecoveryAllObjects">
+      <LineId Id="5" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="34" Count="2" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="17" Count="2" />
+      <LineId Id="21" Count="5" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_STATE_ABORTED">
+      <LineId Id="9" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="38" Count="6" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_STATE_DONE">
+      <LineId Id="9" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_STATE_DORMANT">
+      <LineId Id="22" Count="7" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_STATE_ERROR">
+      <LineId Id="9" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="10" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_STATE_EXECUTING">
+      <LineId Id="44" Count="1" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="198" Count="0" />
+      <LineId Id="423" Count="0" />
+      <LineId Id="435" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="95" Count="1" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="448" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="100" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="121" Count="1" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="201" Count="1" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="134" Count="0" />
+      <LineId Id="149" Count="0" />
+      <LineId Id="280" Count="3" />
+      <LineId Id="455" Count="0" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="279" Count="0" />
+      <LineId Id="286" Count="0" />
+      <LineId Id="449" Count="1" />
+      <LineId Id="452" Count="1" />
+      <LineId Id="451" Count="0" />
+      <LineId Id="454" Count="0" />
+      <LineId Id="287" Count="0" />
+      <LineId Id="320" Count="8" />
+      <LineId Id="462" Count="0" />
+      <LineId Id="329" Count="0" />
+      <LineId Id="292" Count="0" />
+      <LineId Id="456" Count="4" />
+      <LineId Id="330" Count="0" />
+      <LineId Id="461" Count="0" />
+      <LineId Id="293" Count="0" />
+      <LineId Id="297" Count="0" />
+      <LineId Id="332" Count="7" />
+      <LineId Id="470" Count="0" />
+      <LineId Id="340" Count="0" />
+      <LineId Id="298" Count="0" />
+      <LineId Id="341" Count="0" />
+      <LineId Id="465" Count="4" />
+      <LineId Id="464" Count="0" />
+      <LineId Id="463" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="342" Count="8" />
+      <LineId Id="478" Count="0" />
+      <LineId Id="351" Count="0" />
+      <LineId Id="305" Count="0" />
+      <LineId Id="471" Count="0" />
+      <LineId Id="473" Count="4" />
+      <LineId Id="472" Count="0" />
+      <LineId Id="306" Count="2" />
+      <LineId Id="318" Count="0" />
+      <LineId Id="377" Count="0" />
+      <LineId Id="376" Count="0" />
+      <LineId Id="378" Count="0" />
+      <LineId Id="380" Count="0" />
+      <LineId Id="379" Count="0" />
+      <LineId Id="363" Count="0" />
+      <LineId Id="360" Count="2" />
+      <LineId Id="319" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="518" Count="3" />
+      <LineId Id="517" Count="0" />
+      <LineId Id="540" Count="0" />
+      <LineId Id="522" Count="1" />
+      <LineId Id="535" Count="4" />
+      <LineId Id="534" Count="0" />
+      <LineId Id="516" Count="0" />
+      <LineId Id="209" Count="0" />
+      <LineId Id="211" Count="1" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="220" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="221" Count="1" />
+      <LineId Id="368" Count="0" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="486" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="480" Count="5" />
+      <LineId Id="479" Count="0" />
+      <LineId Id="375" Count="0" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="236" Count="0" />
+      <LineId Id="227" Count="2" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="237" Count="0" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="238" Count="0" />
+      <LineId Id="493" Count="0" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="239" Count="0" />
+      <LineId Id="488" Count="4" />
+      <LineId Id="487" Count="0" />
+      <LineId Id="241" Count="1" />
+      <LineId Id="244" Count="8" />
+      <LineId Id="500" Count="0" />
+      <LineId Id="253" Count="0" />
+      <LineId Id="243" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="495" Count="4" />
+      <LineId Id="494" Count="0" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="257" Count="8" />
+      <LineId Id="507" Count="0" />
+      <LineId Id="266" Count="0" />
+      <LineId Id="256" Count="0" />
+      <LineId Id="501" Count="4" />
+      <LineId Id="267" Count="0" />
+      <LineId Id="506" Count="0" />
+      <LineId Id="268" Count="1" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="270" Count="1" />
+      <LineId Id="255" Count="0" />
+      <LineId Id="197" Count="0" />
+      <LineId Id="272" Count="0" />
+      <LineId Id="392" Count="0" />
+      <LineId Id="273" Count="0" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="275" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="37" Count="5" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="49" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveTurnTableToRoundBelt.M_STATE_RESETTING">
+      <LineId Id="9" Count="2" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

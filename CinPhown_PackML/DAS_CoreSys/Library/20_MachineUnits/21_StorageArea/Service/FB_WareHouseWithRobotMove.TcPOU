@@ -1,0 +1,866 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_WareHouseWithRobotMove" Id="{c34f18a3-22c7-4de8-baa3-1fa49642345b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_WareHouseWithRobotMove EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    Robot     : REFERENCE TO FB_FanucRobot_Basic_V2;
+    WareHouse : REFERENCE TO FB_WareHouse;
+   // Command   : ST_WareHouseWithRobotMove_Command;
+    Info	  : st_AutoSixAxisWarehouseParameter;
+	Stop	  : BOOL;
+END_VAR
+VAR_OUTPUT
+  // Status : ST_WareHouseWithRobotMove_Status;
+END_VAR
+VAR
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+	ClampA_WareHouseCoordinates : ST_WareHouseCoordinates;
+    ClampB_WareHouseCoordinates : ST_WareHouseCoordinates;
+	UseA 	: BOOL;
+	UseB	: BOOL;
+	TargetWarehouse : E_WareHouse;
+	Get 	:BOOL;
+	tonTimeout		:TON;
+	tonRobotTimeout		:TON;
+	_UniqueErrorCode :STRING;
+	PreviousStrStatus : STRING;
+	PreviousErrorCode : STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{89696213-4019-4c9c-9f67-931f10b5f345}" />
+    <Folder Name="State" Id="{5de75564-90d9-4f04-b2b4-8beaf8aee9f2}" />
+    <Action Name="A00_BasicUnits" Id="{0a9d1eb2-ece8-4258-868d-9fca98379a85}">
+      <Implementation>
+        <ST><![CDATA[tonTimeout(PT:=T#40S);
+tonRobotTimeout(PT:=T#300S);
+ErrorID :=2400;]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{a76b766b-4e58-4d01-b36b-ac9e3c19bef8}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
+VAR_INPUT
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Check command paremeter is correct
+
+IF NOT Info.Warehouse_A AND NOT Info.Warehouse_B THEN
+	strStatus:='Wrong command , No warehouse selected';
+	M_CheckCommand:=FALSE;
+	RETURN;
+ELSIF  Info.Warehouse_A AND  Info.Warehouse_B THEN
+	strStatus:='Wrong command , Both warehouses selected';
+	M_CheckCommand:=FALSE;
+	RETURN;
+ELSIF	Info.Warehouse_A THEN
+	TargetWarehouse:=E_WareHouse.WareHouseA;
+ELSIF	Info.Warehouse_B THEN
+	TargetWarehouse:=E_WareHouse.WareHouseB;
+END_IF
+
+IF Info.Get_A <> Info.Get_B THEN
+	strStatus:='Wrong command ,GetA not match to GetB';
+	M_CheckCommand:=FALSE;
+	RETURN;
+	ELSE
+		
+	Get :=Info.Get_A;
+END_IF
+
+
+CASE LREAL_TO_INT(Info.Layer_A) OF
+
+1,2,3,4,5,6,7,8,9,10:
+	//Normal
+	// Layer A in correct range
+	IF ((Info.Slide_A < 1) OR (Info.Slide_A > 20)) THEN
+		strStatus := 'Command error : Clamp A target slide out of range';
+		M_CheckCommand:=FALSE;
+		RETURN;
+	ELSE
+		ClampA_WareHouseCoordinates.Layer:=LREAL_TO_INT(Info.Layer_A);
+		ClampA_WareHouseCoordinates.Slide:=LREAL_TO_INT(Info.Slide_A);
+   
+		UseA:=TRUE;	
+	END_IF
+	
+99:
+	UseA:=FALSE;
+ELSE
+	 strStatus := 'Command error : Clamp A target layer out of range.';
+	 M_CheckCommand:=FALSE;
+	 RETURN;
+END_CASE
+
+
+CASE LREAL_TO_INT(Info.Layer_B) OF
+
+1,2,3,4,5,6,7,8,9,10:
+//Normal
+	// Layer A in correct range
+	IF ((Info.Slide_B < 1) OR (Info.Slide_B > 20)) THEN
+		strStatus := 'Command error : Clamp B target slide out of range';
+		M_CheckCommand:=FALSE;
+		RETURN;
+	ELSE
+		ClampB_WareHouseCoordinates.Layer:=LREAL_TO_INT(Info.Layer_B);
+		ClampB_WareHouseCoordinates.Slide:=LREAL_TO_INT(Info.Slide_B);
+		UseB:=TRUE;	
+	END_IF
+	
+99:
+		UseB:=FALSE;
+ELSE
+	 strStatus := 'Command error : Clamp B target layer out of range.';
+	 M_CheckCommand:=FALSE;
+	 RETURN;
+END_CASE
+
+
+M_CheckCommand:=TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{5b2a2e93-dc01-4672-9dcc-d2bde62d5696}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{b768fa53-75be-4c0f-b659-de7fa315ef9f}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{32cc8b5c-bf2e-497c-914f-04ec1622ac0f}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy    := FALSE;
+Aborted := TRUE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	uiExecutingStep :=uiResumeStep;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{8f6fb6a4-324c-4a1e-8128-e31260951494}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		uiAbortingStep:=9999;
+		IF strStatus = PreviousStrStatus THEN
+			_UniqueErrorCode :=PreviousErrorCode;
+		END_IF
+		_Abort :=FALSE;
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{46561604-3447-4214-9357-599c811963ec}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{ee4597f2-2dea-496b-8045-5fcc940e1c57}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+strStatus :='No Error';
+tonTimeout.IN :=FALSE;
+tonRobotTimeout.IN :=FALSE;
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+PreviousStrStatus			 :='';
+PreviousErrorCode			 :='';
+
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{df32d5ac-f837-4572-919b-783d09fef90d}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{c8d7c663-589c-412d-b2ca-18dec4dcd426}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	BoxReady_1st : BOOL;
+	BoxReady_2nd : BOOL;  
+    uiBothStep : UINT;
+    ClampA_WareHouseCoordinates : ST_WareHouseCoordinates;
+    ClampB_WareHouseCoordinates : ST_WareHouseCoordinates;
+	
+
+	
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set Busy active edit by johnson
+Busy := TRUE;
+IF THIS^.Stop THEN // Pending the timeout when Stop signal occur
+	tonTimeout.IN :=FALSE;
+	tonRobotTimeout.IN :=FALSE;
+END_IF
+// Service Process
+CASE uiExecutingStep OF
+	0:
+        // Clear variable
+       
+        tonTimeout.IN :=FALSE;
+        uiBothStep := 0;
+		BoxReady_1st := 0;
+		BoxReady_2nd := 0;
+        // Check command
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 10;
+		ELSE
+			_Error:=TRUE;
+        END_IF
+    10:
+        // Start process, check units first
+        IF M_CheckUnitsReady() THEN
+            uiExecutingStep := 20;
+        END_IF
+    20:
+        // CHeck units not busy state
+        IF M_CheckUnitsNotBusy() THEN
+            uiExecutingStep := 1000;
+        END_IF
+   
+	1000:   
+			// Read  Warehouse coordinate
+			ClampA_WareHouseCoordinates := THIS^.ClampA_WareHouseCoordinates;
+            ClampB_WareHouseCoordinates := THIS^.ClampB_WareHouseCoordinates;     
+			IF UseA AND NOT UseB THEN
+				//Only clampA
+				uiExecutingStep := 10000;
+			ELSIF NOT UseA AND UseB THEN
+				//Only ClampB 
+				uiExecutingStep := 20000;
+			ELSIF UseA AND UseB THEN
+				//Both Clamps
+				uiExecutingStep := 30000;		
+			END_IF
+       
+    10000: // Only ClampA 
+        IF NOT Robot._DI1.Done THEN
+            // Read ClampA Warehouse coordinate
+            ClampA_WareHouseCoordinates := THIS^.ClampA_WareHouseCoordinates;
+			
+			IF Get THEN// Prepare Box
+				//Pick Box
+				 WareHouse.M_StartReloadBox(WareHouseSelect := TargetWarehouse, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+           		 // Check Box reload completed
+           		 IF WareHouse.bReloadBox_Completed THEN
+           	     BoxReady_1st := TRUE;
+          		  END_IF
+				  // Robot Warehouse move
+           		 Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := TargetWarehouse,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+				tonTimeout.IN:=TRUE;
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp A reolad box timeout';
+				END_IF
+				  
+			ELSE
+					//Place Box
+					WareHouse.M_StartFeedInBox(WareHouseSelect := TargetWarehouse, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+           			 // Check Box reload completed
+           			 IF WareHouse.bFeedInBox_Completed THEN
+               			 BoxReady_1st := TRUE;
+          		 	 END_IF				
+					           
+			 	Robot.M_StartWareHousePlaceBox_ClampA(WareHouseSelect := TargetWarehouse,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+            	
+				tonTimeout.IN:=TRUE;
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp A Feedin box timeout';
+				END_IF
+           END_IF
+        ELSE
+            uiExecutingStep := 10080;
+        END_IF
+		
+		tonRobotTimeout.IN :=TRUE;
+		IF tonRobotTimeout.Q THEN
+			_Error:=TRUE;
+			strStatus:='Clamp A  robot timeout';
+		END_IF
+		
+    10080:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+		tonTimeout.IN :=FALSE;
+		tonRobotTimeout.IN :=FALSE;
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 99000; 
+        END_IF
+    
+    
+   20000: // Only ClampB
+        IF NOT Robot._DI1.Done THEN
+            			
+			IF Get THEN// Prepare Box
+				//Pick Box
+				 WareHouse.M_StartReloadBox(WareHouseSelect := TargetWarehouse, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+           		 // Check Box reload completed
+           		 IF WareHouse.bReloadBox_Completed THEN
+           	     BoxReady_2nd := TRUE;
+          		  END_IF
+				  // Robot Warehouse move
+           		 Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := TargetWarehouse,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+
+				tonTimeout.IN:=TRUE;
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp B Reload box timeout';
+				END_IF
+			ELSE
+					//Place Box
+					WareHouse.M_StartFeedInBox(WareHouseSelect := TargetWarehouse, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+           			 // Check Box reload completed
+           			 IF WareHouse.bFeedInBox_Completed THEN
+               			 BoxReady_2nd := TRUE;
+          		 	 END_IF				
+					           
+			 	Robot.M_StartWareHousePlaceBox_ClampB (WareHouseSelect := TargetWarehouse,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+            	tonTimeout.IN:=TRUE;
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp B Feedin box timeout';
+				END_IF
+           END_IF
+        ELSE
+            uiExecutingStep := 20080;
+        END_IF
+		tonRobotTimeout.IN :=TRUE;
+		IF tonRobotTimeout.Q THEN
+			_Error:=TRUE;
+			strStatus:='Clamp B Robot timeout';
+		END_IF
+		
+    20080:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+		tonTimeout.IN :=FALSE;
+		tonRobotTimeout.IN :=FALSE;
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 99000; 
+        END_IF
+		
+    30000: // Both Clamps
+        		
+		IF Get THEN //BOth clamps pick
+        CASE uiBothStep OF
+            0: // ClampA target slide move the box to front side
+                WareHouse.M_StartReloadBox(WareHouseSelect      := TargetWarehouse,
+                                           WarehouseCoordinates := ClampA_WareHouseCoordinates);
+				
+				tonTimeout.IN :=TRUE;
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp A reload timeout';
+				END_IF
+               
+                IF WareHouse.bReloadBox_Completed THEN
+					tonTimeout.IN :=FALSE;
+                    BoxReady_1st     := TRUE;
+                    uiBothStep := 10;
+                END_IF
+
+            10: // wait Robot Allow continue
+			 		WareHouse.M_ResetReloadBox();
+                IF Robot._DI1.Notification // AND
+//                    NOT
+//                    WareHouse._stWarehouseList.ASide_Layers[ClampA_WareHouseCoordinates.Layer].stStatus.bSlides[ClampA_WareHouseCoordinates.Slide]
+                    THEN
+                   
+					
+                    IF NOT WareHouse.bReloadBox_Completed THEN					
+               
+                        uiBothStep := 15;
+                    END_IF
+
+                END_IF
+			15:	IF NOT WareHouse._stWarehouseList.ASide_Layers[ClampA_WareHouseCoordinates.Layer].stStatus.bSlides[ClampA_WareHouseCoordinates.Slide] THEN
+					 uiBothStep := 20;	
+				 END_IF
+				 
+            20: // ClampB target slide move the box to front slide
+                WareHouse.M_StartReloadBox(WareHouseSelect := TargetWarehouse, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+				tonTimeout.IN :=TRUE;
+                IF WareHouse.bReloadBox_Completed THEN
+					tonTimeout.IN :=FALSE;
+                    BoxReady_2nd     := TRUE;
+                    uiBothStep := 99;
+                END_IF
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp B reload timeout';
+				END_IF
+				
+				
+            99:
+				WareHouse.M_ResetReloadBox();
+        // wait reset
+        END_CASE
+
+        Robot.M_StartWareHousePickUpBox_ClampBoth(WareHouseSelect := TargetWarehouse,
+                                                  ClampA_Info     := ClampA_WareHouseCoordinates,
+                                                  ClampB_Info     := ClampB_WareHouseCoordinates,
+                                                  BoxReady_1st    := BoxReady_1st,
+                                                  BoxReady_2nd    := BoxReady_2nd);
+												  
+		tonRobotTimeout.IN :=TRUE;
+		IF tonRobotTimeout.Q THEN
+			_Error:=TRUE;
+			strStatus:='Robot timeout';
+		END_IF
+		ELSE
+		  CASE uiBothStep OF
+			  
+			   0: // ClampA target slide move the box to front side
+                WareHouse.M_StartFeedInBox(WareHouseSelect      := TargetWarehouse,
+                                           WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+               tonTimeout.IN :=TRUE;
+                IF WareHouse.bFeedInBox_Completed THEN
+					tonTimeout.IN :=FALSE;
+                    BoxReady_1st     := TRUE;
+                    uiBothStep := 10;
+                END_IF
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp A Feedin timeout';
+				END_IF
+
+            10: // wait Robot Allow continue
+					WareHouse.M_ResetFeedInBox();
+                 IF Robot._DI1.Notification //AND
+                     
+//                    WareHouse._stWarehouseList.ASide_Layers[ClampA_WareHouseCoordinates.Layer].stStatus.bSlides[ClampA_WareHouseCoordinates.Slide]
+                    THEN
+                    
+
+                    IF NOT WareHouse.bFeedInBox_Completed THEN
+                        uiBothStep := 15;
+                    END_IF
+
+                END_IF
+			15:  
+				uiBothStep := 20;
+			
+            20: // ClampB target slide move the box to front slide
+                WareHouse.M_StartFeedInBox(WareHouseSelect := TargetWarehouse, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+				tonTimeout.IN :=TRUE;
+                IF WareHouse.bFeedInBox_Completed THEN
+					tonTimeout.IN :=FALSE;
+                    BoxReady_2nd     := TRUE;
+                    uiBothStep := 99;
+                END_IF
+				IF tonTimeout.Q THEN
+					_Error:=TRUE;
+					strStatus:='Clamp B Feedin timeout';
+				END_IF
+            99: 
+				WareHouse.M_ResetFeedInBox();
+
+        END_CASE
+
+        Robot.M_StartWareHousePlaceUpBox_ClampBoth(WareHouseSelect := TargetWarehouse,
+                                                  ClampA_Info     := ClampA_WareHouseCoordinates,
+                                                  ClampB_Info     := ClampB_WareHouseCoordinates,
+                                                  BoxReady_1st    := BoxReady_1st,
+                                                  BoxReady_2nd    := BoxReady_2nd);
+												  
+		tonRobotTimeout.IN :=TRUE;
+		IF tonRobotTimeout.Q THEN
+			_Error:=TRUE;
+			strStatus:='Robot timeout';
+		END_IF
+		END_IF
+		
+        IF Robot._DI1.Done THEN
+            uiExecutingStep := 30080;
+        END_IF
+		
+    30080: // Check robot command is clear
+        WareHouse.M_ResetReloadBox();
+        WareHouse.M_ResetFeedInBox();
+        Robot.M_ResetAllCommand();
+		tonTimeout.IN :=FALSE;
+		tonRobotTimeout.IN :=FALSE;
+		
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 99000; // go to place step
+        END_IF    
+   
+   
+    99000: // process done
+                Status    := 'Process completed';
+        _Executed := TRUE;
+END_CASE
+IF _Executed THEN
+    eState := STATE_DONE;
+ELSIF _Error THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+    eState := STATE_ERROR;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+IF _Abort OR Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eSTATE:=STATE_ABORTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{8d7a6c7f-081f-440a-bece-0e01213ed74e}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=FALSE;
+Done :=FALSE;
+Busy := FALSE;
+_Error :=FALSE;
+
+CASE uiResettingStep OF
+	
+	0:
+		tonTimeout.IN :=FALSE;
+		Robot.M_ResetAllCommand();
+		uiResettingStep:=9999;
+		WareHouse.M_ResetFeedInBox();
+		WareHouse.M_ResetReloadBox();
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_WareHouseWithRobotMove">
+      <LineId Id="9" Count="0" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.A00_BasicUnits">
+      <LineId Id="1" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_CheckCommand">
+      <LineId Id="24" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="112" Count="3" />
+      <LineId Id="121" Count="1" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="125" Count="1" />
+      <LineId Id="129" Count="1" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="137" Count="2" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="79" Count="5" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="74" Count="1" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="86" Count="11" />
+      <LineId Id="119" Count="1" />
+      <LineId Id="98" Count="10" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="109" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_STATE_ABORTED">
+      <LineId Id="14" Count="9" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_STATE_ABORTING">
+      <LineId Id="12" Count="2" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="15" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_STATE_DONE">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_STATE_DORMANT">
+      <LineId Id="6" Count="0" />
+      <LineId Id="23" Count="9" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_STATE_ERROR">
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_STATE_EXECUTING">
+      <LineId Id="6" Count="1" />
+      <LineId Id="905" Count="1" />
+      <LineId Id="908" Count="0" />
+      <LineId Id="907" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="46" Count="3" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="53" Count="4" />
+      <LineId Id="561" Count="1" />
+      <LineId Id="58" Count="11" />
+      <LineId Id="707" Count="0" />
+      <LineId Id="710" Count="0" />
+      <LineId Id="708" Count="1" />
+      <LineId Id="563" Count="1" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="566" Count="1" />
+      <LineId Id="571" Count="0" />
+      <LineId Id="568" Count="1" />
+      <LineId Id="572" Count="0" />
+      <LineId Id="565" Count="0" />
+      <LineId Id="91" Count="4" />
+      <LineId Id="573" Count="1" />
+      <LineId Id="598" Count="5" />
+      <LineId Id="578" Count="0" />
+      <LineId Id="614" Count="3" />
+      <LineId Id="611" Count="0" />
+      <LineId Id="839" Count="1" />
+      <LineId Id="842" Count="0" />
+      <LineId Id="841" Count="0" />
+      <LineId Id="612" Count="0" />
+      <LineId Id="575" Count="0" />
+      <LineId Id="605" Count="5" />
+      <LineId Id="604" Count="0" />
+      <LineId Id="580" Count="0" />
+      <LineId Id="618" Count="1" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="844" Count="3" />
+      <LineId Id="843" Count="0" />
+      <LineId Id="111" Count="3" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="798" Count="3" />
+      <LineId Id="796" Count="0" />
+      <LineId Id="794" Count="0" />
+      <LineId Id="115" Count="2" />
+      <LineId Id="838" Count="0" />
+      <LineId Id="118" Count="2" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="620" Count="2" />
+      <LineId Id="625" Count="12" />
+      <LineId Id="848" Count="3" />
+      <LineId Id="638" Count="12" />
+      <LineId Id="852" Count="3" />
+      <LineId Id="651" Count="4" />
+      <LineId Id="802" Count="3" />
+      <LineId Id="656" Count="0" />
+      <LineId Id="806" Count="0" />
+      <LineId Id="657" Count="2" />
+      <LineId Id="836" Count="1" />
+      <LineId Id="660" Count="1" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="662" Count="0" />
+      <LineId Id="206" Count="1" />
+      <LineId Id="663" Count="0" />
+      <LineId Id="210" Count="4" />
+      <LineId Id="808" Count="3" />
+      <LineId Id="807" Count="0" />
+      <LineId Id="217" Count="1" />
+      <LineId Id="812" Count="0" />
+      <LineId Id="219" Count="4" />
+      <LineId Id="924" Count="0" />
+      <LineId Id="224" Count="6" />
+      <LineId Id="813" Count="0" />
+      <LineId Id="231" Count="3" />
+      <LineId Id="887" Count="1" />
+      <LineId Id="926" Count="0" />
+      <LineId Id="889" Count="0" />
+      <LineId Id="235" Count="3" />
+      <LineId Id="825" Count="0" />
+      <LineId Id="239" Count="2" />
+      <LineId Id="822" Count="2" />
+      <LineId Id="819" Count="2" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="771" Count="0" />
+      <LineId Id="243" Count="7" />
+      <LineId Id="856" Count="0" />
+      <LineId Id="858" Count="3" />
+      <LineId Id="857" Count="0" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="667" Count="0" />
+      <LineId Id="738" Count="0" />
+      <LineId Id="741" Count="5" />
+      <LineId Id="830" Count="0" />
+      <LineId Id="747" Count="2" />
+      <LineId Id="827" Count="2" />
+      <LineId Id="826" Count="0" />
+      <LineId Id="750" Count="1" />
+      <LineId Id="925" Count="0" />
+      <LineId Id="752" Count="10" />
+      <LineId Id="884" Count="0" />
+      <LineId Id="886" Count="0" />
+      <LineId Id="885" Count="0" />
+      <LineId Id="763" Count="3" />
+      <LineId Id="831" Count="0" />
+      <LineId Id="767" Count="2" />
+      <LineId Id="833" Count="2" />
+      <LineId Id="832" Count="0" />
+      <LineId Id="770" Count="0" />
+      <LineId Id="792" Count="0" />
+      <LineId Id="698" Count="6" />
+      <LineId Id="664" Count="0" />
+      <LineId Id="862" Count="0" />
+      <LineId Id="864" Count="3" />
+      <LineId Id="863" Count="0" />
+      <LineId Id="665" Count="1" />
+      <LineId Id="252" Count="2" />
+      <LineId Id="705" Count="0" />
+      <LineId Id="255" Count="1" />
+      <LineId Id="706" Count="0" />
+      <LineId Id="257" Count="1" />
+      <LineId Id="793" Count="0" />
+      <LineId Id="868" Count="0" />
+      <LineId Id="259" Count="2" />
+      <LineId Id="469" Count="0" />
+      <LineId Id="554" Count="2" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="8" Count="3" />
+      <LineId Id="942" Count="0" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="943" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseWithRobotMove.M_STATE_RESETTING">
+      <LineId Id="11" Count="7" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="19" Count="7" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

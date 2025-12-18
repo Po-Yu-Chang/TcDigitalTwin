@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_OutRobotParameterCore" Id="{ead28abc-90ad-4022-b891-81acbcb39de3}">
+    <Declaration><![CDATA[////出料區座標結構
+TYPE st_OutRobotParameterCore  :
+STRUCT
+   fName  :STRING;
+   index:  LREAL;
+	X      :LREAL;
+	Y      :LREAL;
+	Rotate :LREAL;
+	Clip   :LREAL;
+	Excute:BOOL;
+	Done  :BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_HMI_StorageArea" Id="{cf158264-cdef-41e0-b029-e313753d26f9}">
+    <Declaration><![CDATA[TYPE
+    ST_HMI_StorageArea :
+    STRUCT
+        Manual   : ST_Manual_Storage;
+        //HalfAuto : ST_HalfAuto_Storage;	//裡面空白結構會導致c# 交握Size出問題
+        //Auto     : ST_Auto_Storage;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

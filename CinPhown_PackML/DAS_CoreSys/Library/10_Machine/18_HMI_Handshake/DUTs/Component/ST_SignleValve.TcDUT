@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SignleValve" Id="{88a3028e-867b-405c-acf0-6a135b1bdc63}">
+    <Declaration><![CDATA[TYPE
+    ST_SignleValve :
+    STRUCT
+        Exetend : BOOL;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

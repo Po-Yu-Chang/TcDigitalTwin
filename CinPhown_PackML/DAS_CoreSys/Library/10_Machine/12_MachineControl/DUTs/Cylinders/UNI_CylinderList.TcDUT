@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="UNI_CylinderList" Id="{2d6f0041-738f-43a4-8e43-0d3aecc2acb3}">
+    <Declaration><![CDATA[TYPE
+    UNI_CylinderList :
+    UNION
+        arCylinder : ARRAY[1..udiMax_CylinderNum] OF FB_Cylinder;
+        List       : ST_CylinderList;
+    END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

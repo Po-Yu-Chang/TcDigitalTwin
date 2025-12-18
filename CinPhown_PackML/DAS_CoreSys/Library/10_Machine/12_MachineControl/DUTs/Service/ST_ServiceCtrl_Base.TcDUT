@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ServiceCtrl_Base" Id="{3292e313-22fe-4d35-82dd-19de22757e4e}">
+    <Declaration><![CDATA[TYPE
+    ST_ServiceCtrl_Base :
+    STRUCT
+        Execute : BOOL; // Service Execute
+        Abort   : BOOL; // Service Abort
+        Reset   : BOOL; // Service Reset
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

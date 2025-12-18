@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_SimpleAllocateHandShake" Id="{ca9aba26-8705-481b-b988-cf956812d965}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_SimpleAllocateHandShake :
+    STRUCT
+        Command            :ST_SimpleAllocateCommand; // Commands about simple allocate function
+        Status             :ST_SimpleAllocateStatus; // Status about simple allocate function
+        SimpleAllocateInfo :ST_SimpleAllocateInfo; // Parameters about simple allocate function
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

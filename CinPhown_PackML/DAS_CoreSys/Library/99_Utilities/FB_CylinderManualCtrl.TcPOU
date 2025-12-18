@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_CylinderManualCtrl" Id="{7c7c54ab-a9d0-49ee-8d3a-252702d8020d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CylinderManualCtrl
+VAR_INPUT
+	bTrigger	: BOOL;
+	Cylinder	: REFERENCE TO  FB_Cylinder; 
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	rTrig	:R_TRIG;
+	fTrig	:F_TRIG;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[rTrig(CLK:=bTrigger);
+fTrig(CLK:=bTrigger);
+
+IF rTrig.Q THEN
+	Cylinder.M_Extend();
+ELSIF fTrig.Q THEN
+	Cylinder.M_Retract();
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_CylinderManualCtrl">
+      <LineId Id="9" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="18" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_PullOutConveyorState" Id="{43bd1476-5780-472d-89df-21622158c6d7}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_PullOutConveyorState :
+(
+	idle := 0,
+	AutoMode,
+	Free
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

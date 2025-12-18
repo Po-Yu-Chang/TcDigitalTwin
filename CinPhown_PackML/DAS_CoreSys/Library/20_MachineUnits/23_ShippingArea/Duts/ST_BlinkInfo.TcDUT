@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_BlinkInfo" Id="{957c7961-828e-41c0-ba5c-0e69d718c89f}">
+    <Declaration><![CDATA[TYPE ST_BlinkInfo :
+STRUCT
+	BuzzCount		: UINT;
+	LightCount		: UINT;	
+	MaxBuzzCOunt    : UINT := 3;
+	MaxLightCount	: UINT := 3;
+	trigBizz		:R_TRIG;
+	TrigLight		:R_TRIG;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

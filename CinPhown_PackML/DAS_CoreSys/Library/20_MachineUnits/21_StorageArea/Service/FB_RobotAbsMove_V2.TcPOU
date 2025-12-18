@@ -1,0 +1,1319 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_RobotAbsMove_V2" Id="{96b46224-f080-45cd-b7ec-bdd2d780f4c4}" SpecialFunc="None">
+    <Declaration><![CDATA[// Jidien Kachu Edited in 2025/10/14
+FUNCTION_BLOCK FB_RobotAbsMove_V2 EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    Robot         : REFERENCE TO FB_FanucRobot_Basic_V2;
+    LowerConveyor : REFERENCE TO FB_Motor;
+    // Command   : ST_WareHouseWithRobotMove_Command;
+    Info : st_AutoSixAxisAbsMoveParameter;
+	Input :ST_InputTable;
+    Stop : BOOL;
+	Output : ST_OutputTable;
+	Cylinder 	: REFERENCE TO UNI_CylinderList;
+END_VAR
+VAR_OUTPUT
+    // Status : ST_WareHouseWithRobotMove_Status;
+	AClampMoveDone	: BOOL;
+	BClampMoveDone	: BOOL;
+END_VAR
+VAR
+    _Abort       : BOOL;
+    strStatus    : STRING;
+    uiResumeStep : UINT;
+
+    Area : E_RobotArea;
+    UseA : BOOL;
+    UseB : BOOL;
+
+    Get                         : BOOL;
+    tonTimeOut                  : TON;
+	bTimeOutIN					: BOOL;
+	tonDelay					 : TON;
+    _UniqueErrorCode            : STRING;
+    FirstSensorOfLowerConveyor  : BOOL;
+    SecondSensorOfLowerConveyor : BOOL;
+
+	//Added by Jidien Kachu in 2025/10/09
+	uiLastBothStep	: UINT;
+	uiLastSingleClampStep	: UINT;
+	bRobotTimeOutIN	: BOOL;
+	tonRobotTimeOut	: TON;
+	uiBothStep	: UINT;
+	uiSingleClampStep	: UINT;
+	bMotorDelayIN	: BOOL;
+	tonMotorDelay	: TON;
+	bIOTimeoutIN	: BOOL;
+	tonIOTimeout	: TON;
+	bRetry: BOOL;
+	
+	//Added by Gamin in 2025//11/24
+	_AClampDoingWork	: BOOL;
+	_BClampDoingWork	: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
+FirstSensorOfLowerConveyor := Input.bLowCV_BoxArrived_Sensor;
+SecondSensorOfLowerConveyor := NOT Input.bLowCV_2ndBoxGap_Sensor;// .bLowCV_Block2Detect_Sensor;
+
+(*============================================================
+Create Date : 2025/11/22
+Last Update	: 2025/11/24
+Change Log  : send flag A clamp done and B clamp done for C# use to SQL // Edited : Gamin
+============================================================*)]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{782c9af9-4f03-469f-9da8-6f4880765cda}" />
+    <Folder Name="State" Id="{9c458270-fe39-4e17-a2e7-35cffc26ff98}" />
+    <Action Name="A00_BasicUnits" Id="{50d3543e-42e1-4290-9b06-6917d63c55c6}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(IN:= bTimeOutIN AND NOT THIS^.Stop, PT:=T#60S);
+tonDelay(PT:=T#1S);
+ErrorID :=2200;
+tonMotorDelay(IN:= bMotorDelayIN,PT:=T#1S);
+tonIOTimeout(IN:= bIOTimeoutIN,PT:= T#1S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{085c7649-db04-4e86-b7a9-89d9ddef656e}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
+VAR_INPUT
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Check command paremeter is correct
+
+
+IF Info.A_Get <> Info.B_Get THEN
+	strStatus:='Wrong command ,GetA not match to GetB';
+	M_CheckCommand:=FALSE;
+	RETURN;
+ELSE		
+	THIS^.Get :=Info.A_Get;
+END_IF
+
+IF Info.A_Area<> Info.B_Area THEN
+	IF NOT(Info.A_Area=99 OR Info.B_Area=99) THEN
+	strStatus:='Wrong command ,Area A not match to Area B';
+	M_CheckCommand:=FALSE;
+	RETURN;
+END_IF
+END_IF
+
+IF Info.A_Area = 99 AND Info.B_Area = 99 THEN
+	strStatus:='Wrong command ,Both Area are 99';
+	M_CheckCommand:=FALSE;
+	RETURN;
+END_IF
+
+CASE LREAL_TO_INT(Info.A_Area) OF
+	1 : //Normal command : RoundBelt
+		IF Info.A_Position<1 OR  Info.A_Position>3 THEN
+			strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.RoundBelt;
+			UseA :=TRUE	;	
+		END_IF
+		
+	2:	//Buffer area
+		IF Info.A_Position<1 OR  Info.A_Position>40 THEN
+			strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.BufferArea;
+			UseA :=TRUE	;	
+		END_IF
+	3: //Allocated/Empty conveyor
+		IF Info.A_Position<1 OR  Info.A_Position>2 THEN
+			strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.TransmitCV;
+			UseA :=TRUE	;	
+		END_IF
+	5: //FeedIn/Out conveyor
+		IF Info.A_Position<1 OR  Info.A_Position>5 THEN
+			strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSIF Info.A_Position=3 AND Get THEN
+			strStatus:='Wrong command ,Can Not Get box from FeedOut conveyor ';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.InOutConveyor;
+			UseA :=TRUE	;	
+		END_IF
+	7: // PullOut conveyor
+		IF Info.A_Position<1 OR  Info.A_Position>2 THEN
+			strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.PullOutConveyor;
+			UseA :=TRUE	;	
+		END_IF
+	
+	99: //ClampA not use
+		UseA :=FALSE;
+	
+	ELSE //Wrong command
+		strStatus:='Wrong command ,Area_A not allow ';
+		M_CheckCommand:=FALSE;
+		RETURN;
+
+END_CASE
+
+CASE LREAL_TO_INT(Info.B_Area) OF
+	1 : //Normal command : RoundBelt
+		IF Info.B_Position<1 OR  Info.B_Position>3 THEN
+			strStatus:='Wrong command ,Position B Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.RoundBelt;
+			UseB :=TRUE	;	
+		END_IF
+		
+	2:	
+		IF Info.B_Position<1 OR  Info.B_Position>40 THEN
+			strStatus:='Wrong command ,Position B Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.BufferArea;
+			UseB :=TRUE	;	
+		END_IF
+	3:
+		IF Info.B_Position<1 OR  Info.B_Position>2 THEN
+			strStatus:='Wrong command ,Position B Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.TransmitCV;
+			UseB :=TRUE	;	
+		END_IF
+	5:
+		IF Info.B_Position<1 OR  Info.B_Position>5 THEN
+			strStatus:='Wrong command ,Position B Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.InOutConveyor;
+			UseB :=TRUE	;	
+		END_IF
+	7:
+		IF Info.B_Position<1 OR  Info.B_Position>2 THEN
+			strStatus:='Wrong command ,Position B Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSIF Info.B_Position=3 AND Get THEN
+			strStatus:='Wrong command ,Can Not Get box from FeedOut conveyor ';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+		ELSE
+			Area := E_RobotArea.PullOutConveyor;
+			UseB :=TRUE	;	
+		END_IF
+	
+	99: //ClampA not use
+		UseB :=FALSE;
+	
+	ELSE //Wrong command
+		strStatus:='Wrong command ,Area_B not allow ';
+		M_CheckCommand:=FALSE;
+		RETURN;
+
+END_CASE
+
+
+M_CheckCommand:=TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{2b7f4f5a-91f7-47d9-a253-ed4e4f3bd632}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{ff3f00d7-8b3d-4a5f-98ec-0f4d2158f48f}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{3e2ec5bf-f067-4e19-a33e-84fcdee0fc89}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+//Edited by Jidien Kachu in 2025/10/28
+IF NOT bRetry THEN
+	ERROR :=TRUE;
+	Busy    := FALSE;
+	Aborted := TRUE;
+	Status := strStatus;
+	UniqueErrorCode:=_UniqueErrorCode;
+	uiAbortingStep := 0;
+END_IF
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+_AbortCompleted:=FALSE;//Edited by Jidien Kachu in 2025/10/14
+
+IF Reset THEN
+	bRetry := TRUE;
+	ERROR :=FALSE;
+	Aborted := FALSE;
+END_IF
+
+IF Execute AND bRetry AND NOT Robot.Error THEN
+	uiExecutingStep :=uiResumeStep;
+	eSTATE:=STATE_EXECUTING;
+	//Edited by Jidien Kachu in 2025/10/14
+	uiBothStep := uiLastBothStep;
+	uiSingleClampStep := uiLastSingleClampStep;
+	ERROR :=FALSE;
+	_Abort := FALSE;
+	Aborted := FALSE;
+	//////////////////////////////////////
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{de2c294e-8a42-414d-96c0-8f06e98c6069}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		tonDelay.IN := FALSE	;
+		bTimeOutIN := FALSE;
+		AClampMoveDone	:= FALSE;
+		BClampMoveDone	:= FALSE;
+		_AClampDoingWork	:= FALSE;
+		_BClampDoingWork	:= FALSE;
+		_Abort := FALSE;
+		//Edited by Jidien Kachu in 2025/10/14
+		LowerConveyor.M_MotorStop();
+		IF 	LowerConveyor.InStopped THEN
+			uiAbortingStep:=9999;
+		END_IF
+	
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{0f28394e-e8fe-494a-8d22-1fbe30bbce8d}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{249adeba-60cd-40f1-8fb0-853548d8e5a6}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_AbortCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+tonDelay.IN := FALSE	;
+bTimeOutIN:=FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+AClampMoveDone	:= FALSE;
+BClampMoveDone	:= FALSE;
+_AClampDoingWork	:= FALSE;
+_BClampDoingWork	:= FALSE;
+
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{35d1104c-9136-41f2-ae5e-534fe447aa33}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+ErrorID :=2200;
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{c1985310-0213-4a0c-82e2-a03ba18ac3a3}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+    ActionMode       : E_ReloadRoundBoxAction;
+	BoxReady_1st : BOOL;
+	BoxReady_2nd : BOOL;
+    CarrierReady_1st : BOOL;
+    CarrierReady_2nd : BOOL;
+    uiBothStep : UINT;
+    uiSingleClampStep : UINT;	
+	Area : E_RobotArea;
+	Address_A : INT;
+	Address_B : INT;
+END_VAR
+VAR
+	WareHouse: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set Busy active edit by johnson
+Busy := TRUE;
+(*IF THIS^.Stop THEN // Pending the timeout when Stop signal occur
+	tonTimeout.IN :=FALSE;
+END_IF*)
+// Service Process
+CASE uiExecutingStep OF
+	0:
+        // Clear variable
+        ActionMode       := E_ReloadRoundBoxAction.Undefined;
+        CarrierReady_1st := FALSE;
+        CarrierReady_2nd := FALSE;
+//        uiBothStep := 0;
+//		uiSingleClampStep :=0;
+		uiLastBothStep := 0;//Edited by Jidien Kachu in 2025/10/14
+		uiLastSingleClampStep := 0;//Edited by Jidien Kachu in 2025/10/14
+		BoxReady_1st := 0;
+		BoxReady_2nd := 0;
+		bTimeOutIN:=FALSE;
+        // Check command
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 10;
+		ELSE
+			_Error:=TRUE;
+        END_IF
+    10:
+        // Start process, check units first
+        IF M_CheckUnitsReady() THEN
+            uiExecutingStep := 20;
+        END_IF
+    20:
+        // CHeck units not busy state
+        IF M_CheckUnitsNotBusy() THEN
+            uiExecutingStep := 1000;
+        END_IF
+   
+	1000:   
+			// Read   coordinate
+			 Area := THIS^.Area;
+ 			 Address_A := LREAL_TO_INT(Info.A_Position);
+			 Address_B := LREAL_TO_INT(Info.B_Position);
+			 
+			IF UseA AND NOT UseB THEN
+				//Only clampA
+				uiExecutingStep := 10000;
+			ELSIF NOT UseA AND UseB THEN
+				//Only ClampB 
+				uiExecutingStep := 20000;
+			ELSIF UseA AND UseB THEN
+				//Both Clamps
+				uiExecutingStep := 30000;		
+			END_IF
+       
+    10000: // Only ClampA 
+        IF NOT Robot._DI1.Done THEN
+            //Edited by Jidien Kachu in 2025/10/14
+				CASE uiSingleClampStep OF
+					0://
+						IF Area= E_RobotArea.InOutConveyor AND Address_A=3 THEN
+							IF Cylinder.List.fbLowCV_Block1.InRearPosition THEN
+								uiSingleClampStep:=100;// Need to control feedout conveyor
+							ELSE
+								_Error := TRUE;
+								strStatus := 'Block 2 cylinder inrearPosition';
+							END_IF
+						ELSE
+							uiSingleClampStep:=1000;	
+						END_IF
+					100:	
+						tonDelay.IN := FALSE	;
+						LowerConveyor.M_MoveBackward();
+						IF (NOT FirstSensorOfLowerConveyor) AND (NOT SecondSensorOfLowerConveyor) THEN
+							bTimeOutIN:=FALSE;;
+							uiSingleClampStep:=150;
+						END_IF
+						bTimeOutIN:=TRUE;
+						//Edited by Jidien Kachu in 2025/10/14
+						IF tonTimeOut.Q=TRUE OR robot._DI1.Error THEN
+							strStatus :='Empty Conveyor timeout';
+	//						_Error:=TRUE;
+							_Abort := TRUE;
+							uiLastSingleClampStep := 0;
+							uiResumeStep := 10000;
+							uiAbortingStep := 0;
+						END_IF
+						//////////////////////////////////////////
+					150:
+						tonDelay.IN := TRUE;
+						IF tonDelay.Q THEN
+							uiSingleClampStep:=200;
+						END_IF	
+					200:
+						tonDelay.IN := FALSE	;
+						LowerConveyor.M_MotorStop();
+						uiSingleClampStep:=300;
+					
+					300:
+						IF 	LowerConveyor.InStopped THEN
+							bTimeOutIN:=FALSE;
+							BoxReady_1st:=TRUE;
+							uiSingleClampStep:=9999;
+						END_IF
+						bTimeOutIN:=TRUE;
+						//Edited by Jidien Kachu in 2025/10/14
+						IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
+							strStatus :='Stop Conveyor timeout';
+	//						_Error:=TRUE;
+							_Abort := TRUE;
+							uiLastSingleClampStep := 200;
+							uiResumeStep := 10000;
+							uiAbortingStep := 0;
+						END_IF	
+						//////////////////////////////////////////
+					1000:
+							BoxReady_1st:=TRUE;
+							_AClampDoingWork := TRUE;
+							uiSingleClampStep:=9999;
+					9999: //Wait	
+				END_CASE
+//			END_IF
+			
+			          		 
+				  // Robot Abs move
+           		 Robot.M_StartRobotAbsMove(GetBox:=Get,
+											UseClampA:=UseA,
+											UseClampB:=UseB,
+											Area:=Area,
+											ClampA_Address:=Address_A,
+											ClampB_Address:=Address_B,
+											BoxReady_1:=BoxReady_1st,
+											BoxReady_2:=BoxReady_2nd);		
+
+			// robot doing AClamp done
+			IF Get THEN
+				IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+					AClampMoveDone := TRUE;
+				END_IF
+			ELSE
+				IF _AClampDoingWork AND Robot._DI1.ClampA_Open THEN
+					AClampMoveDone := TRUE;
+				END_IF
+			END_IF	  
+		
+        ELSE
+            uiExecutingStep := 10080;
+        END_IF
+		
+    10080:
+        Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
+		bTimeOutIN:=TRUE;
+        IF NOT Robot._DI1.Done THEN
+			bTimeOutIN:=FALSE;
+            uiExecutingStep := 40000; 
+        END_IF
+    	IF tonTimeOut.Q=TRUE THEN
+			strStatus :='Reset Robot timeout';
+			_Error:=TRUE;
+		END_IF
+		
+    
+   20000: // Only ClampB
+        IF NOT Robot._DI1.Done THEN
+				CASE uiSingleClampStep OF
+					0://
+						IF Area= E_RobotArea.InOutConveyor AND Address_B=3 THEN
+							IF Cylinder.List.fbLowCV_Block1.InRearPosition THEN
+								uiSingleClampStep:=100;// Need to control feedout conveyor
+							ELSE
+								_Error := TRUE;
+								strStatus := 'Block 2 cylinder inrearPosition';
+							END_IF
+						ELSE
+							uiSingleClampStep:=1000;	
+						END_IF
+					100:	
+						tonDelay.IN := FALSE;
+						LowerConveyor.M_MoveBackward();
+						IF (NOT FirstSensorOfLowerConveyor) AND (NOT SecondSensorOfLowerConveyor) THEN
+							bTimeOutIN:=FALSE;
+							uiSingleClampStep:=150;
+						END_IF
+						bTimeOutIN:=TRUE;
+						//Edited by Jidien Kachu in 2025/10/14
+						IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
+							strStatus :='Empty Conveyor timeout';
+	//						_Error:=TRUE;
+							_Abort := TRUE;
+							uiLastSingleClampStep := 0;
+							uiResumeStep := 20000;
+							uiAbortingStep := 0;
+						END_IF	
+						///////////////////////////////////////////
+					150:
+						tonDelay.IN := TRUE;
+						IF tonDelay.Q THEN
+							uiSingleClampStep:=200;
+						END_IF	
+		
+					200:
+						tonDelay.IN := FALSE;
+						LowerConveyor.M_MotorStop();
+						uiSingleClampStep:=300;
+					
+					300:
+						IF 	LowerConveyor.InStopped THEN
+							bTimeOutIN:=FALSE;
+							BoxReady_2nd:=TRUE;
+							uiSingleClampStep:=9999;
+						END_IF
+						bTimeOutIN:=TRUE;
+						//Edited by Jidien Kachu in 2025/10/14
+						IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
+							strStatus :='Stop Conveyor timeout';
+	//						_Error:=TRUE;
+							_Abort := TRUE;
+							uiLastSingleClampStep := 200;
+							uiResumeStep := 20000;
+							uiAbortingStep := 0;
+						END_IF	
+						///////////////////////////////////////////
+					1000:
+							BoxReady_2nd	 := TRUE;
+							_BClampDoingWork := TRUE;
+							uiSingleClampStep:=9999;
+					
+					9999: //Wait			
+				END_CASE
+//			END_IF
+			
+			          		 
+				  // Robot Abs move
+           		 Robot.M_StartRobotAbsMove( GetBox:=Get,
+											UseClampA:=UseA,
+											UseClampB:=UseB,
+											Area:=Area,
+											ClampA_Address:=Address_A,
+											ClampB_Address:=Address_B,
+											BoxReady_1:=BoxReady_1st,
+											BoxReady_2:=BoxReady_2nd);	
+											
+			// robot doing BClamp done
+			IF Get THEN
+				IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN 
+					BClampMoveDone := TRUE;
+				END_IF
+			ELSE
+				IF _BClampDoingWork AND  Robot._DI1.ClampB_Open THEN 
+					BClampMoveDone := TRUE;
+				END_IF
+			END_IF
+											
+        ELSE
+            uiExecutingStep := 20080;
+        END_IF
+		
+    20080:
+       Robot.M_ResetRobotAbsMove(UseA,UseB);; // Clear command 
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 40000; 
+        END_IF
+		bTimeOutIN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			strStatus :='Reset Robot timeout';
+			_Error:=TRUE;
+		END_IF	
+    30000: // Both Clamps
+			CASE uiBothStep OF
+           		0://	
+					BoxReady_1st := FALSE;
+					BoxReady_2nd := FALSE;
+					IF Area= E_RobotArea.InOutConveyor AND Address_A=3 THEN
+						IF Cylinder.List.fbLowCV_Block1.InRearPosition THEN
+								uiBothStep:=100;// Need to control feedout conveyor
+							ELSE
+								_Error := TRUE;
+								strStatus := 'Block 1 cylinder inrearPosition';
+							END_IF
+					ELSE
+						uiBothStep:=1000;	
+					END_IF
+				100:	
+					tonDelay.IN := FALSE;
+					LowerConveyor.M_MoveBackward();
+					bTimeOutIN:=FALSE;
+					IF (NOT FirstSensorOfLowerConveyor) AND (NOT SecondSensorOfLowerConveyor) THEN
+						uiBothStep:=150;
+					END_IF
+					bTimeOutIN:=TRUE;
+					//Edited by Jidien Kachu in 2025/10/14
+					IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
+						strStatus :='Empty Robot timeout';
+//						_Error:=TRUE;
+						_Abort := TRUE;
+						uiLastBothStep := 0;
+						uiResumeStep := 30000;
+						uiAbortingStep := 0;
+					END_IF	
+					///////////////////////////////////////////					
+				150:
+					tonDelay.IN := TRUE;
+					IF tonDelay.Q THEN
+						uiBothStep:=200;
+					END_IF	
+				
+				200:
+					tonDelay.IN := FALSE;
+					LowerConveyor.M_MotorStop();
+					uiBothStep:=300;
+				
+				300:
+					IF 	LowerConveyor.InStopped THEN
+						bTimeOutIN:=FALSE;
+						BoxReady_1st:=TRUE;
+						uiBothStep:=2000;
+					END_IF
+					bTimeOutIN:=TRUE;
+					//Edited by Jidien Kachu in 2025/10/14
+					IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
+						strStatus :='Stop Robot timeout';
+//						_Error:=TRUE;
+						_Abort := TRUE;
+						uiLastBothStep := 200;
+						uiResumeStep := 30000;
+						uiAbortingStep := 0;
+					END_IF	
+					///////////////////////////////////////////					
+				1000:
+						BoxReady_1st	 := TRUE;
+						_AClampDoingWork := TRUE;
+						uiBothStep:=2000;
+						
+				2000:
+						IF Robot._DI1.Notification THEN
+							uiBothStep:=3000;
+						END_IF
+						//Edited by Jidien Kachu in 2025/10/14
+						IF Robot._DI1.Error THEN
+							_Abort := TRUE;
+							uiLastBothStep := 0;
+							uiResumeStep := 30000;
+							uiAbortingStep := 0;
+							BoxReady_1st:=FALSE;
+						END_IF
+						/////////////////////////////////////
+				3000:
+					
+					IF Area= E_RobotArea.InOutConveyor AND Address_B=3 THEN
+						uiBothStep:=3100;// Need to control feedout conveyor 
+					ELSE
+						uiBothStep:=9000;	
+					END_IF
+				3100:	
+					tonDelay.IN := FALSE;
+					LowerConveyor.M_MoveBackward();
+					IF (NOT FirstSensorOfLowerConveyor) AND (NOT SecondSensorOfLowerConveyor) THEN
+						bTimeOutIN:=FALSE;
+						uiBothStep:=3200;
+					END_IF
+					bTimeOutIN:=TRUE;
+					//Edited by Jidien Kachu in 2025/10/14
+					IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
+						strStatus :='Empty Robot timeout';
+//						_Error:=TRUE;
+						_Abort := TRUE;
+						uiLastBothStep := 3000;
+						uiResumeStep := 30000;
+						uiAbortingStep := 0;
+					END_IF	
+					///////////////////////////////////////////					
+				3200:
+					tonDelay.IN := TRUE;
+					IF tonDelay.Q THEN
+						LowerConveyor.M_MotorStop();
+						uiBothStep:=3300;
+					END_IF	
+					
+				
+				3300:
+					bTimeOutIN:=TRUE;
+					tonDelay.IN := FALSE;
+					IF 	LowerConveyor.InStopped THEN
+						bTimeOutIN:=FALSE;
+						BoxReady_2nd:=TRUE;
+						uiBothStep:=9999;
+					END_IF
+					
+					//Edited by Jidien Kachu in 2025/10/14
+					IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
+						strStatus :='Stop Robot timeout';
+//						_Error:=TRUE;
+						_Abort := TRUE;
+						uiLastBothStep := 3200;
+						uiResumeStep := 30000;
+						uiAbortingStep := 0;
+					END_IF	
+					///////////////////////////////////////////					
+				9000:
+						BoxReady_2nd	 := TRUE;
+						_BClampDoingWork := TRUE;
+						uiBothStep:=9999;
+				
+				9999: //Wait		
+				//Edited by Jidien Kachu in 2025/10/14
+						IF Robot._DI1.Error THEN
+							_Abort := TRUE;
+							uiLastBothStep := 3100;
+							uiResumeStep := 30000;
+							uiAbortingStep := 0;
+							BoxReady_2nd:=FALSE;
+						END_IF
+						/////////////////////////////////////
+			// wait reset
+			END_CASE
+//		END_IF
+		
+		  
+
+       	  // Robot Abs move
+           		 Robot.M_StartRobotAbsMove( GetBox:=Get,
+											UseClampA:=UseA,
+											UseClampB:=UseB,
+											Area:=Area,
+											ClampA_Address:=Address_A,
+											ClampB_Address:=Address_B,
+											BoxReady_1:=BoxReady_1st,
+											BoxReady_2:=BoxReady_2nd);	
+			IF Get THEN								
+				IF _AClampDoingWork AND  NOT Robot._DI1.ClampA_Open THEN
+					AClampMoveDone := TRUE;
+				END_IF
+				IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN 
+					BClampMoveDone := TRUE;
+				END_IF
+			ELSE
+				IF _AClampDoingWork AND Robot._DI1.ClampA_Open THEN
+					AClampMoveDone := TRUE;
+				END_IF
+				IF _BClampDoingWork AND Robot._DI1.ClampB_Open THEN 
+					BClampMoveDone := TRUE;
+				END_IF
+			END_IF
+		
+		
+        IF Robot._DI1.Done THEN
+            uiExecutingStep := 30080;
+        END_IF
+		
+    30080: // Check robot command is clear
+        
+        Robot.M_ResetRobotAbsMove(UseA,UseB);
+
+        IF NOT Robot._DI1.Done THEN
+			bTimeOutIN:=FALSE;
+			IF Get THEN
+				uiExecutingStep := 99000;
+			ELSE
+				uiExecutingStep := 40000; // go to place step
+			END_IF
+            
+        END_IF    
+   		//bTimeOutIN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			strStatus :='Stop Robot timeout';
+			_Error:=TRUE;
+		END_IF
+
+	40000: // Recheck lowerconveyor Sensor not have box ## Edit by Min 20250416
+			
+			IF  FirstSensorOfLowerConveyor OR SecondSensorOfLowerConveyor THEN
+				bTimeOutIN:=FALSE;
+				LowerConveyor.M_MoveBackward();
+				uiExecutingStep:=40100;
+			ELSE
+				uiExecutingStep:=99000;
+			END_IF
+			bTimeOutIN:=TRUE;
+			IF tonTimeOut.Q=TRUE THEN
+				strStatus :='Lowerconveyor Reverse timeout';
+				//Edited by Jidien Kachu in 2025/10/14
+//				_Error:=TRUE;
+				_Abort := TRUE;
+				uiResumeStep := 40000;
+				uiAbortingStep := 0;
+				//////////////////////////////////////
+			END_IF	
+			
+	40100:
+			IF NOT (FirstSensorOfLowerConveyor) AND (NOT SecondSensorOfLowerConveyor) THEN
+				bTimeOutIN:=FALSE;
+				LowerConveyor.M_MotorStop();
+				IF LowerConveyor.InStopped THEN
+				uiExecutingStep:=99000;
+				END_IF
+			END_IF
+			bTimeOutIN:=TRUE;
+			IF tonTimeOut.Q=TRUE THEN
+				strStatus :='Lowerconveyor Reverse Stop timeout';
+				//Edited by Jidien Kachu in 2025/10/14
+//				_Error:=TRUE;
+				_Abort := TRUE;
+				uiResumeStep := 40100;
+				uiAbortingStep := 0;
+				//////////////////////////////////////
+			END_IF
+   
+    99000: // process done
+        Status    := 'Process completed';
+		Cylinder.List.fbLowCV_Block1.M_Retract();
+		Cylinder.List.fbLowCV_Press4.M_Retract();
+		IF Cylinder.List.fbLowCV_Block1.InRearPosition AND 
+			Cylinder.List.fbLowCV_Press4.InRearPosition THEN
+			_Executed := TRUE;
+			uiBothStep := 0;
+			uiSingleClampStep := 0;
+		END_IF
+END_CASE
+IF _Executed THEN
+    eState := STATE_DONE;
+	uiLastBothStep := 0; //Edited by Jidien Kachu in 2025/10/14
+	uiLastSingleClampStep := 0; //Edited by Jidien Kachu in 2025/10/1
+ELSIF _Error THEN
+	//(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+    eState := STATE_ERROR;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+IF _Abort OR Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eSTATE:=STATE_ABORTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{886bfdee-0951-452e-9774-96c1d156df6f}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=FALSE;
+Done :=FALSE;
+Busy := FALSE;
+
+
+CASE uiResettingStep OF
+	
+	0:
+		bTimeOutIN:=FALSE;
+		tonDelay.IN := FALSE	;
+		Robot.M_ResetAllCommand();
+		Robot.M_ResetRobotAbsMove(TRUE,TRUE);
+		uiResettingStep:=100;
+		AClampMoveDone	:= FALSE;
+		BClampMoveDone	:= FALSE;
+		_AClampDoingWork	:= FALSE;
+		_BClampDoingWork	:= FALSE;
+		
+	100:
+		
+		LowerConveyor.M_MotorStop();	
+		uiResettingStep:=9999;
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RobotAbsMove_V2">
+      <LineId Id="83" Count="3" />
+      <LineId Id="140" Count="4" />
+      <LineId Id="49" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="4" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_CheckCommand">
+      <LineId Id="24" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="125" Count="1" />
+      <LineId Id="129" Count="1" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="255" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="258" Count="1" />
+      <LineId Id="256" Count="1" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="283" Count="0" />
+      <LineId Id="287" Count="1" />
+      <LineId Id="285" Count="1" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="141" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="177" Count="1" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="261" Count="0" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="147" Count="1" />
+      <LineId Id="180" Count="4" />
+      <LineId Id="263" Count="0" />
+      <LineId Id="185" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="187" Count="4" />
+      <LineId Id="265" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="194" Count="4" />
+      <LineId Id="249" Count="1" />
+      <LineId Id="247" Count="1" />
+      <LineId Id="267" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="201" Count="4" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="149" Count="1" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="154" Count="1" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="143" Count="0" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="207" Count="5" />
+      <LineId Id="262" Count="0" />
+      <LineId Id="213" Count="8" />
+      <LineId Id="264" Count="0" />
+      <LineId Id="222" Count="7" />
+      <LineId Id="266" Count="0" />
+      <LineId Id="230" Count="7" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="238" Count="6" />
+      <LineId Id="252" Count="2" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="245" Count="0" />
+      <LineId Id="270" Count="0" />
+      <LineId Id="246" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="159" Count="8" />
+      <LineId Id="107" Count="1" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="109" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_STATE_ABORTED">
+      <LineId Id="52" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="42" Count="3" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="18" Count="3" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="48" Count="3" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="22" Count="3" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="2" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_STATE_ABORTING">
+      <LineId Id="12" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="41" Count="2" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="33" Count="3" />
+      <LineId Id="15" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_STATE_DONE">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_STATE_DORMANT">
+      <LineId Id="6" Count="0" />
+      <LineId Id="23" Count="6" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="47" Count="2" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_STATE_ERROR">
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_STATE_EXECUTING">
+      <LineId Id="6" Count="1" />
+      <LineId Id="1000" Count="1" />
+      <LineId Id="999" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="46" Count="5" />
+      <LineId Id="722" Count="0" />
+      <LineId Id="1089" Count="1" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="873" Count="0" />
+      <LineId Id="55" Count="2" />
+      <LineId Id="561" Count="1" />
+      <LineId Id="58" Count="11" />
+      <LineId Id="707" Count="0" />
+      <LineId Id="710" Count="0" />
+      <LineId Id="708" Count="0" />
+      <LineId Id="731" Count="0" />
+      <LineId Id="734" Count="1" />
+      <LineId Id="563" Count="1" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="566" Count="1" />
+      <LineId Id="571" Count="0" />
+      <LineId Id="568" Count="1" />
+      <LineId Id="572" Count="0" />
+      <LineId Id="565" Count="0" />
+      <LineId Id="91" Count="3" />
+      <LineId Id="1201" Count="0" />
+      <LineId Id="1203" Count="1" />
+      <LineId Id="1921" Count="4" />
+      <LineId Id="1915" Count="0" />
+      <LineId Id="1206" Count="49" />
+      <LineId Id="1977" Count="0" />
+      <LineId Id="1256" Count="1" />
+      <LineId Id="1200" Count="0" />
+      <LineId Id="1198" Count="0" />
+      <LineId Id="724" Count="0" />
+      <LineId Id="574" Count="0" />
+      <LineId Id="614" Count="1" />
+      <LineId Id="758" Count="1" />
+      <LineId Id="617" Count="0" />
+      <LineId Id="761" Count="3" />
+      <LineId Id="1979" Count="1" />
+      <LineId Id="2036" Count="0" />
+      <LineId Id="1981" Count="1" />
+      <LineId Id="1978" Count="0" />
+      <LineId Id="2038" Count="0" />
+      <LineId Id="2041" Count="1" />
+      <LineId Id="2039" Count="1" />
+      <LineId Id="111" Count="3" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="115" Count="3" />
+      <LineId Id="887" Count="0" />
+      <LineId Id="119" Count="1" />
+      <LineId Id="884" Count="2" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="945" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="620" Count="1" />
+      <LineId Id="1320" Count="0" />
+      <LineId Id="1322" Count="1" />
+      <LineId Id="1916" Count="4" />
+      <LineId Id="1324" Count="0" />
+      <LineId Id="1939" Count="0" />
+      <LineId Id="1326" Count="49" />
+      <LineId Id="1983" Count="0" />
+      <LineId Id="1376" Count="2" />
+      <LineId Id="1319" Count="0" />
+      <LineId Id="1317" Count="0" />
+      <LineId Id="791" Count="9" />
+      <LineId Id="652" Count="0" />
+      <LineId Id="1984" Count="0" />
+      <LineId Id="1990" Count="0" />
+      <LineId Id="2030" Count="0" />
+      <LineId Id="1991" Count="1" />
+      <LineId Id="1985" Count="0" />
+      <LineId Id="2031" Count="0" />
+      <LineId Id="2034" Count="1" />
+      <LineId Id="2032" Count="1" />
+      <LineId Id="1986" Count="0" />
+      <LineId Id="653" Count="5" />
+      <LineId Id="660" Count="1" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="899" Count="3" />
+      <LineId Id="662" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="1444" Count="4" />
+      <LineId Id="1928" Count="4" />
+      <LineId Id="1927" Count="0" />
+      <LineId Id="1933" Count="0" />
+      <LineId Id="1451" Count="49" />
+      <LineId Id="1993" Count="0" />
+      <LineId Id="1501" Count="68" />
+      <LineId Id="1994" Count="0" />
+      <LineId Id="1570" Count="12" />
+      <LineId Id="1443" Count="0" />
+      <LineId Id="1441" Count="0" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="699" Count="1" />
+      <LineId Id="801" Count="7" />
+      <LineId Id="664" Count="0" />
+      <LineId Id="1995" Count="0" />
+      <LineId Id="1998" Count="2" />
+      <LineId Id="2003" Count="1" />
+      <LineId Id="1996" Count="0" />
+      <LineId Id="2022" Count="0" />
+      <LineId Id="2025" Count="4" />
+      <LineId Id="2023" Count="1" />
+      <LineId Id="665" Count="1" />
+      <LineId Id="252" Count="2" />
+      <LineId Id="705" Count="0" />
+      <LineId Id="255" Count="4" />
+      <LineId Id="927" Count="0" />
+      <LineId Id="1805" Count="1" />
+      <LineId Id="1808" Count="1" />
+      <LineId Id="1807" Count="0" />
+      <LineId Id="260" Count="1" />
+      <LineId Id="923" Count="3" />
+      <LineId Id="469" Count="0" />
+      <LineId Id="947" Count="0" />
+      <LineId Id="946" Count="0" />
+      <LineId Id="963" Count="0" />
+      <LineId Id="951" Count="1" />
+      <LineId Id="968" Count="0" />
+      <LineId Id="953" Count="0" />
+      <LineId Id="974" Count="1" />
+      <LineId Id="954" Count="3" />
+      <LineId Id="1167" Count="0" />
+      <LineId Id="958" Count="0" />
+      <LineId Id="1164" Count="0" />
+      <LineId Id="1166" Count="0" />
+      <LineId Id="1163" Count="0" />
+      <LineId Id="1168" Count="0" />
+      <LineId Id="959" Count="0" />
+      <LineId Id="967" Count="0" />
+      <LineId Id="965" Count="0" />
+      <LineId Id="970" Count="2" />
+      <LineId Id="976" Count="0" />
+      <LineId Id="973" Count="0" />
+      <LineId Id="977" Count="0" />
+      <LineId Id="969" Count="0" />
+      <LineId Id="981" Count="0" />
+      <LineId Id="978" Count="1" />
+      <LineId Id="1169" Count="4" />
+      <LineId Id="980" Count="0" />
+      <LineId Id="948" Count="0" />
+      <LineId Id="554" Count="2" />
+      <LineId Id="1934" Count="0" />
+      <LineId Id="1937" Count="0" />
+      <LineId Id="1935" Count="0" />
+      <LineId Id="1938" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="1174" Count="1" />
+      <LineId Id="1936" Count="0" />
+      <LineId Id="8" Count="2" />
+      <LineId Id="1176" Count="0" />
+      <LineId Id="1178" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="1019" Count="0" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="1020" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotAbsMove_V2.M_STATE_RESETTING">
+      <LineId Id="11" Count="7" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="38" Count="1" />
+      <LineId Id="57" Count="2" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="21" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AllocateRobotCoordinate" Id="{fb7ce25b-8448-46fd-a231-83f5e567e44f}">
+    <Declaration><![CDATA[TYPE
+    ST_AllocateRobotCoordinate :
+    STRUCT
+        fname          : STRING;
+        index          : LREAL;
+        TargetDistance : LREAL;
+        Execute        : BOOL; // 沒作用是否刪除?
+        Done           : BOOL; // 沒作用是否刪除?
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

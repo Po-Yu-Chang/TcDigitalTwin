@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_RS485_Heartbeat" Id="{cc295e7e-091a-438d-aac6-ab6b7cece961}">
+    <Declaration><![CDATA[TYPE ST_RS485_Heartbeat :
+STRUCT
+	nHeartbeat1:BIT;
+	nHeartbeat2:BIT;
+	nHeartbeat3:BIT;
+	nHeartbeat4:BIT;
+	nHeartbeat5:BIT;
+	nHeartbeat6:BIT;
+	nHeartbeat7:BIT;
+	nHeartbeat8:BIT;
+	nHeartbeat9:BIT;
+	nHeartbeat10:BIT;	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

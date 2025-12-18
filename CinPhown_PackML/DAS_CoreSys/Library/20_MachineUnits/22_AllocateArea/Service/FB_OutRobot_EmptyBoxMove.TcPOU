@@ -1,0 +1,964 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_OutRobot_EmptyBoxMove" Id="{3d035ba1-18da-45db-9028-9ceb0a0d377b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OutRobot_EmptyBoxMove EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+//    Execute    :BOOL;   // True : This prog will start.
+//    Abort      :BOOL;   // True : This prog will be abort.
+//    Reset      :BOOL;   // True : This prog will be reset.
+//    ObjectName :STRING; // Set this fb name(About it's action)
+	INPUT            			   : REFERENCE TO ST_InputTable;
+	Cylinder   					   : REFERENCE TO UNI_CylinderList;
+	Motor      					   : REFERENCE TO UNI_MotorList;
+	AutoMode_OutRobotMoveMove : st_AutoMode_ClampingBoxesJob;	
+	Cylinders					   : REFERENCE TO ARRAY[0..1] OF FB_Cylinder;
+	Clips						   : REFERENCE TO ARRAY[0..1] OF FB_Cylinder;
+END_VAR
+
+VAR_OUTPUT
+//    Busy    :BOOL;        // True : This prog is running.
+//    Done    :BOOL;        // True : Command has been executed.
+//    Aborted :BOOL;        // True : This prog is aborted.
+//    Error   :BOOL;        // True : This prog has an error.
+//    ErrorID :UINT;       // Output ErrorID
+//    Status  :T_MaxString; // Output this prog status by string(255bytes)
+END_VAR
+
+VAR
+//    eState :E_MethodStatus_Basic;
+//	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+//	uiResettingStep : UDINT;
+//	uiAbortingStep : UDINT;
+//	_Executed :BOOL; // Executing process completed.
+//	_Error : BOOL; // FB has an error.
+//	_ResetCompleted : BOOL; // FB resetting completed.
+//	_AbortCompleted : BOOL; // FB aborting completed.
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+	tonTimeOut   :TON;
+	tonTimeDelay   :TON;
+	iWorkingIndex : INT;
+	_UniqueErrorCode :STRING;	
+	
+	PickingPos	: ARRAY[0..1] OF ST_PositionTable;
+	PlacingPos  : ARRAY[0..1] OF ST_PositionTable;
+	PressCylinderOnI5			   : REFERENCE TO FB_Cylinder;
+	bSyncPick	: BOOL;
+	bSyncPlace	: BOOL;
+	SensorOnConveyor		   : BIT;
+	ConveyorMotor				   : REFERENCE TO FB_Motor;
+	UseA	: BOOL;
+	UseB	: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{bb6434ce-4d3c-4ebe-97cf-b00de6720102}" />
+    <Folder Name="STATE" Id="{df840c99-e90c-43c9-9ce4-0e451c67e8fc}" />
+    <Action Name="A00_BasicUnits" Id="{5c4a0465-3231-45f9-b78b-41a504520151}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT:=T#60S);
+tonTimeDelay(PT:=T#1s);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GetModelState" Id="{9486c039-b902-4600-823c-e1475b25a352}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_OUTPUT
+    xDone    :BOOL;
+    xBusy    :BOOL;
+    xError   :BOOL;
+    xAborted :BOOL;
+    iErrorID :UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xDone    := Done;
+xBusy    := Busy;
+xError   := Error;
+xAborted := Abort;
+iErrorID := ErrorID;
+UniqueErrorCode := THIS^.UniqueErrorCode;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{b1d59d9a-7307-463b-b4b8-c5cd7c94cf9d}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := ObjectName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckCommand" Id="{5b8e0f0f-77b0-4457-a12c-a7b6d1b30424}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+M_CheckCommand := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetWorkingConditions" Id="{6ce36352-2975-4eb9-a664-c6341358856f}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GetWorkingConditions : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibA THEN
+	PickingPos[0] :=FUN_GetPositionTableData('I',5,0);
+	PlacingPos[0]:=FUN_GetPositionTableData('R',1,0);
+	UseA :=TRUE;
+END_IF
+
+IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibB THEN
+	PickingPos[1] :=FUN_GetPositionTableData('I',5,1);
+	PlacingPos[1]:=FUN_GetPositionTableData('R',2,1);
+	UseB := TRUE;
+END_IF
+
+IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos[1].Y_Pos AND UseA AND UseB  THEN
+		bSyncPlace:=TRUE;
+	ELSE
+		bSyncPlace:=FALSE;	
+END_IF
+IF PickingPos[0].X_Pos =PickingPos[1].X_Pos AND PickingPos[0].Y_Pos = PickingPos[1].Y_Pos AND UseA AND UseB THEN
+		bSyncPick:=TRUE;
+	ELSE
+		bSyncPick:=FALSE;	
+END_IF
+
+PressCylinderOnI5 REF= Cylinder.List.fbDifferentSizeCV_Press2;
+
+
+ConveyorMotor REF= Motor.List.TransmitDifferentSideCV;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RecoveryAllObjects" Id="{0ff61988-539e-4c92-971e-b9e14798b1de}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_RecoveryAllObjects : BOOL
+VAR_INPUT
+END_VAR
+VAR 
+	i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i:=0 TO 1 DO
+	IF Clips[i].xError THEN
+		Clips[i].M_Reset();
+		ELSE
+		Clips[i].M_Retract();		
+	END_IF
+	IF Cylinders[i].xError THEN
+	Cylinders[i].M_Reset();	
+	ELSE
+	Cylinders[i].M_Retract();	
+	END_IF
+END_FOR
+
+
+IF arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error THEN
+
+	arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.ClearError:= TRUE;
+ELSE
+	arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.ClearError:= FALSE;
+END_IF
+
+IF arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error THEN
+
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.ClearError:= TRUE;
+ELSE
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.ClearError:= FALSE;
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{25f8093f-5b28-49ae-bfb2-c88e671ed144}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy    := FALSE;
+Aborted := TRUE;
+Status := strStatus;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+//	uiExecutingStep :=uiResumeStep;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{71f50659-aed8-411a-a365-80d9c7e3f473}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+VAR	 
+ i : INT;
+	bCylinderCheck: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error := TRUE;
+CASE uiAbortingStep OF
+	0 :
+		bCylinderCheck :=TRUE;
+		ConveyorMotor.M_MotorStop();
+	
+		FOR i :=0 TO 1 DO		
+	    	Cylinders[i].M_Reset();
+			Cylinders[i].M_Retract();
+			bCylinderCheck:=bCylinderCheck AND Cylinders[i].InRearPosition;	
+		END_FOR
+		IF bCylinderCheck THEN		
+			uiAbortingStep:=9999;
+		END_IF
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{b8674a28-fd11-455c-a7b3-d1b16fced56f}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy 	:= FALSE;
+Done	:=TRUE;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{8d871cfe-d4d8-46f9-b68a-1c0dcfc0879e}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+_Abort	 :=FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+tonTimeOut.IN :=TRUE;
+_UniqueErrorCode:='0';
+iWorkingIndex :=0;
+bSyncPlace := FALSE;
+UseA := FALSE;
+UseB :=FALSE;
+IF Execute THEN
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{e5328cb3-282e-49e9-9e35-d0080dc40854}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+Status := strStatus;
+IF __ISVALIDREF(ConveyorMotor) THEN
+	ConveyorMotor.M_MotorStop();
+END_IF
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{1d7ae400-7c76-4840-9122-1dc2f3da695c}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	bMoveConveyorForward : BOOL;
+	bMoveConveyorBackrward : BOOL;
+
+END_VAR
+
+VAR
+	bCylinderCheck : BOOL := TRUE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy :=TRUE;
+SensorOnConveyor := INPUT.bDifferentSizeCV_BoxDetect5_Sensor;
+IF bMoveConveyorForward THEN
+	IF NOT ConveyorMotor.InBackWard THEN
+		ConveyorMotor.M_MoveForward();
+	END_IF
+END_IF
+IF bMoveConveyorBackrward THEN
+	IF NOT ConveyorMotor.InForWard THEN
+		ConveyorMotor.M_MoveBackward();
+	END_IF
+END_IF
+CASE uiExecutingStep OF
+	
+
+0: //Idle
+	bMoveConveyorForward:=FALSE;
+	bMoveConveyorBackrward:=FALSE;
+	tonTimeDelay.IN :=FALSE;
+	tonTimeOut.IN := FALSE;
+	iWorkingIndex :=0;
+	M_GetWorkingConditions();
+	
+	
+	M_RecoveryAllObjects();
+	uiExecutingStep := 100;
+	
+100: //Check command
+	
+	IF PressCylinderOnI5.xError THEN
+		PressCylinderOnI5.M_Reset();
+	ELSE
+		PressCylinderOnI5.M_Retract();
+	END_IF
+	
+	IF M_CheckCommand() THEN
+		uiExecutingStep:=200;
+	END_IF
+	
+200: // Check No boxes turntable
+
+	IF (UseA AND INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND INPUT.bTurnTable_R2Detect_Sensor) THEN
+		_Abort:=TRUE;
+		strStatus :='Box On Turntable';
+	ELSE
+		IF UseA THEN
+			iWorkingIndex :=0;
+		ELSE
+			iWorkingIndex :=1;	
+		END_IF
+		
+		uiExecutingStep:=1000;	
+	END_IF
+
+	
+1000: 
+	// Move Conveyor
+	// Move OutRobot to First clip picking	
+	 //ConveyorMotor.M_MoveForward();
+	 bMoveConveyorForward:=TRUE;
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PickingPos[iWorkingIndex].X_Pos;		
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PickingPos[iWorkingIndex].Y_Pos;	
+		IF ConveyorMotor.InForWard THEN
+			uiExecutingStep:=1100;
+		END_IF
+		
+1100://CheckSensor
+	tonTimeDelay.IN:=SensorOnConveyor;
+	
+			
+	IF tonTimeDelay.Q THEN
+		tonTimeOut.IN :=FALSE;
+		uiExecutingStep:=1200;
+		tonTimeDelay.IN := FALSE;
+		
+	END_IF
+	
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='No Box on conveyor';
+	END_IF
+
+1200: //Press seconde box
+	  PressCylinderOnI5.M_Extend();
+	  IF PressCylinderOnI5.InFrontPosition THEN
+		  tonTimeOut.IN :=FALSE;
+		  uiExecutingStep:=1300;
+	  END_IF
+	  
+	  	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='Block box on conveyor timeout';
+	END_IF
+	
+1300: // Stop conveyor
+	ConveyorMotor.M_MotorStop();
+	bMoveConveyorForward:=FALSE;
+	bMoveConveyorBackrward:=FALSE;
+	IF ConveyorMotor.InStopped THEN
+		 uiExecutingStep:=1400;
+	END_IF
+
+1400: // Check outRobot arrived
+	IF		(arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone) 
+	AND (arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone) 
+	THEN
+		tonTimeOut.IN :=FALSE;
+		uiExecutingStep:=1500;
+	END_IF	
+	
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Error := TRUE;
+		strStatus :='Move robot to picking position timeout';
+	END_IF
+	
+1500: //Clip Down Pick
+	 Cylinders[iWorkingIndex].M_Extend();
+	  IF Cylinders[iWorkingIndex].InFrontPosition THEN
+		  tonTimeOut.IN :=FALSE;
+		  uiExecutingStep:=1700;
+	  END_IF
+	
+	 tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='Cylinder pick down timeout';
+	END_IF
+	
+1700: // Clip close Pick
+	Clips[iWorkingIndex].M_Extend();
+	  IF Clips[iWorkingIndex].InFrontPosition THEN
+		  tonTimeOut.IN :=FALSE;
+		  uiExecutingStep:=1800;
+	  END_IF
+	  
+	   tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='clip pick close timeout';
+	END_IF
+
+1800: // Clip Up Pick
+	   Cylinders[iWorkingIndex].M_Retract();
+	  IF Cylinders[iWorkingIndex].InRearPosition THEN
+		  
+		  tonTimeOut.IN :=FALSE;
+		  uiExecutingStep:=1850;
+	  END_IF
+	  
+	    tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='cylinder pick up timeout';
+	END_IF
+1850: //Check box leave
+		IF NOT SensorOnConveyor THEN
+			PressCylinderOnI5.M_Retract();
+			uiExecutingStep:=1900;
+		else
+			_Error := TRUE;
+			strStatus :='Box still on conveyor';
+		END_IF
+		
+1900: // If Next pick
+	  IF iWorkingIndex>=1 OR NOT UseB THEN
+		  IF UseA THEN
+		  	iWorkingIndex :=0;
+		  ELSIF UseB THEN
+			iWorkingIndex :=1;	
+		  END_IF
+		  uiExecutingStep:=2000;
+		  //Go to placing box
+	  ELSIF  iWorkingIndex=0 AND UseB THEN
+			iWorkingIndex:=iWorkingIndex+1;
+	 		uiExecutingStep:=1000;
+	  END_IF
+	  
+2000: // Move to Placing pos
+	 arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PlacingPos[iWorkingIndex].X_Pos;		
+	 arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PlacingPos[iWorkingIndex].Y_Pos;	
+	 uiExecutingStep:=2100;
+
+2100: // Waiting outRobot move to placing pos	 
+	 IF	(arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone) 
+	AND (arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone) 
+	THEN
+		tonTimeOut.IN :=FALSE;
+		uiExecutingStep:=2200;
+	END_IF	
+
+	    tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Error := TRUE;
+		strStatus :='Move robot to placing position timeout';
+	END_IF
+	
+2200: //Cllp Down place
+	bCylinderCheck := TRUE;
+	Cylinders[iWorkingIndex].M_Extend();
+	bCylinderCheck :=Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPlace THEN
+		Cylinders[1].M_Extend();
+		bCylinderCheck :=Cylinders[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN :=FALSE;
+		uiExecutingStep:=2300;
+	END_IF 
+	
+	   tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='Cylinder place down timeout';
+	END_IF
+	
+2300: // Clip open Place
+	bCylinderCheck := TRUE;
+	Clips[iWorkingIndex].M_Retract();
+	bCylinderCheck := Clips[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPlace THEN
+		Clips[1].M_Retract();
+		bCylinderCheck := Clips[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN :=FALSE;
+		uiExecutingStep:=2400;
+	END_IF 
+	  
+	  tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='clip place open timeout';
+	END_IF
+	  
+2400: // Clip up Placing
+	bCylinderCheck := TRUE;
+	Cylinders[iWorkingIndex].M_Retract();
+	bCylinderCheck :=Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	IF bSyncPlace THEN
+		Cylinders[1].M_Retract();
+		bCylinderCheck :=Cylinders[1].InFrontPosition AND bCylinderCheck;
+	END_IF	
+	 
+	IF bCylinderCheck THEN
+		tonTimeOut.IN :=FALSE;
+		uiExecutingStep:=2500;
+	END_IF 
+	  tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN
+		tonTimeOut.IN :=FALSE;
+		_Abort := TRUE;
+		strStatus :='cylinder place up timeout';
+	END_IF
+	
+2500: // If Next place
+	IF iWorkingIndex>=1 OR bSyncPlace OR NOT UseB THEN
+		uiExecutingStep:=2600;
+		// Finish
+	ELSE	
+		iWorkingIndex := iWorkingIndex+1;
+	  	uiExecutingStep:=2000;
+	END_IF
+2600: //Check box on turntable
+
+	IF (UseA AND NOT INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND NOT INPUT.bTurnTable_R2Detect_Sensor) THEN
+		_Error:=TRUE;
+		strStatus :='Box not On Turntable';
+	ELSE
+		uiExecutingStep:=3000;
+	END_IF
+3000: // Finish	
+	bMoveConveyorForward:=FALSE;
+	bMoveConveyorBackrward:=FALSE;
+	_Executed:=TRUE;
+	
+END_CASE
+	
+IF NOT Execute THEN
+	eState:=STATE_RESETTING;
+END_IF
+IF _Error THEN
+	eState:=STATE_ERROR;
+END_IF
+IF _Abort THEN
+	eSTATE:=STATE_ABORTING;
+END_IF
+IF _Executed THEN
+	eSTATE:=STATE_Done;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{2db424f0-ef6c-4eef-834c-dc81219a1369}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=_Error;
+Done :=_Executed;
+Busy := FALSE;
+
+
+CASE uiResettingStep OF
+	
+	0:
+		uiResettingStep:=9999;
+		ConveyorMotor.M_MotorStop();
+		M_RecoveryAllObjects();
+		IF PressCylinderOnI5.xError THEN
+		PressCylinderOnI5.M_Reset();
+	ELSE
+		PressCylinderOnI5.M_Retract();
+	END_IF
+
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove">
+      <LineId Id="23" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.GetModelState">
+      <LineId Id="17" Count="3" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="29" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.GetName">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_CheckCommand">
+      <LineId Id="9" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_GetWorkingConditions">
+      <LineId Id="5" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="25" Count="3" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="35" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_RecoveryAllObjects">
+      <LineId Id="32" Count="11" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="17" Count="2" />
+      <LineId Id="21" Count="5" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_STATE_ABORTED">
+      <LineId Id="9" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_STATE_ABORTING">
+      <LineId Id="29" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="38" Count="6" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_STATE_DONE">
+      <LineId Id="9" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_STATE_DORMANT">
+      <LineId Id="22" Count="7" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="42" Count="1" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_STATE_ERROR">
+      <LineId Id="9" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_STATE_EXECUTING">
+      <LineId Id="44" Count="1" />
+      <LineId Id="437" Count="0" />
+      <LineId Id="456" Count="0" />
+      <LineId Id="438" Count="0" />
+      <LineId Id="457" Count="0" />
+      <LineId Id="439" Count="0" />
+      <LineId Id="459" Count="3" />
+      <LineId Id="444" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="445" Count="0" />
+      <LineId Id="463" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="198" Count="0" />
+      <LineId Id="309" Count="0" />
+      <LineId Id="294" Count="0" />
+      <LineId Id="297" Count="0" />
+      <LineId Id="291" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="95" Count="1" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="310" Count="3" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="326" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="100" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="121" Count="1" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="201" Count="1" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="101" Count="1" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="131" Count="1" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="133" Count="1" />
+      <LineId Id="149" Count="0" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="136" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="314" Count="0" />
+      <LineId Id="150" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="148" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="336" Count="0" />
+      <LineId Id="334" Count="0" />
+      <LineId Id="141" Count="0" />
+      <LineId Id="335" Count="0" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="143" Count="0" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="153" Count="1" />
+      <LineId Id="344" Count="0" />
+      <LineId Id="155" Count="1" />
+      <LineId Id="337" Count="0" />
+      <LineId Id="339" Count="4" />
+      <LineId Id="338" Count="0" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="464" Count="0" />
+      <LineId Id="160" Count="2" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="351" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="352" Count="0" />
+      <LineId Id="345" Count="4" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="350" Count="0" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="173" Count="1" />
+      <LineId Id="360" Count="0" />
+      <LineId Id="175" Count="1" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="354" Count="5" />
+      <LineId Id="353" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="179" Count="1" />
+      <LineId Id="368" Count="0" />
+      <LineId Id="181" Count="0" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="361" Count="0" />
+      <LineId Id="363" Count="4" />
+      <LineId Id="362" Count="0" />
+      <LineId Id="182" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="185" Count="1" />
+      <LineId Id="278" Count="0" />
+      <LineId Id="375" Count="0" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="184" Count="0" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="370" Count="4" />
+      <LineId Id="369" Count="0" />
+      <LineId Id="416" Count="2" />
+      <LineId Id="420" Count="0" />
+      <LineId Id="423" Count="2" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="426" Count="0" />
+      <LineId Id="190" Count="1" />
+      <LineId Id="213" Count="0" />
+      <LineId Id="210" Count="0" />
+      <LineId Id="215" Count="1" />
+      <LineId Id="214" Count="0" />
+      <LineId Id="219" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="206" Count="2" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="209" Count="0" />
+      <LineId Id="211" Count="1" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="220" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="221" Count="2" />
+      <LineId Id="383" Count="0" />
+      <LineId Id="224" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="376" Count="5" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="382" Count="0" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="236" Count="0" />
+      <LineId Id="227" Count="2" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="237" Count="0" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="238" Count="0" />
+      <LineId Id="391" Count="0" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="239" Count="0" />
+      <LineId Id="384" Count="0" />
+      <LineId Id="386" Count="4" />
+      <LineId Id="385" Count="0" />
+      <LineId Id="241" Count="1" />
+      <LineId Id="244" Count="8" />
+      <LineId Id="398" Count="0" />
+      <LineId Id="253" Count="0" />
+      <LineId Id="243" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="393" Count="4" />
+      <LineId Id="392" Count="0" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="257" Count="8" />
+      <LineId Id="405" Count="0" />
+      <LineId Id="266" Count="0" />
+      <LineId Id="256" Count="0" />
+      <LineId Id="399" Count="4" />
+      <LineId Id="267" Count="0" />
+      <LineId Id="404" Count="0" />
+      <LineId Id="268" Count="1" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="270" Count="1" />
+      <LineId Id="255" Count="0" />
+      <LineId Id="197" Count="0" />
+      <LineId Id="272" Count="0" />
+      <LineId Id="274" Count="0" />
+      <LineId Id="328" Count="2" />
+      <LineId Id="327" Count="0" />
+      <LineId Id="331" Count="0" />
+      <LineId Id="333" Count="0" />
+      <LineId Id="332" Count="0" />
+      <LineId Id="273" Count="0" />
+      <LineId Id="443" Count="0" />
+      <LineId Id="465" Count="0" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="275" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="37" Count="5" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="49" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_EmptyBoxMove.M_STATE_RESETTING">
+      <LineId Id="9" Count="2" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="35" Count="3" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

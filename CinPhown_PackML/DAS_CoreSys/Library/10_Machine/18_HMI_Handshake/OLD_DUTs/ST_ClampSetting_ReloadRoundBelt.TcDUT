@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ClampSetting_ReloadRoundBelt" Id="{56693129-42a3-49d3-a73f-dd5b8edbb178}">
+    <Declaration><![CDATA[TYPE
+    ST_ClampSetting_ReloadRoundBelt :
+    STRUCT
+        Behavior         : E_ClampWork;
+        WareHouseSetting : ST_WareHouseCoordinates;
+		RoundBeltSetting : ST_RoundBeltCoordinates; // Set Clamp to which pos work
+        PickUpArea       : E_ReloadRoundBelt_PickupArea; // Set the position where are the Fanuc robot going to pickup box.
+        PlaceArea        : E_ReloadRoundBelt_PlaceArea := E_ReloadRoundBelt_PlaceArea.RoundBelt; // Set the position where are the Fanuc robot going to place box.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

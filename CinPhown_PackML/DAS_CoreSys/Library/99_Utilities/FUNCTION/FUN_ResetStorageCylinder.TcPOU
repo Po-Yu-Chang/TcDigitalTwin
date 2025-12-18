@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FUN_ResetStorageCylinder" Id="{76d3ec42-64cd-40ee-899e-85d1a5e209a4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_ResetStorageCylinder : BOOL
+VAR_INPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_ResetStorageCylinder">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

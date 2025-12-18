@@ -1,0 +1,549 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ModeBase_V2" Id="{7a003fea-42b9-44ce-a605-230ded7312e7}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'reflection'}
+FUNCTION_BLOCK FB_ModeBase_V2 IMPLEMENTS I_UnitState, I_ErrorElement
+VAR_INPUT
+    eModeCommand  : E_UnitMode; // Mode from superior Unit
+    eStateCommand : E_PMLCommand := ePMLCommand_Abort; // Command fro a new state from supterior unit
+    PackTag       : REFERENCE TO ST_PackMLv30; // 
+END_VAR
+VAR_OUTPUT
+    eModeCurrent  : E_UnitMode;
+    eStateCurrent : E_PMLState;
+END_VAR
+VAR
+    {attribute 'instance-path'}
+    {attribute 'noinit'}
+    _strName : STRING(255); // Instance path of the FB for Diagnostic
+
+    fbUnitModeManager : PML_UnitModeManager; //The PML_UnitModeManager manage the Modechanges
+    fbStateMachine    : PML_StateMachine; //The PML_StateMachine mangae the Statechanges
+
+    eModeChange     : eModeChangeState; // This value is used to control mode change flow
+    AllowModeChange : BOOL;
+    nLastState      : E_PMLState; //Variable to store last state
+    xError           : BOOL;
+    xErrorID         : DINT;
+    xErrorMsg        : T_MaxString;
+	iErrorCount : INT;
+	arAlarmTrigPtr : ARRAY[1..Tc3_PackML_V2.MaxAlarms] OF POINTER TO BOOL;
+	arAlarmMsg : ARRAY[1..Tc3_PackML_V2.MaxAlarms] OF POINTER TO STRING;
+	iErrorReflashIndex : INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE eModeChange OF
+    eModeChangeState.WaitingRequest:
+        // check unit is in the stand still, allow to change mode
+        AllowModeChange := M_ModeChangeCheck();
+
+        IF AllowModeChange AND (eModeCommand <> eModeCurrent) THEN
+            eModeChange := eModeChangeState.StartingUnitModeManager;
+        END_IF
+    eModeChangeState.StartingUnitModeManager:
+        fbUnitModeManager.bExecute             := TRUE;
+        PackTag.Status.UnitModeChangeInProcess := TRUE;
+
+        IF fbUnitModeManager.bDone THEN
+            fbUnitModeManager.bExecute             := FALSE;
+            eModeChange                            := eModeChangeState.WaitingRequest;
+            PackTag.Status.UnitModeChangeInProcess := FALSE;
+        ELSIF fbUnitModeManager.bError THEN
+            fbUnitModeManager.bExecute := FALSE;
+            nLastState                 := PackTag.Status.StateCurrent;
+            eModeChange                := eModeChangeState.ErrorHandling;
+        END_IF
+    eModeChangeState.ErrorHandling:
+        //ErrorHanddling
+		eModeChange := 0; 
+//        IF PackTag.Command.UnitModeChangeRequest THEN
+//            eModeChange := 0;
+//        ELSIF nLastState <> PackTag.Status.StateCurrent THEN
+//            ;
+//        END_IF
+END_CASE
+
+fbUnitModeManager(bExecute :=,
+                  eModeCommand := eModeCommand,
+                  eState := eStateCurrent,
+                  eModeStatus => eModeCurrent,
+                  sModeStatus =>,
+                  bDone =>,
+                  bError =>,
+                  nErrorId =>);
+
+IF fbUnitModeManager.eModeStatus <> E_UnitMode.Undefined THEN
+    fbStateMachine(eMode := eModeCommand,
+                   eCommand := eStateCommand,
+                   stSubUnitInfoRef :=,
+                   stOptions :=,
+                   eState => eStateCurrent,
+                   sState =>,
+                   bError =>,
+                   nErrorID =>);
+END_IF
+
+//One of the methods is executing  by the actual state
+CASE eStateCurrent OF
+    ePMLState_Undefined:
+        M_Undefined();
+    ePMLState_Clearing:
+        M_Clearing();
+    ePMLState_Stopped:
+        M_Stopped();
+    ePMLState_Starting:
+        M_Starting();
+    ePMLState_Idle:
+        M_Idle();
+    ePMLState_Suspended:
+        M_Suspended();
+    ePMLState_Execute:
+        M_Execute();
+    ePMLState_Stopping:
+        M_Stopping();
+    ePMLState_Aborting:
+        M_Aborting();
+    ePMLState_Aborted:
+        M_Aborted();
+    ePMLState_Holding:
+        M_Holding();
+    ePMLState_Held:
+        M_Held();
+    ePMLState_Unholding:
+        M_Unholding();
+    ePMLState_Suspending:
+        M_Suspending();
+    ePMLState_Unsuspending:
+        M_Unsuspending();
+    ePMLState_Resetting:
+        M_Resetting();
+    ePMLState_Completing:
+        M_Completing();
+    ePMLState_Complete:
+        M_Complete();
+END_CASE
+
+Act_ErrorSync();]]></ST>
+    </Implementation>
+    <Folder Name="PakcML Method" Id="{e14b1cff-b5bc-4bc2-b2a9-7b0bb28e9244}" />
+    <Folder Name="States" Id="{e15a1a72-aa3e-4ab5-8d33-0a846f5eda71}" />
+    <Action Name="Act_ErrorSync" Id="{c8aba934-7eaf-400c-a6ce-7637fd25d318}">
+      <Implementation>
+        <ST><![CDATA[FOR iErrorReflashIndex := 1 TO MaxAlarms DO
+    IF arAlarmTrigPtr[iErrorReflashIndex] <> 0 THEN
+        PackTag.Admin.Alarm[iErrorReflashIndex].Trigger := arAlarmTrigPtr[iErrorReflashIndex]^;
+		//PackTag.Admin.Alarm[iErrorReflashIndex].Message := arAlarmMsg[iErrorReflashIndex]^;
+    END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_Aborted" Id="{3c595f5f-f561-4a08-85cb-dcf1f8be5c0d}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborted
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Aborting" Id="{48371fc3-5777-4d33-93e5-52ab6d77f16a}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Clearing" Id="{73b83e87-40f5-41cf-8772-2708cde52950}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Clearing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Complete" Id="{ea8280aa-e868-4bb1-a9a2-7c62fe030b81}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Complete
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Completing" Id="{699953bf-fead-4877-b521-df5b7f3159d1}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Completing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Execute" Id="{55ebcec9-a2e8-4443-85a2-bce8516a93eb}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Execute
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetError" Id="{507a0c29-777d-4675-bb44-5b5259dbae92}">
+      <Declaration><![CDATA[METHOD M_GetError
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	Error : BOOL;
+	ErrorID : DINT;
+	ErrorMsg : T_MaxString;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error := xError;
+ErrorID := xErrorID;
+ErrorMsg := xErrorMsg;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetName" Id="{196f8ccc-c487-4165-b155-eb015c6ed545}">
+      <Declaration><![CDATA[METHOD PUBLIC M_GetName :STRING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_GetName := _strName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Held" Id="{aff455d5-44c1-47a6-a6f4-5266799e6f00}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Held
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Holding" Id="{95753f7e-8fef-4af7-9abf-2a087aafe797}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Holding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Idle" Id="{25f163fe-89bb-4491-ac3b-f918b3192589}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Idle
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ModeChageAutoCheck" Id="{1638860c-caa5-42c5-986e-aeed5b404d64}" FolderPath="PakcML Method\">
+      <Declaration><![CDATA[METHOD M_ModeChageAutoCheck : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateCurrent OF
+	ePMLState_Aborted,ePMLState_Stopped,ePMLState_Idle :
+		// Allow unit change mode to Auto
+		M_ModeChageAutoCheck := TRUE;
+	ePMLState_Undefined:
+		M_ModeChageAutoCheck := TRUE;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ModeChangeCheck" Id="{a0c132c4-19b0-4f64-9b4c-1719226bda08}" FolderPath="PakcML Method\">
+      <Declaration><![CDATA[METHOD M_ModeChangeCheck : BOOL
+VAR_INPUT
+END_VAR
+VAR_INST
+    ManualAllowChange : BOOL;
+    AutoAllowChange   : BOOL;
+    HomingAllowChange : BOOL;
+	MantainaceAllowChange : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ManualAllowChange     := M_ModeChangeManualCheck();
+AutoAllowChange       := M_ModeChageAutoCheck();
+HomingAllowChange     := M_ModeChangeHomingCheck();
+MantainaceAllowChange := M_ModeChangeMantainaceCheck();
+
+M_ModeChangeCheck := ManualAllowChange AND AutoAllowChange AND HomingAllowChange AND MantainaceAllowChange;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ModeChangeHomingCheck" Id="{54a65964-9ebf-4fe2-971c-9c552fac1603}" FolderPath="PakcML Method\">
+      <Declaration><![CDATA[METHOD M_ModeChangeHomingCheck : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateCurrent OF
+	ePMLState_Aborted,ePMLState_Stopped,ePMLState_Idle :
+		// Allow unit change mode to Homing
+		M_ModeChangeHomingCheck := TRUE;
+	ePMLState_Undefined:
+		M_ModeChangeHomingCheck := TRUE;
+
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ModeChangeMantainaceCheck" Id="{5fb1e10f-76d8-4a47-8239-8ec30592a5cd}" FolderPath="PakcML Method\">
+      <Declaration><![CDATA[METHOD M_ModeChangeMantainaceCheck : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateCurrent OF
+	ePMLState_Aborted,ePMLState_Stopped,ePMLState_Idle :
+		// Allow unit change mode to Mantainace
+		M_ModeChangeMantainaceCheck := TRUE;
+	ePMLState_Undefined:
+		M_ModeChangeMantainaceCheck := TRUE;
+
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ModeChangeManualCheck" Id="{edf4e3ed-3f67-47b7-98ee-675a10eabf84}" FolderPath="PakcML Method\">
+      <Declaration><![CDATA[METHOD M_ModeChangeManualCheck : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateCurrent OF
+	ePMLState_Aborted,ePMLState_Stopped,ePMLState_Idle :
+		// Allow unit change mode to Manual
+		M_ModeChangeManualCheck := TRUE;
+	ePMLState_Undefined:
+		M_ModeChangeManualCheck := TRUE;
+
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Resetting" Id="{d7a5479b-1b4c-4e38-bf3b-ba7e024e062b}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Resetting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Starting" Id="{4d91d56a-f66e-47c9-943c-904c058e3740}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Starting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StateComplete" Id="{eee405c0-5fb1-4604-ab08-899fb1e4a0dd}" FolderPath="PakcML Method\">
+      <Declaration><![CDATA[METHOD M_StateComplete
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//the actual state is completed
+fbStateMachine.M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopped" Id="{d0294900-6df0-4446-b45c-c004b02fac12}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopped
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopping" Id="{cb3a04af-0b7a-48fe-beca-94ca2b503449}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopping
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspended" Id="{d24a9ca8-0903-4965-9973-e1b1c95ec324}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspended
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspending" Id="{0bea6d01-6dd2-4ddd-ba02-0bc7b6654692}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Undefined" Id="{4a706060-1c3e-44fa-a039-157dbfc8cef4}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Undefined
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unholding" Id="{28e926fd-9934-426d-8095-99553af4cf65}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unholding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unsuspending" Id="{63fd741d-0d51-4a7e-8da0-d2d56cf39b05}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unsuspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="RegisterAlarm" Id="{8af12d8c-7f96-4afa-978d-76f8dd8cff9d}">
+      <Declaration><![CDATA[METHOD RegisterAlarm
+VAR_INPUT
+    Trigger  : REFERENCE TO BOOL;
+    ID       : DINT;
+    value    : DINT;
+    Message  : STRING;
+    Category : DINT;
+END_VAR
+VAR_INST
+    iLoopIndex : INT;
+    HasSameID  : BOOL := FALSE;
+    FoundIndex : INT := 0;
+    FoundCount : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iLoopIndex := 1 TO MaxAlarms DO
+    IF PackTag.Admin.Alarm[iLoopIndex].ID = ID THEN
+        IF NOT HasSameID THEN
+            HasSameID := TRUE;
+            FoundIndex := iLoopIndex;
+			
+			EXIT;
+        END_IF
+		PackTag.Admin.Alarm[iLoopIndex].Message := Message;
+        FoundCount := FoundCount + 1;
+    END_IF
+END_FOR
+
+IF NOT HasSameID THEN
+    PackTag.Admin.Alarm[iErrorCount+1].ID := ID;
+    PackTag.Admin.Alarm[iErrorCount+1].Value := value;
+    PackTag.Admin.Alarm[iErrorCount+1].Message := Message;
+    PackTag.Admin.Alarm[iErrorCount+1].Category := Category;
+	arAlarmTrigPtr[iErrorCount+1] := ADR(Trigger);
+	//arAlarmMsg[iErrorCount+1] := ADR(Message);
+	iErrorCount := iErrorCount +1 ;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ModeBase_V2">
+      <LineId Id="949" Count="22" />
+      <LineId Id="1098" Count="0" />
+      <LineId Id="972" Count="64" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="1067" Count="0" />
+      <LineId Id="1066" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.Act_ErrorSync">
+      <LineId Id="2" Count="2" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Aborted">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Aborting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Clearing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Complete">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Completing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Execute">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_GetError">
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_GetName">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Held">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Holding">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Idle">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_ModeChageAutoCheck">
+      <LineId Id="5" Count="1" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_ModeChangeCheck">
+      <LineId Id="58" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_ModeChangeHomingCheck">
+      <LineId Id="6" Count="3" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_ModeChangeMantainaceCheck">
+      <LineId Id="6" Count="3" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_ModeChangeManualCheck">
+      <LineId Id="6" Count="3" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Resetting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Starting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_StateComplete">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Stopped">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Stopping">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Suspended">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Suspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Undefined">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Unholding">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.M_Unsuspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ModeBase_V2.RegisterAlarm">
+      <LineId Id="54" Count="4" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="61" Count="4" />
+      <LineId Id="67" Count="3" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="75" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

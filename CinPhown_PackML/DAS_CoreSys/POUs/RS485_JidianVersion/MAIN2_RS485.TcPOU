@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="MAIN2_RS485" Id="{a5a8cde1-02dd-4659-8488-d46553febe67}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN2_RS485
+VAR
+	RS485_V2:ARRAY[1..4] OF FB_WarehouseSensorCtrl;
+	
+	i	: INT := 1;
+	j	: INT;
+	k	: INT;
+	arr485sensor					: ARRAY [1..400] OF BOOL;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RS485_V2[1](bEnable:=TRUE);
+RS485_V2[2](bEnable:=TRUE,UnitID := 2);
+RS485_V2[3](bEnable:=TRUE,UnitID := 3);
+RS485_V2[4](bEnable:=TRUE,UnitID := 4);
+
+RS485_V2[1].ErrorId;
+RS485_V2[2].ErrorId;
+RS485_V2[3].ErrorId;
+RS485_V2[4].ErrorId;
+
+RS485_V2[1].RS485_ErrorCount;
+RS485_V2[2].RS485_ErrorCount;
+RS485_V2[3].RS485_ErrorCount;
+RS485_V2[4].RS485_ErrorCount;
+
+FOR i := 1 TO 400 DO
+	k := i MOD 100;
+	IF k = 0 THEN
+		j := i/100;
+		k := 100;
+	ELSE
+		j := (i/100) + 1;
+	END_IF
+	arr485sensor[i]:= RS485_V2[j].stRS485Controller.stSliderStatusALL.bPos[k];
+END_FOR
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN2_RS485">
+      <LineId Id="61" Count="3" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="80" Count="3" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="76" Count="2" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="122" Count="1" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="125" Count="1" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="114" Count="1" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,307 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ErrorHandler" Id="{3a85ba4a-c4b7-4ec0-b16b-1902b0e4d3d6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ErrorHandler EXTENDS FB_ActionBasic
+VAR_INPUT
+    AlarmList : REFERENCE TO ARRAY[1..Tc3_PackML_V2.MaxAlarms] OF ST_Alarm; // 輸入的錯誤信號矩陣
+    HMI_AlarmMonitorList : REFERENCE TO ARRAY[0..999] OF ST_Alarm_Tmax;     // 輸出的錯誤信號矩陣
+    AlarmHistory : REFERENCE TO ARRAY[1..Tc3_PackML_V2.MaxHistoryAlarms] OF ST_Alarm;
+    MaxRecords : INT := 1000;      // 最大記錄數量
+    Reset : BOOL;                  // RESET按鈕
+    ResetAllAlarms : BOOL;         // 重置所有錯誤
+    EnableLogging : BOOL := TRUE;  // 啟動錯誤紀錄
+    ResetDelayTime : TIME := T#3S; // RESET後延遲確認時間
+END_VAR
+VAR_OUTPUT
+    ActiveAlarmCount : INT;    // 活動錯誤數量
+    TotalRecords : INT;        // 總記錄數量
+    SystemStatus : STRING(50); // 系統狀態
+    CurrentSeverityLevel : DINT; // 當前最高嚴重程度 (1-7, 7最嚴重)
+	IsResetting : BOOL;       // 正在執行RESET程序
+END_VAR
+VAR
+    // 內部變量
+    i : INT;
+    j : INT;
+	k : INT;
+    CurrentTime : DATE_AND_TIME;
+    LastTriggerState : ARRAY[1..200] OF BOOL; // 上次Trigger狀態記錄
+    RisingEdge : ARRAY[1..200] OF BOOL;       // 上升沿檢測
+    FallingEdge : ARRAY[1..200] OF BOOL;      // 下降沿檢測
+    RecordIndex : INT := 0;                   // 記錄索引
+    HistoryIndex : INT := 1;                  // 歷史記錄索引
+    // 邊沿檢測功能塊
+    R_TRIG_Array : ARRAY[1..200] OF R_TRIG;
+    F_TRIG_Array : ARRAY[1..200] OF F_TRIG;
+
+    // 時間相關
+    fbLocalSystemTime : FB_LocalSystemTime := (bEnable := TRUE, dwCycle := 30);
+	fbNtTime : GETSYSTEMTIME;
+	SystemTimeStruct : TIMESTRUCT;
+	_PackMLTime : ARRAY[0..6] OF DINT;
+    // 排序用的臨時變數
+    TempAlarm : ST_Alarm_Tmax;
+    bNeedSort : BOOL;
+    TempHistoryAlarm : ST_Alarm; // 歷史記錄排序用
+    bNeedHistorySort : BOOL;     // 歷史記錄需要排序
+    // 時間比較用的變數
+    TimeCompareResult : INT;        // -1:j較舊, 0:相等, 1:j較新
+    HistoryTimeCompareResult : INT; // 歷史記錄時間比較結果
+    TimeIndex : INT;
+	 // 確認機制用的變數
+    R_TRIG_Reset : R_TRIG;       // RESET按鈕邊沿檢測
+    R_TRIG_Start : R_TRIG;       // START按鈕邊沿檢測
+    AllAlarmsCleared : BOOL;     // 所有錯誤都已清除
+	// 延遲確認機制
+    TON_ResetDelay : TON;        // RESET延遲確認計時器
+    ResetInProgress : BOOL;      // RESET程序進行中
+    ResetPendingList : ARRAY[0..999] OF BOOL; // 待確認清除的錯誤列表
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 主要執行程序
+fbLocalSystemTime();
+_PackMLTime := TIMESTRUCT_TO_PackMLTime(fbLocalSystemTime.systemTime);
+
+ActiveAlarmCount := 0;
+
+// RESET按鈕邊沿檢測
+R_TRIG_Reset(CLK := Reset);
+
+// RESET延遲確認計時器
+TON_ResetDelay(IN := ResetInProgress, PT := ResetDelayTime);
+IsResetting := ResetInProgress;
+
+// RESET按鈕延遲確認機制
+IF R_TRIG_Reset.Q THEN
+    // 啟動RESET程序
+    ResetInProgress := TRUE;
+    
+    // 標記所有當前錯誤為待確認狀態
+    FOR i := 0 TO TotalRecords - 1 DO
+        ResetPendingList[i] := (HMI_AlarmMonitorList[i].ID <> 0);
+    END_FOR;
+END_IF;
+
+// RESET延遲時間到達，開始確認錯誤狀態
+IF TON_ResetDelay.Q AND ResetInProgress THEN
+    ResetInProgress := FALSE;
+    
+    // 延遲確認：檢查每個標記的錯誤是否真正清除
+    FOR i := 0 TO TotalRecords - 1 DO
+        IF ResetPendingList[i] AND HMI_AlarmMonitorList[i].ID <> 0 THEN
+            // 檢查該錯誤在AlarmList中的對應項目是否已經清除
+            FOR j := 1 TO Tc3_PackML_V2.MaxAlarms DO
+                IF AlarmList[j].ID = HMI_AlarmMonitorList[i].ID THEN
+                    // 找到對應的錯誤源
+                    IF NOT AlarmList[j].Trigger THEN
+                        // 錯誤已清除，可以移到歷史記錄
+                        IF HistoryIndex <= Tc3_PackML_V2.MaxHistoryAlarms THEN
+                            // 搬移到AlarmHistory
+                            AlarmHistory[HistoryIndex].ID := UDINT_TO_DINT(HMI_AlarmMonitorList[i].ID);
+                            AlarmHistory[HistoryIndex].Trigger := FALSE;
+                            AlarmHistory[HistoryIndex].Category := HMI_AlarmMonitorList[i].Category;
+                            AlarmHistory[HistoryIndex].Value := HMI_AlarmMonitorList[i].Value;
+                            AlarmHistory[HistoryIndex].Message := HMI_AlarmMonitorList[i].Message;
+                            
+                            // 複製發生時間
+                            AlarmHistory[HistoryIndex].DateTime := HMI_AlarmMonitorList[i].DateTime;
+                            
+                            // 記錄清除時間
+                            AlarmHistory[HistoryIndex].AckDateTime := _PackMLTime;
+                            
+                            HistoryIndex := HistoryIndex + 1;
+                            IF HistoryIndex > Tc3_PackML_V2.MaxHistoryAlarms THEN
+                                HistoryIndex := 1;
+                            END_IF;
+                        END_IF;
+                        
+                        // 清空HMI記錄
+                        HMI_AlarmMonitorList[i].ID := 0;
+                        HMI_AlarmMonitorList[i].Trigger := FALSE;
+                        HMI_AlarmMonitorList[i].Category := 0;
+                        HMI_AlarmMonitorList[i].Value := 0;
+                        HMI_AlarmMonitorList[i].Message := '';
+                        HMI_AlarmMonitorList[i].DateTime := DT_TO_PackMLTime(DT#1970-01-01-00:00:00);
+                        HMI_AlarmMonitorList[i].ackDateTime := DT_TO_PackMLTime(DT#1970-01-01-00:00:00);
+                        
+                        bNeedSort := TRUE;
+                        bNeedHistorySort := TRUE;
+					ELSE
+						HMI_AlarmMonitorList[i].Message := AlarmList[j].Message;
+                    END_IF;
+                    EXIT; // 找到對應項目，跳出內層迴圈
+                END_IF;
+            END_FOR;
+        END_IF;
+        // 清除待確認標記
+        ResetPendingList[i] := FALSE;
+    END_FOR;
+END_IF;
+
+// 邊沿檢測和錯誤處理
+FOR i := 1 TO Tc3_PackML_V2.MaxAlarms DO
+    // 上升沿檢測 - 錯誤發生
+    R_TRIG_Array[i](CLK := AlarmList[i].Trigger);
+    RisingEdge[i] := R_TRIG_Array[i].Q;
+    
+    // 下降沿檢測 - 錯誤清除
+    F_TRIG_Array[i](CLK := AlarmList[i].Trigger);
+    FallingEdge[i] := F_TRIG_Array[i].Q;
+    
+    // 處理錯誤發生 (上升沿)
+    IF RisingEdge[i] AND EnableLogging THEN
+        // 檢查是否已存在相同的活動錯誤
+        j := -1;  // 初始化為-1，表示未找到
+        FOR k := 0 TO TotalRecords - 1 DO
+            IF HMI_AlarmMonitorList[k].ID = AlarmList[i].ID AND
+                HMI_AlarmMonitorList[k].Trigger THEN
+                j := k;  // 找到重複錯誤，記錄位置
+                EXIT; // 已存在活動錯誤，跳出
+            END_IF;
+        END_FOR;
+        
+        // 如果沒有找到重複的活動錯誤，創建新記錄
+        IF j = -1 THEN
+            // 尋找空的位置插入新錯誤
+            FOR k := 0 TO MaxRecords - 1 DO
+                IF HMI_AlarmMonitorList[k].ID = 0 THEN
+                    // 找到空位置，插入新錯誤
+                    HMI_AlarmMonitorList[k].ID := DINT_TO_UDINT(AlarmList[i].ID);
+                    HMI_AlarmMonitorList[k].Trigger := TRUE;
+                    HMI_AlarmMonitorList[k].Category := AlarmList[i].Category;
+                    HMI_AlarmMonitorList[k].Value := AlarmList[i].Value;
+                    HMI_AlarmMonitorList[k].Message := AlarmList[i].Message;
+                    
+                    // 填入發生時間
+                    HMI_AlarmMonitorList[k].DateTime := _PackMLTime;
+                    HMI_AlarmMonitorList[k].ackDateTime := DT_TO_PackMLTime(DT#1970-01-01-00:00:00);
+                    
+                    // 更新記錄統計
+                    TotalRecords := TotalRecords + 1;
+                    bNeedSort := TRUE;
+                    
+                    EXIT; // 插入完成，跳出迴圈
+                END_IF;
+            END_FOR;
+        END_IF;
+    END_IF;
+    
+    // 處理錯誤清除 - 修正：移除自動清除邏輯
+    // 不再監控下降沿自動清除，只等待RESET按鈕手動清除
+    // IF FallingEdge[i] AND EnableLogging THEN
+    //     // 此段程式碼已移除，改為只在RESET時處理
+    // END_IF;
+    
+    // 統計活動錯誤數量
+    IF AlarmList[i].Trigger THEN
+        ActiveAlarmCount := ActiveAlarmCount + 1;
+    END_IF;
+END_FOR;
+
+// 如果有資料異動，重新排序HMI_AlarmMonitorList
+// 保持錯誤記錄不被清除，只排序顯示順序
+IF bNeedSort THEN
+    // 簡化排序：只按時間排序，不清除任何記錄
+    FOR i := 0 TO MaxRecords - 2 DO
+        FOR j := 0 TO MaxRecords - 2 - i DO
+            // 只有兩個位置都有有效記錄才比較
+            IF HMI_AlarmMonitorList[j].ID <> 0 AND HMI_AlarmMonitorList[j+1].ID <> 0 THEN
+                
+                // 比較發生時間，較新的排在前面
+                TimeCompareResult := 0;
+                FOR TimeIndex := 0 TO 5 DO
+                    IF HMI_AlarmMonitorList[j].DateTime[TimeIndex] < HMI_AlarmMonitorList[j+1].DateTime[TimeIndex] THEN
+                        TimeCompareResult := -1; // j較舊
+                        EXIT;
+                    ELSIF HMI_AlarmMonitorList[j].DateTime[TimeIndex] > HMI_AlarmMonitorList[j+1].DateTime[TimeIndex] THEN
+                        TimeCompareResult := 1; // j較新
+                        EXIT;
+                    END_IF;
+                END_FOR;
+                
+                // 如果j較舊，交換位置（較新的往前）
+                IF TimeCompareResult = -1 THEN
+                    TempAlarm := HMI_AlarmMonitorList[j];
+                    HMI_AlarmMonitorList[j] := HMI_AlarmMonitorList[j+1];
+                    HMI_AlarmMonitorList[j+1] := TempAlarm;
+                END_IF;
+            END_IF;
+        END_FOR;
+    END_FOR;
+    
+    // 重新計算TotalRecords（所有有效記錄，不管Trigger狀態）
+    TotalRecords := 0;
+    FOR i := 0 TO MaxRecords - 1 DO
+        IF HMI_AlarmMonitorList[i].ID <> 0 THEN
+            TotalRecords := TotalRecords + 1;
+        END_IF;
+    END_FOR;
+    
+    bNeedSort := FALSE;
+END_IF;
+
+// 如果歷史記錄有新資料，重新排序AlarmHistory (使用PackMLTime比較)
+IF bNeedHistorySort THEN
+    // 使用泡沫排序法排序歷史記錄 (按DateTime由新到舊)
+    FOR i := 1 TO Tc3_PackML_V2.MaxHistoryAlarms - 1 DO
+        FOR j := 1 TO Tc3_PackML_V2.MaxHistoryAlarms - i DO
+            // 只排序有效的記錄 (ID不為0)
+            IF AlarmHistory[j].ID <> 0 AND AlarmHistory[j+1].ID <> 0 THEN
+                
+                // 比較兩個時間：j vs j+1
+                HistoryTimeCompareResult := 0;
+                
+                // 比較PackMLTime陣列
+                FOR TimeIndex := 0 TO 5 DO
+                    IF AlarmHistory[j].DateTime[TimeIndex] < AlarmHistory[j+1].DateTime[TimeIndex] THEN
+                        HistoryTimeCompareResult := -1; // j較舊
+                        EXIT;
+                    ELSIF AlarmHistory[j].DateTime[TimeIndex] > AlarmHistory[j+1].DateTime[TimeIndex] THEN
+                        HistoryTimeCompareResult := 1; // j較新
+                        EXIT;
+                    END_IF;
+                END_FOR;
+                
+                // 如果j較舊，則交換位置（讓較新的往前移）
+                IF HistoryTimeCompareResult = -1 THEN
+                    TempHistoryAlarm := AlarmHistory[j];
+                    AlarmHistory[j] := AlarmHistory[j+1];
+                    AlarmHistory[j+1] := TempHistoryAlarm;
+                END_IF;
+            END_IF;
+        END_FOR;
+    END_FOR;
+    
+    bNeedHistorySort := FALSE;
+END_IF;
+
+// 更新系統狀態和嚴重程度
+CurrentSeverityLevel := 0; // 初始化為無錯誤
+
+// 掃描HMI_AlarmMonitorList中活動錯誤的最高嚴重程度
+FOR i := 0 TO TotalRecords - 1 DO
+    IF HMI_AlarmMonitorList[i].Trigger THEN  // 只計算活動錯誤
+        // 找出最高嚴重程度
+        IF HMI_AlarmMonitorList[i].Value > CurrentSeverityLevel THEN
+            CurrentSeverityLevel := HMI_AlarmMonitorList[i].Value;
+        END_IF;
+    END_IF;
+END_FOR;
+
+// 統計真正的活動錯誤數量（Trigger=TRUE）
+ActiveAlarmCount := 0;
+FOR i := 0 TO TotalRecords - 1 DO
+    IF HMI_AlarmMonitorList[i].Trigger THEN
+        ActiveAlarmCount := ActiveAlarmCount + 1;
+    END_IF;
+END_FOR;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_ErrorHandler">
+      <LineId Id="2378" Count="68" />
+      <LineId Id="2670" Count="1" />
+      <LineId Id="2447" Count="166" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

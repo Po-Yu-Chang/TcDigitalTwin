@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_FeedInEmptyBox" Id="{182a4ff3-030c-4b68-b011-c266044858ee}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_FeedInEmptyBox :
+STRUCT
+	Command : ST_FeedInEmptyBox_Ctrl;
+	Status : ST_FeedInEmptyBox_Status;
+	Info : ST_FeedInEmptyBox_Info;
+	AClampMoveDone	: BOOL;		//edited by Gamin 2025/11/24
+	BClampMoveDone	: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

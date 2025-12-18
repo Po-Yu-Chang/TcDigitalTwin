@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Auto_UpperFeedInConveyorInfo" Id="{7b0a424e-2373-4378-8e6d-da67a8383f40}">
+    <Declaration><![CDATA[TYPE ST_Auto_UpperFeedInConveyorInfo :
+STRUCT
+	NrOfBox		: INT ; // 1 or 2
+	FirstBoxCameraDone 				: BOOL;
+	SecondBoxCameraDone 			: BOOL;
+	
+	FirstBoxCameraDiameterRequest 	: BOOL;
+	SecondBoxCameraDiameterRequest 	: BOOL;
+	
+	FirstBoxCameraDiameterDone 		: BOOL;
+	SecondBoxCameraDiameterDone 	: BOOL;
+	
+	FeedAirblowTime 				:TIME;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

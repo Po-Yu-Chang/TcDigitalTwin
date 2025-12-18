@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="un_RS485States" Id="{6d33d1cf-abcb-4d0d-8b65-55f88b4c89de}">
+    <Declaration><![CDATA[TYPE un_RS485States :
+UNION
+	arrSensorBySingleModule : ARRAY[0..9] OF ARRAY[0..9] OF BOOL;
+	arrSensorByController   : ARRAY[0..99] OF BOOL;
+	
+END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,1443 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_AllocateAreaWithRoundbelt" Id="{4722c357-f436-40f5-9603-7e4438da9d25}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateAreaWithRoundbelt EXTENDS FB_ModeBase_V2 IMPLEMENTS I_UnitState
+VAR_INPUT
+    INPUT       : REFERENCE TO ST_InputTable;
+    OUTPUT      : REFERENCE TO ST_OutputTable;
+    CurrentData : ST_SetupPara;
+    // Componets
+    Cylinder 	: REFERENCE TO UNI_CylinderList;
+    Service  	: REFERENCE TO ST_AllocateService;
+    Motor    	: REFERENCE TO UNI_MotorList;
+    Reset       : REFERENCE TO BOOL;
+	Stop 		: REFERENCE TO BOOL;
+	bStopMem 	: REFERENCE TO BOOL;
+END_VAR
+VAR_OUTPUT
+	Homed : BOOL;
+END_VAR
+VAR
+	Abort	: BOOL;	
+
+    InitDone          : BOOL;
+    Clip              : U_Cylinders;
+    Cylinders         : U_Cylinders;
+    OutRobotCylinders : Uni_DuoCylinders;
+    OutRobotClips     : Uni_DuoCylinders;
+
+    i : INT;
+    //============== Service====================
+    // Allocate Home
+    fbAllocateHome : FB_AllocateAreaHome;
+    //RoundBelt
+    RoundBeltControl  : FB_RoundBeltService;
+    _RoundBeltMoveJob : st_AllocateCircleMoveStructure;
+    //RoundBeltMoveJob_Internal 	: st_AllocateCircleMoveStructure;		
+    RoundBeltControlAccess               : E_RoundBeltControlAccess := E_RoundBeltControlAccess.Host;
+    RoundBeltMoveJob_Ctrl                : ST_CommandBasic;
+    RoundBeltMoveJob_Ctrl_Batch          : ST_CommandBasic;
+    RoundBeltMoveJob_Status              : ST_StatusBasic;
+    RoundBeltMoveJob_Position            : LREAL;
+    RoundBeltMoveJob_Position_FanucRobot : LREAL;
+    //TurnTable
+    TurnTableControl : FB_TurnTableService;
+
+    //Allocating
+    fb_AllocateBatchMode        : FB_AllocateMoveAutoBatchMode;
+    AutoAllocateJobBatch_Ctrl   : st_AllocateMoveAutoBatchMode_Ctrl;
+    AutoAllocateJobBatch_Status : st_AllocateMoveAutoBatchMode_Status;
+    bAutoAllocateJobDryRun      : BOOL;
+
+	  //Allocating reverse
+    fb_AllocateBatchMode_Reverse        : FB_AllocateMoveAutoBatchMode_Reverse;
+    AutoAllocateJobBatch_Reverse_Ctrl   : st_AllocateMoveAutoBatchMode_Ctrl;
+    AutoAllocateJobBatch_Reverse_Status : st_AllocateMoveAutoBatchMode_Status;
+   
+	
+    //OutRobot EmptyBoxMove
+    fbOutRobot_EmptyBoxMove        : FB_OutRobot_EmptyBoxMove;
+    fbOutRobot_EmptyBoxMove_Ctrl   : ST_CommandBasic;
+    fbOutRobot_EmptyBoxMove_Status : ST_StatusBasic;
+
+    //OutRobot RareBoxMove
+    fbOutRobot_RareBoxMove        : FB_OutRobot_RareBoxMove;
+    fbOutRobot_RareBoxMove_Ctrl   : ST_CommandBasic;
+    fbOutRobot_RareBoxMove_Status : ST_StatusBasic;
+
+    //OutRobot BoxMoveReverse	
+    fbOutRobot_BoxMoveReverse        : FB_OutRobot_BoxMoveReverse;
+    fbOutRobot_BoxMoveReverse_Ctrl   : ST_CommandBasic;
+    fbOutRobot_BoxMoveReverse_Status : ST_StatusBasic;
+
+	//OutRobot TurnTable to RoundBelt
+	fbOutRobot_TurnTableToRoundBelt: FB_OutRobot_BoxMoveTurnTableToRoundBelt;
+	fbOutRobot_TurnTableToRoundBel_Ctrl   : ST_CommandBasic;
+    fbOutRobot_TurnTableToRoundBel_Status : ST_StatusBasic;
+	
+    //TransCV Camera
+    fbSameSizeCVCamera  : FB_SameSizeCVCamera;
+    fbDifferentCVCamera : FB_DifferentCVCamera;
+	TransCV_Press 		: BOOL :=FALSE;
+
+    // Round belt
+    AutoRotatebelt_Internal_Ctrl   : st_RoundBeltAutoSingleMove_Ctrl;
+    AutoRotatebelt_Internal_Status : st_RoundBeltAutoSingleMove_Status;
+    _AutoRotatebelt_Ctrl           : st_RoundBeltAutoSingleMove_Ctrl;
+    _AutoRotatebelt_Status         : st_RoundBeltAutoSingleMove_Status;
+    bInternalRotateBeltRequest     : BOOL;
+    bReloadRotateBeltRequest       : BOOL;
+
+    // Pullout
+
+    fbPulloutCV                 : FB_PullOutConveyorAction;
+    _AutoPullout_Ctrl           : ST_AutoPullOutConveyorCommand;
+    _AutoPullout_Status         : ST_AutoPullOutConveyorSatus;
+    _AutoPullout_Info           : ST_PullOutConveyorInfo;
+    AutoPullout_Internal_Ctrl   : ST_AutoPullOutConveyorCommand;
+    AutoPullout_Internal_Status : ST_AutoPullOutConveyorSatus;
+    AutoPullout_Internal_Info   : ST_PullOutConveyorInfo;
+    RobotPullout_Internal_Ctrl   : ST_AutoPullOutConveyorCommand;
+    RobotPullout_Internal_Status : ST_AutoPullOutConveyorSatus;
+    RobotPullout_Internal_Info   : ST_PullOutConveyorInfo;
+	fbPulloutCV_BTNCtrl			:FB_PullOutConveyorBtnCtrl;
+
+    PulloutControlAccess        : E_RoundBeltControlAccess := E_RoundBeltControlAccess.Host;
+    bPulloutConveyorInternCtrl  : BOOL;
+	
+	// TurnTable
+	 _TurnTableMove                      :  st_ads_OneAxisMoveWithPosition;
+	 
+	 //AllocateRobotNeedlingMove
+	 fbAllocateRobotNeedlingMove		: FB_AllocateRobotNeedlingMove;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+IF __ISVALIDREF(PackTag)  THEN
+	
+    eModeCommand  := PackTag.Command.UnitMode;
+    eStateCommand := PackTag.Command.CntrlCmd;
+ELSE
+    RETURN;
+END_IF
+
+IF __ISVALIDREF(Cylinder) THEN
+	
+	Clip.stCylinders.Cylinder0 REF= Cylinder.List.fbAllocateRobot_LeftClamp1;
+	Clip.stCylinders.Cylinder1 REF= Cylinder.List.fbAllocateRobot_LeftClamp2;
+	Clip.stCylinders.Cylinder2 REF= Cylinder.List.fbAllocateRobot_RightClamp1;
+	Clip.stCylinders.Cylinder3 REF= Cylinder.List.fbAllocateRobot_RightClamp2;
+	Cylinders.stCylinders.Cylinder0 REF= Cylinder.List.fbAllocateRobot_LeftVert1;
+	Cylinders.stCylinders.Cylinder1 REF= Cylinder.List.fbAllocateRobot_LeftVert2;
+	Cylinders.stCylinders.Cylinder2 REF= Cylinder.List.fbAllocateRobot_RightVert1;
+	Cylinders.stCylinders.Cylinder3 REF= Cylinder.List.fbAllocateRobot_RightVert2;
+	
+	OutRobotCylinders.stCylinders.Cylinder1 REF= Cylinder.List.fbOutRobot_AsideVert;
+	OutRobotCylinders.stCylinders.Cylinder2 REF= Cylinder.List.fbOutRobot_BsideVert;
+	OutRobotClips.stCylinders.Cylinder1 REF= Cylinder.List.fbOutRobot_AsideClamp;
+	OutRobotClips.stCylinders.Cylinder2 REF= Cylinder.List.fbOutRobot_BsideClamp;
+	
+END_IF
+
+
+
+]]></ST>
+    </Implementation>
+    <Folder Name="Methods" Id="{567ceadc-917a-4436-8d3c-87ac243d2566}">
+      <Folder Name="Private" Id="{a2dbf2b1-9467-4e9e-8d1c-2ee53ae67b94}" />
+      <Folder Name="Public" Id="{0411464c-edec-4311-8959-0c7e70c946c7}" />
+    </Folder>
+    <Folder Name="Service" Id="{0f946738-f975-4678-80f0-30c3eaf451f3}">
+      <Folder Name="Pullout" Id="{33510cf9-649a-4d09-80bf-a3852edd6021}" />
+      <Folder Name="RoundBelt" Id="{7afca88d-5485-41cf-b25c-95c8954f55a5}" />
+    </Folder>
+    <Folder Name="States" Id="{6161fa1b-6034-481c-91b9-269a6c38d9dd}" />
+    <Action Name="A00_Service" Id="{6dc1d4e2-0273-4f7f-b3c5-02c7bf6844c0}">
+      <Implementation>
+        <ST><![CDATA[fbAllocateHome(
+	xDone=> , 
+	xBusy=> , 
+	xError=> , 
+	xExecute:= , 
+	xAbort:= THIS^.Abort,
+	Homed := Homed, 
+	Cylinder:= Cylinder, 
+	Motor:= Motor, 
+	CurrentData:= CurrentData, 
+	TimeOut:= , 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> ,
+	AxisHomingRequest =>);
+	//Service.AllocateRegionHome.Homed:= bHomed;
+
+RoundBeltControl(
+	xDone=> _RoundBeltMoveJob.HandShake.Done, 
+	xBusy=> _RoundBeltMoveJob.HandShake.Busy, 
+	xError=> _RoundBeltMoveJob.HandShake.Error, 
+	xExecute:= _RoundBeltMoveJob.HandShake.Execute, 
+	xAbort:= THIS^.Abort, 
+	TargetStation:= LREAL_TO_INT( _RoundBeltMoveJob.Position), 
+	Cylinder:= Cylinder, 
+	TimeOut:= , 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> ,
+	AxisRoundMoveRequest => );
+	
+TurnTableControl(
+	xDone=> _TurnTableMove.HandShake.Done, 
+	xBusy=> _TurnTableMove.HandShake.Busy, 
+	xError=> _TurnTableMove.HandShake.Error, 
+	xExecute:= _TurnTableMove.HandShake.Execute, 
+	xAbort:= THIS^.Abort, 
+	iTurnTableTarget:= LREAL_TO_INT(_TurnTableMove.Position), 
+	Cylinder:= Cylinder, 
+	TimeOut:= , 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> );
+	
+fb_AllocateBatchMode(
+	Execute:= AutoAllocateJobBatch_Ctrl.bExecute, 
+	Abort:= THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= 'Allocate One process', 
+	Busy=> AutoAllocateJobBatch_Status.bBusy, 
+	Done=> AutoAllocateJobBatch_Status.bDone, 
+	Aborted=> , 
+	Error=> AutoAllocateJobBatch_Status.bError, 
+	ErrorID=>AutoAllocateJobBatch_Status.ErrorID , 
+	Status=>AutoAllocateJobBatch_Status.Status , 
+	UniqueErrorCode=> , 
+	Pause:=bStopMem , 
+	SimpleAllocateMode:= AutoAllocateJobBatch_Ctrl.bSimpleAllocation, 
+	bOccupied:=AutoAllocateJobBatch_Ctrl.bOccupied, 
+	Clips:= Clip.Cylinders, 
+	cylinders:= Cylinders.Cylinders, 
+	TurnTable_Press:= Cylinder.List.fbTurntable_Press, 
+	RoundBelt_Press:= Cylinder.List.fbRoundBelt_WorkZone_Press, 
+	AutoAllocateJobBatch_Ctrl:= AutoAllocateJobBatch_Ctrl, 
+	INPUT:= INPUT, 
+	OUTPUT:= OUTPUT, 
+	NrOfAllocateCylinder:= 4, 
+	CurrentData:= CurrentData, 
+	bAutoAllocateJobDryRun:= bAutoAllocateJobDryRun, // Dry run : No round belt move
+	ProcessedIndex=> AutoAllocateJobBatch_Status.iIndex,
+	RoundBeltMoveJob_Ctrl =>,
+	RoundBeltMoveJob_Status := RoundBeltMoveJob_Status,
+	RoundBeltMoveJob_Position =>	 );
+	
+	IF fb_AllocateBatchMode.SimpleAllocateMode THEN
+		 Service.AutoMode_SimpleAllocation_Batch.WorkedID:= AutoAllocateJobBatch_Status.iIndex;
+	ELSE
+		 Service.AutoMode_AllocateBatchMode.WorkedID:= AutoAllocateJobBatch_Status.iIndex;
+	END_IF
+fb_AllocateBatchMode_Reverse(
+	Execute:=AutoAllocateJobBatch_Reverse_Ctrl.bExecute , 
+	Abort:= THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= 'Allocate batch reverse', 
+	Busy=> AutoAllocateJobBatch_Reverse_Status.bBusy, 
+	Done=> AutoAllocateJobBatch_Reverse_Status.bDone, 
+	Aborted=> AutoAllocateJobBatch_Reverse_Status.bAborted, 
+	Error=> AutoAllocateJobBatch_Reverse_Status.bError, 
+	ErrorID=> AutoAllocateJobBatch_Reverse_Status.ErrorID, 
+	Status=> AutoAllocateJobBatch_Reverse_Status.Status, 
+	UniqueErrorCode=> , 
+	Pause:= bStopMem,  
+	bOccupied:= AutoAllocateJobBatch_Reverse_Ctrl.bOccupied, 
+	Clips:= Clip.Cylinders, 
+	cylinders:= Cylinders.Cylinders, 
+	TurnTable_Press:= Cylinder.List.fbTurntable_Press, 
+	RoundBelt_Press:= Cylinder.List.fbRoundBelt_WorkZone_Press, 
+	AutoAllocateJobBatch_Reverse_Ctrl:= AutoAllocateJobBatch_Reverse_Ctrl, 
+	INPUT:= INPUT, 
+	OUTPUT:= OUTPUT, 
+	NrOfAllocateCylinder:=4 , 
+	CurrentData:= CurrentData, 
+	bAutoAllocateJobDryRun:= bAutoAllocateJobDryRun, 
+	RoundBeltMoveJob_Ctrl=> , 
+	ProcessedIndex=> AutoAllocateJobBatch_Reverse_Status.iIndex,
+	RoundBeltMoveJob_Status := RoundBeltMoveJob_Status,
+	RoundBeltMoveJob_Position =>);
+
+	
+fbOutRobot_EmptyBoxMove(
+	Execute:= Service.AutoMode_EmptyBoxMove.HandShake.Execute, 
+	Abort:= THIS^.Abort, 
+	Reset:= Reset , 
+	ObjectName:= 'fbOutRobot_EmptyBoxMove', 
+	Busy=> Service.AutoMode_EmptyBoxMove.HandShake.Busy, 
+	Done=> Service.AutoMode_EmptyBoxMove.HandShake.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_EmptyBoxMove.HandShake.Error, 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	INPUT:= INPUT, 
+	Cylinder:= Cylinder, 
+	Motor:= Motor, 
+	Cylinders :=OutRobotCylinders.Cylinders,
+	Clips := OutRobotClips.Cylinders,
+	AutoMode_OutRobotMoveMove:=Service.AutoMode_EmptyBoxMove );
+
+fbOutRobot_RareBoxMove(
+	Execute:= Service.AutoMode_RareBoxMove.HandShake.Execute , 
+	Abort:= THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= 'fbOutRobot_RareBoxMove', 
+	Busy=> Service.AutoMode_RareBoxMove.HandShake.Busy, 
+	Done=> Service.AutoMode_RareBoxMove.HandShake.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_RareBoxMove.HandShake.Error, 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	INPUT:=INPUT , 
+	Cylinder:= Cylinder, 
+	Motor:= Motor, 
+	Cylinders :=OutRobotCylinders.Cylinders,
+	Clips := OutRobotClips.Cylinders,
+	AutoMode_OutRobotMoveMove:= Service.AutoMode_RareBoxMove);
+
+fbOutRobot_BoxMoveReverse(
+	Execute:= Service.AutoMode_BoxMoveReverse.HandShake.Execute, 
+	Abort:= THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:='fbOutRobot_BoxMoveReverse', 
+	Busy=> Service.AutoMode_BoxMoveReverse.HandShake.Busy, 
+	Done=> Service.AutoMode_BoxMoveReverse.HandShake.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_BoxMoveReverse.HandShake.Error, 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	INPUT:= INPUT, 
+	Cylinder:= Cylinder, 
+	Motor:= Motor, 
+	Cylinders :=OutRobotCylinders.Cylinders,
+	Clips := OutRobotClips.Cylinders,
+	AutoMode_OutRobotMoveMove:= Service.AutoMode_BoxMoveReverse);	
+	
+fbDifferentCVCamera(
+	xDone=> Service.AutoMode_DifferentCVCamera.Status.Done, 
+	xBusy=> Service.AutoMode_DifferentCVCamera.Status.Busy, 
+	xError=> Service.AutoMode_DifferentCVCamera.Status.Error, 
+	xExecute:= Service.AutoMode_DifferentCVCamera.Command.Execute, 
+	xAbort:= Service.AutoMode_DifferentCVCamera.Command.Abort OR THIS^.Abort, 
+	xReset:= Reset, 
+	Cylinder:= Cylinder, 
+	TimeOut:= , 
+	Input:= INPUT, 
+	OutPut:= OutPut ,
+	Motor:= Motor, 
+	BoxCameraDone:= Service.AutoMode_DifferentCVCamera.BoxCameraDone, 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> , 
+	UseBoxCamera=> Service.AutoMode_DifferentCVCamera.UseBoxCamera);
+
+fbOutRobot_TurnTableToRoundBelt(
+	Execute:= fbOutRobot_TurnTableToRoundBel_Ctrl.Execute, 
+	Abort:= fbOutRobot_TurnTableToRoundBel_Ctrl.Abort OR THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= 'fbOutRobot_TurnTableToRoundBelt', 
+	Busy=> fbOutRobot_TurnTableToRoundBel_Status.Busy, 
+	Done=> fbOutRobot_TurnTableToRoundBel_Status.Done, 
+	Aborted=> , 
+	Error=> fbOutRobot_TurnTableToRoundBel_Status.Error, 
+	ErrorID=> , 
+	Status=> fbOutRobot_TurnTableToRoundBel_Status.Status, 
+	UniqueErrorCode=> , 
+	INPUT:= INPUT, 
+	Cylinders:= OutRobotCylinders.Cylinders, 
+	Clips:=OutRobotClips.Cylinders , 
+	AutoMode_TurnTableToRoundBelt:= ); // todo creative var to fill in cmooand info	
+	
+	fbSameSizeCVCamera(
+		xReset := Reset,
+		xDone=> Service.AutoMode_SameSizeCVCamera.Status.Done, 
+		xBusy=> Service.AutoMode_SameSizeCVCamera.Status.Busy, 
+		xError=> Service.AutoMode_SameSizeCVCamera.Status.Error, 
+		xExecute:= Service.AutoMode_SameSizeCVCamera.Command.Execute, 
+		xAbort:= Service.AutoMode_SameSizeCVCamera.Command.Abort OR THIS^.Abort, 
+		Cylinder:= Cylinder, 
+		TimeOut:= , 
+		Input:= INPUT, 
+		OutPut:= OUTPUT, 
+		Motor:= Motor, 
+		BoxCameraDone:= Service.AutoMode_SameSizeCVCamera.BoxCameraDone, 
+		xAborted=> , 
+		iErrorID=> , 
+		ErrorMsg=> , 
+		UseBoxCamera=> Service.AutoMode_SameSizeCVCamera.UseBoxCamera);
+	
+	
+	
+fbPulloutCV(
+	Execute:= _AutoPullout_Ctrl.Execute, 
+	Abort:= _AutoPullout_Ctrl.Abort OR THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= ' Pullout conveyor ', 
+	Busy=> _AutoPullout_Status.Busy, 
+	Done=> _AutoPullout_Status.Done, 
+	Aborted=> , 
+	Error=> _AutoPullout_Status.Error, 
+	ErrorID=> , 
+	Status=> _AutoPullout_Status.Status, 
+	UniqueErrorCode=> , 
+	FixCylinderA1:= Cylinder.List.fbPullOutCV_AsidePress1, 
+	FixCylinderA2:= Cylinder.List.fbPullOutCV_AsidePress2, 
+	FixCylinderB1:= Cylinder.List.fbPullOutCV_BsidePress1, 
+	FixCylinderB2:= Cylinder.List.fbPullOutCV_BsidePress2, 
+	BarrierCylinderA:= Cylinder.List.fbPullOutCV_AsideBlock, 
+	BarrierCylinderB:= Cylinder.List.fbPullOutCV_BsideBlock, 
+	ConveyorMotorA:= Motor.List.PullOutCV_A, 
+	ConveyorMotorB:= Motor.List.PullOutCV_B, 
+	INPUT:= INPUT, 
+	PullOutInfo:= _AutoPullout_Info);
+	
+fbPulloutCV_BTNCtrl(
+	Input:= INPUT, 
+	Output:= OUTPUT, 
+	Motor:= Motor, 
+	bPullOutConveyorExecute:= _AutoPullout_Ctrl.Execute, 
+	bPullOutConveyorDone:= _AutoPullout_Status.Done, 
+	bPullOutConveyorBusy:= _AutoPullout_Status.Busy, 
+	StroageRegionMode:= eModeCurrent, 
+	PullOutConveyorState=> );
+	
+fbAllocateRobotNeedlingMove(
+	xDone=>  Service.AllocateRobotNeedlingMove.Status.Done,
+	xBusy=> Service.AllocateRobotNeedlingMove.Status.Busy, 
+	xError=> Service.AllocateRobotNeedlingMove.Status.Error, 
+	xExecute:= Service.AllocateRobotNeedlingMove.Command.Execute, 
+	xAbort:= Service.AllocateRobotNeedlingMove.Command.Abort OR THIS^.Abort, 
+	TimeOut:= , 
+	MovingInfo:= Service.AllocateRobotNeedlingMove.MovingInfo, 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> Service.AllocateRobotNeedlingMove.Status.Status);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A01_RoundBeltAccessControl" Id="{9a16c9c7-6b93-4040-84b9-3057330d86a4}">
+      <Implementation>
+        <ST><![CDATA[CASE RoundBeltControlAccess OF 
+	E_RoundBeltControlAccess.Host :
+	 IF eModeCurrent = E_UnitMode.Manual THEN
+		_RoundBeltMoveJob.Position :=Service.AllocateCircleMove.Position;
+		_RoundBeltMoveJob.Latch :=Service.AllocateCircleMove.Latch;
+		_RoundBeltMoveJob.HandShake.Execute :=Service.AllocateCircleMove.HandShake.Execute;
+		_RoundBeltMoveJob.HandShake.Reset :=Service.AllocateCircleMove.HandShake.Reset;
+		_RoundBeltMoveJob.HandShake.Occupied  :=Service.AllocateCircleMove.HandShake.Occupied;
+		Service.AllocateCircleMove.HandShake.Busy := _RoundBeltMoveJob.HandShake.Busy;
+		Service.AllocateCircleMove.HandShake.Done := _RoundBeltMoveJob.HandShake.Done;
+		Service.AllocateCircleMove.HandShake.Error := _RoundBeltMoveJob.HandShake.Error;
+	ELSIF  eModeCurrent = E_UnitMode.Auto THEN
+		_RoundBeltMoveJob.Position :=Service.AutoMode_AllocateCircleMove.Position;
+		_RoundBeltMoveJob.Latch :=Service.AutoMode_AllocateCircleMove.Latch;
+		_RoundBeltMoveJob.HandShake.Execute :=Service.AutoMode_AllocateCircleMove.HandShake.Execute;
+		_RoundBeltMoveJob.HandShake.Reset :=Service.AutoMode_AllocateCircleMove.HandShake.Reset;
+		_RoundBeltMoveJob.HandShake.Occupied  :=Service.AutoMode_AllocateCircleMove.HandShake.Occupied;
+		Service.AutoMode_AllocateCircleMove.HandShake.Busy := _RoundBeltMoveJob.HandShake.Busy;
+		Service.AutoMode_AllocateCircleMove.HandShake.Done := _RoundBeltMoveJob.HandShake.Done;
+		Service.AutoMode_AllocateCircleMove.HandShake.Error := _RoundBeltMoveJob.HandShake.Error;
+	END_IF
+		
+	E_RoundBeltControlAccess.Allocating  :
+	
+		_RoundBeltMoveJob.Position :=RoundBeltMoveJob_Position;
+		//_RoundBeltMoveJob.Latch :=;
+		_RoundBeltMoveJob.HandShake.Execute :=RoundBeltMoveJob_Ctrl_Batch.Execute;
+		_RoundBeltMoveJob.HandShake.Reset :=RoundBeltMoveJob_Ctrl_Batch.Reset;
+		RoundBeltMoveJob_Status.Busy := _RoundBeltMoveJob.HandShake.Busy;
+		RoundBeltMoveJob_Status.Done := _RoundBeltMoveJob.HandShake.Done;
+		RoundBeltMoveJob_Status.Error := _RoundBeltMoveJob.HandShake.Error;
+
+	E_RoundBeltControlAccess.FanucRobot:
+		_RoundBeltMoveJob.Position :=RoundBeltMoveJob_Position_FanucRobot;
+		//_RoundBeltMoveJob.Latch :=;
+		_RoundBeltMoveJob.HandShake.Execute :=RoundBeltMoveJob_Ctrl.Execute;
+		_RoundBeltMoveJob.HandShake.Reset :=RoundBeltMoveJob_Ctrl.Reset;
+		RoundBeltMoveJob_Status.Busy := _RoundBeltMoveJob.HandShake.Busy;
+		RoundBeltMoveJob_Status.Done := _RoundBeltMoveJob.HandShake.Done;
+		RoundBeltMoveJob_Status.Error := _RoundBeltMoveJob.HandShake.Error;	
+END_CASE]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A02_PulloutAccessControl" Id="{02786782-6d97-47ca-a641-778165c2b4a0}">
+      <Implementation>
+        <ST><![CDATA[CASE PulloutControlAccess OF
+    E_RoundBeltControlAccess.Host:
+        _AutoPullout_Ctrl.Execute := Service.AutoMode_PullOutConveyor.Command.Execute;
+        _AutoPullout_Ctrl.Abort := Service.AutoMode_PullOutConveyor.Command.Abort;
+        _AutoPullout_Ctrl.Reset := Service.AutoMode_PullOutConveyor.Command.Reset;
+        Service.AutoMode_PullOutConveyor.Status.Busy := _AutoPullout_Status.Busy;
+        Service.AutoMode_PullOutConveyor.Status.Done := _AutoPullout_Status.Done;
+        Service.AutoMode_PullOutConveyor.Status.Error := _AutoPullout_Status.Error;
+        Service.AutoMode_PullOutConveyor.Status.Status := _AutoPullout_Status.Status;
+        _AutoPullout_Info := Service.AutoMode_PullOutConveyor.PullOutConveyorInfo;
+    E_RoundBeltControlAccess.Allocating:
+        _AutoPullout_Ctrl.Execute := AutoPullout_Internal_Ctrl.Execute;
+        _AutoPullout_Ctrl.Abort := AutoPullout_Internal_Ctrl.Abort;
+        _AutoPullout_Ctrl.Reset := AutoPullout_Internal_Ctrl.Reset;
+        AutoPullout_Internal_Status.Busy := _AutoPullout_Status.Busy;
+        AutoPullout_Internal_Status.Done := _AutoPullout_Status.Done;
+        AutoPullout_Internal_Status.Error := _AutoPullout_Status.Error;
+        AutoPullout_Internal_Status.Status := _AutoPullout_Status.Status;
+        _AutoPullout_Info := AutoPullout_Internal_Info;
+    E_RoundBeltControlAccess.FanucRobot:
+        _AutoPullout_Ctrl.Execute := RobotPullout_Internal_Ctrl.Execute;
+        _AutoPullout_Ctrl.Abort := RobotPullout_Internal_Ctrl.Abort;
+        _AutoPullout_Ctrl.Reset := RobotPullout_Internal_Ctrl.Reset;
+        RobotPullout_Internal_Status.Busy := _AutoPullout_Status.Busy;
+        RobotPullout_Internal_Status.Done := _AutoPullout_Status.Done;
+        RobotPullout_Internal_Status.Error := _AutoPullout_Status.Error;
+        RobotPullout_Internal_Status.Status := _AutoPullout_Status.Status;
+        _AutoPullout_Info := RobotPullout_Internal_Info;
+END_CASE]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A99_ErrorHandler" Id="{a46e5a00-079e-4acb-84fa-a98399f2647e}">
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_Aborted" Id="{f9c470e2-e837-4f99-832c-94f4bf162e68}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborted
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Abort := FALSE;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Aborting" Id="{f47ed5d0-d581-4899-a335-17f7b5663966}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Abort := TRUE;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ActiveRoundBeltInternalCtrl" Id="{6383c384-733f-448a-af39-61c53bd0511a}" FolderPath="Service\RoundBelt\">
+      <Declaration><![CDATA[METHOD M_ActiveRoundBeltInternalCtrl : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bReloadRotateBeltRequest := TRUE;
+M_ActiveRoundBeltInternalCtrl := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AutoAllocatingBatch" Id="{78ee68fe-a3ae-473c-9c05-2e1ae9f2e998}" FolderPath="Methods\">
+      <Declaration><![CDATA[METHOD PRIVATE M_AutoAllocatingBatch : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT Service.AutoMode_SimpleAllocation_Batch.HandShake.Execute 
+   AND  NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute	THEN
+	
+	AutoAllocateJobBatch_Ctrl.bSimpleAllocation:=FALSE;
+	AutoAllocateJobBatch_Ctrl.bExecute:=Service.AutoMode_AllocateBatchMode.HandShake.Execute;
+	AutoAllocateJobBatch_Ctrl.bReset :=Service.AutoMode_AllocateBatchMode.HandShake.Reset;
+	AutoAllocateJobBatch_Ctrl.bOccupied:=Service.AutoMode_AllocateBatchMode.HandShake.Occupied;
+	AutoAllocateJobBatch_Ctrl.bPause :=Service.AutoMode_AllocateBatchMode.Pause;
+
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo:=Service.AutoMode_AllocateBatchMode.AllocationInfo;
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob:=Service.AutoMode_AllocateBatchMode.NrOfAllocationJob;
+
+	Service.AutoMode_AllocateBatchMode.WorkedID:=AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.WorkedID;
+	Service.AutoMode_AllocateBatchMode.HandShake.Busy:= AutoAllocateJobBatch_Status.bBusy;
+	Service.AutoMode_AllocateBatchMode.HandShake.Error:= AutoAllocateJobBatch_Status.bError;
+	Service.AutoMode_AllocateBatchMode.HandShake.Done:= AutoAllocateJobBatch_Status.bDone;
+	
+	RoundBeltMoveJob_Ctrl_Batch :=fb_AllocateBatchMode.RoundBeltMoveJob_Ctrl; 
+	RoundBeltMoveJob_Position :=fb_AllocateBatchMode.RoundBeltMoveJob_Position;	
+	bAutoAllocateJobDryRun := FALSE;
+END_IF
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AutoAllocatingBatch_Reverse" Id="{32353bb2-171c-4822-be0e-c5035ae517d7}" FolderPath="Methods\">
+      <Declaration><![CDATA[METHOD PRIVATE M_AutoAllocatingBatch_Reverse : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[	IF NOT Service.AutoMode_AllocateBatchMode.HandShake.Execute 
+	   AND NOT Service.AutoMode_SimpleAllocation_Batch.HandShake.Execute THEN
+	AutoAllocateJobBatch_Reverse_Ctrl.bExecute:=Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute;
+	AutoAllocateJobBatch_Reverse_Ctrl.bReset :=Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Reset;
+	AutoAllocateJobBatch_Reverse_Ctrl.bOccupied:=Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Occupied;
+	AutoAllocateJobBatch_Reverse_Ctrl.bPause :=Service.AutoMode_AllocateBatchMode_Reverse.Pause;
+
+	AutoAllocateJobBatch_Reverse_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo:=Service.AutoMode_AllocateBatchMode_Reverse.AllocationInfo;
+	AutoAllocateJobBatch_Reverse_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob:=Service.AutoMode_AllocateBatchMode_Reverse.NrOfAllocationJob;
+
+	Service.AutoMode_AllocateBatchMode_Reverse.WorkedID:=AutoAllocateJobBatch_Reverse_Ctrl.AutoMode_AllocateMoveBatch.WorkedID;
+	Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Busy:= AutoAllocateJobBatch_Reverse_Status.bBusy;
+	Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Error:= AutoAllocateJobBatch_Reverse_Status.bError;
+	Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Done:= AutoAllocateJobBatch_Reverse_Status.bDone;
+	RoundBeltMoveJob_Ctrl_Batch :=fb_AllocateBatchMode_Reverse.RoundBeltMoveJob_Ctrl; 
+	RoundBeltMoveJob_Position :=fb_AllocateBatchMode_Reverse.RoundBeltMoveJob_Position;	
+
+	bAutoAllocateJobDryRun := FALSE;
+	
+	END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AutoAllocatingBatch_Simple" Id="{cbb871bb-237a-4e42-9688-397726b21265}" FolderPath="Methods\">
+      <Declaration><![CDATA[METHOD PRIVATE M_AutoAllocatingBatch_Simple : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT Service.AutoMode_AllocateBatchMode.HandShake.Execute 
+   AND NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute	THEN
+	
+	AutoAllocateJobBatch_Ctrl.bSimpleAllocation:=TRUE;
+	AutoAllocateJobBatch_Ctrl.bExecute:=Service.AutoMode_SimpleAllocation_Batch.HandShake.Execute;
+	AutoAllocateJobBatch_Ctrl.bReset :=Service.AutoMode_SimpleAllocation_Batch.HandShake.Reset;
+	AutoAllocateJobBatch_Ctrl.bOccupied:=Service.AutoMode_SimpleAllocation_Batch.HandShake.Occupied;
+	AutoAllocateJobBatch_Ctrl.bPause :=Service.AutoMode_SimpleAllocation_Batch.Pause;
+
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo:=Service.AutoMode_SimpleAllocation_Batch.AllocationInfo;
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob:=Service.AutoMode_SimpleAllocation_Batch.NrOfAllocationJob;
+
+	Service.AutoMode_SimpleAllocation_Batch.WorkedID:=AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.WorkedID;
+	Service.AutoMode_SimpleAllocation_Batch.HandShake.Busy:= AutoAllocateJobBatch_Status.bBusy;
+	Service.AutoMode_SimpleAllocation_Batch.HandShake.Error:= AutoAllocateJobBatch_Status.bError;
+	Service.AutoMode_SimpleAllocation_Batch.HandShake.Done:= AutoAllocateJobBatch_Status.bDone;
+	
+	RoundBeltMoveJob_Ctrl_Batch :=fb_AllocateBatchMode.RoundBeltMoveJob_Ctrl; 
+	RoundBeltMoveJob_Position :=fb_AllocateBatchMode.RoundBeltMoveJob_Position;		
+
+	bAutoAllocateJobDryRun := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AutoTurnTable" Id="{f75f7c7d-482b-41a5-a75f-40f52d49dc4c}" FolderPath="Methods\">
+      <Declaration><![CDATA[METHOD PRIVATE M_AutoTurnTable : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_TurnTableMove.HandShake.Execute:=Service.AutoMode_TurnTableMove.HandShake.Execute;
+_TurnTableMove.Position:=Service.AutoMode_TurnTableMove.Position;
+
+Service.AutoMode_TurnTableMove.HandShake.Busy := _TurnTableMove.HandShake.Busy;
+Service.AutoMode_TurnTableMove.HandShake.Done := _TurnTableMove.HandShake.Done;
+Service.AutoMode_TurnTableMove.HandShake.Error := _TurnTableMove.HandShake.Error;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckAxesHomed" Id="{b35024de-bb1c-4394-9395-73defc78c724}" FolderPath="Methods\Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_CheckAxesHomed : BOOL
+VAR_INPUT
+END_VAR
+
+VAR 
+	AxisIndex : INT;//1-6
+	bCheckHome : BOOL:=TRUE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bCheckHome:=TRUE;
+
+FOR AxisIndex :=1 TO 6 DO
+	bCheckHome:=bCheckHome AND	arAxisCtrl_gb[AxisIndex].Admin.Axis.Status.Homed;
+END_FOR
+
+M_CheckAxesHomed:=	bCheckHome;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Clearing" Id="{562fd765-7485-4a82-ad8c-2302e5773406}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Clearing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Complete" Id="{b794b69c-9b74-45a7-b7e9-90266dcd9ba9}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Complete
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Completing" Id="{38eb0607-073b-48a9-aa3b-ecccbe48f662}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Completing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Execute" Id="{baa71317-3ff7-4b6b-969f-b75b5d9f57f5}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Execute
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eModeCurrent OF
+	E_UnitMode.Manual:
+		M_ManualAllocating();
+		M_AutoAllocatingBatch_Simple();
+		M_AutoAllocatingBatch();
+		M_AutoAllocatingBatch_Reverse();
+		M_ManualTurnTable();
+		M_AutoAllocatingBatch_Reverse();
+		//M_TransCVCameraPress_ManualMode();
+		//TransCV_Press :=FALSE;
+
+	E_UnitMode.Auto:
+	
+		M_AutoAllocatingBatch_Simple();
+		M_AutoAllocatingBatch();
+		M_AutoAllocatingBatch_Reverse();
+		M_AutoTurnTable();
+		M_TransCVCameraPress();
+END_CASE
+//M_StateComplete();
+A00_Service();
+A01_RoundBeltAccessControl();
+A02_PulloutAccessControl();
+//bHomed :=M_CheckAxesHomed();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetPulloutAccess" Id="{ccaa9946-2575-44d9-8e45-317018f1962b}" FolderPath="Service\Pullout\">
+      <Declaration><![CDATA[METHOD PUBLIC M_GetPulloutAccess : BOOL
+VAR_INPUT
+	 ControlAccess:	 E_RoundBeltControlAccess;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.PulloutControlAccess = E_RoundBeltControlAccess.Host AND 
+	NOT (fbPulloutCV.Execute OR fbPulloutCV.Busy OR fbPulloutCV.Done) THEN
+	THIS^.PulloutControlAccess := ControlAccess;
+	M_GetPulloutAccess := TRUE;
+ ELSE
+	M_GetPulloutAccess := FALSE;	
+ END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetRoundBeltAccess" Id="{90ae85e4-3deb-4b75-b56f-224a2ad296d9}" FolderPath="Methods\Public\">
+      <Declaration><![CDATA[METHOD PUBLIC M_GetRoundBeltAccess : BOOL
+VAR_INPUT
+	 ControlAccess:	 E_RoundBeltControlAccess;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.RoundBeltControlAccess = E_RoundBeltControlAccess.Host AND 
+	NOT (RoundBeltControl.xExecute OR RoundBeltControl.xBusy OR RoundBeltControl.xDone) THEN
+	THIS^.RoundBeltControlAccess := ControlAccess;
+	M_GetRoundBeltAccess := TRUE;
+ ELSE
+	M_GetRoundBeltAccess := FALSE;	
+ END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Held" Id="{22d96dbd-4aab-4e54-b6ce-fc857f6ce98c}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Held
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Holding" Id="{f27d6b7b-05c5-45f7-a0fb-68acce83e3d8}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Holding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Idle" Id="{5d6418ec-5854-4049-82a5-89dffe187b4b}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Idle
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_InactiveRoundBeltInternalCtrl" Id="{134ac148-980a-4a36-8d6a-23d797a19726}" FolderPath="Service\RoundBelt\">
+      <Declaration><![CDATA[METHOD M_InactiveRoundBeltInternalCtrl : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bReloadRotateBeltRequest := FALSE;
+
+M_InactiveRoundBeltInternalCtrl := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ManualAllocating" Id="{389ed1a5-e4d2-47be-9c6b-2144473f1d9f}" FolderPath="Methods\">
+      <Declaration><![CDATA[METHOD PRIVATE M_ManualAllocating : BOOL
+VAR_INPUT
+END_VAR
+
+VAR_INST 
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+	AutoAllocateJobBatch_Ctrl.bSimpleAllocation:=FALSE;
+	AutoAllocateJobBatch_Ctrl.bReset:=Service.AllocateMoveStructure.HandShake.Reset;
+	AutoAllocateJobBatch_Ctrl.bPause:=FALSE;
+	AutoAllocateJobBatch_Ctrl.bOccupied :=Service.AllocateMoveStructure.HandShake.Occupied;
+	AutoAllocateJobBatch_Ctrl.bExecute:=Service.AllocateMoveStructure.HandShake.Execute;
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob:=1;
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].FastMode:=FALSE;
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].SyncMode:=FALSE	;
+	
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PickingNeedleInfo[0].CycleStart:=TRUE;
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PickingNeedleInfo[0].Box:=LREAL_TO_UINT( Service.AllocateMoveStructure.Frombox);
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PickingNeedleInfo[0].Clip:=LREAL_TO_INT(Service.AllocateMoveStructure.Clip);
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PickingNeedleInfo[0].NeedleLocation:=LREAL_TO_INT(Service.AllocateMoveStructure.FromPosition);
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PlacingNeedleInfo[0].CycleStart:=TRUE;
+	
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PlacingNeedleInfo[0].Box :=LREAL_TO_UINT(Service.AllocateMoveStructure.Tobox);
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PlacingNeedleInfo[0].Clip:=LREAL_TO_INT(Service.AllocateMoveStructure.Clip);
+	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[0].PlacingNeedleInfo[0].NeedleLocation :=LREAL_TO_INT(Service.AllocateMoveStructure.ToPosition);
+
+	Service.AllocateMoveStructure.HandShake.Busy :=AutoAllocateJobBatch_Status.bBusy;
+	Service.AllocateMoveStructure.HandShake.Done :=AutoAllocateJobBatch_Status.bDone;
+	Service.AllocateMoveStructure.HandShake.Error :=AutoAllocateJobBatch_Status.bError;
+	bAutoAllocateJobDryRun := TRUE;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ManualTurnTable" Id="{65b94d0c-2090-47fe-b70a-f2f4b0f4a272}" FolderPath="Methods\">
+      <Declaration><![CDATA[METHOD PRIVATE M_ManualTurnTable : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_TurnTableMove.HandShake.Execute:=Service.TurnTableMove.HandShake.Execute;
+_TurnTableMove.Position:=Service.TurnTableMove.Position;
+
+Service.TurnTableMove.HandShake.Busy := _TurnTableMove.HandShake.Busy;
+Service.TurnTableMove.HandShake.Done := _TurnTableMove.HandShake.Done;
+Service.TurnTableMove.HandShake.Error := _TurnTableMove.HandShake.Error;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReleasePulloutAccess" Id="{4f5bc646-5dbd-4ce4-a828-74a5f6d4cdbf}" FolderPath="Service\Pullout\">
+      <Declaration><![CDATA[METHOD PUBLIC M_ReleasePulloutAccess : BOOL
+VAR_INPUT
+ ControlAccess:	 E_RoundBeltControlAccess;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ControlAccess = THIS^.PulloutControlAccess THEN
+		THIS^.PulloutControlAccess := E_RoundBeltControlAccess.Host;
+		M_ReleasePulloutAccess := TRUE;
+	ELSE
+		M_ReleasePulloutAccess := FALSE;
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReleaseRoundBeltAccess" Id="{ab6b25d9-94ba-4c5f-bbc8-f977ff5d7afc}" FolderPath="Methods\Public\">
+      <Declaration><![CDATA[METHOD PUBLIC M_ReleaseRoundBeltAccess : BOOL
+VAR_INPUT
+ ControlAccess:	 E_RoundBeltControlAccess;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ControlAccess = THIS^.RoundBeltControlAccess THEN
+		THIS^.RoundBeltControlAccess := E_RoundBeltControlAccess.Host;
+		M_ReleaseRoundBeltAccess := TRUE;
+	ELSE
+		M_ReleaseRoundBeltAccess := FALSE;
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetReloadRoundBeltAction" Id="{9a5f7dec-a67e-4f7b-8a2b-0419ec8fb38f}" FolderPath="Service\RoundBelt\">
+      <Declaration><![CDATA[METHOD M_ResetReloadRoundBeltAction : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[RoundBeltMoveJob_Ctrl.Execute := FALSE;
+
+M_ResetReloadRoundBeltAction := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Resetting" Id="{7510f6ff-5c2a-4f62-8abe-ee2e640016d2}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Resetting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(Cylinder) THEN
+	Clip.stCylinders.Cylinder0 REF= Cylinder.List.fbAllocateRobot_LeftClamp1;
+	Clip.stCylinders.Cylinder1 REF= Cylinder.List.fbAllocateRobot_LeftClamp2;
+	Clip.stCylinders.Cylinder2 REF= Cylinder.List.fbAllocateRobot_RightClamp1;
+	Clip.stCylinders.Cylinder3 REF= Cylinder.List.fbAllocateRobot_RightClamp2;
+	Cylinders.stCylinders.Cylinder0 REF= Cylinder.List.fbAllocateRobot_LeftVert1;
+	Cylinders.stCylinders.Cylinder1 REF= Cylinder.List.fbAllocateRobot_LeftVert2;
+	Cylinders.stCylinders.Cylinder2 REF= Cylinder.List.fbAllocateRobot_RightVert1;
+	Cylinders.stCylinders.Cylinder3 REF= Cylinder.List.fbAllocateRobot_RightVert2;	
+END_IF
+
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartAllocatePulloutAction" Id="{37aa1ecf-5cf1-4e3d-acb8-8e3d2ba00b09}" FolderPath="Service\Pullout\">
+      <Declaration><![CDATA[METHOD PUBLIC M_StartAllocatePulloutAction : BOOL
+VAR_INPUT
+	CV_ForwardTime :TIME;
+	CV_BackwardTIme : TIME;
+	CommandType : E_PullOutConveyorCommandType; // Select PullOut conveyor command.
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoPullout_Internal_Ctrl.Execute := TRUE;
+AutoPullout_Internal_Info.ConveyorReverseTime := CV_BackwardTIme;
+AutoPullout_Internal_Info.ConveyorRunningTime := CV_ForwardTime;
+AutoPullout_Internal_Info.CommandType := CommandType;
+M_StartAllocatePulloutAction := TRUE; // Method end
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartHoming" Id="{620fd941-f4b2-4243-a20a-47ba680e35d9}">
+      <Declaration><![CDATA[METHOD M_StartHoming
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbAllocateHome.xExecute := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Starting" Id="{3a8261d0-5827-46bd-9f71-a59c36e02c06}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Starting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartReloadRoundBeltAtion" Id="{2e4beba3-6217-472d-a192-467f8534f6ad}" FolderPath="Service\RoundBelt\">
+      <Declaration><![CDATA[(* This Method is used to start round belt action : unlock pin and move to target position
+	also injection the action parameter.
+*)
+METHOD M_StartReloadRoundBeltAtion : BOOL
+VAR_INPUT
+	ReloadStation : E_RoundBeltStation;
+END_VAR
+VAR_INST
+	_ReloadStation : E_RoundBeltStation;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (ReloadStation > 12) THEN
+	_ReloadStation := (ReloadStation -12 );
+//	_ReloadStation := (ReloadStation -6 );
+ELSE
+	_ReloadStation := ReloadStation + 28;
+END_IF
+IF F_Even(_ReloadStation) THEN
+	_ReloadStation := _ReloadStation-1;
+END_IF
+
+//IF ReloadStation > 6 THEN
+//	_ReloadStation := ReloadStation -6;
+//ELSE
+//	_ReloadStation := ReloadStation +14;
+//END_IF
+//AutoRotatebelt_Internal_Ctrl.uiLatch := E_Pistons.LoadingBoxRegion;
+//AutoRotatebelt_Internal_Ctrl.uiStation :=  _ReloadStation;
+//AutoRotatebelt_Internal_Ctrl.Timeout := T#15S;
+//AutoRotatebelt_Internal_Ctrl.bSendPressBox := FALSE; // Release allocate zone, press box cylinder in backward position
+RoundBeltMoveJob_Position_FanucRobot := _ReloadStation;
+RoundBeltMoveJob_Ctrl.Execute := TRUE;
+
+M_StartReloadRoundBeltAtion := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartStoragePulloutAction" Id="{8dc4f638-5d0d-4a69-b402-ecd0f2373a12}" FolderPath="Service\Pullout\">
+      <Declaration><![CDATA[METHOD M_StartStoragePulloutAction : BOOL
+VAR_INPUT
+	CV_ForwardTime :TIME;
+	CV_BackwardTIme : TIME;
+	CommandType : E_PullOutConveyorCommandType; // Select PullOut conveyor command.
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[RobotPullout_Internal_Ctrl.Execute := TRUE;
+RobotPullout_Internal_Info.CommandType := CommandType;
+RobotPullout_Internal_Info.ConveyorReverseTime := CV_BackwardTIme;
+RobotPullout_Internal_Info.ConveyorRunningTime := CV_ForwardTime;
+M_StartStoragePulloutAction := TRUE; // Method end
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopAllocatePulloutAction" Id="{2c14123f-718b-4b06-80ab-923ef7993357}" FolderPath="Service\Pullout\">
+      <Declaration><![CDATA[METHOD M_StopAllocatePulloutAction : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoPullout_Internal_Ctrl.Execute := FALSE;
+M_StopAllocatePulloutAction := TRUE; // Methode end
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopHoming" Id="{d8160e10-8ca9-4893-a438-0b0b93d2874b}">
+      <Declaration><![CDATA[METHOD M_StopHoming
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbAllocateHome.xExecute := False;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopped" Id="{39e500ba-92f0-41c1-80a1-e71edaa73f13}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopped
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopping" Id="{5caef25a-f20a-4282-b342-71351aa35822}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopping
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopStoragePulloutAction" Id="{a3597a0f-e44f-4bdd-91d5-1302fcc65662}" FolderPath="Service\Pullout\">
+      <Declaration><![CDATA[METHOD M_StopStoragePulloutAction : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[RobotPullout_Internal_Ctrl.Execute := FALSE;
+M_StopStoragePulloutAction := TRUE; //Method End
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspended" Id="{f96c1e03-e8e6-4bb0-a56b-b26b4d2a2631}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspended
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspending" Id="{f48f74b9-0baa-49d4-9206-553db8a3e572}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TransCVCameraPress" Id="{5f84a7db-a711-4a0d-8fba-6048be8fe807}" FolderPath="Methods\Public\">
+      <Declaration><![CDATA[METHOD PUBLIC M_TransCVCameraPress : BOOL
+VAR_INPUT
+END_VAR
+VAR_INST
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT TransCV_Press THEN
+	Cylinder.List.fbSameSizeCV_Press2.M_Extend();
+	Cylinder.List.fbDifferentSizeCV_Press1.M_Extend();
+	TransCV_Press:=true;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TransCVCameraPress_ManualMode" Id="{681d7f6b-44b9-4e2d-9945-14a2837af570}" FolderPath="Methods\Public\">
+      <Declaration><![CDATA[METHOD PUBLIC M_TransCVCameraPress_ManualMode : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TransCV_Press THEN
+TransCV_Press := FALSE;
+Cylinder.List.fbSameSizeCV_Press2.M_Retract();
+Cylinder.List.fbDifferentSizeCV_Press1.M_Retract();
+Cylinder.List.fbUpCV_Block1.M_Retract();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Undefined" Id="{4ce511e2-d0e3-4d03-afd6-a4a676bdd5eb}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Undefined
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unholding" Id="{b755af47-9939-4109-bae2-60553ccf9e78}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unholding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unsuspending" Id="{5b13d8ab-89a0-4a49-9578-02effb5e958f}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unsuspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt">
+      <LineId Id="25" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="28" Count="3" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="75" Count="3" />
+      <LineId Id="80" Count="3" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="245" Count="0" />
+      <LineId Id="243" Count="1" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="180" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="184" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.A00_Service">
+      <LineId Id="192" Count="5" />
+      <LineId Id="232" Count="0" />
+      <LineId Id="198" Count="5" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="190" Count="1" />
+      <LineId Id="23" Count="10" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="364" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="36" Count="10" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="49" Count="25" />
+      <LineId Id="76" Count="3" />
+      <LineId Id="357" Count="1" />
+      <LineId Id="360" Count="1" />
+      <LineId Id="359" Count="0" />
+      <LineId Id="329" Count="12" />
+      <LineId Id="343" Count="11" />
+      <LineId Id="328" Count="0" />
+      <LineId Id="356" Count="0" />
+      <LineId Id="355" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="273" Count="0" />
+      <LineId Id="82" Count="14" />
+      <LineId Id="131" Count="1" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="98" Count="15" />
+      <LineId Id="133" Count="1" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="137" Count="16" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="172" Count="14" />
+      <LineId Id="154" Count="1" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="234" Count="0" />
+      <LineId Id="236" Count="14" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="363" Count="0" />
+      <LineId Id="158" Count="13" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="214" Count="13" />
+      <LineId Id="204" Count="9" />
+      <LineId Id="228" Count="0" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="253" Count="7" />
+      <LineId Id="252" Count="0" />
+      <LineId Id="261" Count="0" />
+      <LineId Id="263" Count="9" />
+      <LineId Id="262" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.A01_RoundBeltAccessControl">
+      <LineId Id="1" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="20" Count="1" />
+      <LineId Id="44" Count="6" />
+      <LineId Id="40" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="23" Count="3" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="33" Count="5" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.A02_PulloutAccessControl">
+      <LineId Id="56" Count="27" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.A99_ErrorHandler">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Aborted">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Aborting">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_ActiveRoundBeltInternalCtrl">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_AutoAllocatingBatch">
+      <LineId Id="25" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="35" Count="2" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_AutoAllocatingBatch_Reverse">
+      <LineId Id="10" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="12" Count="11" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_AutoAllocatingBatch_Simple">
+      <LineId Id="6" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="7" Count="13" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_AutoTurnTable">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_CheckAxesHomed">
+      <LineId Id="5" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Clearing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Complete">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Completing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Execute">
+      <LineId Id="6" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_GetPulloutAccess">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_GetRoundBeltAccess">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Held">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Holding">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Idle">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_InactiveRoundBeltInternalCtrl">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_ManualAllocating">
+      <LineId Id="87" Count="24" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_ManualTurnTable">
+      <LineId Id="6" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_ReleasePulloutAccess">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="3" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_ReleaseRoundBeltAccess">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="3" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_ResetReloadRoundBeltAction">
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Resetting">
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="7" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_StartAllocatePulloutAction">
+      <LineId Id="7" Count="0" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="5" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_StartHoming">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Starting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_StartReloadRoundBeltAtion">
+      <LineId Id="31" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="49" Count="2" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="65" Count="1" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="29" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_StartStoragePulloutAction">
+      <LineId Id="7" Count="1" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_StopAllocatePulloutAction">
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_StopHoming">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Stopped">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Stopping">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_StopStoragePulloutAction">
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Suspended">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Suspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_TransCVCameraPress">
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_TransCVCameraPress_ManualMode">
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Undefined">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Unholding">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithRoundbelt.M_Unsuspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

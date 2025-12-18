@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_XY_Move" Id="{7f40aa0d-a28d-4517-b739-f2e8fa92d1be}" SpecialFunc="None">
+    <Declaration><![CDATA[(* This FB is use to controll two axis to gear in move at the same time 
+*)
+FUNCTION_BLOCK FB_XY_Move EXTENDS FB_ActionBasic
+VAR_INPUT
+	xExecute : BOOL;
+	xAbort : BOOL;
+	xReset :BOOL;
+	AxisX_No : AxisNo;
+	AxisY_No : AxisNo;
+	
+    TimeOut     : LREAL := 30; // Unit : s
+END_VAR
+VAR_OUTPUT
+	xAborted : BOOL;
+END_VAR
+VAR
+	StateBehavior : CBML.ETrigATo;
+	CurrentPosData :ST_PositionTable;
+	uiCyclicStep :UINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehavior;
+StateBehavior(xExecute := xExecute,
+              xAbort := xAbort,
+              udiTimeOut := LREAL_TO_UDINT(TimeOut * 1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);]]></ST>
+    </Implementation>
+    <Method Name="CleanupAction" Id="{3a621df1-113b-4f9e-a14e-8a04cdebf6ff}">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{fe2941f7-08ab-4342-8b8b-3eec14f90537}">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{7b4b060a-fb2a-4653-868a-c80b8753cd1c}">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{edc5b0e2-99a0-4749-a94f-c1fd6583cde1}">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{3e150b83-5177-4109-9189-ed341698d106}">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR
+
+VAR_INST
+	AxisX_Ready :BOOL;
+	AxisY_Ready :BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+uiCyclicStep := 0;
+AxisX_Ready := FUN_CheckAxisAllowMove(AxisNo := AxisX_No);
+AxisY_Ready := FUN_CheckAxisAllowMove(AxisNo := AxisY_No);
+
+IF NOT AxisX_Ready THEN
+	iErrorID := 2; // AxisX not ready
+ELSIF NOT AxisY_Ready THEN
+	iErrorID := 3; // AxisY not Ready
+ELSIF AxisX_Ready AND AxisY_Ready THEN
+	iErrorID := 0;
+	xComplete := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_XY_Move">
+      <LineId Id="35" Count="6" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_Move.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_Move.CyclicAction">
+      <LineId Id="9" Count="0" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_Move.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_Move.ResetAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_Move.StartAction">
+      <LineId Id="25" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="20" Count="4" />
+      <LineId Id="19" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

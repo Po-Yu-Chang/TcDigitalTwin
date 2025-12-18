@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_ClampWork" Id="{04380867-73ab-4e49-a32b-e3df2d80ea26}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_ClampWork :
+(
+	Undefined := 0,
+	NoWork := 1,
+	Work := 2
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

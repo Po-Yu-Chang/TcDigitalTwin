@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AXIS_HOMING" Id="{cade77cf-ff7d-46a4-a523-c59ffb06e825}">
+    <Declaration><![CDATA[TYPE ST_AXIS_HOMING :
+    STRUCT
+        Execute : BOOL; // True : start homing process
+        Abort   : BOOL; // True : abort homing process
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

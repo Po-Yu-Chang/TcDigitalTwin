@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_MsgContent" Id="{1bf0da2a-87fa-4687-92b5-d9c7ab659016}">
+    <Declaration><![CDATA[TYPE ST_MsgContent :
+STRUCT
+	SysTime				: STRING;
+	Source				: STRING;
+	Message				: STRING;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

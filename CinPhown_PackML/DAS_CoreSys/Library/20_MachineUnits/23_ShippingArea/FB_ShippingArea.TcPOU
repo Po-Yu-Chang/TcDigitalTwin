@@ -1,0 +1,422 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ShippingArea" Id="{48d05f6d-623d-41de-9852-ec870669682f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingArea EXTENDS FB_ModeBase_V2 IMPLEMENTS I_UnitState
+VAR_INPUT
+	FanucRobot 		: REFERENCE TO FB_FanucRobot_Basic_V2;
+	Service 		: REFERENCE TO ST_ShippingService;
+	INPUT       	: REFERENCE TO ST_InputTable;
+	OUTPUT			: REFERENCE TO ST_OutputTable;
+	Motor    		: REFERENCE TO UNI_MotorList;
+    Reset           : REFERENCE TO BOOL;
+	Stop 			: REFERENCE TO BOOL;
+    bStopMem 		: REFERENCE TO BOOL;
+END_VAR
+VAR_OUTPUT
+	Homed : BOOL;
+	RobotResetCMD : BOOL;
+END_VAR
+VAR
+	abort	: BOOL;
+	//Machine Service
+	fbShippingHoming 				: FB_ShippingHoming;
+	
+	// Same / Difference CV Service
+	fbShippingRobot_TransmitCVEnd :	FB_ShippingRobot_TransmitCVEnd;
+
+	//Robot Service
+	fbShippingRobot_Left 			: FB_ShippingRobot_Left;
+	fbShippingRobot_Right 			: FB_ShippingRobot_Right;
+	
+	//HansLaser HandShake TransCV Service
+	fbShippingLeftSideTransCV		: FB_ShippingTransCV_LeftSide;
+	fbShippingRightSideTransCV		: FB_ShippingTransCV_RightSide;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+IF __ISVALIDREF(PackTag) THEN
+    eModeCommand  := PackTag.Command.UnitMode;
+    eStateCommand := PackTag.Command.CntrlCmd;
+ELSE
+    RETURN;
+END_IF
+]]></ST>
+    </Implementation>
+    <Folder Name="States" Id="{f81533be-596c-4ef2-b789-36286d227524}" />
+    <Action Name="A00_Service" Id="{d3e5687a-8989-4023-9d99-a9d8ba12dedd}">
+      <Implementation>
+        <ST><![CDATA[fbShippingRobot_TransmitCVEnd(
+	Execute:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Execute, 
+	Abort:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Abort OR THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= 'Shipping Fanuc Robot TransmitCVEnd', 
+	INPUT:=INPUT,
+	Motor :=Motor,
+	Busy=> Service.AutoMode_ShippingRobot_TransmitCVEnd.Status.Busy, 
+	Done=> Service.AutoMode_ShippingRobot_TransmitCVEnd.Status.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_ShippingRobot_TransmitCVEnd.Status.Error, 
+	ErrorID=> , 
+	Status=> Service.AutoMode_ShippingRobot_TransmitCVEnd.Status.Status, 
+	UniqueErrorCode=> , 
+	Robot:= FanucRobot, 
+	Info:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Info, 
+	Stop:= bStopMem,
+	fbSHippingHomingBusy := fbShippingHoming.xBusy);
+	
+fbShippingRobot_Left(
+	Execute:= service.AutoMode_ShippingRobot_Left.Command.Execute, 
+	Abort:= Service.AutoMode_ShippingRobot_Left.Command.Abort OR THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= 'Shipping Fanuc Robot Left', 
+	Busy=> Service.AutoMode_ShippingRobot_Left.Status.Busy, 
+	Done=> Service.AutoMode_ShippingRobot_Left.Status.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_ShippingRobot_Left.Status.Error, 
+	ErrorID=> , 
+	Status=> Service.AutoMode_ShippingRobot_Left.Status.Status, 
+	UniqueErrorCode=> , 
+	Robot:= FanucRobot, 
+	Info:= Service.AutoMode_ShippingRobot_Left.Info, 
+	Stop:=bStopMem,
+	Buzz := DAS_CoreSys.MachineControl._Buzz,
+	RedLamp:= DAS_CoreSys.MachineControl._RedLamp,
+	bCompleteRequest := Service.AutoMode_ShippingRobot_Left.bCompleteRequest,
+	bTransCVInPosition => Service.AutoMode_ShippingRobot_Left.bTransCVInPosition,
+	Input := INPUT);
+	
+fbShippingRobot_Right(
+	Execute:= Service.AutoMode_ShippingRobot_Right.Command.Execute, 
+	Abort:= Service.AutoMode_ShippingRobot_Right.Command.Abort OR THIS^.Abort, 
+	Reset:= Reset, 
+	ObjectName:= 'Shipping Fanuc Robot Right', 
+	Busy=> Service.AutoMode_ShippingRobot_Right.Status.Busy, 
+	Done=> Service.AutoMode_ShippingRobot_Right.Status.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_ShippingRobot_Right.Status.Error, 
+	ErrorID=> , 
+	Status=> Service.AutoMode_ShippingRobot_Right.Status.Status, 
+	UniqueErrorCode=> , 
+	Robot:= FanucRobot, 
+	Info:= Service.AutoMode_ShippingRobot_Right.Info, 
+	Stop:= bStopMem,
+	Buzz := DAS_CoreSys.MachineControl._Buzz,
+	RedLamp:= DAS_CoreSys.MachineControl._RedLamp,
+	bCompleteRequest := Service.AutoMode_ShippingRobot_Right.bCompleteRequest,
+	bTransCVInPosition => Service.AutoMode_ShippingRobot_Right.bTransCVInPosition,
+	Input := INPUT);
+	
+fbShippingHoming(
+	xDone=> , 
+	xBusy=> , 
+	xError=> , 
+	xExecute:= , 
+	xAbort:= , 
+	FanucRobot:= FanucRobot, 
+	Homed:= Homed, 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> , 
+	RobotResetCMD=> RobotResetCMD,
+	Service := Service,
+	input := INPUT,
+	Motor := Motor);
+	
+fbShippingLeftSideTransCV(
+	xDone=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Done, 
+	xBusy=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Busy, 
+	xError=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Error, 
+	xExecute:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Execute, 
+	xAbort:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Abort OR THIS^.abort, 
+	xReset:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Reset, 
+	Cylinder:= , 
+	TimeOut:= , 
+	Input:= input, 
+	OutPut:= output, 
+	Motor:= , 
+	ShippingTransCVRequest_LeftSide:= Service.AutoMode_ShippingTransCV_LeftSide.ShippingTransCVRequest_LeftSide, 
+	RobotStatus:= Service.AutoMode_ShippingRobot_Left.Status, 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Status);
+	
+fbShippingRightSideTransCV(
+	xDone=> Service.AutoMode_ShippingTransCV_RightSide.Status.Done, 
+	xBusy=> Service.AutoMode_ShippingTransCV_RightSide.Status.Busy, 
+	xError=> Service.AutoMode_ShippingTransCV_RightSide.Status.Error, 
+	xExecute:= Service.AutoMode_ShippingTransCV_RightSide.Command.Execute, 
+	xAbort:= Service.AutoMode_ShippingTransCV_RightSide.Command.Abort OR THIS^.abort, 
+	xReset:= Service.AutoMode_ShippingTransCV_RightSide.Command.Reset, 
+	Cylinder:= , 
+	TimeOut:= , 
+	Input:= input, 
+	OutPut:= output, 
+	Motor:= , 
+	ShippingTransCVRequest_RightSide:= Service.AutoMode_ShippingTransCV_RightSide.ShippingTransCVRequest_RightSide, 
+	RobotStatus:= Service.AutoMode_ShippingRobot_Right.Status, 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> Service.AutoMode_ShippingTransCV_RightSide.Status.Status);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_Aborted" Id="{3b7aeb74-3c46-4095-9c8f-17f92de17ccd}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborted
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[abort := false;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Aborting" Id="{e034d6b1-5633-4f6c-ba14-3db2cdadef3b}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[abort := true;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Clearing" Id="{51942349-3aa5-4126-9672-95e7ba2cdf88}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Clearing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Complete" Id="{0a50b301-c693-48df-b8ab-0efb990f6cc3}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Complete
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Completing" Id="{e68e890d-8f79-49c6-9fe0-29fa071f049c}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Completing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Execute" Id="{105523e7-c49e-464d-8a47-e74c9b948053}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Execute
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eModeCurrent OF
+	E_UnitMode.Manual:
+		;
+	E_UnitMode.Auto:
+		;
+END_CASE
+A00_Service();
+//M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Held" Id="{a2428c09-a67e-40ee-a6c4-ea9fff4dfdc1}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Held
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Holding" Id="{1f3ecc8d-4af4-4df5-ab43-b5172564f883}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Holding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Idle" Id="{39d99d48-42ad-4845-b0e8-0ccf860df6c2}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Idle
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Resetting" Id="{933d9293-477d-4616-861c-b8157948a9f8}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Resetting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartHoming" Id="{15fc3ed6-f365-4832-a7b5-c735e9e105f3}">
+      <Declaration><![CDATA[METHOD M_StartHoming
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbShippingHoming.xExecute := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Starting" Id="{2e9f53da-22f0-4ad6-856d-87f17da6dc0f}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Starting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopHoming" Id="{5665e39d-7e26-4fbf-b1d0-3b763074b645}">
+      <Declaration><![CDATA[METHOD M_StopHoming
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbShippingHoming.xExecute := False;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopped" Id="{db54aee9-82dc-4e05-949c-2853586d3c03}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopped
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopping" Id="{9b99ea87-8833-48c9-81cb-4c0516bf33e3}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopping
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspended" Id="{59654d4a-727d-4de9-9547-06d1cc9abbc0}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspended
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspending" Id="{4599f32f-9426-4e3a-80c1-6199d77adedc}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Undefined" Id="{33a8122a-be5c-4f80-90a6-433b9df1dea4}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Undefined
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unholding" Id="{9f10015f-fd10-4150-8900-f7bbf2fdb92b}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unholding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unsuspending" Id="{3eb01f5b-faa2-481b-8df8-a76484441fac}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unsuspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ShippingArea">
+      <LineId Id="19" Count="6" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="37" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.A00_Service">
+      <LineId Id="2" Count="4" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="7" Count="8" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="13" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="63" Count="2" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="13" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="67" Count="1" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="50" Count="10" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="109" Count="2" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="71" Count="15" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="89" Count="15" />
+      <LineId Id="88" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Aborted">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Aborting">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Clearing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Complete">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Completing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Execute">
+      <LineId Id="6" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Held">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Holding">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Idle">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Resetting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_StartHoming">
+      <LineId Id="5" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Starting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_StopHoming">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Stopped">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Stopping">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Suspended">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Suspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Undefined">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Unholding">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingArea.M_Unsuspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

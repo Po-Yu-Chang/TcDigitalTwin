@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <Task Name="CoreSys" Id="{e4be80c8-bbfe-4a10-95d5-cdb337d2bdde}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>10000</CycleTime>
+    <Priority>20</Priority>
+    <PouCall>
+      <Name>ComModbusRTU</Name>
+    </PouCall>
+    <PouCall>
+      <Name>DAS_CoreSys</Name>
+    </PouCall>
+    <TaskFBGuid>{a81addbc-a281-41a3-8e70-fbda0c63e11b}</TaskFBGuid>
+    <Fb_init>{66adaebd-fc73-44e5-a3a4-59c42c186c95}</Fb_init>
+    <Fb_exit>{0bfb9f7b-3a21-4ec5-be01-4887e08ac558}</Fb_exit>
+    <CycleUpdate>{5c281f44-2965-4dc1-8d8c-b858c4355306}</CycleUpdate>
+    <PostCycleUpdate>{ec863476-1389-4d6a-b6f9-a6aa18b9ea0e}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

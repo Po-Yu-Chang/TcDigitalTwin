@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_XY_PickAndPlace" Id="{1e0a96d6-7841-4417-a44d-529e52e8d9cb}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_XY_PickAndPlace EXTENDS FB_ActionBasic
+VAR_INPUT
+	xExecute : BOOL;
+	xAbort : BOOL;
+	xReset :BOOL;
+	AxisX_No : AxisNo;
+	AxisY_No : AxisNo;
+    TimeOut     : LREAL := 30; // Unit : s
+
+END_VAR
+VAR_OUTPUT
+	xAborted : BOOL;
+END_VAR
+VAR
+	StateBehavior :CBML.ETrigATo;
+	Cylinder : REFERENCE TO UNI_CylinderList;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehavior;
+StateBehavior(
+	xExecute:= xExecute, 
+	xAbort:= xAbort, 
+	udiTimeOut:= LREAL_TO_UDINT( TimeOut*1000000), 
+	xDone=> xDone, 
+	xBusy=> xBusy, 
+	xError=> xError, 
+	xAborted=> xAborted);]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{a4922d67-fded-4fdb-9d35-1c066c0292b6}" />
+    <Method Name="CleanupAction" Id="{4e9acae2-331e-44ed-b279-f9a4e876f98e}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{0d7405f8-15ab-40ec-895a-632aaf42a80f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{5648775b-4d62-4adf-b354-517acc9cb63d}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{341a82f5-f15b-423a-92c4-10f7b0afb693}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{a9ee3687-40a3-44e9-8da7-161b241adaf9}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_XY_PickAndPlace">
+      <LineId Id="9" Count="0" />
+      <LineId Id="23" Count="6" />
+      <LineId Id="21" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_PickAndPlace.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_PickAndPlace.CyclicAction">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_PickAndPlace.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_PickAndPlace.ResetAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_XY_PickAndPlace.StartAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

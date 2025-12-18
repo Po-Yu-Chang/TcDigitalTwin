@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_ShippingLeftSideTransCVFeedBack" Id="{72ab5cbd-7838-4c92-a30f-5e313bcf84e6}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_ShippingLeftSideTransCVFeedBack :
+STRUCT
+	TransCV_IntargetPosition : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

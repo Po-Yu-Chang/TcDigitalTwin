@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SetupPara" Id="{9b5bf0bd-f51b-44b9-9e2f-efc219f75616}">
+    <Declaration><![CDATA[TYPE
+    ST_SetupPara :
+    STRUCT
+        Cylinders     : ST_SetupCylinder;
+        Axes          : ST_SetupAxis;
+        Motor         : ST_SetupMotor;
+        PositionTable : ARRAY[1..200] OF ST_PositionTable;
+        StorageRobot  : ST_SetupFanucRobot;
+        ShippingRobot : ST_SetupFanucRobot;
+        Mechanical    : ST_Setup_Mechanical;
+		Light : ST_Setup_Light;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

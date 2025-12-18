@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_WareHouseCoordinates" Id="{87735089-ff60-45c3-80e4-3409a3c69bc9}">
+    <Declaration><![CDATA[TYPE ST_WareHouseCoordinates :
+STRUCT
+	Layer : E_WareHouseLayer;
+	Slide : E_WareHouseSlide;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ads_OneAxisMoveWithPosition" Id="{6aed584e-ffc1-4d5a-8848-c4fcf2217a8b}">
+    <Declaration><![CDATA[TYPE st_ads_OneAxisMoveWithPosition :
+STRUCT
+	Clip:LREAL;
+	Position:LREAL; 
+	
+	HandShake					: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

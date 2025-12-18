@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_FanucRobotOpMode" Id="{91214ab3-d57f-4230-b44a-84345cb64d97}">
+    <Declaration><![CDATA[TYPE E_FanucRobotOpMode :
+(
+	RSR01 := 1,	// Production mode, allow motion command (Warehouse, AbsMove...etc)
+	RSR02, // HomeMode, allow robot home command.
+	RSR03	// Parameter mode, allow read/write offset data.
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

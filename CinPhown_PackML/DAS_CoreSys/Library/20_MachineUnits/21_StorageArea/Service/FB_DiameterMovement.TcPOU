@@ -1,0 +1,680 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_DiameterMovement" Id="{5e49581e-19d4-47b9-9f67-813b2bed0ad5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_DiameterMovement EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+//    Execute    :BOOL;   // True : This prog will start.
+//    Abort      :BOOL;   // True : This prog will be abort.
+//    Reset      :BOOL;   // True : This prog will be reset.
+//    ObjectName :STRING; // Set this fb name(About it's action)
+	
+	bContinue:BOOL;
+	
+//	DiameterHorizontalCylinder 	:REFERENCE TO FB_Cylinder;	//測徑橫移氣壓缸
+//	DiameterUpDownCylinder		:REFERENCE TO FB_Cylinder;	//測徑上下氣壓缸
+//	DiameterClampCylinder		:REFERENCE TO FB_Cylinder; //測徑夾爪氣壓缸
+
+	Cylinder : REFERENCE TO UNI_CylinderList;
+	
+END_VAR
+
+VAR_OUTPUT
+//    Busy    :BOOL;        // True : This prog is running.
+//    Done    :BOOL;        // True : Command has been executed.
+//    Aborted :BOOL;        // True : This prog is aborted.
+//    Error   :BOOL;        // True : This prog has an error.
+//    ErrorID :UINT;       // Output ErrorID
+//    Status  :T_MaxString; // Output this prog status by string(255bytes)
+	PickDone	:BOOL;
+END_VAR
+
+VAR
+//    eState :E_MethodStatus_Basic;
+//	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+//	uiResettingStep : UDINT;
+//	uiAbortingStep : UDINT;
+//	_Executed :BOOL; // Executing process completed.
+//	_Error : BOOL; // FB has an error.
+//	_ResetCompleted : BOOL; // FB resetting completed.
+//	_AbortCompleted : BOOL; // FB aborting completed.
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+	tonDiameterTimeoutTwo :TON;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="STATE" Id="{7724f639-9e7d-4988-980b-67021191a50f}" />
+    <Action Name="A00_BasicUnits" Id="{a35f34a2-2c35-4595-85bd-dd08cd46da09}">
+      <Implementation>
+        <ST><![CDATA[tonDiameterTimeoutTwo(PT:=T#2S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GetModelState" Id="{b059352f-f16e-4465-886b-930f2788111d}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_OUTPUT
+    xDone    :BOOL;
+    xBusy    :BOOL;
+    xError   :BOOL;
+    xAborted :BOOL;
+    iErrorID :UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xDone    := Done;
+xBusy    := Busy;
+xError   := Error;
+xAborted := Abort;
+iErrorID := ErrorID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{4fc5ebf8-b8f1-4784-9a03-4ed9b9696696}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := ObjectName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{1eb66387-3b64-4807-892e-9f38231d5df1}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Status := strStatus;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+	uiExecutingStep :=uiResumeStep;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{76cfc40e-8b02-43b9-b05d-e25adf39aa3b}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	
+	
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{a5b57322-7bff-4937-8390-e8fd1c911d84}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done:=TRUE;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{5bf6fd3f-53ef-469a-b951-ae1c0640be83}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_Executed:=FALSE;
+_Error	:=FALSE;
+_Abort :=FALSE;
+strStatus :='No Error';
+uiResettingStep:=0;
+uiExecutingStep :=0;
+tonDiameterTimeoutTwo.IN:=FALSE;
+Error := Busy := Done := FALSE;
+
+IF Execute THEN
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{6ede5fb2-605d-4718-a181-faa861654d7f}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy :=FALSE;
+Done := FALSE;
+Status := strStatus;
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{5864997d-dc49-4b0d-a74d-c3a3fca87085}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy :=TRUE;
+
+CASE uiExecutingStep OF
+	
+
+0: //Standby todo : check 
+	
+		uiExecutingStep:=10;
+10:
+		
+		IF Cylinder.List.fbUpCV_DiameterHoriz.xError THEN
+			Cylinder.List.fbUpCV_DiameterHoriz.M_Reset();
+		END_IF
+		IF Cylinder.List.fbUpCV_DiameterVert.xError THEN
+			Cylinder.List.fbUpCV_DiameterVert.M_Reset();
+		END_IF
+		IF Cylinder.List.fbUpCV_DiameterClamp.xError THEN
+			Cylinder.List.fbUpCV_DiameterClamp.M_Reset();
+		END_IF
+		uiExecutingStep:=20;
+		
+20:
+	Cylinder.List.fbUpCV_DiameterVert.M_Retract();
+	IF Cylinder.List.fbUpCV_DiameterClamp.InFrontPosition THEN
+		uiExecutingStep:=30;
+	ELSE
+		uiExecutingStep:=60;	
+	END_IF
+30:
+	
+	IF Cylinder.List.fbUpCV_DiameterVert.InRearPosition THEN
+		Cylinder.List.fbUpCV_DiameterHoriz.M_Extend();
+		uiExecutingStep:=40;
+	END_IF
+40:		
+	IF Cylinder.List.fbUpCV_DiameterHoriz.InFrontPosition THEN
+		Cylinder.List.fbUpCV_DiameterClamp.M_Retract();
+		uiExecutingStep:=50;
+	END_IF
+50:	
+	IF Cylinder.List.fbUpCV_DiameterClamp.InRearPosition THEN
+		uiExecutingStep:=60;
+	END_IF
+	
+60 : 
+	Cylinder.List.fbUpCV_DiameterHoriz.M_Retract();
+		uiExecutingStep:=70;
+70:
+	IF Cylinder.List.fbUpCV_DiameterHoriz.InRearPosition THEN
+		uiExecutingStep:=1000;	
+	END_IF
+			
+	
+
+1000:// Pick to diameter camera position start: Clamp down
+	Cylinder.List.fbUpCV_DiameterVert.M_Extend();
+	uiExecutingStep:=1100;
+	
+1100:// wait clamp down
+	tonDiameterTimeoutTwo.IN:=TRUE;
+	IF 	Cylinder.List.fbUpCV_DiameterVert.InFrontPosition THEN
+		tonDiameterTimeoutTwo.IN:=FALSE;
+		uiExecutingStep:=1200;
+	END_IF
+	IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterVert MoveForward Timeout';
+	END_IF
+	
+1200: // Clamp close
+	Cylinder.List.fbUpCV_DiameterClamp.M_Extend();
+	uiExecutingStep:=1300;
+
+1300://wait clamp close
+	tonDiameterTimeoutTwo.IN:=TRUE;
+	IF 	Cylinder.List.fbUpCV_DiameterClamp.InFrontPosition THEN
+		tonDiameterTimeoutTwo.IN :=FALSE;
+		uiExecutingStep:=1400;
+	END_IF
+	IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterClamp M_Extend Timeout';
+	END_IF
+1400 : //Clamp up
+	Cylinder.List.fbUpCV_DiameterVert.M_Retract();
+	uiExecutingStep:=1500;	
+
+1500:// wait clamp up
+		tonDiameterTimeoutTwo.IN :=TRUE;
+	IF 	Cylinder.List.fbUpCV_DiameterVert.InRearPosition THEN
+		tonDiameterTimeoutTwo.IN :=FALSE;
+		uiExecutingStep:=1600;
+	END_IF
+	IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
+	END_IF
+1600: //Move horizontal
+	Cylinder.List.fbUpCV_DiameterHoriz.M_Extend();
+	uiExecutingStep:=1700;
+
+1700://wait move horizontal
+		tonDiameterTimeoutTwo.IN:=TRUE;
+	IF 	Cylinder.List.fbUpCV_DiameterHoriz.InFrontPosition THEN
+		tonDiameterTimeoutTwo.IN :=FALSE;
+		uiExecutingStep:=1800;
+	END_IF
+		IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterHoriz M_Extend Timeout';
+	END_IF
+
+1800://Move down to diameter camera position
+	Cylinder.List.fbUpCV_DiameterVert.M_Extend();
+	uiExecutingStep:=1900;
+	
+1900:
+		tonDiameterTimeoutTwo.IN:=TRUE;
+	IF 	Cylinder.List.fbUpCV_DiameterVert.InFrontPosition THEN
+		tonDiameterTimeoutTwo.IN :=FALSE;
+		uiExecutingStep:=2000;
+	END_IF	
+	IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Extend Timeout';
+	END_IF
+
+2000: 
+	PickDone :=TRUE;
+	IF bContinue THEN
+		PickDone :=FALSE;
+		uiExecutingStep:=5000;
+	END_IF
+
+5000: // Place needle back to box start
+	Cylinder.List.fbUpCV_DiameterVert.M_Retract();
+	uiExecutingStep:=5100;
+	
+5100:// wait clamp down
+	tonDiameterTimeoutTwo.IN :=TRUE;
+	IF 	Cylinder.List.fbUpCV_DiameterVert.InRearPosition THEN
+		tonDiameterTimeoutTwo.IN :=FALSE;
+		uiExecutingStep:=5200;
+	END_IF
+	IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
+	END_IF
+	
+5200: 
+		Cylinder.List.fbUpCV_DiameterHoriz.M_Retract();
+		uiExecutingStep := 5300;
+
+5300:
+		tonDiameterTimeoutTwo.IN :=TRUE;
+		IF Cylinder.List.fbUpCV_DiameterHoriz.InRearPosition THEN
+			tonDiameterTimeoutTwo.IN :=FALSE;
+			uiExecutingStep := 5400;
+		END_IF
+		IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterHoriz M_Retract Timeout';
+		END_IF
+5400 : 
+		Cylinder.List.fbUpCV_DiameterVert.M_Extend();
+		uiExecutingStep:=5500;
+
+5500:
+		tonDiameterTimeoutTwo.IN :=TRUE;
+		IF 	Cylinder.List.fbUpCV_DiameterVert.InFrontPosition THEN
+			tonDiameterTimeoutTwo.IN:=FALSE;
+			uiExecutingStep:=5600;
+		END_IF
+		IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Extend Timeout';
+		END_IF
+5600: 
+		Cylinder.List.fbUpCV_DiameterClamp.M_Retract();
+		uiExecutingStep := 5700;
+5700:	
+		tonDiameterTimeoutTwo.IN :=TRUE;
+		IF Cylinder.List.fbUpCV_DiameterClamp.InRearPosition THEN
+			tonDiameterTimeoutTwo.IN :=FALSE;
+			uiExecutingStep :=5800;
+		END_IF
+		IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterClamp M_Retract Timeout';
+		END_IF
+5800:
+		Cylinder.List.fbUpCV_DiameterVert.M_Retract();
+		 uiExecutingStep := 5900;
+5900:
+		tonDiameterTimeoutTwo.IN :=TRUE;
+		IF Cylinder.List.fbUpCV_DiameterVert.InRearPosition THEN
+			tonDiameterTimeoutTwo.IN :=FALSE;
+		uiExecutingStep :=6000;
+		END_IF
+		IF tonDiameterTimeoutTwo.Q THEN
+		_Error :=TRUE;
+		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
+		END_IF
+6000:
+		_Executed:= TRUE;
+
+
+
+
+
+END_CASE
+	
+IF NOT Execute THEN
+	eState:=STATE_RESETTING;
+END_IF
+IF _Error THEN
+	eState:=STATE_ERROR;
+END_IF
+IF _Abort THEN
+	eSTATE:=STATE_ABORTING;
+END_IF
+IF _Executed THEN
+	eSTATE:=STATE_Done;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{288044f8-b29d-4e42-b069-ce07fc47667e}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=FALSE;
+Done :=FALSE;
+Busy := FALSE;
+
+
+CASE uiResettingStep OF
+	0 : 
+		
+		IF Cylinder.List.fbUpCV_DiameterHoriz.xError THEN
+			Cylinder.List.fbUpCV_DiameterHoriz.M_Reset();
+		END_IF
+		IF Cylinder.List.fbUpCV_DiameterVert.xError THEN
+			Cylinder.List.fbUpCV_DiameterVert.M_Reset();
+		END_IF
+		IF Cylinder.List.fbUpCV_DiameterClamp.xError THEN
+			Cylinder.List.fbUpCV_DiameterClamp.M_Reset();
+		END_IF
+		uiResettingStep:=100;
+		
+	100:
+		Cylinder.List.fbUpCV_DiameterVert.M_Retract();
+		IF Cylinder.List.fbUpCV_DiameterClamp.InFrontPosition THEN
+			uiResettingStep:=1000;
+		ELSE
+			uiResettingStep:=2000;	
+		END_IF
+	1000:
+			
+			IF Cylinder.List.fbUpCV_DiameterVert.InRearPosition THEN
+				Cylinder.List.fbUpCV_DiameterHoriz.M_Extend();
+				uiResettingStep:=1200;
+			END_IF
+	1200:		
+			IF Cylinder.List.fbUpCV_DiameterHoriz.InFrontPosition THEN
+				Cylinder.List.fbUpCV_DiameterClamp.M_Retract();
+				uiResettingStep:=1300;
+			END_IF
+	1300:	
+			IF Cylinder.List.fbUpCV_DiameterClamp.InRearPosition THEN
+				uiResettingStep:=2000;
+			END_IF
+		
+	2000 : 
+			Cylinder.List.fbUpCV_DiameterHoriz.M_Retract();
+				uiResettingStep:=2100;
+	2100:
+			IF Cylinder.List.fbUpCV_DiameterHoriz.InRearPosition THEN
+				uiResettingStep:=9999;	
+			END_IF
+			
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DiameterMovement">
+      <LineId Id="23" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.A00_BasicUnits">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.GetModelState">
+      <LineId Id="17" Count="3" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.GetName">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.M_STATE_ABORTED">
+      <LineId Id="9" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.M_STATE_DONE">
+      <LineId Id="9" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.M_STATE_DORMANT">
+      <LineId Id="9" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="22" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="13" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.M_STATE_ERROR">
+      <LineId Id="9" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="10" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.M_STATE_EXECUTING">
+      <LineId Id="44" Count="1" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="238" Count="41" />
+      <LineId Id="236" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="60" Count="2" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="64" Count="1" />
+      <LineId Id="174" Count="1" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="66" Count="1" />
+      <LineId Id="17" Count="1" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="180" Count="2" />
+      <LineId Id="72" Count="3" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="184" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="185" Count="2" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="81" Count="1" />
+      <LineId Id="20" Count="1" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="191" Count="2" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="88" Count="3" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="197" Count="2" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="164" Count="2" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="100" Count="3" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="105" Count="1" />
+      <LineId Id="203" Count="2" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="207" Count="0" />
+      <LineId Id="147" Count="1" />
+      <LineId Id="209" Count="2" />
+      <LineId Id="208" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="149" Count="1" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="212" Count="0" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="213" Count="0" />
+      <LineId Id="219" Count="0" />
+      <LineId Id="214" Count="0" />
+      <LineId Id="216" Count="2" />
+      <LineId Id="215" Count="0" />
+      <LineId Id="128" Count="1" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="220" Count="0" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="221" Count="0" />
+      <LineId Id="155" Count="1" />
+      <LineId Id="223" Count="2" />
+      <LineId Id="222" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="157" Count="2" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="161" Count="1" />
+      <LineId Id="229" Count="2" />
+      <LineId Id="228" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="27" Count="3" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="37" Count="5" />
+      <LineId Id="97" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_DiameterMovement.M_STATE_RESETTING">
+      <LineId Id="9" Count="2" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="68" Count="2" />
+      <LineId Id="72" Count="1" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="74" Count="1" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="76" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="43" Count="1" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="45" Count="1" />
+      <LineId Id="49" Count="1" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="54" Count="2" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="60" Count="1" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="66" Count="1" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="_st_WareHouseLayer" Id="{28e8c04d-6cf5-4670-b031-b9163b04b8a5}">
+    <Declaration><![CDATA[TYPE _st_WareHouseLayer :
+STRUCT
+	bForward		:	BOOL;
+	bBackward		:	BOOL;
+	stStatus		:	_st_LayerStatus;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

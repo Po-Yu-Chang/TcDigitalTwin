@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_SixAxisRobotCore" Id="{63fb4123-3373-4a40-ae4f-99464551edcc}">
+    <Declaration><![CDATA[TYPE st_SixAxisRobotCore :
+STRUCT
+	WDataCore:st_AutoSixAxisWarehouseParameter;
+	AbslutCore:st_AutoSixAxisAbsMoveParameter;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

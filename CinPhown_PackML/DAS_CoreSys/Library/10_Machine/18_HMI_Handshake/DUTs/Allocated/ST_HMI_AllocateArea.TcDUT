@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_HMI_AllocateArea" Id="{73b03cca-7011-471f-8414-01577295aac5}">
+    <Declaration><![CDATA[TYPE
+    ST_HMI_AllocateArea :
+    STRUCT
+        Manual   : ST_Manual_Allocated;   // Allocated manual control
+        HalfAuto : ST_HalfAuto_Allocated; // Allocated half-auto contorl
+        //Auto     : ST_Auto_Allocated;     // Allocated auto control
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

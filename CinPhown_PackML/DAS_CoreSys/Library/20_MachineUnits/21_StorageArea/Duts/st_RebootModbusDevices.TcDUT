@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_RebootModbusDevices" Id="{069695b1-8eb1-4112-8241-8dc945d8cdfc}">
+    <Declaration><![CDATA[TYPE st_RebootModbusDevices :
+STRUCT
+	Command 	: ST_CommandBasic;
+	Status 		: ST_StatusBasic;
+	OffDelayTime	: INT := 2; // Waitting time after power off in second		//default 2 s ,if C# no assign
+	OnDelayTime		: INT; // Watting time after power on in second
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

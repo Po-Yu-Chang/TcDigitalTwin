@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="U_Bits_To_stStatus" Id="{c75b1013-76e7-4ca5-b01a-46340f882da9}">
+    <Declaration><![CDATA[TYPE U_Bits_To_stStatus :
+UNION
+	Bits   : ARRAY [1..10] OF BOOL;
+	Status : st_LayerStatus;
+	
+END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

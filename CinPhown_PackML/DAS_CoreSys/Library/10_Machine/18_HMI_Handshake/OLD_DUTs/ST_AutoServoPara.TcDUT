@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoServoPara" Id="{6f5462c4-bff9-4222-a2d4-5e247b4268f4}">
+    <Declaration><![CDATA[TYPE ST_AutoServoPara :
+    STRUCT
+        Position :LREAL;
+        Velocity :LREAL;
+        Distance :LREAL;
+        ACC      :LREAL;
+        DEC      :LREAL;
+        Jerk     :LREAL;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

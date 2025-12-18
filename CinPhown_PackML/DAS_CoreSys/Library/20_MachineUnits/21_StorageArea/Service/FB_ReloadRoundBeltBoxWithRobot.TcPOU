@@ -1,0 +1,1175 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ReloadRoundBeltBoxWithRobot" Id="{66d5e20d-27b9-4ff6-8362-fabde6cf66ac}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ReloadRoundBeltBoxWithRobot EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    // Below are the components being controlled.
+    Robot         : REFERENCE TO FB_FanucRobot_Basic_V2; // Fanuc Robot
+    //AllocatedArea : REFERENCE TO FB_AllocatingSpace; // Allocated area , use to control round belt
+	RoundBelt	: REFERENCE TO FB_RoundBeltService;
+    WareHouse     : REFERENCE TO FB_WareHouse; // Storage area warehouse A and warehouse B conveyor and sensor
+    //	A2_Sensor : REFERENCE TO FB_Sensor;
+    //	A3_Sensor : REFERENCE TO FB_Sensor;
+	Input : ST_InputTable;
+    Info : ST_ReloadRoundBeltBox_Info; // Setting the feedin emptybox action's parameter
+    Stop : BOOL;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+    strStatus         : STRING;
+    tonTimeOut        : TON;
+    tonFeedBoxTimeout : TON;
+    _UniqueErrorCode  : STRING;
+    PreviousStrStatus : STRING;
+    PreviousErrorCode : STRING;
+    A2_Sensor         : BOOL;
+    A3_Sensor         : BOOL;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A2_Sensor := Input.bRoundBelt_ChangeZoneA2Detect_Sensor;
+A3_Sensor := Input.bRoundBelt_ChangeZoneA3Detect_Sensor;]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{a7cbaa78-15e8-49fb-a379-b64165133ef4}" />
+    <Folder Name="State" Id="{06733c05-9677-4f77-9498-7b28e9b4bb4e}" />
+    <Action Name="A00_BasicUnits" Id="{f4c80d2e-0caf-4f52-9a65-28ce2d16295e}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT:=T#60S);
+tonFeedBoxTimeout(PT:=T#15s);
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{07193ad6-c468-41fe-917a-377db1485d74}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+VAR_INST
+	CheckBehavior : BOOL; // True :Behavior is correct
+END_VAR
+VAR
+	I: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Memory clear
+CheckBehavior := FALSE;
+// Check command is correct
+IF info.ClampA_Setting.Behavior = E_ClampWork.Work OR info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	CheckBehavior := TRUE;
+ELSE
+	CheckBehavior := FALSE;
+END_IF
+
+
+M_CheckCommand := CheckBehavior;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{0be461b3-d64b-4786-9e43-9b7363f05c71}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{0b74fd12-4892-408c-8090-32fd71eef573}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SelectActionMode" Id="{63cb7dc7-2d3c-4030-8bf2-262f4a3c4aa6}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_SelectActionMode : E_ReloadRoundBoxAction
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF info.ClampA_Setting.Behavior <> E_ClampWork.Work AND info.ClampB_Setting.Behavior <> E_ClampWork.Work THEN
+	M_SelectActionMode :=E_ReloadRoundBoxAction.Undefined;
+ELSIF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior <> E_ClampWork.Work THEN
+	IF info.ClampA_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseA THEN
+		M_SelectActionMode := E_ReloadRoundBoxAction.ClampA_WareHouseA;
+	ELSIF info.ClampA_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseB THEN
+		M_SelectActionMode := E_ReloadRoundBoxAction.ClampA_WareHouseB;
+	END_IF
+ELSIF info.ClampA_Setting.Behavior <> E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	IF info.ClampB_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseA THEN
+		M_SelectActionMode := E_ReloadRoundBoxAction.ClampB_WareHouseA;
+	ELSIF info.ClampB_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseB THEN
+		M_SelectActionMode := E_ReloadRoundBoxAction.ClampB_WareHouseB;
+	END_IF
+ELSIF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	IF info.ClampA_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseA THEN
+		IF info.ClampB_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseA THEN
+			M_SelectActionMode := E_ReloadRoundBoxAction.A_WareHouseA_B_WareHouseA;
+		ELSIF info.ClampB_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseB THEN
+			M_SelectActionMode := E_ReloadRoundBoxAction.A_WareHouseA_B_WareHouseB;
+		END_IF
+	ELSIF info.ClampA_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseB THEN
+		IF info.ClampB_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseA THEN
+			M_SelectActionMode := E_ReloadRoundBoxAction.A_WareHouseB_B_WareHouseA;
+		ELSIF info.ClampB_Setting.PickUpArea = E_ReloadRoundBelt_PickupArea.WareHouseB THEN
+			M_SelectActionMode := E_ReloadRoundBoxAction.A_WareHouseB_B_WareHouseB;
+		END_IF
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{a6b838c1-17d3-49cb-a5fb-bda367ae57dd}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy    := FALSE;
+Aborted := TRUE;
+UniqueErrorCode:=_UniqueErrorCode;
+Status :=strStatus;
+IF Reset AND NOT Abort THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{9af1e231-3772-4aeb-8638-51464cc94f18}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_AbortCompleted := TRUE;
+IF _AbortCompleted THEN
+    eState := STATE_Aborted;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{42fd3bb8-d740-4493-be15-8a1341a16433}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{80fb92a1-42f3-4585-a790-dcc536fc3b7a}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+uiExecutingStep := 0;
+uiResettingStep := 0;
+tonTimeOut.IN:=FALSE;
+tonFeedBoxTimeout.IN:=FALSE;
+PreviousStrStatus			 :='';
+PreviousErrorCode			 :='';
+_UniqueErrorCode :='0';
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{517c0c4e-5072-4d9e-90d8-11727a0e013e}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[UniqueErrorCode:=_UniqueErrorCode;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{bb35c759-ee40-4dad-abd1-f01fcaa51f2f}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+    ActionMode       : E_ReloadRoundBoxAction;
+	BoxReady_1st : BOOL;
+	BoxReady_2nd : BOOL;
+    CarrierReady_1st : BOOL;
+    CarrierReady_2nd : BOOL;
+    uiPickUpBothStep : UINT;
+    uiPlaceBothStep  : UINT;
+    ClampA_WareHouseCoordinates : ST_WareHouseCoordinates;
+    ClampB_WareHouseCoordinates : ST_WareHouseCoordinates;
+	
+	//=============== test only====
+		_A2Sensor	:BOOL;
+		_A3Sensor	:BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set status busy
+Busy := TRUE;
+IF THIS^.Stop THEN // Pending the timeout when Stop signal occur
+	tonTimeout.IN :=FALSE;
+END_IF
+CASE uiExecutingStep OF
+    0:
+        // Clear variable
+        ActionMode       := E_ReloadRoundBoxAction.Undefined;
+        CarrierReady_1st := FALSE;
+        CarrierReady_2nd := FALSE;
+        uiPickUpBothStep := 0;
+        uiPlaceBothStep  := 0;
+		BoxReady_1st := 0;
+		BoxReady_2nd := 0;
+        // Check command
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 10;
+        END_IF
+    10:
+        // Start process, check units first
+        IF M_CheckUnitsReady() THEN
+            uiExecutingStep := 20;
+        END_IF
+    20:
+        // CHeck units not busy state
+        IF M_CheckUnitsNotBusy() THEN
+            uiExecutingStep := 1000;
+        END_IF
+    1000:
+        // Select action mode
+        ActionMode      := M_SelectActionMode();
+        uiExecutingStep := 1100;
+    1100:
+		//DAS_CoreSys.MachineControl.fbAllocateArea.M_ActiveRoundBeltInternalCtrl(); //Request round belt 
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+        CASE ActionMode OF
+            E_ReloadRoundBoxAction.ClampA_WareHouseA:
+                uiExecutingStep := 10000;
+            E_ReloadRoundBoxAction.ClampA_WareHouseB:
+                uiExecutingStep := 11000;
+            E_ReloadRoundBoxAction.ClampB_WareHouseA:
+                uiExecutingStep := 20000;
+            E_ReloadRoundBoxAction.ClampB_WareHouseB:
+                uiExecutingStep := 21000;
+            E_ReloadRoundBoxAction.A_WareHouseA_B_WareHouseA:
+                uiExecutingStep := 30000;
+            E_ReloadRoundBoxAction.A_WareHouseA_B_WareHouseB:
+                uiExecutingStep := 31000;
+            E_ReloadRoundBoxAction.A_WareHouseB_B_WareHouseA:
+                uiExecutingStep := 32000;
+            E_ReloadRoundBoxAction.A_WareHouseB_B_WareHouseB:
+                uiExecutingStep := 33000;
+        END_CASE
+    10000: // Only ClampA pickup box from WarehouseA
+        IF NOT Robot._DI1.Done THEN
+            // Read ClampA Warehouse coordinate
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            // Reload Warehouse target position box
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            // Check Box reload completed
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st := TRUE;
+            END_IF
+
+            // Robot Warehouse move
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 10080;
+        END_IF
+		tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+    10080:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+		WareHouse.M_ResetReloadBox();
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 60000; // only place clampA
+        END_IF
+    11000: // Only ClampA pickup box from WarehouseB
+        IF NOT Robot._DI1.Done THEN
+            // Read ClampA Warehouse coordinate
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            // Reload Warehouse target position box
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            // Check Box reload completed
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st := TRUE;
+            END_IF
+
+            // Robot Warehouse move
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 11080;
+        END_IF
+		tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+    11080:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 60000; // only place clampA
+        END_IF
+    20000: // Only ClampB pickup from WarehouseA
+        IF NOT Robot._DI1.Done THEN
+            // Read ClampA Warehouse coordinate
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            // Reload Warehouse target position box
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            // Check Box reload completed
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd := TRUE;
+            END_IF
+
+            // Robot Warehouse move
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+
+          	DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampB_Setting.RoundBeltSetting.Station);
+
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 20080;
+        END_IF
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+    20080:
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 70000; // Only ClampB place box
+        END_IF
+    21000: // Only ClampB pickup from WarehouseB
+        IF NOT Robot._DI1.Done THEN
+            // Read ClampA Warehouse coordinate
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            // Reload Warehouse target position box
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            // Check Box reload completed
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd := TRUE;
+            END_IF
+
+            // Robot Warehouse move
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 21080;
+        END_IF
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+    21080:
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 70000; // Only ClampB place box
+        END_IF
+    30000: // ClampA and ClampB pickup box from WarehouseA
+        ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+        ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+
+        CASE uiPickUpBothStep OF
+            0: // ClampA target slide move the box to front side
+                WareHouse.M_StartReloadBox(WareHouseSelect      := E_WareHouse.WareHouseA,
+                                           WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+              	DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+                DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_1st     := TRUE;
+                    uiPickUpBothStep := 10;
+                END_IF
+
+            10: // wait Robot Allow continue
+                IF Robot._DI1.Notification AND
+                    NOT
+                    WareHouse._stWarehouseList.ASide_Layers[ClampA_WareHouseCoordinates.Layer].stStatus.bSlides[ClampA_WareHouseCoordinates.Slide]
+                    THEN
+                    WareHouse.M_ResetReloadBox();
+
+                    IF NOT WareHouse.bReloadBox_Completed THEN
+                        uiPickUpBothStep := 20;
+                    END_IF
+
+                END_IF
+            20: // ClampB target slide move the box to front slide
+                WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_2nd     := TRUE;
+                    uiPickUpBothStep := 99;
+                END_IF
+            99:
+        // wait reset
+        END_CASE
+
+        Robot.M_StartWareHousePickUpBox_ClampBoth(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                  ClampA_Info     := ClampA_WareHouseCoordinates,
+                                                  ClampB_Info     := ClampB_WareHouseCoordinates,
+                                                  BoxReady_1st    := BoxReady_1st,
+                                                  BoxReady_2nd    := BoxReady_2nd);
+
+        IF Robot._DI1.Done THEN
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 30080;
+        END_IF
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+    30080: // Check robot command is clear
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 80000; // go to place step
+        END_IF
+    31000: // ClampA pickup from Warehouse A, ClampB pickup from Warehouse B
+        IF NOT Robot._DI1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st := TRUE;
+            END_IF
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ActiveRoundBeltInternalCtrl();
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 31080;
+        END_IF
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+		
+    31080:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+		WareHouse.M_ResetReloadBox();
+        IF NOT Robot._di1.Done THEN
+            uiExecutingStep := 31100; // ClampA pickup finished, ClampB pickup start
+        END_IF
+    31100:
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 31180;
+        END_IF
+				tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+    31180:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 80000; // only place clampA
+        END_IF
+    32000: // CLampA pickup from Warehouse B, ClampB pickup from Warehouse A
+        IF NOT Robot._DI1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st := TRUE;
+            END_IF
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+            DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 32080;
+        END_IF
+				tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+		
+    32080:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+		WareHouse.M_ResetReloadBox();
+        IF NOT Robot._di1.Done THEN
+            uiExecutingStep := 32100; // ClampA pickup finished, ClampB pickup start
+        END_IF
+    32100:
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 32180;
+        END_IF
+				tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+		
+    32180:
+        Robot.M_ResetAllCommand(); // Clear command and go to place box
+		WareHouse.M_ResetReloadBox();
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 80000; // only place clampA
+        END_IF
+    33000: // Both Clamp pickup from WarehouseB
+        ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+        ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+
+        CASE uiPickUpBothStep OF
+            0: // ClampA target slide move the box to front side
+                WareHouse.M_StartReloadBox(WareHouseSelect      := E_WareHouse.WareHouseB,
+                                           WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+                DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot );
+                DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_1st     := TRUE;
+                    uiPickUpBothStep := 10;
+                END_IF
+
+            10: // wait Robot Allow continue
+                IF Robot._DI1.Notification AND
+                    NOT
+                    WareHouse._stWarehouseList.BSide_Layers[ClampA_WareHouseCoordinates.Layer].stStatus.bSlides[ClampA_WareHouseCoordinates.Slide]
+                    THEN
+                    WareHouse.M_ResetReloadBox();
+
+                    IF NOT WareHouse.bReloadBox_Completed THEN
+                        uiPickUpBothStep := 20;
+                    END_IF
+
+                END_IF
+            20: // ClampB target slide move the box to front slide
+                WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_2nd     := TRUE;
+                    uiPickUpBothStep := 99;
+                END_IF
+            99:
+        // wait reset
+        END_CASE
+
+        Robot.M_StartWareHousePickUpBox_ClampBoth(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                  ClampA_Info     := ClampA_WareHouseCoordinates,
+                                                  ClampB_Info     := ClampB_WareHouseCoordinates,
+                                                  BoxReady_1st    := BoxReady_1st,
+                                                  BoxReady_2nd    := BoxReady_2nd);
+
+        IF Robot._DI1.Done THEN
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 33080;
+        END_IF
+		
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Pick Box timeout';
+		END_IF
+		
+    33080:
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 80000;
+        END_IF
+    60000: // Only ClampA place box
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        // Check Robot RSR1 not working
+        IF NOT Robot._di1.Done AND
+            NOT (Robot._DI1.AbsMoveA OR
+            Robot._DI1.AbsMoveB OR
+            Robot._DI1.WarehouseA OR
+            Robot._DI1.WarehouseB) THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+            uiExecutingStep := 61000;
+        END_IF
+    61000:
+        
+				DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+				DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+				IF RoundBelt.xDone  AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving THEN	
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();	
+					CarrierReady_1st:=TRUE;			
+				 	uiExecutingStep := 61010;
+			    END_IF
+				IF RoundBelt.xError THEN
+					_Error :=TRUE;
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();	
+					strStatus:='RoundBelt Error';
+				END_IF
+	61010:
+			
+        IF NOT Robot._DI1.Done THEN
+            Robot.M_StartMoveBoxToRoundBelt_ClampA(CarrierSelect := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier,
+                                                   A2_Sensor     := A2_Sensor,
+                                                   A3_Sensor     := A3_Sensor,
+                                                   RoundBeltSafe := CarrierReady_1st);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 61080;
+        END_IF
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Place Box timeout';
+		END_IF
+		
+    61080:
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+        DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+        Robot.M_ResetAllCommand();
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 99000; // Go to process end
+        END_IF
+    70000: // Only ClampB place box
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        // Check Robot RSR1 not working
+        IF NOT Robot._di1.Done AND
+            NOT (Robot._DI1.AbsMoveA OR
+            Robot._DI1.AbsMoveB OR
+            Robot._DI1.WarehouseA OR
+            Robot._DI1.WarehouseB) THEN
+            uiExecutingStep := 71000;
+        END_IF
+    71000:
+        // Active RoundBelt INTERNAL control
+//               DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+//               DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampB_Setting.RoundBeltSetting.Station);
+				IF RoundBelt.xDone THEN
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+					//DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+					CarrierReady_2nd :=TRUE;
+				 	uiExecutingStep := 71010;
+			    END_IF
+				IF RoundBelt.xError THEN
+					_Error :=TRUE;
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+					strStatus:='RoundBelt Error';
+				END_IF
+	71010:
+			
+        IF NOT Robot._DI1.Done THEN
+            Robot.M_StartMoveBoxToRoundBelt_ClampB(CarrierSelect := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier,
+                                                   A2_Sensor     := A2_Sensor,
+                                                   A3_Sensor     := A3_Sensor,
+                                                   RoundBeltSafe := CarrierReady_2nd);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 71080;
+        END_IF
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Place Box timeout';
+		END_IF
+		
+    71080:
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+        DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
+        Robot.M_ResetAllCommand();
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 99000; // Go to process end
+        END_IF
+    80000:                            // Both Clamp place box
+        WareHouse.M_ResetReloadBox(); // Clear Warehouse reload command
+        Robot.M_ResetAllCommand();    // Clear Fanuc Robot command
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 81000;
+        END_IF;
+    81000:
+        CASE uiPlaceBothStep OF
+            0:
+				//=============
+				_A2Sensor:=FALSE;
+				_A3Sensor:=FALSE;
+				//==============
+                CarrierReady_1st := FALSE;
+                CarrierReady_2nd := FALSE;
+				DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+                uiPlaceBothStep  := 10;
+            10:
+                // Check move Round Belt done
+                IF RoundBelt.xDone THEN
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
+                    CarrierReady_1st := TRUE;
+                    uiPlaceBothStep  := 11;
+                END_IF
+				IF RoundBelt.xError THEN
+					_Error :=TRUE;
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
+					strStatus:='RoundBelt Error';
+				END_IF
+            11:
+				//========================Test==================
+				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+					_A2Sensor:=A2_Sensor;
+				END_IF
+				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+					_A3Sensor:=A3_Sensor;
+				END_IF
+				//======================End_test==================
+                IF ((info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2) AND A2_Sensor) OR
+                    ((info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3) AND A3_Sensor)
+                    THEN
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+                    uiPlaceBothStep :=20;// 30;
+                END_IF
+            20:
+                // Wait Notification
+                IF robot._DI1.Notification THEN
+					//========================Test==================
+						IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+							_A2Sensor:=FALSE;
+						END_IF
+						IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+							_A3Sensor:=FALSE;
+						END_IF
+				//======================End_test==================
+                    DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+
+                    IF NOT RoundBelt.xDone THEN
+                        uiPlaceBothStep := 30;
+                    END_IF
+                END_IF
+            30: // Move Round belt 2nd time
+				DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+				DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampB_Setting.RoundBeltSetting.Station);
+                uiPlaceBothStep := 40;
+            40:
+                IF RoundBelt.xDone THEN
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+                    CarrierReady_2nd := TRUE;
+                    uiPlaceBothStep  := 99;
+                END_IF
+				IF RoundBelt.xError THEN
+					_Error :=TRUE;
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();	
+					strStatus:='RoundBelt Error';
+				END_IF
+            99:	
+				//========================Test==================
+				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+					_A2Sensor:=A2_Sensor;
+				END_IF
+				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+					_A3Sensor:=A3_Sensor;
+				END_IF
+				//======================End_test==================
+        // wait reset
+        END_CASE
+
+        IF NOT Robot._DI1.Done THEN
+            Robot.M_StartMoveBoxToRoundBelt_Both(CarrierSelect_ClampA := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier,
+                                                 CarrierSelect_ClampB := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier,
+                                                 A2_Sensor            := _A2Sensor,//A2_Sensor,
+                                                 A3_Sensor            := _A3Sensor,//A3_Sensor,
+                                                 RoundBeltSafe_1st    := CarrierReady_1st,
+                                                 RoundBeltSafe_2nd    := CarrierReady_2nd);
+        ELSE
+			tonTimeOut.IN :=FALSE;
+            uiExecutingStep := 99000;
+        END_IF
+			tonTimeOut.IN :=TRUE;
+		IF tonTimeOut.Q THEN
+			_Error :=TRUE;
+			tonTimeOut.IN :=FALSE;
+			strStatus :='Place Box timeout';
+		END_IF
+    99000: // process done
+        // Stop FeedIn conveyor
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
+        Status    := 'Process completed';
+        _Executed := TRUE;
+END_CASE
+
+IF _Executed THEN
+    eState := STATE_DONE;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+ELSIF Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eState :=STATE_ABORTING;
+ELSIF _Error THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eState :=STATE_ERROR;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{ea832786-4c1e-4ecd-a060-35d059037518}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _Executed THEN Done :=TRUE; END_IF
+
+CASE uiResettingStep OF
+	0:
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
+					WareHouse.M_ResetReloadBox();
+		Robot.M_ResetAllCommand();
+		uiResettingStep := 100;
+	100:
+		_ResetCompleted := TRUE;
+END_CASE
+IF _ResetCompleted THEN
+    eState := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot">
+      <LineId Id="9" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="61" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_CheckCommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="17" Count="4" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_SelectActionMode">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="2" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="17" Count="1" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="27" Count="1" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="34" Count="2" />
+      <LineId Id="38" Count="1" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_STATE_ABORTED">
+      <LineId Id="6" Count="2" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_STATE_ABORTING">
+      <LineId Id="6" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_STATE_DONE">
+      <LineId Id="6" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_STATE_DORMANT">
+      <LineId Id="6" Count="11" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="19" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_STATE_ERROR">
+      <LineId Id="11" Count="0" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_STATE_EXECUTING">
+      <LineId Id="3385" Count="1" />
+      <LineId Id="4013" Count="1" />
+      <LineId Id="3387" Count="9" />
+      <LineId Id="3892" Count="0" />
+      <LineId Id="3397" Count="18" />
+      <LineId Id="4045" Count="0" />
+      <LineId Id="4262" Count="0" />
+      <LineId Id="3416" Count="36" />
+      <LineId Id="3454" Count="0" />
+      <LineId Id="4135" Count="0" />
+      <LineId Id="3455" Count="1" />
+      <LineId Id="4129" Count="2" />
+      <LineId Id="4134" Count="0" />
+      <LineId Id="4133" Count="0" />
+      <LineId Id="4132" Count="0" />
+      <LineId Id="3457" Count="22" />
+      <LineId Id="4302" Count="1" />
+      <LineId Id="3482" Count="1" />
+      <LineId Id="4142" Count="0" />
+      <LineId Id="3484" Count="1" />
+      <LineId Id="4137" Count="4" />
+      <LineId Id="4136" Count="0" />
+      <LineId Id="3486" Count="26" />
+      <LineId Id="4149" Count="0" />
+      <LineId Id="3513" Count="1" />
+      <LineId Id="4144" Count="4" />
+      <LineId Id="4143" Count="0" />
+      <LineId Id="3515" Count="22" />
+      <LineId Id="4304" Count="1" />
+      <LineId Id="4280" Count="0" />
+      <LineId Id="3538" Count="0" />
+      <LineId Id="4156" Count="0" />
+      <LineId Id="3539" Count="1" />
+      <LineId Id="4151" Count="4" />
+      <LineId Id="4150" Count="0" />
+      <LineId Id="3541" Count="53" />
+      <LineId Id="4163" Count="0" />
+      <LineId Id="3595" Count="1" />
+      <LineId Id="4158" Count="4" />
+      <LineId Id="4157" Count="0" />
+      <LineId Id="3597" Count="14" />
+      <LineId Id="3946" Count="1" />
+      <LineId Id="3613" Count="3" />
+      <LineId Id="4171" Count="0" />
+      <LineId Id="3617" Count="1" />
+      <LineId Id="4166" Count="4" />
+      <LineId Id="4164" Count="1" />
+      <LineId Id="3619" Count="18" />
+      <LineId Id="4178" Count="0" />
+      <LineId Id="3638" Count="1" />
+      <LineId Id="4173" Count="4" />
+      <LineId Id="4172" Count="0" />
+      <LineId Id="3640" Count="13" />
+      <LineId Id="4306" Count="1" />
+      <LineId Id="3655" Count="3" />
+      <LineId Id="4186" Count="0" />
+      <LineId Id="3659" Count="1" />
+      <LineId Id="4180" Count="4" />
+      <LineId Id="4179" Count="0" />
+      <LineId Id="4185" Count="0" />
+      <LineId Id="3661" Count="18" />
+      <LineId Id="4194" Count="0" />
+      <LineId Id="3680" Count="1" />
+      <LineId Id="4188" Count="4" />
+      <LineId Id="4187" Count="0" />
+      <LineId Id="4193" Count="0" />
+      <LineId Id="3682" Count="6" />
+      <LineId Id="3898" Count="45" />
+      <LineId Id="4203" Count="0" />
+      <LineId Id="3944" Count="1" />
+      <LineId Id="4195" Count="0" />
+      <LineId Id="4198" Count="4" />
+      <LineId Id="4197" Count="0" />
+      <LineId Id="4196" Count="0" />
+      <LineId Id="3738" Count="16" />
+      <LineId Id="4015" Count="0" />
+      <LineId Id="3755" Count="3" />
+      <LineId Id="4308" Count="1" />
+      <LineId Id="4017" Count="0" />
+      <LineId Id="4066" Count="1" />
+      <LineId Id="4018" Count="1" />
+      <LineId Id="4204" Count="1" />
+      <LineId Id="4207" Count="1" />
+      <LineId Id="4206" Count="0" />
+      <LineId Id="3761" Count="0" />
+      <LineId Id="4016" Count="0" />
+      <LineId Id="3762" Count="5" />
+      <LineId Id="4216" Count="0" />
+      <LineId Id="3768" Count="1" />
+      <LineId Id="4210" Count="4" />
+      <LineId Id="4209" Count="0" />
+      <LineId Id="4215" Count="0" />
+      <LineId Id="3770" Count="0" />
+      <LineId Id="4047" Count="0" />
+      <LineId Id="4310" Count="0" />
+      <LineId Id="3773" Count="20" />
+      <LineId Id="4024" Count="0" />
+      <LineId Id="4311" Count="1" />
+      <LineId Id="4069" Count="0" />
+      <LineId Id="4026" Count="0" />
+      <LineId Id="3794" Count="0" />
+      <LineId Id="4225" Count="1" />
+      <LineId Id="4313" Count="1" />
+      <LineId Id="4228" Count="0" />
+      <LineId Id="4023" Count="0" />
+      <LineId Id="4021" Count="1" />
+      <LineId Id="3795" Count="5" />
+      <LineId Id="4223" Count="0" />
+      <LineId Id="3801" Count="1" />
+      <LineId Id="4218" Count="4" />
+      <LineId Id="4217" Count="0" />
+      <LineId Id="4224" Count="0" />
+      <LineId Id="3803" Count="0" />
+      <LineId Id="4065" Count="0" />
+      <LineId Id="3804" Count="0" />
+      <LineId Id="3806" Count="13" />
+      <LineId Id="3986" Count="0" />
+      <LineId Id="3984" Count="1" />
+      <LineId Id="3987" Count="0" />
+      <LineId Id="3820" Count="1" />
+      <LineId Id="3983" Count="0" />
+      <LineId Id="3822" Count="3" />
+      <LineId Id="4318" Count="1" />
+      <LineId Id="3826" Count="2" />
+      <LineId Id="4236" Count="1" />
+      <LineId Id="4320" Count="1" />
+      <LineId Id="4239" Count="0" />
+      <LineId Id="3829" Count="1" />
+      <LineId Id="3974" Count="0" />
+      <LineId Id="3967" Count="2" />
+      <LineId Id="3971" Count="1" />
+      <LineId Id="3970" Count="0" />
+      <LineId Id="3973" Count="0" />
+      <LineId Id="3831" Count="2" />
+      <LineId Id="4027" Count="0" />
+      <LineId Id="3834" Count="4" />
+      <LineId Id="3976" Count="6" />
+      <LineId Id="3975" Count="0" />
+      <LineId Id="3839" Count="6" />
+      <LineId Id="4283" Count="1" />
+      <LineId Id="3847" Count="2" />
+      <LineId Id="4071" Count="0" />
+      <LineId Id="3850" Count="2" />
+      <LineId Id="4241" Count="3" />
+      <LineId Id="4240" Count="0" />
+      <LineId Id="3853" Count="0" />
+      <LineId Id="3989" Count="6" />
+      <LineId Id="3988" Count="0" />
+      <LineId Id="3854" Count="10" />
+      <LineId Id="4235" Count="0" />
+      <LineId Id="3865" Count="1" />
+      <LineId Id="4230" Count="4" />
+      <LineId Id="4229" Count="0" />
+      <LineId Id="3867" Count="1" />
+      <LineId Id="4324" Count="1" />
+      <LineId Id="3870" Count="7" />
+      <LineId Id="4089" Count="0" />
+      <LineId Id="4110" Count="0" />
+      <LineId Id="4090" Count="1" />
+      <LineId Id="4111" Count="0" />
+      <LineId Id="4092" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadRoundBeltBoxWithRobot.M_STATE_RESETTING">
+      <LineId Id="18" Count="1" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="27" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="9" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

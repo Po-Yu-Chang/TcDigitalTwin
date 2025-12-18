@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Alarm_Tmax" Id="{b1e7b254-9657-494e-b485-c2ce81b27eec}">
+    <Declaration><![CDATA[TYPE ST_Alarm_Tmax :
+STRUCT
+		Trigger		:BOOL; //	Alarm trigger point
+		ID			: UDINT; //	Alarm ID
+		Value		: DINT; //	Alarm Value
+		Message		: T_MaxString; //	Alarm Message
+		Category	: DINT; //	Alarm Category
+		DateTime	: ARRAY[0..6] OF DINT;
+		ackDateTime : ARRAY[0..6] OF DINT;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

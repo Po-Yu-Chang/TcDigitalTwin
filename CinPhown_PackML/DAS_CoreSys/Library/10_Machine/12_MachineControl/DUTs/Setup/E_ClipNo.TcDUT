@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_ClipNo" Id="{da9059ed-ed6d-420e-8a93-593f66c3073c}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE
+    E_ClipNo :
+    (
+        A := 0,
+        B := 1,
+        C := 2,
+        D := 3
+    );
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

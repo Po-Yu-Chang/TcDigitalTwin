@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AutoMode_SingleStepWithInterventionRequest" Id="{ad2dcb50-d2b8-44f7-a1e1-bd7677f952e1}">
+    <Declaration><![CDATA[TYPE st_AutoMode_SingleStepWithInterventionRequest :
+STRUCT
+	InterventionRequest	 : BOOL;
+	HandShake		: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

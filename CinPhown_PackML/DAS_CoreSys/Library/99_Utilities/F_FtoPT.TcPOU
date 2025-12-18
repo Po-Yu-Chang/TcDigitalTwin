@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="F_FtoPT" Id="{fdc4ca46-1de8-4a96-89a4-03039d84ba57}" SpecialFunc="None">
+    <Declaration><![CDATA[// Frequence to time(PT is Timer target value)
+FUNCTION F_FtoPT : Time
+VAR_INPUT
+	Hz : REAL;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF Hz > 0 THEN
+	F_FtoPT := DWORD_TO_TIME(REAL_TO_DWORD((1000 / Hz)));
+ELSE
+	F_FtoPT := T#0S;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="F_FtoPT">
+      <LineId Id="12" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="13" Count="2" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

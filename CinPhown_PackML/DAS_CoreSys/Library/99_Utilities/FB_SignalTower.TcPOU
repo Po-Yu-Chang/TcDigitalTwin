@@ -1,0 +1,342 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_SignalTower" Id="{1dc42b3a-9534-40d3-bab1-9a3fd3352017}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SignalTower
+VAR_INPUT
+    // TRUE: Activates the defined operation
+    // FALSE: Aborts/resets the defined operation
+    Enable     :BOOL := TRUE;
+    LampRed    :REFERENCE TO BOOL;
+    LampYellow :REFERENCE TO BOOL;
+    LampGreen  :REFERENCE TO BOOL;
+    Buzz       :REFERENCE TO BOOL;
+	ForceCloseBuzz : BOOL;
+	BuzzSwitchOnTime	:LREAL :=3000.0 ; //In Second
+END_VAR
+
+VAR_OUTPUT
+    // TRUE: Operation is running
+    Vaild :BOOL;
+    // TRUE: Error condition reached
+    Error :BOOL;
+    // Error code describing error condition
+    ErrorID :DINT;
+END_VAR
+
+VAR
+    LampRed_Active    :BOOL;         // True :Lamp Red actived
+    LampYellow_Active :BOOL;         // True :Lamp Yellow actived
+    LampGreen_Active  :BOOL;         // True : Lamp Green actived
+    FB_1Hz            :FB_SignalGen; // 1Hz flash signal generator
+    FB_2Hz            :FB_SignalGen; // 2Hz flash signal generator
+    FB_05Hz           :FB_SignalGen; // 0.5 Hz flash signal generator
+    // Signal Tower controller output
+    LampSingal :ST_SignalTower;
+	BuzzOnTimer			:TON;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Call Signal generator
+A_SignalGenerator();
+
+// 
+IF Enable THEN
+	LampSingal.Lamp_Red 	:= M_LampRed();
+	LampSingal.Lamp_Yellow	:= M_LampYellow();
+	LampSingal.Lamp_Green 	:= M_LampGreen();
+	LampSingal.Buzz			:=M_Buzz(BuzzSwitchOnTime);
+ELSE
+	LampSingal.Lamp_Red := FALSE;
+	LampSingal.Lamp_Yellow := FALSE;
+	LampSingal.Lamp_Green := FALSE;
+	LampSingal.Buzz := FALSE;
+END_IF
+
+LampRed := LampSingal.Lamp_Red;
+LampYellow := LampSingal.Lamp_Yellow;
+LampGreen := LampSingal.Lamp_Green;
+Buzz := LampSingal.Buzz;]]></ST>
+    </Implementation>
+    <Action Name="A_SignalGenerator" Id="{5007de43-27f1-4df8-92e2-4501fa1e4fb4}">
+      <Implementation>
+        <ST><![CDATA[FB_1Hz(PT := F_FtoPT(Hz := 1));
+FB_2Hz(PT := F_FtoPT(Hz := 2));
+FB_05Hz(PT := F_FtoPT(Hz := 0.5));
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_Buzz" Id="{eff69fa8-3ec3-47de-a0a3-b9a78f3ee27f}">
+      <Declaration><![CDATA[METHOD M_Buzz : BOOL
+VAR_INPUT
+	SwitchOnTime : LREAL ;//In second
+END_VAR
+VAR
+	SignalMode: E_SignalTowerLampMode:=E_SignalTowerLampMode.Disable;
+	
+END_VAR 
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[BuzzOnTimer(PT:= DWORD_TO_TIME(LREAL_TO_DWORD(SwitchOnTime*1000)));
+
+IF ForceCloseBuzz THEN
+	SignalMode := E_SignalTowerLampMode.Disable;
+ELSE
+	IF  GVL_ADS.MachineState = E_MachineState.Error THEN
+		BuzzOnTimer.IN :=TRUE;		
+		SignalMode := E_SignalTowerLampMode.Flash_2Hz;			
+	ELSE   
+		BuzzOnTimer.IN :=FALSE;
+	END_IF
+	
+END_IF
+// Determine the Lamp mode based on the current SignalTowerMode. 
+CASE SignalMode OF
+    E_SignalTowerLampMode.Disable: // Lamp off
+        M_Buzz := FALSE;
+    E_SignalTowerLampMode.AlwaysOn: // Lamp on
+        M_Buzz := TRUE AND NOT BuzzOnTimer.Q;
+    E_SignalTowerLampMode.Flash_05Hz: // Lamp flash 0.25s on 0.25s off
+        M_Buzz := FB_05Hz.Q AND NOT BuzzOnTimer.Q;
+    E_SignalTowerLampMode.Flash_1Hz: // Lamp flash 0.5s on 0.5s off	
+        M_Buzz := FB_1Hz.Q AND NOT BuzzOnTimer.Q ;
+    E_SignalTowerLampMode.Flash_2Hz: // Lamp flash 1s on 1s off
+        M_Buzz := FB_2Hz.Q AND ( NOT BuzzOnTimer.Q);
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_LampGreen" Id="{a34f9e17-3182-4649-a7d4-28e8815d4d82}">
+      <Declaration><![CDATA[METHOD M_LampGreen : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SignalMode: E_SignalTowerLampMode:=E_SignalTowerLampMode.Disable;
+END_VAR ]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT LampRed_Active  THEN
+    IF GVL_ADS.MachineState=E_MachineState.Running THEN
+        SignalMode := E_SignalTowerLampMode.AlwaysOn;
+    ELSE
+        SignalMode := E_SignalTowerLampMode.Disable;
+    END_IF
+ELSIF LampRed_Active  THEN
+    SignalMode := E_SignalTowerLampMode.Disable;
+END_IF;
+
+// Determine the Lamp mode based on the current SignalTowerMode. 
+CASE SignalMode OF
+    E_SignalTowerLampMode.Disable: // Lamp off
+        M_LampGreen := FALSE;
+    E_SignalTowerLampMode.AlwaysOn: // Lamp on
+        M_LampGreen := TRUE;
+    E_SignalTowerLampMode.Flash_05Hz: // Lamp flash 0.25s on 0.25s off
+        M_LampGreen := FB_05Hz.Q;
+    E_SignalTowerLampMode.Flash_1Hz: // Lamp flash 0.5s on 0.5s off	
+        M_LampGreen := FB_1Hz.Q;
+    E_SignalTowerLampMode.Flash_2Hz: // Lamp flash 1s on 1s off
+        M_LampGreen := FB_2Hz.Q;
+END_CASE
+
+// Lamp effective flag
+IF SignalMode = E_SignalTowerLampMode.Disable THEN
+    LampGreen_Active := FALSE;
+ELSE
+    LampGreen_Active := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_LampRed" Id="{2329bb26-8597-4c80-ba05-709f9c456d84}">
+      <Declaration><![CDATA[METHOD M_LampRed : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SignalMode: E_SignalTowerLampMode:=E_SignalTowerLampMode.Disable;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Control SignalMode here
+IF GVL_ADS.MachineState=E_MachineState.Error THEN
+	SignalMode := E_SignalTowerLampMode.Flash_1Hz;
+ELSIF GVL_ADS.MachineState=E_MachineState.StandBy THEN
+	SignalMode := E_SignalTowerLampMode.AlwaysOn;	
+ELSE
+	SignalMode := E_SignalTowerLampMode.Disable;
+END_IF
+// Determine the Lamp mode based on the current SignalTowerMode. 
+CASE SignalMode OF
+    E_SignalTowerLampMode.Disable: // Lamp off
+        M_LampRed := FALSE;
+    E_SignalTowerLampMode.AlwaysOn:// Lamp on
+        M_LampRed := TRUE;
+    E_SignalTowerLampMode.Flash_05Hz:// Lamp flash 0.25s on 0.25s off
+        M_LampRed := FB_05Hz.Q;
+    E_SignalTowerLampMode.Flash_1Hz: // Lamp flash 0.5s on 0.5s off
+        M_LampRed := FB_1Hz.Q;
+    E_SignalTowerLampMode.Flash_2Hz: // Lamp flash 1s on 1s off
+        M_LampRed := FB_2Hz.Q;
+END_CASE
+// Lamp effective flag
+IF SignalMode = E_SignalTowerLampMode.Disable THEN
+	LampRed_Active := FALSE;
+ELSE
+	LampRed_Active := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_LampYellow" Id="{0bcbdcd0-592a-44c7-8516-36ee953c07fb}">
+      <Declaration><![CDATA[METHOD M_LampYellow : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SignalMode: E_SignalTowerLampMode:=E_SignalTowerLampMode.Disable;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Contorl Signal here
+ IF GVL_ADS.MachineState=E_MachineState.NotHomed OR GVL_ADS.MachineState=E_MachineState.Homing THEN
+	
+		SignalMode := E_SignalTowerLampMode.Flash_2Hz;
+	ELSIF GVL_ADS.MachineState=E_MachineState.Homed THEN
+		SignalMode := E_SignalTowerLampMode.AlwaysOn;
+	ELSE	
+		SignalMode := E_SignalTowerLampMode.Disable;
+	
+END_IF
+
+// Determine the Lamp mode based on the current SignalTowerMode. 
+CASE SignalMode OF
+    E_SignalTowerLampMode.Disable: // Lamp off
+        M_LampYellow := FALSE;
+    E_SignalTowerLampMode.AlwaysOn:// Lamp on
+        M_LampYellow := TRUE;
+    E_SignalTowerLampMode.Flash_05Hz:// Lamp flash 0.25s on 0.25s off
+        M_LampYellow := FB_05Hz.Q;
+    E_SignalTowerLampMode.Flash_1Hz: // Lamp flash 0.5s on 0.5s off
+        M_LampYellow := FB_1Hz.Q;
+    E_SignalTowerLampMode.Flash_2Hz: // Lamp flash 1s on 1s off
+        M_LampYellow := FB_2Hz.Q;
+END_CASE
+// Lamp effective flag
+IF SignalMode = E_SignalTowerLampMode.Disable THEN
+	LampYellow_Active := FALSE;
+ELSE
+	LampYellow_Active := TRUE;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="P_LampGreenState" Id="{001bb7d5-fcd9-49d5-b915-4c7352c9f451}">
+      <Declaration><![CDATA[PROPERTY PUBLIC P_LampGreenState : Bool]]></Declaration>
+      <Get Name="Get" Id="{7872edae-3f10-4cb4-8814-41f53fdcb548}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_LampGreenState:=LampSingal.Lamp_Green ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_LampRedState" Id="{82e88a37-2ba5-4ccb-abee-319e5534e2a0}">
+      <Declaration><![CDATA[PROPERTY PUBLIC P_LampRedState : Bool]]></Declaration>
+      <Get Name="Get" Id="{0bf4bbec-7894-4a3f-9a31-740f2e5d75fc}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_LampRedState:=LampSingal.Lamp_Red ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_LampYellowState" Id="{8bdb4f40-3f1d-4b5f-8d18-0ef7118a9ade}">
+      <Declaration><![CDATA[PROPERTY PUBLIC P_LampYellowState : Bool]]></Declaration>
+      <Get Name="Get" Id="{1938b688-657c-4021-8520-6d4c24a0d84d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_LampYellowState:=LampSingal.Lamp_Yellow ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <LineIds Name="FB_SignalTower">
+      <LineId Id="9" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="64" Count="3" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="69" Count="3" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="165" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.A_SignalGenerator">
+      <LineId Id="4" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.M_Buzz">
+      <LineId Id="40" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="27" Count="1" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="57" Count="3" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="9" Count="12" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.M_LampGreen">
+      <LineId Id="42" Count="0" />
+      <LineId Id="45" Count="27" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.M_LampRed">
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="19" Count="10" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="36" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.M_LampYellow">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="41" Count="1" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="12" Count="17" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.P_LampGreenState.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.P_LampRedState.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SignalTower.P_LampYellowState.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

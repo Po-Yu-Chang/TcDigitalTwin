@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_Storage" Id="{c07bca37-e09e-48ca-abb9-64c992b3f18c}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_Storage :
+    STRUCT
+        WareHouseCV_10 : ST_MotorCommand;
+        WareHouseCV_09 : ST_MotorCommand;
+        WareHouseCV_08 : ST_MotorCommand;
+        WareHouseCV_07 : ST_MotorCommand;
+        WareHouseCV_06 : ST_MotorCommand;
+        WareHouseCV_05 : ST_MotorCommand;
+        WareHouseCV_04 : ST_MotorCommand;
+        WareHouseCV_03 : ST_MotorCommand;
+        WareHouseCV_02 : ST_MotorCommand;
+        WareHouseCV_01 : ST_MotorCommand;
+        WareHouseCV_20 : ST_MotorCommand;
+        WareHouseCV_19 : ST_MotorCommand;
+        WareHouseCV_18 : ST_MotorCommand;
+        WareHouseCV_17 : ST_MotorCommand;
+        WareHouseCV_16 : ST_MotorCommand;
+        WareHouseCV_15 : ST_MotorCommand;
+        WareHouseCV_14 : ST_MotorCommand;
+        WareHouseCV_13 : ST_MotorCommand;
+        WareHouseCV_12 : ST_MotorCommand;
+        WareHouseCV_11 : ST_MotorCommand;
+        UpCV           : ST_Manual_UpCV;
+        LowCV          : ST_Manual_LowCV;
+		FanucRobot : ST_Manual_FanucRobot;
+		RackMotor :ST_Manual_Rack;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

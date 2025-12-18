@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_RoundBeltAutoSingleMove_Status" Id="{86219f90-e7ee-47a0-8b86-682a50a8b36d}">
+    <Declaration><![CDATA[TYPE st_RoundBeltAutoSingleMove_Status :
+STRUCT
+	Busy : BOOL;
+	Done : BOOL;
+	Error : BOOL;
+	Aborted :BOOL;
+	ErrorID : UDINT;
+	uniqueErrorCode : STRING;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

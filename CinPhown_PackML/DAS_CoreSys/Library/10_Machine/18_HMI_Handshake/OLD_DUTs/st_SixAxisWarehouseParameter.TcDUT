@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_SixAxisWarehouseParameter" Id="{39ededdb-d34d-4856-9e25-eb09734be4ad}">
+    <Declaration><![CDATA[TYPE st_SixAxisWarehouseParameter  :
+STRUCT
+	Warehouse:LREAL; //WarehouseA = 1, WarehouseB = 0
+	Layer : LREAL;
+	Slide : LREAL;	
+	Clip:LREAL;
+	Get:BOOL;	//出盒
+	Push:BOOL;	//入盒
+	Excute:BOOL;
+	Done  :BOOL;
+	Busy  : BOOL;
+	Occupied : BOOL;
+//	Error : BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

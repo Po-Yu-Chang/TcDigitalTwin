@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_FeedInEmptyBox_PlaceArea" Id="{e3f42fd4-2943-45d6-b96c-5bdd8f6430c2}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE
+    E_FeedInEmptyBox_PlaceArea :
+    (
+        Undefine := 0,	// No Setting
+        SameSizeConveyor := 1, // Target is allocate FeedIn conveyor same size side.
+        DiffSizeConveyor := 2 // Target is allocate FeedIn conveyor different size side.
+    ) UINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

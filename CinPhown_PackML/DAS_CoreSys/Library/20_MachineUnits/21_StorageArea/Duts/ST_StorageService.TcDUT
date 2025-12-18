@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_StorageService" Id="{7ead4573-eb6a-460b-b62c-95ebc6370473}">
+    <Declaration><![CDATA[TYPE
+    ST_StorageService :
+    STRUCT
+        // Automode Feedin empty box with robot 
+        AutoMode_FeedInEmptyBoxWithRobot : REFERENCE TO ST_AutoMode_FeedInEmptyBox; // Automode : Feedin empty box with robot from Warehouse and Pullout convenyor
+        // Automode Reload RoundBelt box with robot
+        AutoMode_ReloadRoundBeltBoxWithRobot : REFERENCE TO ST_AutoMode_ReloadRoundBeltBox; // Automode : Reload RoundBelt box with robot from warehouse
+
+        //AutoMode UpperFeedInConveyor
+        AutoMode_UpperFeedInConveyor : REFERENCE TO ST_Auto_UpperFeedInConveyor;
+        //AutoMode AddBoxes
+        AutoMode_AddBoxes : REFERENCE TO ST_AutoAddsBoxes;
+
+        //AutoModeUse------手臂區域移動_FeedIn conveyor
+        AutoMode_RobotRegionMove_FeedInConveyor : REFERENCE TO ST_AutoMode_RobotRegionMove;
+        //AutoModeUse------手臂區域移動_AllocatedConveyor
+        AutoMode_RobotRegionMove_AllocatedConveyor : REFERENCE TO ST_AutoMode_RobotRegionMove;
+        //AutoModeUse------手臂區域移動_Pullout conveyor
+        AutoMode_RobotRegionMove_PullOutConveyor : REFERENCE TO ST_AutoMode_RobotRegionMove;
+        //AutoModeUse------手臂區域移動_Buffer area
+        AutoMode_RobotRegionMove_BufferArea : REFERENCE TO ST_AutoMode_RobotRegionMove;
+        //AutoModeUse------手臂區域移動_RoundBelt
+        AutoMode_RobotRegionMove_RoundBelt : REFERENCE TO ST_AutoMode_RobotRegionMove;
+
+        // Pullout 
+        AutoMode_PullOutConveyor : REFERENCE TO ST_AutoPullOutConveyor; // AutoMode PullOut Conveyor
+        //AutoModeUse*-------手臂絕對位置移動
+        AutoMode_RobotAbsMove : REFERENCE TO st_AutoSixAxisAbsMoveParameter;
+        //        //AutoModeUse*-------手臂倉儲位置移動
+        //        AutoMode_RobotWarehouseMove : st_AutoSixAxisWarehouseParameter;
+
+        //AutoModeUse------倉儲馬達搭配手臂移動
+        AutoMode_WarehouseMotoWithRobotMove : REFERENCE TO st_AutoSixAxisWarehouseParameter;
+		
+		//Reboot Modbus devices
+		RebootModbusDevices			: REFERENCE TO st_RebootModbusDevices;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="_st_WarehouseList" Id="{36197a4d-d91f-4f0b-8c2d-1f88843e5bbd}">
+    <Declaration><![CDATA[TYPE _st_WarehouseList :
+STRUCT
+	//A倉儲10層狀態
+	ASide_Layers	:ARRAY[1..10] OF _ST_WarehouseLayer;
+	//B倉儲10層狀態
+	BSide_Layers	:ARRAY[1..10] OF _ST_WarehouseLayer;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

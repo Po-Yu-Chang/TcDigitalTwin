@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_HalfAuto_Allocated" Id="{b8c8f907-b147-4ce2-b003-3ba9614e4b33}">
+    <Declaration><![CDATA[TYPE
+    ST_HalfAuto_Allocated :
+    STRUCT
+        TableMove : ST_TableMoveService; // When machine in Manual mode, it can trig execute to move module to targer position with PositionTable
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

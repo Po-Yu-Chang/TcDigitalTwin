@@ -1,0 +1,1064 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_StorageArea" Id="{3ff1c522-4351-4adc-9391-8a025c139a8a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_StorageArea EXTENDS FB_ModeBase_V2 IMPLEMENTS I_UnitState
+VAR_INPUT
+    FanucRobot : REFERENCE TO FB_FanucRobot_Basic_V2;
+    Service    : REFERENCE TO ST_StorageService;
+
+    Cylinder : REFERENCE TO UNI_CylinderList;
+    Motor    : REFERENCE TO UNI_MotorList;
+
+    Input            : REFERENCE TO ST_InputTable;
+    OutPut           : REFERENCE TO ST_OutputTable;
+    Reset            : REFERENCE TO BOOL;
+	Stop :  REFERENCE TO BOOL;
+	bStopMem :  REFERENCE TO BOOL;
+    WheelhouseSensor : REFERENCE TO UNI_HMI_WheelHouseInput;
+    CurrentData      : ST_SetupPara;
+END_VAR
+VAR_OUTPUT
+	RobotResetCMD :BOOL;
+	Homed : BOOL;
+END_VAR
+VAR
+	Abort	:BOOL;
+
+    // Service
+    //fbFeedInEmptyBoxWithRobot           : FB_FeedInEmptyBoxWithRobot;
+	fbFeedInEmptyBoxWithRobot           : FB_FeedInEmptyBoxWithRobot_V3;			//Edited by Gamin in 2025//11/24
+    //fbReloadRoundBeltBoxWithRobot       : FB_ReloadRoundBeltBoxWithRobot;
+	fbReloadRoundBeltBoxWithRobot       : FB_ReloadRoundBeltBoxWithRobot_V2;		//Edited by Gamin in 2025//11/24
+    fbRobotRegionMove_AllocatedConveyor : FB_RobotRegionMove_AllocatedConveyor;
+    fbRobotRegionMove_BufferArea        : FB_RobotRegionMove_BufferArea;
+    //fbRobotRegionMove_FeedInConveyor    : FB_RobotRegionMove_FeedInConveyor;
+	fbRobotRegionMove_FeedInConveyor    : FB_RobotRegionMove_FeedInConveyor_V2;		//Edited by Gamin in 2025//11/24
+    fbRobotRegionMove_PullOutConveyor   : FB_RobotRegionMove_PullOutConveyor;
+    fbRobotRegionMove_RoundBelt         : FB_RobotRegionMove_RoundBelt;
+    //fbRobotAbsMove                      : FB_RobotAbsMove;
+	fbRobotAbsMove                      : FB_RobotAbsMove_V2;
+    //fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove;
+    fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove_V3;		//Edited by Gamin in 2025//11/24
+	
+	fbStorageHoming 					: FB_StorageHoming;
+	//UpCV
+    _fbDaimeterMovement   			: FB_DiameterMovement; //UpCV Internal use
+    fbUpperFeedInConveyor 			: FB_UpperFeedInConveyor;
+	fbAddBoxes                      : FB_AddBoxes_v2;
+	fbBoxSupplyCtrl					: FB_BoxSupplyCtrl_v1;
+    RackState                       : E_RackState;
+    
+    // Pullout
+    fbPullOutConveyorAction         : FB_PullOutConveyorAction;
+    AutoPullout_Ctrl                : ST_AutoPullOutConveyorCommand;
+    AutoPullout_Status              : ST_AutoPullOutConveyorSatus;
+    AutoPullout_Info                : ST_PullOutConveyorInfo;
+    bPulloutConveyorInternCtrl      : BOOL := FALSE;
+    AutoMode_PulloutConveyor_Intern : ST_AutoPullOutConveyor; // Pullout conveyor inter
+    
+
+    // Robot abs move
+    RobotAbsMoveAuto_Ctrl   : st_RobotAbsMove_Ctrl;
+    RobotAbsMoveAuto_Status : st_RobotAbsMove_Status;
+    RobotAbsMoveAuto_Info   : st_AutoSixAxisAbsMoveParameter;
+    // Warehouse
+	fbWarehouse           : FB_WareHouse;
+    //========= Auto Mode Robot Warehouse Move =================
+    RobotWarehouseMoveAuto_Ctrl   : st_RobotWarehouseMove_Ctrl;
+    RobotWarehouseMoveAuto_Status : st_RobotWarehouseMove_Status;
+
+    _RobotWarehouseMoveAuto_Ctrl   : st_RobotWarehouseMove_Ctrl;
+    _RobotWarehouseMoveAuto_Status : st_RobotWarehouseMove_Status;
+
+    RobotWarehouseMoveAuto_internal_Ctrl   : st_RobotWarehouseMove_Ctrl;
+    RobotWarehouseMoveAuto_internal_Status : st_RobotWarehouseMove_Status;
+    bWarehouseMoveInternalAccess           : BOOL := FALSE;
+	// Storage homing
+	StorageHoming_Execute : BOOL;
+	StorageHoming_Reset : BOOL;
+	StorageHoming_Abort : BOOL;
+	StorageHoming_Busy : BOOL;
+	StorageHoming_Done : BOOL;
+	StorageHoming_Error : BOOL;
+	
+	// Reboot Modbus devices
+	fbRebootModbusDevice		: FB_RebootModbusDevice;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+IF __ISVALIDREF(PackTag) THEN
+    eModeCommand := PackTag.Command.UnitMode;
+    eStateCommand := PackTag.Command.CntrlCmd;
+ELSE
+    RETURN;
+END_IF
+]]></ST>
+    </Implementation>
+    <Folder Name="Private" Id="{5f1f5d46-a928-41f7-91aa-d43864937ca2}" />
+    <Folder Name="Public" Id="{434d8d8e-7384-4247-a40c-1029877f3158}" />
+    <Folder Name="States" Id="{abddb7b6-b720-4a90-aad0-d105938714bc}" />
+    <Action Name="A00_Service" Id="{9871972c-85f2-401c-9ce4-b684f3a8155a}">
+      <Implementation>
+        <ST><![CDATA[fbFeedInEmptyBoxWithRobot(Execute    := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Execute,
+                          Abort      := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Abort OR THIS^.Abort,
+                          Reset      := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Reset,
+                          ObjectName := 'FeedInEmptyBox with robot',
+                          Busy       => service.AutoMode_FeedInEmptyBoxWithRobot.Status.Busy,
+                          Done       => service.AutoMode_FeedInEmptyBoxWithRobot.Status.Done,
+                          Aborted    =>,
+                          Error      => service.AutoMode_FeedInEmptyBoxWithRobot.Status.Error,
+                          ErrorID    =>,
+                          Status     => service.AutoMode_FeedInEmptyBoxWithRobot.Status.Status,
+                          UniqueErrorCode   =>,
+                          Robot      := FanucRobot,
+                          WareHouse  := fbWarehouse,
+                          Input      := Input,
+                          DiffSizeCV := Motor.List.TransmitDifferentSideCV,
+						  SameSizeCV := Motor.List.TransmitSameSideCV,
+                          Info := Service.AutoMode_FeedInEmptyBoxWithRobot.Info,
+                          Stop := bStopMem,
+						  AClampMoveDone=>service.AutoMode_FeedInEmptyBoxWithRobot.AClampMoveDone,
+						  BClampMoveDone=>service.AutoMode_FeedInEmptyBoxWithRobot.BClampMoveDone);
+
+fbRobotRegionMove_BufferArea(Execute	:= Service.AutoMode_RobotRegionMove_BufferArea.Command.Execute,
+                             Abort 		:= Service.AutoMode_RobotRegionMove_BufferArea.Command.Abort OR THIS^.Abort,
+                             Reset 		:= Service.AutoMode_RobotRegionMove_BufferArea.Command.Reset,
+                             ObjectName	:= 'RobotRegionMove_BufferArea',
+                             Busy    => Service.AutoMode_RobotRegionMove_BufferArea.Status.Busy,
+                             Done    => Service.AutoMode_RobotRegionMove_BufferArea.Status.Done,
+                             Aborted =>,
+                             Error   => Service.AutoMode_RobotRegionMove_BufferArea.Status.Error,
+                             ErrorID =>,
+                             Status  => Service.AutoMode_RobotRegionMove_BufferArea.Status.Status,
+							 UniqueErrorCode	=>,
+                             Robot 	:= FanucRobot,
+                             Info 	:= Service.AutoMode_RobotRegionMove_BufferArea.Info,
+                             Stop 	:= bStopMem);
+
+fbPullOutConveyorAction(Execute          := (*AutoPullout_Ctrl.Execute*) ,
+                        Abort            := AutoPullout_Ctrl.Abort OR THIS^.Abort,
+                        Reset            := AutoPullout_Ctrl.Reset,
+                        ObjectName       := 'fbPullOutConveyorAction',
+                        Busy             => AutoPullout_Status.Busy,
+                        Done             => AutoPullout_Status.Done,
+                        Aborted          =>,
+                        Error            => AutoPullout_Status.Error,
+                        ErrorID          =>,
+                        Status           => AutoPullout_Status.Status,
+                        UniqueErrorCode  =>,
+                        FixCylinderA1    := Cylinder.List.fbPullOutCV_AsidePress1,
+                        FixCylinderA2    := Cylinder.List.fbPullOutCV_AsidePress2,
+                        FixCylinderB1    := Cylinder.List.fbPullOutCV_BsidePress1,
+                        FixCylinderB2    := Cylinder.List.fbPullOutCV_BsidePress2,
+                        BarrierCylinderA := Cylinder.List.fbPullOutCV_AsideBlock,
+                        BarrierCylinderB := Cylinder.List.fbPullOutCV_BsideBlock,
+                        ConveyorMotorA   := Motor.List.PullOutCV_A,
+                        ConveyorMotorB   := Motor.List.PullOutCV_B,
+                        INPUT            := INPUT,
+                        PullOutInfo      := AutoPullout_Info);
+
+fbUpperFeedInConveyor(Execute             := Service.AutoMode_UpperFeedInConveyor.Command.Execute,
+                      Abort               := Service.AutoMode_UpperFeedInConveyor.Command.Abort OR THIS^.Abort,
+                      Reset               := Service.AutoMode_UpperFeedInConveyor.Command.Reset,
+                      ObjectName          := 'Storage_UpperFeedInConveyor',
+                      Busy                => Service.AutoMode_UpperFeedInConveyor.Status.Busy,
+                      Done                => Service.AutoMode_UpperFeedInConveyor.Status.Done,
+                      Aborted             =>,
+                      Error               => Service.AutoMode_UpperFeedInConveyor.Status.Error,
+                      ErrorID             =>,
+                      Status              =>,
+                      UniqueErrorCode     =>,
+                      _fbDiameterMovement := THIS^._fbDaimeterMovement,
+                      Cylinder            := Cylinder,
+                      Motor               := Motor,
+                      Input               := Input,
+                      OutPut              := OutPut,
+                      Info                := Service.AutoMode_UpperFeedInConveyor.Info,
+                      AddingBox           :=,
+                      FeedBack            => Service.AutoMode_UpperFeedInConveyor.FeedBack,
+					  _bForceUpperCV_Use   =>	);
+
+_fbDaimeterMovement(Execute         :=,
+                    Abort           :=,
+                    Reset           :=,
+                    ObjectName      :=,
+                    Busy            =>,
+                    Done            =>,
+                    Aborted         =>,
+                    Error           =>,
+                    ErrorID         =>,
+                    Status          =>,
+                    UniqueErrorCode =>,
+                    bContinue       :=,
+                    Cylinder        := Cylinder,
+                    PickDone        =>);
+
+fbWarehouse(Motors           := Motor,
+            WheelhouseSensor := WheelhouseSensor);
+
+fbAddBoxes(Execute                   := Service.AutoMode_AddBoxes.Command.Execute,
+           Abort                     := Service.AutoMode_AddBoxes.Command.Abort OR THIS^.Abort,
+           Reset                     := Service.AutoMode_AddBoxes.Command.Reset,
+           ObjectName                := 'Storage_AddBoxes',
+           Busy                      => Service.AutoMode_AddBoxes.Status.Busy,
+           Done                      => Service.AutoMode_AddBoxes.Status.Done,
+           Aborted                   =>,
+           Error                     => Service.AutoMode_AddBoxes.Status.Error,
+           ErrorID                   =>,
+           Status                    =>,
+           UniqueErrorCode           =>,
+           Cylinder                  := Cylinder,
+           Motor                     := Motor,
+           Input                     := Input,
+           OutPut                    := OutPut,
+           CurrentData               := CurrentData,
+           ERackState                := RackState,
+           bClearInterventionRequest :=,
+           InterventionRequest       => Service.AutoMode_AddBoxes.Status.InterventionRequest,
+           FeedingBoxes              => Service.AutoMode_AddBoxes.Status.FeedingBoxes,
+			_bForceUpperCV_Use 		:= fbUpperFeedInConveyor._bForceUpperCV_Use);
+
+fbBoxSupplyCtrl(Execute           := TRUE,
+                Abort             :=THIS^.Abort,
+                Reset             :=reset,
+                ObjectName        :=,
+                Busy              =>,
+                Done              =>,
+                Aborted           =>,
+                Error             =>,
+                ErrorID           =>,
+                Status            =>,
+                UniqueErrorCode   =>,
+                Cylinder          := Cylinder,
+                CurrentData       := CurrentData,
+                Input             := Input,
+                Output            := OutPut,
+                StroageRegionMode := eModeCurrent,
+                bAddsBoxRequest   := Service.AutoMode_AddBoxes.Status.InterventionRequest,
+                AddBoxes_Status   := Service.AutoMode_AddBoxes.Status,
+                AddBoxes_Ctrl     := Service.AutoMode_AddBoxes.Command,
+				AxisRackMotorBTNHomeRequest=>,
+                RackState         => RackState,
+				fbstorageHome := fbStorageHoming);
+
+fbRobotRegionMove_FeedInConveyor(Execute 	:= Service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Execute,
+                                 Abort 		:= Service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Abort OR THIS^.Abort,
+                                 Reset      := Service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Reset,
+                                 ObjectName := 'Storage Robot FeedIn CV',
+                                 Busy       => Service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Busy,
+                                 Done 		=> Service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Done,
+                                 Aborted	=>,
+                                 Error   	=> Service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Error,
+                                 ErrorID 	=>,
+                                 Status  	=> Service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Status,
+                                 UniqueErrorCode =>,
+                                 Robot           := FanucRobot,
+                                 LowerConveyor   := Motor.List.LowCV,
+                                 Input           := Input,
+                                 //								 F1SensorOfUpperConveyor :=Input.bUpCV_BoxArrived_Sensor,
+                                 //								 Input.bUpCV_Block1Detect_Sensor := Input.bUpCV_Block1Detect_Sensor ,
+                                 Info := Service.AutoMode_RobotRegionMove_FeedInConveyor.Info,
+                                 Stop :=bStopMem,
+									);
+
+fbRobotRegionMove_AllocatedConveyor(Execute 	:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Execute,
+                                    Abort 		:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Abort OR THIS^.Abort,
+                                    Reset  		:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Reset,
+                                    ObjectName 	:= ' Storage Robot Transmit CV',
+                                    Busy       	=> Service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Busy,
+                                    Done 		=> Service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Done,
+                                    Aborted 	=>,
+                                    Error   	=> Service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Error,
+                                    ErrorID 	=>,
+                                    Status  	=> Service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Status,
+                                    UniqueErrorCode =>,
+                                    Robot           := FanucRobot,
+                                    DifferenceCV    := Motor.List.TransmitDifferentSideCV,
+                                    SamesizeCV      := Motor.List.TransmitSameSideCV,
+                                    cylinder        := Cylinder,
+                                    //	SameSizeFullSensor:= , 
+                                    Input := Input,
+                                    Info := service.AutoMode_RobotRegionMove_AllocatedConveyor.Info,
+                                    Stop :=bStopMem);
+
+
+fbRobotRegionMove_PullOutConveyor(Execute 	:=Service.AutoMode_RobotRegionMove_PullOutConveyor.Command.Execute,
+                                  Abort 	:=Service.AutoMode_RobotRegionMove_PullOutConveyor.Command.Abort OR THIS^.Abort,
+                                  Reset     := Service.AutoMode_RobotRegionMove_PullOutConveyor.Command.Reset,
+                                  ObjectName:= 'Storage Robot PulloutCV',
+                                  Busy      => Service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Busy,
+                                  Done 		=> Service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Done,
+                                  Aborted 	=>,
+                                  Error   	=> Service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Error,
+                                  ErrorID 	=>,
+                                  Status  	=> Service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Status,
+                                  UniqueErrorCode =>,
+                                  Robot           := FanucRobot,
+                                  PullOutConveyor := fbPullOutConveyorAction,
+                                  Info := Service.AutoMode_RobotRegionMove_PullOutConveyor.Info,
+                                  Stop :=bStopMem);
+
+fbRobotAbsMove(Execute         := Service.AutoMode_RobotAbsMove.HandShake.Execute,
+               Abort           := THIS^.Abort,
+               Reset           := Service.AutoMode_RobotAbsMove.HandShake.Reset,
+               ObjectName      := 'Storage robot abs move',
+               Busy            => Service.AutoMode_RobotAbsMove.HandShake.Busy,
+               Done            => Service.AutoMode_RobotAbsMove.HandShake.Done,
+               Aborted         =>,
+               Error           => Service.AutoMode_RobotAbsMove.HandShake.Error,
+               ErrorID         =>,
+               Status          =>,
+               UniqueErrorCode =>,
+               Robot           := FanucRobot,
+               LowerConveyor   := Motor.List.LowCV,
+               Info            := Service.AutoMode_RobotAbsMove,
+               Input 		:= Input,
+               Stop :=bStopMem,
+			   	Output:=OutPut,
+				Cylinder:= Cylinder,
+				AClampMoveDone=>Service.AutoMode_RobotAbsMove.AClampMoveDone,
+				BClampMoveDone=>Service.AutoMode_RobotAbsMove.BClampMoveDone);
+
+fbRobotRegionMove_RoundBelt(Execute := Service.AutoMode_RobotRegionMove_RoundBelt.Command.Execute,
+                            Abort   := THIS^.Abort,
+                            Reset   := Service.AutoMode_RobotRegionMove_RoundBelt.Command.Reset,
+                            ObjectName:= 'Storage robot  RegionMove roundbelt',
+                            Busy    => Service.AutoMode_RobotRegionMove_RoundBelt.Status.Busy,
+                            Done    => Service.AutoMode_RobotRegionMove_RoundBelt.Status.Done,
+                            Aborted =>,
+                            Error   => Service.AutoMode_RobotRegionMove_RoundBelt.Status.Error,
+                            ErrorID =>,
+                            Status 	=> Service.AutoMode_RobotRegionMove_RoundBelt.Status.Status,
+                            UniqueErrorCode =>,
+                            Robot 		:= FanucRobot,
+                            RoundBelt 	:= DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl,
+							Input 		:= Input,
+                            Info 		:= Service.AutoMode_RobotRegionMove_RoundBelt.Info,
+                            Stop 		:=bStopMem);
+
+fbReloadRoundBeltBoxWithRobot(Execute	:= Service.AutoMode_ReloadRoundBeltBoxWithRobot.Command.Execute,
+                              Abort 	:= THIS^.Abort,
+                              Reset 	:= Service.AutoMode_ReloadRoundBeltBoxWithRobot.Command.Reset,
+                              ObjectName:= 'Storage robot reload roundbelt',
+                              Busy    => Service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Busy,
+                              Done    => Service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Done,
+                              Aborted =>,
+                              Error   => Service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Error,
+                              ErrorID =>,
+                              Status  => Service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Status,
+                              UniqueErrorCode =>,
+                              Robot 	:= FanucRobot,
+                              RoundBelt := DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl,
+                              WareHouse := fbWarehouse,
+                              Input 	:= Input,
+                              Info 		:= Service.AutoMode_ReloadRoundBeltBoxWithRobot.Info,
+                              Stop 		:= bStopMem,
+							  AClampMoveDone=>Service.AutoMode_ReloadRoundBeltBoxWithRobot.AClampMoveDone,
+							  BClampMoveDone=>Service.AutoMode_ReloadRoundBeltBoxWithRobot.BClampMoveDone);
+//============================ Auto Mode Robot Warehouse Move =============================
+IF NOT bWarehouseMoveInternalAccess THEN
+    _RobotWarehouseMoveAuto_Ctrl := RobotWarehouseMoveAuto_Ctrl;
+    RobotWarehouseMoveAuto_Status := _RobotWarehouseMoveAuto_Status;
+ELSE
+    _RobotWarehouseMoveAuto_Ctrl := RobotWarehouseMoveAuto_internal_Ctrl;
+    RobotWarehouseMoveAuto_internal_Status := _RobotWarehouseMoveAuto_Status;
+END_IF
+
+(*M_RobotWarehouseMove(
+        bExecute  := Service.AutoMode_RobotWarehouseMove.HandShake.Execute,
+        bReset    := Service.AutoMode_RobotWarehouseMove.HandShake.Reset,
+        bAbort    := FALSE,
+        bOccupied := FALSE,
+        eMode     := E_MachineMode.Auto,
+        bBusy     => Service.AutoMode_RobotWarehouseMove.HandShake.Busy,
+        bDone     => Service.AutoMode_RobotWarehouseMove.HandShake.Done,
+        bError    => Service.AutoMode_RobotWarehouseMove.HandShake.Error);*)
+fbWareHouseWithRobotMove(
+	Execute:= Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute, 
+	Abort:= THIS^.Abort, 
+	Reset:= Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Reset, 
+	ObjectName:= 'storage Robot Warehouse move', 
+	Busy=> Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Busy, 
+	Done=> Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Error, 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	Robot:= FanucRobot, 
+	WareHouse:= fbWarehouse, 
+	Info:= Service.AutoMode_WarehouseMotoWithRobotMove, 
+	Stop:= bStopMem,
+	AClampMoveDone=> Service.AutoMode_WarehouseMotoWithRobotMove.AClampMoveDone,
+	BClampMoveDone=> Service.AutoMode_WarehouseMotoWithRobotMove.BClampMoveDone,
+	WarehouseStatus := WheelhouseSensor.List);
+	
+fbStorageHoming(
+	xDone=> , 
+	xBusy=> , 
+	xError=> , 
+	xExecute:= , 
+	xAbort:= THIS^.Abort, 
+	Cylinder:= Cylinder, 
+	Motor:= Motor, 
+	FanucRobot:= FanucRobot,
+	Homed := Homed,
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> , 
+	RobotResetCMD=> RobotResetCMD,
+	RackMotorHomeRequest=>,
+	Input := Input,
+	Service := Service);
+	
+fbRebootModbusDevice(
+	xDone=> Service.RebootModbusDevices.Status.Done, 
+	xBusy=> Service.RebootModbusDevices.Status.Busy, 
+	xError=> Service.RebootModbusDevices.Status.Error, 
+	xExecute:= Service.RebootModbusDevices.Command.Execute, 
+	xAbort:= Service.RebootModbusDevices.Command.Abort, 
+	OutPut:= OutPut, 
+	OffDelayTime:= Service.RebootModbusDevices.OffDelayTime, 
+	OnDelayTime:= Service.RebootModbusDevices.OnDelayTime, 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> );]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_Aborted" Id="{2a5ce397-4851-49ed-a28c-72651ea1a3fe}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborted
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Abort:=FALSE;
+M_StopHoming();
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AbortHoming" Id="{bbf8fe91-e195-4e4f-a34c-c60828557f7b}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_AbortHoming
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[StorageHoming_Abort := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Aborting" Id="{505d0877-566b-4530-af19-0e84accb61dd}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Aborting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Abort := TRUE;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ActivePulloutConveyorInternCtrl" Id="{c763021d-d80d-4493-9775-3201aacb58d0}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_ActivePulloutConveyorInternCtrl : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bPulloutConveyorInternCtrl := TRUE;
+
+M_ActivePulloutConveyorInternCtrl := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ActivePulloutConveyorInternCtrl_1" Id="{8afd29ed-ae2f-4946-9ab4-95717b458deb}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_ActivePulloutConveyorInternCtrl_1 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bPulloutConveyorInternCtrl := TRUE;
+
+M_ActivePulloutConveyorInternCtrl_1 := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AutoPullOutConveyorActive" Id="{ec1be579-1f22-4993-bbc5-0b23af53a1eb}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_AutoPullOutConveyorActive : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eModeCurrent = E_UnitMode.AUTO AND NOT bPulloutConveyorInternCtrl THEN
+    // GVL -> AutoSimpleAllocate_Ctrl
+    AutoPullout_Ctrl.Execute := service.AutoMode_PullOutConveyor.Command.Execute;
+    AutoPullout_Ctrl.Abort   := service.AutoMode_PullOutConveyor.Command.Abort;
+    AutoPullout_Ctrl.Reset   := service.AutoMode_PullOutConveyor.Command.Reset OR Reset;
+	M_LoadingPullOutConveyorData();
+ELSIF eModeCurrent = E_UnitMode.AUTO AND bPulloutConveyorInternCtrl THEN
+    AutoPullout_Ctrl.Execute := AutoMode_PulloutConveyor_Intern.Command.Execute;
+    AutoPullout_Ctrl.Abort   := AutoMode_PulloutConveyor_Intern.Command.Abort;
+    AutoPullout_Ctrl.Reset   := AutoMode_PulloutConveyor_Intern.Command.Reset OR Reset;
+	M_LoadingPullOutConveyorData();
+ELSE
+    AutoPullout_Ctrl.Execute := FALSE;
+    AutoPullout_Ctrl.Abort   := FALSE;
+    AutoPullout_Ctrl.Reset   := FALSE;
+END_IF
+
+// AutoSimpleAllocate_Status - > GVL
+service.AutoMode_PullOutConveyor.Status.Busy := AutoPullout_Status.Busy;
+service.AutoMode_PullOutConveyor.Status.Done := AutoPullout_Status.Done;
+service.AutoMode_PullOutConveyor.Status.Error:= AutoPullout_Status.Error;
+AutoMode_PulloutConveyor_Intern.Status.Busy := AutoPullout_Status.Busy;
+AutoMode_PulloutConveyor_Intern.Status.Done:= AutoPullout_Status.Done;
+AutoMode_PulloutConveyor_Intern.Status.Error:= AutoPullout_Status.Error;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Clearing" Id="{02897635-cd84-4d00-80d5-1fa03ec2d86d}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Clearing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Complete" Id="{85c793be-baf9-40ce-aced-a68318758cd0}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Complete
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Completing" Id="{4202be82-25a9-49a0-8b3f-ba62a33bcd08}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Completing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Execute" Id="{43642ab3-ec0f-4afb-b36d-dd030d39769a}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Execute
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eModeCurrent OF
+	E_UnitMode.Manual:
+	
+	E_UnitMode.Auto:
+END_CASE
+A00_Service();
+//M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Held" Id="{bb512358-7fd8-4d4a-9a21-1325d69e6620}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Held
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Holding" Id="{c3d66846-1e8b-4cbd-8d35-d1449c3f46e7}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Holding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//fbRobotRegionMove_BufferArea.Stop := TRUE;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Idle" Id="{dd88553e-df92-45a1-b802-ec933165a0b9}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Idle
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_InactivePulloutConveyorInternCtrl" Id="{fd3093f4-5cde-43b2-936f-9f1bde838a0c}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_InactivePulloutConveyorInternCtrl : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bPulloutConveyorInternCtrl := FALSE;
+
+M_InactivePulloutConveyorInternCtrl := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_LoadingPullOutConveyorData" Id="{6fb04780-8e7f-4130-862f-029a29050343}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_LoadingPullOutConveyorData : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eModeCurrent = E_UnitMode.Manual AND NOT bPulloutConveyorInternCtrl THEN
+    AutoPullout_Info := Service.AutoMode_PullOutConveyor .PullOutConveyorInfo;
+ELSIF eModeCurrent = E_UnitMode.Auto AND bPulloutConveyorInternCtrl THEN
+    AutoPullout_Info := AutoMode_PulloutConveyor_Intern.PullOutConveyorInfo;
+END_IF
+
+M_LoadingPullOutConveyorData := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetSlideA_FeedIn" Id="{96547d73-38b1-445a-a975-7018c76e4ff5}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_ResetSlideA_FeedIn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoMode_PulloutConveyor_Intern.Command.Execute := FALSE;
+
+M_ResetSlideA_FeedIn := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetSlideB_FeedIn" Id="{c9150bbd-3268-45fc-9666-0a7517762feb}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_ResetSlideB_FeedIn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoMode_PulloutConveyor_Intern.Command.Execute := FALSE;
+
+M_ResetSlideB_FeedIn := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetSlides_FeedOut" Id="{56ad7618-65a0-44fa-b889-c747fc17d2a0}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_ResetSlides_FeedOut : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoMode_PulloutConveyor_Intern.Command.Execute := FALSE;
+
+M_ResetSlides_FeedOut := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Resetting" Id="{7473267f-753d-431a-853d-bfcd4daf6c02}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Resetting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RobotWarehouseMove" Id="{f969f215-461b-401e-ad0f-b8c87ef10303}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_RobotWarehouseMove : BOOL
+VAR_INPUT
+	bExecute			: BOOL;
+	bReset				: BOOL;
+	bAbort				: BOOL;
+	bOccupied			: BOOL;
+	eMode				: E_MachineMode;
+END_VAR
+
+VAR_OUTPUT
+	bBusy				: BOOL;
+	bDone				: BOOL;
+	bError				: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eMode OF
+	E_MachineMode.MANUAL:
+//		RobotWarehouseMoveManual_Ctrl.bExecute := bExecute;
+//		RobotWarehouseMoveManual_Ctrl.bReset := bReset;
+//		RobotWarehouseMoveManual_Ctrl.bAbort := E_Stop;
+//		RobotWarehouseMoveManual_Ctrl.bOccupied := bOccupied;
+		
+//		bBusy := RobotWarehouseMoveManual_Status.bBusy;
+//		bDone := RobotWarehouseMoveManual_Status.bDone;
+//		bError := RobotWarehouseMoveManual_Status.bError;
+		
+	E_MachineMode.AUTO:
+//		RobotWarehouseMoveAuto_Ctrl.bExecute := bExecute;
+//		RobotWarehouseMoveAuto_Ctrl.bReset := bReset;
+//		RobotWarehouseMoveAuto_Ctrl.bAbort := E_Stop;
+//		RobotWarehouseMoveAuto_Ctrl.bOccupied := bOccupied;
+		
+//		bBusy := RobotWarehouseMoveAuto_Status.bBusy;
+//		bDone := RobotWarehouseMoveAuto_Status.bDone;
+//		bError := RobotWarehouseMoveAuto_Status.bError;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RobotWarehouseMove_1" Id="{7ff8290e-1a84-442d-9313-e9c716ce2cfe}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_RobotWarehouseMove_1 : BOOL
+VAR_INPUT
+	bExecute			: BOOL;
+	bReset				: BOOL;
+	bAbort				: BOOL;
+	bOccupied			: BOOL;
+	eMode				: E_MachineMode;
+END_VAR
+
+VAR_OUTPUT
+	bBusy				: BOOL;
+	bDone				: BOOL;
+	bError				: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eMode OF
+	E_MachineMode.MANUAL:
+//		RobotWarehouseMoveManual_Ctrl.bExecute := bExecute;
+//		RobotWarehouseMoveManual_Ctrl.bReset := bReset;
+//		RobotWarehouseMoveManual_Ctrl.bAbort := E_Stop;
+//		RobotWarehouseMoveManual_Ctrl.bOccupied := bOccupied;
+		
+//		bBusy := RobotWarehouseMoveManual_Status.bBusy;
+//		bDone := RobotWarehouseMoveManual_Status.bDone;
+//		bError := RobotWarehouseMoveManual_Status.bError;
+		
+	E_MachineMode.AUTO:
+//		RobotWarehouseMoveAuto_Ctrl.bExecute := bExecute;
+//		RobotWarehouseMoveAuto_Ctrl.bReset := bReset;
+//		RobotWarehouseMoveAuto_Ctrl.bAbort := E_Stop;
+//		RobotWarehouseMoveAuto_Ctrl.bOccupied := bOccupied;
+		
+//		bBusy := RobotWarehouseMoveAuto_Status.bBusy;
+//		bDone := RobotWarehouseMoveAuto_Status.bDone;
+//		bError := RobotWarehouseMoveAuto_Status.bError;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartHoming" Id="{e32ac84a-2e62-4001-b659-6b0c28dcc3d9}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_StartHoming
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbStorageHoming.xExecute := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Starting" Id="{5b5e5ed9-edaf-4318-b284-e175fc4a3769}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Starting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartSlideA_FeedIn" Id="{0539f289-a51a-492f-bc0c-f98546bb3315}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_StartSlideA_FeedIn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoMode_PulloutConveyor_Intern.PullOutConveyorInfo.CommandType :=E_PullOutConveyorCommandType.SlideA_FeedIn_Ext;
+
+AutoMode_PulloutConveyor_Intern.Command.Execute := TRUE;
+
+M_StartSlideA_FeedIn := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartSlideA_FeedOut" Id="{faa37d96-36e0-4104-baf6-3445a519e082}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_StartSlideA_FeedOut : BOOL
+VAR_INPUT
+	ReverseTimeDelay : Time;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoMode_PulloutConveyor_Intern.PullOutConveyorInfo.CommandType :=E_PullOutConveyorCommandType.SlideA_FeedOut_Ext;
+AutoMode_PulloutConveyor_Intern.PullOutConveyorInfo.ConveyorReverseTime :=ReverseTimeDelay;
+AutoMode_PulloutConveyor_Intern.Command.Execute := TRUE;
+
+M_StartSlideA_FeedOut := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartSlideB_FeedIn" Id="{6e98dbb2-17bb-4c3f-9f8f-c7d783635422}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_StartSlideB_FeedIn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoMode_PulloutConveyor_Intern.PullOutConveyorInfo.CommandType :=E_PullOutConveyorCommandType.SlideB_FeedIn_Ext;
+
+AutoMode_PulloutConveyor_Intern.Command.Execute := TRUE;
+
+M_StartSlideB_FeedIn := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartSlideB_FeedOut" Id="{d2d09b66-9531-49e2-9bbe-c3ce89628d17}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_StartSlideB_FeedOut : BOOL
+VAR_INPUT
+	ReverseTimeDelay : Time;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AutoMode_PulloutConveyor_Intern.PullOutConveyorInfo.CommandType :=E_PullOutConveyorCommandType.SlideB_FeedOut_Ext;
+AutoMode_PulloutConveyor_Intern.PullOutConveyorInfo.ConveyorReverseTime :=ReverseTimeDelay;
+AutoMode_PulloutConveyor_Intern.Command.Execute := TRUE;
+
+M_StartSlideB_FeedOut := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopHoming" Id="{3a0c9f40-b3b4-44a9-b4ed-04489fe8f155}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_StopHoming
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbStorageHoming.xExecute := False;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopped" Id="{ad83b65c-379f-4264-9447-854b9220b266}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopped
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//fbRobotRegionMove_BufferArea.Stop := FALSE;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopping" Id="{162f73df-649e-4163-ad4d-ef29e7d8e385}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Stopping
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspended" Id="{1bf5b244-f4cc-4f31-b7bb-787d8520839c}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspended
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspending" Id="{6cea75ab-72de-44a1-8327-b61bb3ad854c}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Suspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Undefined" Id="{842cfdd8-223e-4923-a6a8-bf83c1dc50d5}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Undefined
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unholding" Id="{ea96d4c2-670a-48b8-a728-657a58bc8063}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unholding
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//fbRobotRegionMove_BufferArea.Stop := FALSE;
+M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unsuspending" Id="{04ddaff3-8424-43a1-8745-c623b00970fb}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD M_Unsuspending
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_StorageArea">
+      <LineId Id="101" Count="7" />
+      <LineId Id="54" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.A00_Service">
+      <LineId Id="3164" Count="10" />
+      <LineId Id="3176" Count="6" />
+      <LineId Id="3515" Count="1" />
+      <LineId Id="3183" Count="1" />
+      <LineId Id="3186" Count="2" />
+      <LineId Id="3190" Count="6" />
+      <LineId Id="3198" Count="44" />
+      <LineId Id="3487" Count="0" />
+      <LineId Id="3243" Count="38" />
+      <LineId Id="3488" Count="0" />
+      <LineId Id="3282" Count="19" />
+      <LineId Id="3485" Count="0" />
+      <LineId Id="3302" Count="0" />
+      <LineId Id="3526" Count="0" />
+      <LineId Id="3303" Count="1" />
+      <LineId Id="3306" Count="0" />
+      <LineId Id="3308" Count="2" />
+      <LineId Id="3312" Count="0" />
+      <LineId Id="3314" Count="1" />
+      <LineId Id="3317" Count="1" />
+      <LineId Id="3320" Count="7" />
+      <LineId Id="3514" Count="0" />
+      <LineId Id="3328" Count="1" />
+      <LineId Id="3331" Count="0" />
+      <LineId Id="3333" Count="2" />
+      <LineId Id="3337" Count="0" />
+      <LineId Id="3339" Count="1" />
+      <LineId Id="3342" Count="1" />
+      <LineId Id="3345" Count="11" />
+      <LineId Id="3358" Count="0" />
+      <LineId Id="3360" Count="2" />
+      <LineId Id="3364" Count="0" />
+      <LineId Id="3366" Count="1" />
+      <LineId Id="3369" Count="1" />
+      <LineId Id="3372" Count="19" />
+      <LineId Id="3393" Count="1" />
+      <LineId Id="3521" Count="2" />
+      <LineId Id="3520" Count="0" />
+      <LineId Id="3395" Count="4" />
+      <LineId Id="3401" Count="13" />
+      <LineId Id="3416" Count="2" />
+      <LineId Id="3420" Count="5" />
+      <LineId Id="3427" Count="6" />
+      <LineId Id="3517" Count="1" />
+      <LineId Id="3434" Count="33" />
+      <LineId Id="3511" Count="1" />
+      <LineId Id="3519" Count="0" />
+      <LineId Id="3468" Count="14" />
+      <LineId Id="3486" Count="0" />
+      <LineId Id="3524" Count="1" />
+      <LineId Id="3483" Count="0" />
+      <LineId Id="3500" Count="10" />
+      <LineId Id="3484" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Aborted">
+      <LineId Id="6" Count="1" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_AbortHoming">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Aborting">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_ActivePulloutConveyorInternCtrl">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_ActivePulloutConveyorInternCtrl_1">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_AutoPullOutConveyorActive">
+      <LineId Id="6" Count="4" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="3" />
+      <LineId Id="13" Count="3" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="18" Count="4" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="40" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Clearing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Complete">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Completing">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Execute">
+      <LineId Id="6" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Held">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Holding">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Idle">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_InactivePulloutConveyorInternCtrl">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_LoadingPullOutConveyorData">
+      <LineId Id="17" Count="3" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_ResetSlideA_FeedIn">
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_ResetSlideB_FeedIn">
+      <LineId Id="6" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_ResetSlides_FeedOut">
+      <LineId Id="11" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Resetting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_RobotWarehouseMove">
+      <LineId Id="37" Count="1" />
+      <LineId Id="41" Count="6" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="48" Count="1" />
+      <LineId Id="72" Count="7" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_RobotWarehouseMove_1">
+      <LineId Id="37" Count="1" />
+      <LineId Id="41" Count="6" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="48" Count="1" />
+      <LineId Id="51" Count="6" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_StartHoming">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Starting">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_StartSlideA_FeedIn">
+      <LineId Id="8" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_StartSlideA_FeedOut">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_StartSlideB_FeedIn">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_StartSlideB_FeedOut">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_StopHoming">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Stopped">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Stopping">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Suspended">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Suspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Undefined">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Unholding">
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageArea.M_Unsuspending">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

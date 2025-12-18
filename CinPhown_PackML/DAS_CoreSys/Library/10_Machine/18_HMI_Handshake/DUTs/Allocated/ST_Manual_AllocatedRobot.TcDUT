@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_AllocatedRobot" Id="{144449bf-83aa-42a4-8508-97c9a24be553}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_AllocatedRobot :
+    STRUCT
+        LeftVert1   : ST_SignleValve; // AllocateRobot LeftVert1 cylinder controll
+        LeftVert2   : ST_SignleValve; // AllocateRobot LeftVert2 cylinder controll
+        RightVert1  : ST_SignleValve; // AllocateRobot RightVert1 cylinder controll
+        RightVert2  : ST_SignleValve; // AllocateRobot RightVert2 cylinder controll
+        LeftClamp1  : ST_SignleValve; // AllocateRobot LeftClamp1 cylinder controll
+        LeftClamp2  : ST_SignleValve; // AllocateRobot LeftClamp2 cylinder controll
+        RightClamp1 : ST_SignleValve; // AllocateRobot RightClamp1 cylinder controll
+        RightClamp2 : ST_SignleValve; // AllocateRobot RightClamp2 cylinder controll
+        AxisX       : ST_Manual_Axis; // AllocateRobot AxisX controll
+        AxisY       : ST_Manual_Axis; // AllocateRobot AxisY controll
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

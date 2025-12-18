@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_RoundBelt" Id="{f49b177b-3e6b-4723-93fa-1918947532c6}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_RoundBelt :
+    STRUCT
+        WorkZone_Press      : ST_SignleValve;
+        WorkZone_Plug       : ST_SignleValve;
+        ChargeZone_Plug     : ST_SignleValve;
+        TransmitCVZone_Plug : ST_SignleValve;
+        Axis                : ST_Manual_Axis; // RoundBelt Axis controll
+
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

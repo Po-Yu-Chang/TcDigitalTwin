@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Auto_UpperFeedInConveyor" Id="{f7a64b28-0d6b-4704-860e-e477f3bc1ee5}">
+    <Declaration><![CDATA[TYPE ST_Auto_UpperFeedInConveyor :
+STRUCT
+	Command		: ST_Auto_UpperFeedInConveyorCommand;
+	Status		: ST_Auto_UpperFeedInConveyorStatus;	
+	Info		: ST_Auto_UpperFeedInConveyorInfo;
+	FeedBack    : ST_Auto_UpperFeedInConveyorFeedback;	
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

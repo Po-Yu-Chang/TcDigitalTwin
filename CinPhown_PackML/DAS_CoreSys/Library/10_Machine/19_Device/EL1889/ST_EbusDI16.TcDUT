@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_EbusDI16" Id="{279dc2b6-e56e-4967-a706-2ebde1151b59}">
+    <Declaration><![CDATA[TYPE ST_EbusDI16 :
+    STRUCT
+        DI1  AT %I* :BIT;
+        DI2  AT %I* :BIT;
+        DI3  AT %I* :BIT;
+        DI4  AT %I* :BIT;
+        DI5  AT %I* :BIT;
+        DI6  AT %I* :BIT;
+        DI7  AT %I* :BIT;
+        DI8  AT %I* :BIT;
+        DI9  AT %I* :BIT;
+        DI10 AT %I* :BIT;
+        DI11 AT %I* :BIT;
+        DI12 AT %I* :BIT;
+        DI13 AT %I* :BIT;
+        DI14 AT %I* :BIT;
+        DI15 AT %I* :BIT;
+        DI16 AT %I* :BIT;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

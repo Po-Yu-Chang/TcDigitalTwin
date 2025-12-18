@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_OutputTable_Mitsubishi" Id="{4ca3b7c5-cdf6-4eaf-82cb-5090965900ed}">
+    <Declaration><![CDATA[TYPE
+    ST_OutputTable_Mitsubishi :
+    STRUCT
+        Y4  : uni_IntToBool;
+        Y5  : uni_IntToBool;
+        Y6  : uni_IntToBool;
+        Y7  : uni_IntToBool;
+        Y8  : uni_IntToBool;
+        Y10 : uni_IntToBool;
+        Y11 : uni_IntToBool;
+        Y0  : uni_IntToBool;
+        Y1  : uni_IntToBool;
+        Y2  : uni_IntToBool;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

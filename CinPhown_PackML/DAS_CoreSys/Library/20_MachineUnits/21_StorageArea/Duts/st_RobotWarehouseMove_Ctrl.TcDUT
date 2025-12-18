@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_RobotWarehouseMove_Ctrl" Id="{6f432697-ff44-476c-bcde-6f487bc2e5a1}">
+    <Declaration><![CDATA[TYPE st_RobotWarehouseMove_Ctrl :
+STRUCT
+	bExecute			: BOOL;
+	bReset				: BOOL;
+	bAbort				: BOOL;
+	bOccupied			: BOOL;
+	bContinue_A			: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

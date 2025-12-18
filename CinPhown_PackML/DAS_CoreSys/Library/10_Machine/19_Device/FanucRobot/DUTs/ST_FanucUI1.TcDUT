@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucUI1" Id="{f5ecf1ee-9600-44aa-94ea-77b38e23d24a}">
+    <Declaration><![CDATA[TYPE ST_FanucUI1 :
+    STRUCT
+        UI01_IMSP       :BIT; // Always on, False : disable Robot power, stop prog
+        UI02_Hold       :BIT; // Always on, False : stop action and stop prog
+        UI03_SFSP       :BIT; // Safety speed, false : robot speed reduce to low and safe speed (safety door)
+        UI04_CycleStop  :BIT; // True : force stop prog
+        UI05_FaultReset :BIT; // F_trig , if servo not power on, then set power on, if power on and got this f_trig, alarm reset
+        UI06_Start      :BIT; // True : continue prog who be stop before
+        UI07_Home       :BIT; // not useful, fanuc disable this
+        UI08_Enable     :BIT; // True : allow robot move
+        UI09_RSR1       :BIT; // Select RSR prog1
+        UI10_RSR2       :BIT; // Select RSR prog2
+        UI11_RSR3       :BIT; // Select RSR prog3
+        UI12_RSR4       :BIT; // Select RSR prog4
+        UI13_RSR5       :BIT; // Select RSR prog5
+        UI14_RSR6       :BIT; // Select RSR prog6
+        UI15_RSR7       :BIT; // Select RSR prog7
+        UI16_RSR8       :BIT; // Select RSR prog8
+        UI17_PNSStrobe  :BIT; // not useful, fanuc disable this
+        UI18_ProdStart  :BIT; // not useful, fanuc disable this
+        UI19,
+        UI20,
+        UI21,
+        UI22,
+        UI23,
+        UI24,
+        UI25,
+        UI26,
+        UI27,
+        UI28,
+        UI29,
+        UI30,
+        UI31,
+        UI32 :BIT;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

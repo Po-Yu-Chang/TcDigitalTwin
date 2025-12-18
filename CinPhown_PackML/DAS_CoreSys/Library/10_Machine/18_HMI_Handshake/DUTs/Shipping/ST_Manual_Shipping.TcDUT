@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_Shipping" Id="{62972422-d207-4797-ab5f-953dd31ede0e}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_Shipping :
+    STRUCT
+		FanucRobot : ST_Manual_FanucRobot;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

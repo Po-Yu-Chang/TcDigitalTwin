@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="ComModbusRTU" Id="{d67802fc-df6d-46ac-a190-bbdad0cfd8e9}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM ComModbusRTU
+VAR
+	MB_EL6X22B_ControllerN				:	ARRAY[0..3] OF ModbusRtuMasterV2_KL6x22B;
+	MBUnusedData_Read 					: 	ARRAY[0..3] OF ARRAY[0..7] OF BYTE;
+	MBSensorError_Read 					: 	ARRAY[0..3] OF ARRAY[0..21] OF BYTE;
+	nErrID_ControllerN					:	ARRAY[0..3] OF MODBUS_ERRORS;
+	iReadMBAddr							:	ARRAY[0..3] OF WORD;
+	bBusy_ControllerN					:	ARRAY[0..3] OF BOOL;
+	bError_ControllerN					:	ARRAY[0..3] OF BOOL;
+	fbComReset_ControllerN				:	ARRAY[0..3] OF ComReset;
+	bComReset							:	ARRAY[0..3] OF BOOL;
+	bComResetBusy							:	ARRAY[0..3] OF BOOL;
+	bComResetError							:	ARRAY[0..3] OF BOOL;
+	bStart								:	ARRAY[0..3] OF BOOL;
+	
+	actStart							:	ARRAY[0..3] OF ULINT;
+	actEnd								:	ARRAY[0..3] OF ULINT;
+	exeTime								:	ARRAY[0..3] OF ULINT;
+	nSlave								:	BYTE;
+	MBdata_Read_ControllerN	 AT %I*		: 	ARRAY[0..3] OF ARRAY[0..21] OF BYTE;
+	bMasterError						:	ARRAY[0..3] OF BOOL;
+	nStep								:	UINT;
+	bModbusRTUError						:	BOOL;
+	udiModbusRTUErrorID					:	UDINT;
+	nAlias								:	UINT;
+	bPassModBusMaster					:	ARRAY[0..3] OF BOOL;
+	
+	
+	//================Alternative======================
+	//fb_Warehouse_Modbus :ARRAY[0..3] OF FB_CommunicateModbusRTU; //0&1 : warehouse A , 2&3 : warehouse B
+		//Declared in GVL due to Error handling request
+	I		:UINT;
+	SensorState	: ARRAY[0..99] OF BOOL;
+	SensorStatesAll : un_RS485States_all;
+	arr485sensor					: ARRAY [0..399] OF BOOL;
+	fb_Warehouse_Modbus : ARRAY [0..3] OF FB_CommunicateModbusRTU;
+	bMotorCoreUpdated	:	BOOL := TRUE;
+	bReset				:	BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//M_CommunicateModbusRTU(bReset:=GVL.Reset,
+//						bModBusRTUError=>bModbusRTUError,
+//						udiModbusRTUErrorID=>udiModbusRTUErrorID);
+						
+//GVL.fbModbusRTUErrorTrans(
+//	xDone:= , 
+//	xBusy:= , 
+//	xError:= bModbusRTUError, 
+//	xAborted:= , 
+//	iErrorID:= udiModbusRTUErrorID, 
+//	Name:= 'Communicate ModBus RTU ');
+	
+	
+	
+//=================Alternative======================================
+//Update FBs
+bPassModBusMaster[0] := (*GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_1 OR*) GVL_Machine.stModbusByPassInternal.switchOff_1;
+bPassModBusMaster[1] := (*GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_2 OR*) GVL_Machine.stModbusByPassInternal.switchOff_2;
+bPassModBusMaster[2] := (*GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_3 OR*) GVL_Machine.stModbusByPassInternal.switchOff_3;
+bPassModBusMaster[3] := (*GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_4 OR*) GVL_Machine.stModbusByPassInternal.switchOff_4;
+
+//Update FBs
+FOR I :=0 TO 3 BY 1 DO
+	fb_Warehouse_Modbus[I](Execute:=bMotorCoreUpdated AND NOT bPassModBusMaster[I] , 
+							   unitID :=UINT_TO_BYTE(I)+1 , 
+							   Reset:=bReset,
+							   MBdata_Read_ControllerN :=MBdata_Read_ControllerN[I],
+							   ObjectName:=CONCAT('Communicate ModBus RTU : ',UINT_TO_STRING(I)),
+							   arrSensor=>SensorStatesAll.arrSensorByController[I]);
+	
+	arr485sensor := SensorStatesAll.arrSensorAll;
+	
+END_FOR
+
+
+//bPassModBusMaster[0] := GVL.stModbusByPass.switchOff_1;
+//bPassModBusMaster[1] := GVL.stModbusByPass.switchOff_2;
+//bPassModBusMaster[2] := GVL.stModbusByPass.switchOff_3;
+//bPassModBusMaster[3] := GVL.stModbusByPass.switchOff_4;
+]]></ST>
+    </Implementation>
+    <LineIds Name="ComModbusRTU">
+      <LineId Id="5" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="36" Count="5" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="110" Count="3" />
+      <LineId Id="254" Count="4" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="163" Count="1" />
+      <LineId Id="171" Count="1" />
+      <LineId Id="165" Count="1" />
+      <LineId Id="168" Count="1" />
+      <LineId Id="123" Count="1" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="209" Count="2" />
+      <LineId Id="208" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

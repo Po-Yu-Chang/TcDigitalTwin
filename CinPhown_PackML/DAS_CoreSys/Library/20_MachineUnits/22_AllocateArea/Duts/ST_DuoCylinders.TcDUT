@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_DuoCylinders" Id="{3a5541db-2da4-469b-91a8-eb35e8203e97}">
+    <Declaration><![CDATA[TYPE ST_DuoCylinders :
+STRUCT
+	Cylinder1 : REFERENCE TO FB_Cylinder;
+	Cylinder2 : REFERENCE TO FB_Cylinder;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_OffsetData" Id="{5e353d87-6c02-4a03-9b9e-c9d104816016}">
+    <Declaration><![CDATA[TYPE
+    ST_OffsetData :
+    STRUCT
+        WarehouseA        : ARRAY[1..10, 1..20, 1..2] OF ST_PositionOffsetData; // [x,y,z] X: Layer, Y: Slide, Z: Clamp
+        WarehouseB        : ARRAY[1..10, 1..20, 1..2] OF ST_PositionOffsetData; // [x,y,z] X: Layer, Y: Slide, Z: Clamp
+        RoundBelt         : ARRAY[1..2, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+        BufferArea        : ARRAY[1..28, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+        LoadConveyor      : ARRAY[1..2, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+        SimpleAllocate    : ARRAY[1..2, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+        InOutConveyor     : ARRAY[1..3, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+        WareHouseA_Buffer : ARRAY[1..2] OF ST_PositionOffsetData; // [x] X: Clamp
+        PullOutConveyor   : ARRAY[1..2, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+        ImageInspection   : ARRAY[1..2, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+        DiameterDetect    : ARRAY[1..2, 1..2] OF ST_PositionOffsetData; // [x,y] X: Address, Y: Clamp
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

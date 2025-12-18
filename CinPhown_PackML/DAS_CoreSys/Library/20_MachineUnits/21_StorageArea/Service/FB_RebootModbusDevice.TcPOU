@@ -1,0 +1,277 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_RebootModbusDevice" Id="{922f2b8f-116b-4a56-8669-3edc90a2633a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RebootModbusDevice EXTENDS FB_ActionBasic
+VAR_INPUT
+	xExecute : BOOL;
+	xAbort : BOOL;  
+	OutPut           : REFERENCE TO ST_OutputTable;
+	OffDelayTime	 : INT ; // in second //default 2 s if C# no assign
+	OnDelayTime		 : INT ; // in second
+END_VAR
+VAR_OUTPUT
+	xAborted : BOOL;
+	iErrorID : INT;
+	ErrorMsg : T_MaxString;
+
+END_VAR
+VAR
+	StateBehaviour : CBML.ETrigA;		
+	uiModBusStep : UINT :=0;
+	tonDelay	 : TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+StateBehaviour(xExecute := xExecute,
+    xDone => xDone,
+    xBusy => xBusy,
+    xError => xError,
+    xAbort := xAbort,
+    xAborted => xAborted);
+
+iErrorID := StateBehaviour._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+tonDelay();
+]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{6b204a25-4e79-443b-b928-7334fe7f3e91}" />
+    <Folder Name="Private" Id="{8a43ad6c-e154-43c4-ae53-66b41ed0389c}" />
+    <Method Name="CleanupAction" Id="{45d3c66b-0f14-49c5-a256-45ccf95628fb}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{8316024f-f019-46a5-8a1e-7d2cf035e21e}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR
+	DelayTime : TIME;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+
+CASE uiModBusStep OF
+		0:// Switch off RS485 power 
+			
+			OutPut.bTurnOffRS485Sensors_1 := TRUE;
+			OutPut.bTurnOffRS485Sensors_2 := TRUE;
+			GVL_Machine.stModbusByPassInternal.switchOff_1 := TRUE;
+			GVL_Machine.stModbusByPassInternal.switchOff_2 := TRUE;
+			GVL_Machine.stModbusByPassInternal.switchOff_3 := TRUE;
+			GVL_Machine.stModbusByPassInternal.switchOff_4 := TRUE;
+			DelayTime := INT_TO_TIME(OffDelayTime) *1000;	
+			tonDelay.PT:=DelayTime;
+			//tonDelay.IN :=TRUE;
+			uiModBusStep:=100;
+		100:
+			tonDelay.IN :=TRUE;
+			IF 	tonDelay.Q THEN
+				uiModBusStep:=200;
+			END_IF
+		200:// Power on again
+			OutPut.bTurnOffRS485Sensors_1 := FALSE	;
+			OutPut.bTurnOffRS485Sensors_2 := FALSE;
+			tonDelay.IN :=FALSE;
+			IF NOT 	tonDelay.Q THEN
+				uiModBusStep:=300;
+			END_IF
+		300: // Wait another time make sure modules boot
+			DelayTime := INT_TO_TIME(OffDelayTime) *1000;	
+			tonDelay.PT:=DelayTime;
+			tonDelay.IN :=TRUE;	
+			IF 	tonDelay.Q THEN
+				uiModBusStep:=400;
+			END_IF
+		400:
+			tonDelay.IN :=FALSE;
+			uiModBusStep :=500;
+			
+			
+		500://Step done	
+			DelayTime := INT_TO_TIME(OffDelayTime) *1000;			//delay on ModBus Service edit by min 20250927
+			tonDelay.PT:=DelayTime;
+			tonDelay.IN :=TRUE;
+			IF tonDelay.Q THEN
+			GVL_Machine.stModbusByPassInternal.switchOff_1 := FALSE;
+			GVL_Machine.stModbusByPassInternal.switchOff_2 := FALSE;
+			GVL_Machine.stModbusByPassInternal.switchOff_3 := FALSE;
+			GVL_Machine.stModbusByPassInternal.switchOff_4 := FALSE;
+			uiModBusStep:=9000;
+			END_IF
+		9000:
+			xComplete := TRUE;	
+END_CASE
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{23c703bb-9dac-417d-befa-fe2c8845f865}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[uiModBusStep := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{f2629450-6e39-44cc-bae6-bf8008b9faaa}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+    0:
+        M_GetErrorMsg := 'No Error';
+    1:
+        M_GetErrorMsg := 'Action time out';
+    2:
+        M_GetErrorMsg := 'Cylinder not ready';
+    3:
+        M_GetErrorMsg := 'Motor not ready';
+    4:
+		M_GetErrorMsg := 'FanucRobot can not homing';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{da07b502-fa31-4bd3-8363-2ea14e22a0f8}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OutPut.bTurnOffRS485Sensors_1 := FALSE;
+OutPut.bTurnOffRS485Sensors_2 := FALSE;
+GVL_Machine.stModbusByPassInternal.switchOff_1 := FALSE;
+GVL_Machine.stModbusByPassInternal.switchOff_2 := FALSE;
+GVL_Machine.stModbusByPassInternal.switchOff_3 := FALSE;
+GVL_Machine.stModbusByPassInternal.switchOff_4 := FALSE;
+uiModBusStep:=0;
+tonDelay.IN := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{6f285e61-4b71-48aa-ab72-c02290d41a05}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR
+
+VAR
+	uiCylinderIndex :UINT;
+	uiMotorIndex : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GVL_Machine.stModbusByPassInternal.switchOff_1 := FALSE;
+GVL_Machine.stModbusByPassInternal.switchOff_2 := FALSE;
+GVL_Machine.stModbusByPassInternal.switchOff_3 := FALSE;
+GVL_Machine.stModbusByPassInternal.switchOff_4 := FALSE;
+tonDelay.IN := FALSE;
+uiModBusStep:=0;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RebootModbusDevice">
+      <LineId Id="52" Count="8" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="162" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RebootModbusDevice.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RebootModbusDevice.CyclicAction">
+      <LineId Id="67" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="177" Count="1" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="204" Count="2" />
+      <LineId Id="208" Count="0" />
+      <LineId Id="210" Count="1" />
+      <LineId Id="209" Count="0" />
+      <LineId Id="232" Count="0" />
+      <LineId Id="181" Count="2" />
+      <LineId Id="247" Count="0" />
+      <LineId Id="184" Count="3" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="207" Count="0" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="191" Count="3" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="197" Count="1" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="248" Count="4" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="253" Count="1" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="246" Count="0" />
+      <LineId Id="213" Count="2" />
+      <LineId Id="212" Count="0" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="228" Count="2" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="68" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RebootModbusDevice.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RebootModbusDevice.M_GetErrorMsg">
+      <LineId Id="32" Count="9" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RebootModbusDevice.ResetAction">
+      <LineId Id="28" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="30" Count="2" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="37" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RebootModbusDevice.StartAction">
+      <LineId Id="72" Count="2" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="29" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

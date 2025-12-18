@@ -1,0 +1,570 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_StorageHoming" Id="{2fd153e5-22dc-4c42-85d5-45cd7ba299f3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_StorageHoming EXTENDS FB_ActionBasic
+VAR_INPUT
+	xExecute 	: BOOL;
+	xAbort 		: BOOL;
+    Cylinder    : REFERENCE TO UNI_CylinderList;
+    Motor       : REFERENCE TO UNI_MotorList;
+    FanucRobot  : REFERENCE TO FB_FanucRobot_Basic_V2;
+	Homed 		: REFERENCE TO BOOL;
+	Output		: REFERENCE TO ST_OutputTable;
+	Input		: REFERENCE TO ST_InputTable;
+	Service		: REFERENCE TO ST_StorageService;
+END_VAR
+VAR_OUTPUT
+	xAborted : BOOL;
+	iErrorID : INT;
+	ErrorMsg : STRING;
+	RobotResetCMD : BOOL;
+	RackMotorHomeRequest : BOOL;
+END_VAR
+VAR
+	StateBehaviour 		: CBML.ETrigA;
+	uiStorageHomingStep : UINT;
+	CylinderCheckTon 	: TON;
+	MotorCheckTon 		: TON;
+	FanucRobotCheckTon  : TON;
+	ResetRobotDelay	 	: TON;
+	TON_RobotFeedOutCommand : TON;
+	TON_RobotTimeOut		: TON;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+	_fbRobotRegionMove_FeedInConveyor :  FB_RobotRegionMove_FeedInConveyor_V2;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+A00_BasicUnits();
+StateBehaviour(xExecute := xExecute,
+    xDone => xDone,
+    xBusy => xBusy,
+    xError => xError,
+    xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+    xAborted => xAborted);
+
+//Error Msg
+iErrorID := StateBehaviour._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{881f8635-f46a-4ddb-97b4-864b67976b4f}" />
+    <Folder Name="Private" Id="{1c5d76ea-2b76-4b56-948b-0fc762a69420}" />
+    <Action Name="A00_BasicUnits" Id="{9f0607c1-f41b-4d55-9d28-aa152389f749}">
+      <Implementation>
+        <ST><![CDATA[CylinderCheckTon(PT := T#5S);
+MotorCheckTon(PT := T#2S);
+FanucRobotCheckTon(PT:=T#120S);
+ResetRobotDelay(PT:=T#300MS);
+TON_RobotFeedOutCommand(PT:= T#5S);
+TON_RobotTimeOut(PT := T#60S);
+
+
+_fbRobotRegionMove_FeedInConveyor(
+	Execute:= , 
+	Abort:= , 
+	Reset:= , 
+	ObjectName:= , 
+	Busy=> , 
+	Done=> , 
+	Aborted=> , 
+	Error=> , 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	Robot:= FanucRobot, 
+	LowerConveyor:= Motor.List.LowCV, 
+	Input:= input, 
+	Info:= , 
+	Stop:= );]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="CleanupAction" Id="{c5ed61e2-bef2-4ed3-839e-161137710cad}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{cb28e4a6-cc99-4b81-bdfb-57b074977c81}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR
+	tehn: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+CASE uiStorageHomingStep OF
+	0: // Retract Cylinder
+		TON_RobotFeedOutCommand.IN  := FALSE;
+		TON_RobotTimeOut.IN 		:= FALSE;
+		M_RetractStorageCylinder();
+		RobotResetCMD := FALSE;	
+		Cylinder.List.fbStackPush.M_Retract();
+		IF Cylinder.List.fbStackPush.InRearPosition THEN		// safecheck Rackmotor home 
+		uiStorageHomingStep := 100;
+		END_IF
+	100:
+		IF M_CheckStorageCylinderInRear() THEN
+			uiStorageHomingStep := 200;
+		ELSE
+			CylinderCheckTon.IN := TRUE;
+			IF CylinderCheckTon.Q THEN
+				iErrorID := 2;
+			END_IF
+		END_IF
+	200:
+			CylinderCheckTon.IN := FALSE;
+			M_StopStorageMotor ();
+			uiStorageHomingStep := 300;
+	300:
+		IF M_CheckStorageMotorInStop() THEN
+			uiStorageHomingStep := 400;
+		ELSE
+			MotorCheckTon.IN := TRUE;
+			IF MotorCheckTon.Q THEN
+				iErrorID := 3;
+			END_IF
+		END_IF
+	400:
+		MotorCheckTon.IN := FALSE;
+		FanucRobotCheckTon.IN := TRUE;
+		IF FanucRobot.Error THEN
+			RobotResetCMD := TRUE;		
+			ResetRobotDelay.IN:=TRUE;
+		ELSE
+			uiStorageHomingStep := 500;
+		END_IF
+		IF ResetRobotDelay.Q THEN
+			ResetRobotDelay.IN:=FALSE;
+			uiStorageHomingStep := 500;
+		END_IF	
+		
+		
+	500:
+		RobotResetCMD := FALSE;	
+		RackMotorHomeRequest := TRUE;		// RackMotor homing edit min
+		FanucRobot.OpMode := E_FanucRobotOpMode.RSR02;
+//		IF FanucRobot._DI12.RSR2_Active THEN
+//			FanucRobot.Bzone_AllowWork := TRUE;
+//		END_IF
+		IF FanucRobot.Error THEN
+			RobotResetCMD := TRUE;		
+		END_IF
+		IF FanucRobot._RSR2_Completed THEN
+			//FanucRobot.Bzone_AllowWork := FALSE;
+			uiStorageHomingStep := 600;
+		END_IF
+	600:
+		FanucRobot.OpMode := E_FanucRobotOpMode.RSR01;
+		IF FanucRobot._RSR1_Ready AND
+			arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Homed
+		THEN
+			uiStorageHomingStep := 1000;
+		END_IF
+	1000:	
+			IF FanucRobot.OpMode = E_FanucRobotOpMode.RSR01 AND NOT FanucRobot._DI1.Done AND FanucRobot._DI12.RSR1_Active THEN
+				uiStorageHomingStep := 1100;
+			END_IF
+			
+	1100:	//detect Robot Clamp ,, if clamp have box or clamp not open todo 
+			IF NOT FanucRobot._DI1.ClampA_Open AND NOT FanucRobot._DI1.ClampB_Open  THEN
+				uiStorageHomingStep := 2000;
+			ELSIF NOT FanucRobot._DI1.ClampA_Open  THEN
+				uiStorageHomingStep := 3000;
+			ELSIF NOT FanucRobot._DI1.ClampB_Open  THEN
+				uiStorageHomingStep := 4000;
+			ELSE 
+				uiStorageHomingStep := 9000;
+			END_IF
+		
+	2000:	// Both Clamp , not open and sensor detect
+			TON_RobotFeedOutCommand.IN := TRUE;
+			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := TRUE,
+												UseB := TRUE);
+			IF _fbRobotRegionMove_FeedInConveyor.Busy THEN
+				uiStorageHomingStep := 2100;
+			END_IF
+			IF TON_RobotFeedOutCommand.Q THEN
+				iErrorID := 10;
+			END_IF
+		
+	2100:	// FeedOut done clear command 
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
+			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
+				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+				uiStorageHomingStep := 0;
+			END_IF
+			IF TON_RobotTimeOut.Q THEN
+				iErrorID := 11;
+			END_IF
+		
+	3000:	//Clamp A 
+			TON_RobotFeedOutCommand.IN := TRUE;
+			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := TRUE,
+												useB := FALSE);
+			IF _fbRobotRegionMove_FeedInConveyor.Busy THEN
+				uiStorageHomingStep := 3100;
+			END_IF
+			IF TON_RobotFeedOutCommand.Q THEN
+				iErrorID := 10;
+			END_IF
+		
+	3100:	//FeedOut Done clear command
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
+			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
+				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+				uiStorageHomingStep := 0;
+			END_IF
+			IF TON_RobotTimeOut.Q THEN
+				iErrorID := 11;
+			END_IF
+		
+	4000:	//Clamp B
+			TON_RobotFeedOutCommand.IN := TRUE;
+			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := FALSE,
+												useB := TRUE);
+			IF _fbRobotRegionMove_FeedInConveyor.Busy THEN
+				uiStorageHomingStep := 4100;
+			END_IF
+			IF TON_RobotFeedOutCommand.Q THEN
+				iErrorID := 10;
+			END_IF
+		
+	4100:	//FeedOut Done clear command
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
+			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
+				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+				uiStorageHomingStep := 0;
+			END_IF
+			IF TON_RobotTimeOut.Q THEN
+				iErrorID := 11;
+			END_IF
+	9000:
+		FanucRobotCheckTon.IN := FALSE;
+		Homed := TRUE;
+		xComplete := TRUE;
+END_CASE
+
+IF FanucRobotCheckTon.Q THEN
+	iErrorID := 4;
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{e02f0eeb-1cd6-40e0-8299-784fd4255d0b}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[uiStorageHomingStep := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckStorageCylinderInRear" Id="{040429f0-b707-4328-ab03-bf2984f81f8e}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_CheckStorageCylinderInRear : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckStorageCylinderInRear := Cylinder.List.fbUpCV_FeedInPress1.InRearPosition AND
+    Cylinder.List.fbUpCV_FeedInPress2.InRearPosition AND
+    Cylinder.List.fbUpCV_DiameterPress.InRearPosition AND
+    Cylinder.List.fbUpCV_CamaraPress1.InRearPosition AND
+    Cylinder.List.fbUpCV_CamaraPress2.InRearPosition AND
+    Cylinder.List.fbUpCV_CamaraPress3.InRearPosition AND
+    Cylinder.List.fbUpCV_CamaraPress4.InRearPosition AND
+    Cylinder.List.fbUpCV_Block1.InRearPosition AND
+    Cylinder.List.fbUpCV_Block2.InRearPosition AND
+    Cylinder.List.fbUpCV_Block3.InRearPosition AND
+    Cylinder.List.fbUpCV_DiameterHoriz.InRearPosition AND
+    Cylinder.List.fbUpCV_DiameterVert.InRearPosition AND
+    Cylinder.List.fbUpCV_DiameterClamp.InRearPosition AND
+    Cylinder.List.fbStackPush.InRearPosition AND
+    Cylinder.List.fbLowCV_Press1.InRearPosition AND
+    Cylinder.List.fbLowCV_Press2.InRearPosition AND
+    Cylinder.List.fbLowCV_Press3.InRearPosition AND
+    Cylinder.List.fbLowCV_Press4.InRearPosition AND
+    Cylinder.List.fbLowCV_Block1.InRearPosition AND
+    Cylinder.List.fbLowCV_Block2.InRearPosition;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckStorageMotorInStop" Id="{bf85787a-087d-4ce2-8347-9f6e943d0a99}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_CheckStorageMotorInStop : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckStorageMotorInStop := Motor.List.LowCV.InStopped AND
+    Motor.List.UpCV.InStopped AND
+    Motor.List.WareHouseCV_01.InStopped AND
+    Motor.List.WareHouseCV_02.InStopped AND
+    Motor.List.WareHouseCV_03.InStopped AND
+    Motor.List.WareHouseCV_04.InStopped AND
+    Motor.List.WareHouseCV_05.InStopped AND
+    Motor.List.WareHouseCV_06.InStopped AND
+    Motor.List.WareHouseCV_07.InStopped AND
+    Motor.List.WareHouseCV_08.InStopped AND
+    Motor.List.WareHouseCV_09.InStopped AND
+    Motor.List.WareHouseCV_10.InStopped AND
+    Motor.List.WareHouseCV_11.InStopped AND
+    Motor.List.WareHouseCV_12.InStopped AND
+    Motor.List.WareHouseCV_13.InStopped AND
+    Motor.List.WareHouseCV_14.InStopped AND
+    Motor.List.WareHouseCV_15.InStopped AND
+    Motor.List.WareHouseCV_16.InStopped AND
+    Motor.List.WareHouseCV_17.InStopped AND
+    Motor.List.WareHouseCV_18.InStopped AND
+    Motor.List.WareHouseCV_19.InStopped AND
+    Motor.List.WareHouseCV_20.InStopped;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{4723d39b-372c-4cad-aa44-f1e1f3b7ac52}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+    0:
+        M_GetErrorMsg := 'No Error';
+    1:
+        M_GetErrorMsg := 'Action time out';
+    2:
+        M_GetErrorMsg := 'Cylinder not ready';
+    3:
+        M_GetErrorMsg := 'Motor not ready';
+    4:
+		M_GetErrorMsg := 'FanucRobot can not homing';
+	10:
+		M_GetErrorMsg := 'Storage FanucRobot FeedOut to NG Conveyor not busy';
+	11:
+		M_GetErrorMsg := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RetractStorageCylinder" Id="{26a6b3cc-b770-4faf-bc62-14bd1722daa9}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_RetractStorageCylinder : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Cylinder.List.fbUpCV_FeedInPress1.M_Retract();
+Cylinder.List.fbUpCV_FeedInPress2.M_Retract();
+Cylinder.List.fbUpCV_DiameterPress.M_Retract();
+Cylinder.List.fbUpCV_CamaraPress1.M_Retract();
+Cylinder.List.fbUpCV_CamaraPress2.M_Retract();
+Cylinder.List.fbUpCV_CamaraPress3.M_Retract();
+Cylinder.List.fbUpCV_CamaraPress4.M_Retract();
+Cylinder.List.fbUpCV_Block1.M_Retract();
+Cylinder.List.fbUpCV_Block2.M_Retract();
+Cylinder.List.fbUpCV_Block3.M_Retract();
+Cylinder.List.fbUpCV_DiameterHoriz.M_Retract();
+Cylinder.List.fbUpCV_DiameterVert.M_Retract();
+Cylinder.List.fbUpCV_DiameterClamp.M_Retract();
+Cylinder.List.fbStackPush.M_Retract();
+Cylinder.List.fbLowCV_Press1.M_Retract();
+Cylinder.List.fbLowCV_Press2.M_Retract();
+Cylinder.List.fbLowCV_Press3.M_Retract();
+Cylinder.List.fbLowCV_Press4.M_Retract();
+Cylinder.List.fbLowCV_Block1.M_Retract();
+Cylinder.List.fbLowCV_Block2.M_Retract();
+
+M_RetractStorageCylinder := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StopStorageMotor" Id="{715a0821-d0e5-45f9-bb41-d226780b39d0}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_StopStorageMotor : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Motor.List.LowCV.M_MotorStop();
+Motor.List.UpCV.M_MotorStop();
+Motor.List.WareHouseCV_01.M_MotorStop();
+Motor.List.WareHouseCV_02.M_MotorStop();
+Motor.List.WareHouseCV_03.M_MotorStop();
+Motor.List.WareHouseCV_04.M_MotorStop();
+Motor.List.WareHouseCV_05.M_MotorStop();
+Motor.List.WareHouseCV_06.M_MotorStop();
+Motor.List.WareHouseCV_07.M_MotorStop();
+Motor.List.WareHouseCV_08.M_MotorStop();
+Motor.List.WareHouseCV_09.M_MotorStop();
+Motor.List.WareHouseCV_10.M_MotorStop();
+Motor.List.WareHouseCV_11.M_MotorStop();
+Motor.List.WareHouseCV_12.M_MotorStop();
+Motor.List.WareHouseCV_13.M_MotorStop();
+Motor.List.WareHouseCV_14.M_MotorStop();
+Motor.List.WareHouseCV_15.M_MotorStop();
+Motor.List.WareHouseCV_16.M_MotorStop();
+Motor.List.WareHouseCV_17.M_MotorStop();
+Motor.List.WareHouseCV_18.M_MotorStop();
+Motor.List.WareHouseCV_19.M_MotorStop();
+Motor.List.WareHouseCV_20.M_MotorStop();
+
+M_StopStorageMotor := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{41a8a5aa-e870-44cb-98ee-c9bf4d0e891a}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[uiStorageHomingStep := 0;
+RobotResetCMD := FALSE;
+CylinderCheckTon.IN := FALSE;
+MotorCheckTon.IN := FALSE;
+FanucRobotCheckTon.IN := FALSE;
+RackMotorHomeRequest := FALSE;
+FanucRobot.Bzone_AllowWork := false;
+_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{3256a334-377b-41c1-81b0-1036cc95d21d}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR
+
+VAR
+	uiCylinderIndex :UINT;
+	uiMotorIndex : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Homed := FALSE;
+RackMotorHomeRequest := false;
+ResetRobotDelay.IN := FALSE;
+uiStorageHomingStep := 0;
+_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+TON_RobotFeedOutCommand.IN  := FALSE;
+TON_RobotTimeOut.IN			:= FALSE;
+
+IF service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Execute OR
+	service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Busy OR 
+	service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Error OR
+	 service.AutoMode_RobotAbsMove.HandShake.Execute OR  
+	 service.AutoMode_RobotAbsMove.HandShake.Busy OR 
+	 service.AutoMode_RobotAbsMove.HandShake.Error
+THEN
+	iErrorID := 20;
+ELSE
+	xComplete := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_StorageHoming">
+      <LineId Id="52" Count="0" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="53" Count="5" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="59" Count="1" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="161" Count="1" />
+      <LineId Id="158" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.A00_BasicUnits">
+      <LineId Id="2" Count="3" />
+      <LineId Id="7" Count="1" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="9" Count="16" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.CyclicAction">
+      <LineId Id="311" Count="2" />
+      <LineId Id="499" Count="1" />
+      <LineId Id="314" Count="46" />
+      <LineId Id="485" Count="2" />
+      <LineId Id="361" Count="3" />
+      <LineId Id="488" Count="0" />
+      <LineId Id="365" Count="4" />
+      <LineId Id="473" Count="1" />
+      <LineId Id="370" Count="1" />
+      <LineId Id="383" Count="89" />
+      <LineId Id="381" Count="1" />
+      <LineId Id="68" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.M_CheckStorageCylinderInRear">
+      <LineId Id="29" Count="19" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.M_CheckStorageMotorInStop">
+      <LineId Id="27" Count="20" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.M_GetErrorMsg">
+      <LineId Id="32" Count="9" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="55" Count="3" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.M_RetractStorageCylinder">
+      <LineId Id="21" Count="20" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.M_StopStorageMotor">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="1" />
+      <LineId Id="12" Count="19" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.ResetAction">
+      <LineId Id="6" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="24" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StorageHoming.StartAction">
+      <LineId Id="15" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="70" Count="9" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

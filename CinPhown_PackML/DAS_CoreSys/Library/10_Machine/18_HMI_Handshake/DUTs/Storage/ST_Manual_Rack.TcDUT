@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_Rack" Id="{c9eba8c1-6e95-4c20-9a18-4d5f12783841}">
+    <Declaration><![CDATA[TYPE ST_Manual_Rack :
+STRUCT
+	Axis                : ST_Manual_Axis; // RoundBelt Axis controll
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

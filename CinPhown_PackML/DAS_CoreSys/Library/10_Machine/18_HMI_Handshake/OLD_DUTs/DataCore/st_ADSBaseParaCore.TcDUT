@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ADSBaseParaCore" Id="{35053062-46a9-4cb1-8777-ffb4b0e5505f}">
+    <Declaration><![CDATA[TYPE st_ADSBaseParaCore :
+	STRUCT
+		//配針手臂在圓帶的盒的左右的間距
+		Allocate_box_leftandRight_Distance: LREAL;
+	    //配針手臂在圓帶的盒的上下的間距
+		Allocate_box_UpandDown_Distance   : LREAL;
+		//配針手臂在圓帶的盒的間距
+		Allocate_Box_Between_BBox_Distance:LREAL;
+		//配針手臂在圓盤盒的左右間距
+		TurnTable_leftandRight_Distance: LREAL;
+		//配針手臂在圓盤盒的上下的間距
+		TurnTable_UpandDown_Distance: LREAL;
+		//配針手臂在圓盤的盒的間距
+		TurnTable_Box_Between_BBox_Distance:LREAL;
+		//圓帶的初始位置[1]
+		Allocate_Original_Position:LREAL;
+		//圓盤初始位置[2]
+		TurnTable_Original_Position:LREAL;
+		//出料軸X初始位置[3]
+		OutRobotX_Original_Position:LREAL;
+		//出料軸Y初始位置[4]
+		OutRobotY_Original_Position:LREAL;
+		//出料軸R初始位置[5]
+		OutRobotR_Original_Position:LREAL;
+		//配針軸X初始位置[6]
+		AllocateRobotX_Original_Position:LREAL;
+		//配針軸Y初始位置[7]
+		AllocateRobotY_Original_Position:LREAL;
+		//電梯初始位置[8]
+		ElvaterAxis_Original_Position:LREAL;
+		//勾盤初始位置[9]
+		HookAxis_Original_Position:LREAL;
+		//成品區層架初始位置[10]
+		FinishAxisUPDownAxis_Original_Position:LREAL;
+		//分選區初始位置[11]
+		WarehouseAxis_Original_Position:LREAL;
+       //圓帶與圓帶的間距
+		Allocate_Box_Box_Distance:LREAL;
+		//出料區盒與盒間距
+		OutBoxBoxDistance:LREAL;
+		//背隙補償 for 圓帶
+		lrRotateBacklash :LREAL;
+		//移動
+		BuzzTime		 :LREAL;
+		//蜂鳴器持續時間 in second
+  		Excute:BOOL;
+   		 //完成
+		Done:BOOL;
+	
+	END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_WareHouseSlide" Id="{6ec492af-f265-4fa7-88b8-f30a4c533aa3}">
+    <Declaration><![CDATA[TYPE
+    E_WareHouseSlide :
+    (
+        Undefine := 0,
+        Slide01 := 1,
+        Slide02,
+        Slide03,
+        Slide04,
+        Slide05,
+        Slide06,
+        Slide07,
+        Slide08,
+        Slide09,
+        Slide10,
+        Slide11,
+        Slide12,
+        Slide13,
+        Slide14,
+        Slide15,
+        Slide16,
+        Slide17,
+        Slide18,
+        Slide19,
+        Slide20
+    );
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

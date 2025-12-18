@@ -1,0 +1,502 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_SameSizeCVCamera" Id="{b7f0f090-2562-464a-a72f-754890f967dc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SameSizeCVCamera EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute    : BOOL;
+    xAbort      : BOOL;
+	xReset		: BOOL;
+    Cylinder 	: REFERENCE TO UNI_CylinderList;
+    TimeOut  	: LREAL := 600; // Unit : s
+	Input		: ST_InputTable;
+	OutPut		: ST_OutputTable;
+	Motor		: REFERENCE to UNI_MotorList;
+	BoxCameraDone :BOOL;
+END_VAR	
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : STRING;
+	UseBoxCamera	:BOOL;
+END_VAR
+VAR
+    StateBehaviour   : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+	uiCyclicStep    : UINT := 0;
+	TON_DelaySensor	:TON;
+	TON_TimeOut		:TON;
+	TON_ArriviedTimeOut :TON ;
+	TON_CameraTimeOut	:TON;
+	TON_ConveyorTimeOut	:TON;
+	Reset_Rtrig 	:R_TRIG;
+	TON_SameSizeBoxDetect1_Delay :TON;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+
+StateBehaviour(xExecute := xExecute,
+              xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);
+
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);
+  
+//Error Msg
+iErrorID := StateBehaviour._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+
+//Reset
+Reset_Rtrig(CLK:= xReset);
+IF Reset_Rtrig.Q THEN
+	StateBehaviour.ResetModel(xCommit:=xReset);
+END_IF
+
+//Action
+A00_BaseUnits();]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{909e43ed-f32f-4583-a821-5a821c77a293}" />
+    <Action Name="A00_BaseUnits" Id="{9ca21b52-2b9f-4cbd-86fd-c07e780d2cc5}">
+      <Implementation>
+        <ST><![CDATA[TON_DelaySensor(PT:= T#1S);
+TON_TimeOut(PT := T#20S);
+TON_ArriviedTimeOut(PT:= T#60S);
+TON_CameraTimeOut(PT:=T#600S);
+TON_ConveyorTimeOut(PT:=T#60S);
+TON_SameSizeBoxDetect1_Delay(PT:=T#3S);
+TON_SameSizeBoxDetect1_Delay.IN :=Input.bSameSizeCV_BoxDetect1_Sensor AND Motor.List.TransmitSameSideCV.InForWard;]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="CleanupAction" Id="{b2d8576e-0acf-41ea-a7ea-005e6167ae00}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+TON_DelaySensor.IN :=FALSE;
+TON_TimeOut.IN :=FALSE;
+TON_ArriviedTimeOut.IN :=FALSE;
+TON_CameraTimeOut.IN :=FALSE;
+TON_ConveyorTimeOut.IN :=FALSE;
+
+UseBoxCamera	:= FALSE;
+BoxCameraDone	:= FALSE;
+
+Cylinder.List.fbSameSizeCV_Block1.M_Retract();
+Cylinder.List.fbSameSizeCV_Block2.M_Retract();
+Cylinder.List.fbSameSizeCV_Press1.M_Retract();
+//Cylinder.List.fbSameSizeCV_Press2.M_Retract();
+Cylinder.List.fbTransmitCV_CamaraHoriz.M_Retract();
+Motor.List.TransmitSameSideCV.M_MotorStop();
+IF Cylinder.List.fbSameSizeCV_Block1.InRearPosition AND 
+	Cylinder.List.fbSameSizeCV_Block2.InRearPosition AND 
+	Cylinder.List.fbSameSizeCV_Press1.InRearPosition AND 
+//	Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND 
+	Cylinder.List.fbTransmitCV_CamaraHoriz.InRearPosition AND 
+	Motor.List.TransmitSameSideCV.InStopped THEN
+	    xComplete := TRUE;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{83b7b3e0-663c-4997-991a-1e5f51179e2f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR_INST
+	bMoveConveyorForward:BOOL;
+END_VAR
+VAR
+	htne: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+IF bMoveConveyorForward THEN
+	IF NOT Motor.List.TransmitSameSideCV.InBackWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveForward();
+	END_IF
+END_IF
+
+CASE uiCyclicStep OF
+    0:	//keep for use
+	bMoveConveyorForward:=FALSE;
+		uiCyclicStep :=1000;
+		
+	1000:	// block first box 
+		TON_TimeOut.IN:=TRUE;
+		//Cylinder.List.fbSameSizeCV_Press2.M_Retract();
+		Cylinder.List.fbSameSizeCV_Block1.M_Extend();
+		Cylinder.List.fbTransmitCV_CamaraHoriz.M_Retract();
+		IF Cylinder.List.fbSameSizeCV_Block1.InFrontPosition AND 
+			Cylinder.List.fbTransmitCV_CamaraHoriz.InRearPosition (*AND
+			Cylinder.List.fbSameSizeCV_Press2.InRearPosition*) THEN
+			TON_TimeOut.IN:=FALSE;
+			uiCyclicStep :=1050;
+		END_IF
+		IF TON_TimeOut.Q THEN
+			iErrorID := 7;
+		END_IF
+//	1025:	//check box on sensor
+//		IF Input.bSameSizeCV_BoxDetect2_Sensor THEN
+//			Motor.List.TransmitSameSideCV.M_MoveBackward();
+//			uiCyclicStep :=1030;
+//		ELSE
+//			uiCyclicStep :=1050;
+//		END_IF
+//	1030:		//check box leave sensor
+//		IF NOT Input.bSameSizeCV_BoxDetect2_Sensor	THEN
+//			bMoveConveyorForward:=FALSE;
+//			Motor.List.TransmitSameSideCV.M_MotorStop();
+//			uiCyclicStep :=1040;
+//		END_IF
+//	1040:		//Check motor stop
+//		IF Motor.List.TransmitSameSideCV.InStopped THEN
+//			uiCyclicStep := 1050;
+//		END_IF
+		
+	1050:	//motor moveforward
+		TON_ConveyorTimeOut.IN:=TRUE;
+		bMoveConveyorForward:=TRUE;
+		Cylinder.List.fbSameSizeCV_Press2.M_Retract();
+		//Motor.List.TransmitSameSideCV.M_MoveForward();
+		IF 	Motor.List.TransmitSameSideCV.InForWard AND 
+			Cylinder.List.fbSameSizeCV_Press2.InRearPosition THEN
+			TON_ConveyorTimeOut.IN:= FALSE;
+			uiCyclicStep :=1100;
+		END_IF
+		IF TON_ConveyorTimeOut.Q THEN
+			iErrorID := 7;
+		END_IF
+	1100:	//check first box arrive block
+		TON_ArriviedTimeOut.IN:=TRUE;
+		TON_DelaySensor.IN:=Input.bSameSizeCV_BoxDetect2_Sensor;
+		IF TON_DelaySensor.Q THEN
+			TON_DelaySensor.IN :=FALSE;
+			TON_ArriviedTimeOut.IN :=FALSE;
+			Cylinder.List.fbSameSizeCV_Press2.M_Extend();
+			bMoveConveyorForward:=FALSE;
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+			uiCyclicStep :=1200;
+		END_IF
+		IF TON_ArriviedTimeOut.Q THEN
+			iErrorID := 8;
+		END_IF
+		
+	1200:	//send use camera & hold sencond box
+		TON_ConveyorTimeOut.IN:=TRUE;
+		IF Cylinder.List.fbSameSizeCV_Press2.InFrontPosition AND
+			Motor.List.TransmitSameSideCV.InStopped THEN
+			TON_ConveyorTimeOut.IN:= FALSE;
+			UseBoxCamera :=TRUE;			//send request
+			uiCyclicStep :=1300;
+		END_IF
+		IF TON_ConveyorTimeOut.Q THEN
+			iErrorID := 9 ;
+		END_IF
+		
+	1300:	//Check C# send camera done
+		TON_CameraTimeOut.IN:=TRUE;
+		IF BoxCameraDone THEN
+			TON_CameraTimeOut.IN :=FALSE;
+			Cylinder.List.fbSameSizeCV_Block1.M_Retract();
+			bMoveConveyorForward:=TRUE;
+			//Motor.List.TransmitSameSideCV.M_MoveForward();
+			uiCyclicStep :=1400;
+		END_IF
+		IF TON_CameraTimeOut.Q THEN 
+			iErrorID :=10;
+			//xAbort:=TRUE;				//abort resume C# checkBoxCameraDone FeedBack
+		END_IF
+		
+	1400:	//First Box cross detect1 sensor
+		TON_TimeOut.IN :=TRUE;
+		IF Input.bSameSizeCV_BoxDetect1_Sensor THEN
+			TON_TimeOut.IN :=FALSE;
+			uiCyclicStep :=1500;
+		END_IF
+		IF TON_TimeOut.Q THEN
+			iErrorID :=11;	//
+		END_IF
+		
+	1500:	//cross sensor stop motor
+		TON_DelaySensor.IN :=TRUE;
+		IF NOT Input.bSameSizeCV_BoxDetect1_Sensor THEN
+			TON_DelaySensor.IN :=FALSE;
+			bMoveConveyorForward:=FALSE;
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+			uiCyclicStep :=1600;
+		END_IF
+		IF TON_DelaySensor.Q THEN 
+			TON_DelaySensor.IN:=FALSE;
+			bMoveConveyorForward:=FALSE;
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+			uiCyclicStep :=1600;
+		END_IF
+	
+	1600:	// wait motor stop 
+		IF Motor.List.TransmitSameSideCV.InStopped THEN
+//			Cylinder.List.fbSameSizeCV_Press2.M_Retract();
+//			uiCyclicStep:=1700;
+			xComplete :=TRUE;	
+		END_IF
+	1700:	//make sure sencond box still 
+//		IF Cylinder.List.fbSameSizeCV_Press2.InRearPosition THEN
+//			xComplete :=TRUE;
+//		END_IF
+
+END_CASE
+
+IF TON_SameSizeBoxDetect1_Delay.Q THEN
+	iErrorID := 20; //conveyor full box inFront
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{27d4f9f7-8ed3-49e3-872f-64623caca5f5}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[	uiCyclicStep    := 0;
+	xAfterCleanup := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{39c43e65-7f65-40b7-8290-b8d4c7038d11}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	0:
+		M_GetErrorMsg := 'No Error';
+	1:
+		M_GetErrorMsg := 'Action time out';
+	2:
+		M_GetErrorMsg := 'Position Data invalid';
+///
+	3:
+		M_GetErrorMsg := 'Block1 cylinder not ready';
+	4:
+		M_GetErrorMsg := 'Block2 cylinder not ready';
+	5:
+		M_GetErrorMsg := 'Press1 cylinder not ready';
+	6:
+		M_GetErrorMsg := 'Press2 cylinder not ready';
+	7:	
+		M_GetErrorMsg :='CameraHorizan Cylinder not ready';
+	8:
+		M_GetErrorMsg :='Conveyor not ready';
+	9:
+		M_GetErrorMsg :='Cylinder timeout';
+	10:
+		M_GetErrorMsg :='box not arrived timeout';
+	11:
+		M_GetErrorMsg :='Cylinder timeout';
+	12:
+		M_GetErrorMsg :='C# send BoxCameraDone timeout';
+	
+		
+	20:
+		M_GetErrorMsg :='SameSizeConveyor full box infront ';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{800e20c2-a4b8-4568-b782-f7995ece63c5}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TON_DelaySensor.IN :=FALSE;
+TON_TimeOut.IN :=FALSE;
+TON_ArriviedTimeOut.IN :=FALSE;
+TON_CameraTimeOut.IN :=FALSE;
+TON_ConveyorTimeOut.IN :=FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{28b648fd-dfe0-4659-ac89-9339de507591}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+TON_DelaySensor.IN :=FALSE;
+TON_TimeOut.IN :=FALSE;
+TON_ArriviedTimeOut.IN :=FALSE;
+TON_CameraTimeOut.IN :=FALSE;
+TON_ConveyorTimeOut.IN :=FALSE;
+
+UseBoxCamera	:= FALSE;
+BoxCameraDone	:= FALSE;
+IF TON_SameSizeBoxDetect1_Delay.Q THEN
+	iErrorID := 20; //conveyor full box inFront
+END_IF
+
+
+IF  Cylinder.List.fbSameSizeCV_Block1.xError  THEN
+	iErrorID := 3; // Cylinder not ready
+END_IF
+IF 	 Cylinder.List.fbSameSizeCV_Block2.xError THEN
+	iErrorID := 4; // Cylinder not ready
+END_IF
+IF 	 Cylinder.List.fbSameSizeCV_Press1.xError  THEN
+	iErrorID := 5; // Cylinder not ready
+END_IF
+IF 	 Cylinder.List.fbSameSizeCV_Press2.xError THEN
+	iErrorID := 6; // Cylinder not ready
+END_IF
+IF  Cylinder.List.fbTransmitCV_CamaraHoriz.xError THEN
+	iErrorID := 7;	//Cylinder not ready
+END_IF
+IF  Motor.List.TransmitSameSideCV.xError THEN
+	iErrorID := 8;	//Conveyor not ready
+END_IF
+xComplete :=TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SameSizeCVCamera">
+      <LineId Id="26" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="27" Count="5" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="129" Count="1" />
+      <LineId Id="95" Count="1" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="64" Count="2" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="97" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera.A00_BaseUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera.CleanupAction">
+      <LineId Id="65" Count="0" />
+      <LineId Id="21" Count="3" />
+      <LineId Id="54" Count="1" />
+      <LineId Id="25" Count="15" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera.CyclicAction">
+      <LineId Id="467" Count="0" />
+      <LineId Id="635" Count="0" />
+      <LineId Id="672" Count="0" />
+      <LineId Id="636" Count="0" />
+      <LineId Id="673" Count="0" />
+      <LineId Id="637" Count="0" />
+      <LineId Id="468" Count="2" />
+      <LineId Id="634" Count="0" />
+      <LineId Id="471" Count="3" />
+      <LineId Id="619" Count="0" />
+      <LineId Id="475" Count="3" />
+      <LineId Id="620" Count="0" />
+      <LineId Id="479" Count="14" />
+      <LineId Id="640" Count="0" />
+      <LineId Id="494" Count="9" />
+      <LineId Id="638" Count="0" />
+      <LineId Id="657" Count="0" />
+      <LineId Id="504" Count="1" />
+      <LineId Id="658" Count="0" />
+      <LineId Id="506" Count="12" />
+      <LineId Id="641" Count="0" />
+      <LineId Id="519" Count="23" />
+      <LineId Id="639" Count="0" />
+      <LineId Id="543" Count="7" />
+      <LineId Id="577" Count="13" />
+      <LineId Id="642" Count="0" />
+      <LineId Id="591" Count="4" />
+      <LineId Id="643" Count="0" />
+      <LineId Id="596" Count="7" />
+      <LineId Id="618" Count="0" />
+      <LineId Id="570" Count="4" />
+      <LineId Id="617" Count="0" />
+      <LineId Id="575" Count="1" />
+      <LineId Id="687" Count="2" />
+      <LineId Id="32" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera.ExitAction">
+      <LineId Id="7" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera.M_GetErrorMsg">
+      <LineId Id="5" Count="1" />
+      <LineId Id="12" Count="4" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="17" Count="3" />
+      <LineId Id="28" Count="2" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="51" Count="1" />
+      <LineId Id="60" Count="9" />
+      <LineId Id="77" Count="3" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera.ResetAction">
+      <LineId Id="11" Count="4" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera.StartAction">
+      <LineId Id="141" Count="0" />
+      <LineId Id="132" Count="4" />
+      <LineId Id="122" Count="1" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="126" Count="1" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="68" Count="1" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="79" Count="2" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="142" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

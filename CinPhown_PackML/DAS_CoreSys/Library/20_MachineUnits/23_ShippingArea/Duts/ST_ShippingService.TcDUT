@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ShippingService" Id="{0b3c25bc-19ce-45ab-9b06-85beabdcefb6}">
+    <Declaration><![CDATA[TYPE
+    ST_ShippingService :
+    STRUCT
+        AutoMode_ShippingRobot_Left          : REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
+        AutoMode_ShippingRobot_Right         : REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
+        AutoMode_ShippingRobot_TransmitCVEnd : REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
+		AutoMode_ShippingTransCV_LeftSide	 : REFERENCE TO ST_AutoMode_ShippingLeftSideTransCV;
+		AutoMode_ShippingTransCV_RightSide	 : REFERENCE TO ST_AutoMode_ShippingRightSideTransCV;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

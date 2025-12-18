@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_RoundBeltControlAccess" Id="{ac7c88a0-f100-4c01-ac2c-1778ca3869db}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_RoundBeltControlAccess :
+(
+	Host := 0, // Controlled by C#
+	Allocating	, //Controlled by Allocating,
+	FanucRobot //Controlled by Robot
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

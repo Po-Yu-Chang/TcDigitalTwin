@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucUO1" Id="{058c8567-5182-4dfc-8141-2dc87e8161d9}">
+    <Declaration><![CDATA[TYPE ST_FanucUO1 :
+    STRUCT
+        UO01_CmdEnabled  :BIT;
+        UO02_SystemReady :BIT;
+        UO03_PrgRunning  :BIT;
+        UO04_PrgPaused   :BIT;
+        UO05_MotionHeld  :BIT;
+        UO06_Fault       :BIT;
+        UO07_AtPerch     :BIT;
+        UO08_TPEnabled   :BIT;
+        UO09_BattAlarm   :BIT;
+        UO10_Busy        :BIT;
+        UO11_ACK1        :BIT;
+        UO12_ACK2        :BIT;
+        UO13_ACK3        :BIT;
+        UO14_ACK4        :BIT;
+        UO15_ACK5        :BIT;
+        UO16_ACK6        :BIT;
+        UO17_ACK7        :BIT;
+        UO18_ACK8        :BIT;
+        UO19_SNACK       :BIT;
+        UO20_Reserved    :BIT;
+        UO21,
+        UO22,
+        UO23,
+        UO24,
+        UO25,
+        UO26,
+        UO27,
+        UO28,
+        UO29,
+        UO30,
+        UO31,
+        UO32 :BIT;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucRobotCCDSetting" Id="{c7862780-9d47-4360-b82b-35425f87d913}">
+    <Declaration><![CDATA[TYPE ST_FanucRobotCCDSetting :
+STRUCT
+	    WareHouseA_ClampA_UseCCD : BOOL;
+        WareHouseA_ClampB_UseCCD : BOOL;
+        WareHouseB_ClampA_UseCCD : BOOL;
+        WareHouseB_ClampB_UseCCD : BOOL;
+        Bzone_UseCCD             : BOOL;
+        Czone_UseCCD             : BOOL;
+        Dzone_UseCCD             : BOOL;
+        Ezone_UseCCD             : BOOL;
+        Fzone_UseCCD             : BOOL;
+        Gzone_UseCCD             : BOOL;
+        Hzone_UseCCD             : BOOL;
+        Jzone_UseCCD             : BOOL;
+        Kzone_UseCCD             : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

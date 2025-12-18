@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AXES_STATUS" Id="{d3bd15b0-14ca-4cb7-b947-afea8b72c56c}">
+    <Declaration><![CDATA[TYPE ST_AXES_STATUS :
+    STRUCT
+        TurnTable       : ST_SINGLEAXIS_STATUS; // TurnTable Axis status
+        RoundBelt       : ST_SINGLEAXIS_STATUS; // RoundBelt Axis status
+        Allocate_X      : ST_SINGLEAXIS_STATUS; // AllocateRRobot AxisX status
+        Allocate_Y      : ST_SINGLEAXIS_STATUS; // AllocateRobot AxisY status
+        OutRobot_X      : ST_SINGLEAXIS_STATUS; // OutRobot AxisX status
+        OutRobot_Y      : ST_SINGLEAXIS_STATUS; // OutRobot AxisY status
+		RackMotor : ST_SINGLEAXIS_STATUS; // Rack motor status
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

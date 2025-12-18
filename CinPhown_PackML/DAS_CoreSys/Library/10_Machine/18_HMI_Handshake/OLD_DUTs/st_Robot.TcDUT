@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_Robot" Id="{37d10cdc-a92b-440f-831d-c25652f75689}">
+    <Declaration><![CDATA[TYPE st_Robot :
+STRUCT
+	//Position = XXX~XXX為倉別移動, XXX~XXX為絕對移動
+	Position	: UINT;
+	//Grabber = 1為夾爪A, Grabber = 2為夾爪B
+	Grabber		: UINT;
+	//Activity = 1為夾取, Activity = 0為開爪
+	Activity	: UINT;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

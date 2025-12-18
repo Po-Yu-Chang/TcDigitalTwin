@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_TurnTable" Id="{f5d236e7-ff37-4f45-aa87-0c0d83c0926d}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_TurnTable :
+    STRUCT
+        Press : ST_SignleValve;
+        Axis  : ST_Manual_Axis; // TurnTable Axis controll
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="UnitNo" Id="{f2f2bddd-3937-4280-b928-37c4ee405f8d}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE
+    UnitNo :
+    (
+        Machine := 0,
+        Storage := 1,
+        Allocate := 2,
+        Shipping := 3
+    );
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

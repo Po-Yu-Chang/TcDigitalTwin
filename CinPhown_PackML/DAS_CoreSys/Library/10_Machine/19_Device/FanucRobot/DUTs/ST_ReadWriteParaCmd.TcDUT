@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ReadWriteParaCmd" Id="{6548a016-803f-4756-9596-46dc30b6c0b6}">
+    <Declaration><![CDATA[TYPE ST_ReadWriteParaCmd :
+	STRUCT
+		ReadPara_Execute :BIT;
+		WritePara_Execute:BIT;
+		ByPassClampSensor : BIT; // True : ByPass clampA and CalmpB sensor
+		WareHouseA :BIT; // True : select warehouse A
+		WarehouseB :BIT; // True : select warehouse B
+		ClampA :BIT; // True : read / write offset data for clamp A
+		ClampB :BIT; // True : read / write offset data for clamp B
+		Bzone_AllowWork :BIT; //Allow robot move into roundbelt==>Must confirm roundBelt is done and block movement
+		Ezone_AllowWork :BIT;
+		Jzone_AllowWork :BIT;
+		RSR1_Retry :BIT;
+		Allow_ClampA_Enter :BIT;
+		Allow_ClampB_Enter :BIT;
+		Spare14 :BIT;
+		Spare15 :BIT;
+		Spare16 :BIT;
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

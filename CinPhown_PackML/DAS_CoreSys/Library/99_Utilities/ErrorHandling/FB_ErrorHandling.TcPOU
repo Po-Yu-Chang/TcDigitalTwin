@@ -1,0 +1,864 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ErrorHandling" Id="{1951f147-44a2-4a60-bc25-9f53007fd4e3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ErrorHandling
+VAR_INPUT
+	xEnable : BOOL := TRUE;
+	tInitBypassDelayTime : TIME;
+END_VAR
+
+VAR_OUTPUT
+	xError		: BOOL; // Normal Error -> Go to Held
+	//xFatalError : BOOL; // Fatal Error -> Go to Abort
+	xWarning	: BOOL; // System have warning
+	xSeverity : E_Severity;
+END_VAR
+
+VAR
+	bFirstCycle			: BOOL := TRUE;
+	bCoresysError		: BOOL; // At least one Coresys has an error 
+	bXTSError			: BOOL; // At least one XTS has an error 
+	dwXTSDiagNo			: DWORD; // XTS diag number
+	strXTSDiagMessage : STRING(60); // XTS diag text
+	uiXTSSeverity		: UINT; // XTS error severity
+	bAppError			: BOOL; // User defined error
+	bECatError			: BOOL; // EtherCAT module error
+	dwAppDiagNo			: DWORD; // User diag number
+	strAppDiagMessage : STRING(60); // User diag text
+	uiAppErrSeverity	: UINT; // User error severity
+	bSubsysError		: BOOL; // Subsys has an error
+	// FB_AnyAborted_Rtrig : R_TRIG ;
+	udiErrorCount					: UDINT;
+	fbMachineCtrlInitDOne_Rtrig		: R_TRIG;
+	fbMachineResetBtn_FTrig			: F_TRIG;
+	bClearEthercatErr				: BOOL; // 臨時版本
+	udiIndex						: UDINT;
+	bAnySubAborted					: BOOL; // Currently, there is at least one Sub station in an aborted state.
+	bST01_Alarm						: BOOL;
+	bST03_Alarm						: BOOL;
+	bST06_Alarm						: BOOL;
+	bST10_Alarm						: BOOL;
+	bST12_Alarm						: BOOL;
+	bST14_Alarm						: BOOL;
+	bST15_Alarm						: BOOL;
+	bST17_Alarm						: BOOL;
+	bST18_Alarm						: BOOL;
+	bST20_Alarm						: BOOL;
+	bST22_Alarm						: BOOL;
+	bST23_Alarm						: BOOL;
+	bST25_Alarm						: BOOL;
+	bST27_Alarm						: BOOL;
+	bST30_Alarm						: BOOL;
+	bXTSShuttleError				: BOOL;
+	bXTSModuleError					: BOOL;
+	bXTSNcError						: BOOL;
+	bResetRetry						: BOOL;
+	TON_ResetRetry					: TON;
+	FB_CoresysErrorHandler			: FB_CoresysErrorHandler;
+	TON_ClearDelayCheck				: TON;
+	bSubsysWarning					: BOOL;
+	Ton_InitBypassDelay				: TON;
+	FB_EtherCATErrorHandler			: FB_EtherCATErrorHandler;
+	arrUnitsWarningHandler			: ARRAY[1..cudiXTS_MaxIndex]OF FB_AppWarningHandler;
+	I_UnitsWarningHandler			: ARRAY[1..cudiXTS_MaxIndex]OF ITF_SubUnitWarning;
+	TON_KeepMDSError 				: TON;
+	TON_CheckMDSNoError				: TON;
+	bCheckMDSError					: BOOL;
+	TOF_KeepMDSError_Delay			: TOF;
+
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Ton_InitBypassDelay(PT:= T#5S);
+IF NOT xEnable THEN
+	RETURN;
+ELSIF ( bFirstCycle = TRUE ) THEN
+	Ton_InitBypassDelay.IN := TRUE;
+	M_OneTimeInit();
+	RETURN;
+END_IF
+
+
+//TON_ClearDelayCheck(IN := bClearbyPassDelay, PT := T#800MS);
+
+//IF TON_ClearDelayCheck.Q THEN
+//	bClearbyPassDelay := FALSE;
+//END_IF
+
+//IF bReset_gb THEN
+//	THIS^.M_Reset();
+//END_IF
+//IF   NOT FB_Safety.bSafetyOK AND_THEN M_FindMDSError() THEN
+//	bKeepMDSError := TRUE;
+//END_IF
+//TON_KeepMDSError(IN := bKeepMDSError,PT := T#3S);
+//bCheckMDSError := FALSE;
+//FOR udiIndex := 1 TO UDINT_TO_UINT(udiMax_MachineAlarm_Index) DO
+//	IF PackTags.Machine.Admin.Alarm[udiIndex].ID = DINT#990281 THEN
+//		bCheckMDSError := TRUE;
+//	END_IF
+//END_FOR
+//TON_CheckMDSNoError(IN := (NOT FB_MDS.bMoverIdDetectionError) AND (NOT FB_MDS.bError) AND (NOT bCheckMDSError), PT := T#1S  );
+//TOF_KeepMDSError_Delay(IN:= TON_CheckMDSNoError.Q ,PT:=T#2S);
+
+//IF  TOF_KeepMDSError_Delay.Q THEN
+//	bKeepMDSError := false;
+//END_IF
+// Alarm Histroy Upload
+M_UploadData();
+//------------------------------------------------------------------------------------------------------
+//------------------------------------- Scan errors  ---------------------------------------------------  
+//------------------------------------------------------------------------------------------------------
+M_ScanError();
+
+M_ErrorAction(xSeverity=> xSeverity);
+]]></ST>
+    </Implementation>
+    <Folder Name="ACT" Id="{770eac7e-d445-4820-8179-15d947700d06}" />
+    <Folder Name="Method" Id="{3e1368bc-62af-48fb-8f0c-29fcd3accd53}" />
+    <Folder Name="Module" Id="{244ce2f2-bcda-47b1-8d13-cff662b2b9ef}" />
+    <Action Name="EtherCAT_Diag" Id="{f06edfdd-bc1f-48cd-9016-aa4b586fda7b}" FolderPath="ACT\">
+      <Implementation>
+        <ST><![CDATA[fbMachineCtrlInitDOne_Rtrig(CLK := bMachineCtrlInitDOne);
+fbMachineResetBtn_FTrig(CLK := bReset_gb);
+
+IF fbMachineCtrlInitDOne_Rtrig.Q OR fbMachineResetBtn_FTrig.Q THEN
+	FOR udiIndex := 1 TO TO_UDINT(udiECatMasterNum) DO
+		// Check mapping status
+		IF (F_GetMappingStatus(p := ADR(arruiFrm0WcStateMapping[udiIndex]), n := SIZEOF(arruiFrm0WcStateMapping[udiIndex]))
+			= EPlcMappingStatus.MS_Mapped)
+			OR (
+			F_GetMappingStatus(p := ADR(arruiFrm0WcStateMapping[udiIndex]), n := SIZEOF(arruiFrm0WcStateMapping[udiIndex]))
+			= EPlcMappingStatus.MS_Partial)
+			THEN
+			arrfbEtherCatDiagnostics[udiIndex].bEnable := TRUE;
+		END_IF
+	END_FOR
+END_IF
+
+// 臨時版本
+IF bClearEthercatErr THEN
+	FOR udiIndex := 1 TO TO_UDINT(udiECatMasterNum) DO
+		// Check mapping status
+		IF (F_GetMappingStatus(p := ADR(arruiFrm0WcStateMapping[udiIndex]), n := SIZEOF(arruiFrm0WcStateMapping[udiIndex]))
+			= EPlcMappingStatus.MS_Mapped)
+			OR (
+			F_GetMappingStatus(p := ADR(arruiFrm0WcStateMapping[udiIndex]), n := SIZEOF(arruiFrm0WcStateMapping[udiIndex]))
+			= EPlcMappingStatus.MS_Partial)
+			THEN
+			arrfbEtherCatDiagnostics[udiIndex].bEnable := FALSE;
+		END_IF
+	END_FOR
+
+	bClearEthercatErr := FALSE;
+END_IF
+
+// FB_EtherCatDiagnostics
+FOR udiIndex := 1 TO TO_UDINT(udiECatMasterNum) DO
+	// Check mapping status
+	IF (F_GetMappingStatus(p := ADR(arruiFrm0WcStateMapping[udiIndex]), n := SIZEOF(arruiFrm0WcStateMapping[udiIndex]))
+		= EPlcMappingStatus.MS_Mapped)
+		OR (F_GetMappingStatus(p := ADR(arruiFrm0WcStateMapping[udiIndex]), n := SIZEOF(arruiFrm0WcStateMapping[udiIndex]))
+		= EPlcMappingStatus.MS_Partial)
+		THEN
+		arrfbEtherCatDiagnostics[udiIndex](uiFrm0WcStateMapping := arruiFrm0WcStateMapping[udiIndex],
+											uiFrm1WcStateMapping := arruiFrm1WcStateMapping[udiIndex],
+											uiFrm2WcStateMapping := arruiFrm2WcStateMapping[udiIndex],
+											uiFrm3WcStateMapping := arruiFrm3WcStateMapping[udiIndex],
+											wDeviceIDMapping := arrwDeviceIDMapping[udiIndex],
+											bEnable :=,
+											pstDiagnosticResult := ADR(arrstDiagnosticResult[udiIndex]),
+											pstFuncBlocksErr := ADR(arrstFuncBlocksErr[udiIndex]),
+											bBusy =>,
+											bActive =>,
+											bError =>);
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="FB_exit" Id="{8f5c8584-188e-4253-b66f-d712397345dc}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL; // if TRUE, the exit method is called for exiting an instance that is copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 避免再切config時出現動態記憶體異常
+fbAlarmTrigList.releaseQueue();
+fbAlarmResetList.releaseQueue();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetAbort" Id="{7b34b4da-208d-4fd1-8ad0-c7adc36ca763}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD GetAbort : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	// Subsys Station number
+	udiSubIndex : UDINT;
+END_VAR
+VAR_OUTPUT
+	xErrorID : UDINT;
+	//	ErrorMsg: STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetAbort := FALSE;
+
+FOR udiSubIndex := 1 TO cudiXTS_MaxIndex DO
+	IF (PackTags.arrSubSys_Station^[udiSubIndex].Status.StateCurrent = ePMLState_Aborted)
+		AND (stSysParameters_Current.arIndexProductionValid[udiSubIndex] = E_ProductionValid.Valid)
+		THEN
+		xErrorID := 1100 + udiSubIndex;
+		//FB_AppErrorHandler.M_SetAlarm(xUnitName := FB_AppErrorHandler.GetName(), xErrorID := xErrorID);
+		GetAbort := TRUE;
+		RETURN;
+
+	END_IF
+END_FOR
+
+IF (PackTags.XTS.Status.StateCurrent = ePMLState_Aborted) THEN
+	xErrorID := 1100;
+	//FB_AppErrorHandler.M_SetAlarm(xUnitName := FB_AppErrorHandler.GetName(), xErrorID := xErrorID);
+	GetAbort := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetHeld" Id="{5e33f80c-dea0-4b34-b4ef-1ffd8489b4ed}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD GetHeld : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	// Subsys Station number
+	udiSubIndex : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetHeld := FALSE;
+
+FOR udiSubIndex := 1 TO cudiXTS_MaxIndex DO
+	IF (PackTags.arrSubSys_Station^[udiSubIndex].Status.StateCurrent = ePMLState_Held) THEN
+		GetHeld := TRUE;
+	END_IF
+END_FOR
+
+IF (PackTags.XTS.Status.StateCurrent = ePMLState_Held) THEN
+	GetHeld := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CoresysErrorHandle" Id="{63292894-4fde-4da6-b048-7c1abacc699f}" FolderPath="Module\">
+      <Declaration><![CDATA[METHOD M_CoresysErrorHandle
+VAR_INPUT
+END_VAR
+VAR
+	udiLoop : UDINT;
+	xarObserver		: ARRAY[1..MAX_Observer] OF ST_Alarm;
+END_VAR
+VAR_INST
+	xErrorFound : BOOL;
+END_VAR
+VAR_OUTPUT
+	xError : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//IF bMachineCtrlInitDOne THEN
+	FB_CoresysErrorHandler(xError=>xError);
+//END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ErrorAction" Id="{d12b7941-64eb-4f82-9930-72cc8eab895f}">
+      <Declaration><![CDATA[METHOD M_ErrorAction
+VAR_INPUT
+END_VAR
+
+VAR
+	udiLoop: UDINT;
+END_VAR
+VAR_INST
+	bSafetyDoorOpened : BOOL;
+END_VAR
+VAR_OUTPUT
+	xSeverity : E_Severity;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//xSeverity := 0;
+//FOR udiLoop := 1 TO udiMax_MachineAlarm_Index DO
+//	IF PackTags.Machine.Admin.Alarm[udiLoop].Value > xSeverity THEN
+//		xSeverity := PackTags.Machine.Admin.Alarm[udiLoop].Value;
+//	END_IF
+//END_FOR
+//bSafetyDoorOpened := FALSE;
+//FOR udiLoop := 1 TO cgudiNumOfSafetyDoor DO
+//	IF arrSafetyDoorStatus[udiLoop].bButton THEN
+//		bSafetyDoorOpened := TRUE;
+//		EXIT;
+//	END_IF
+//END_FOR
+//IF ( xSeverity = E_Severity.Level7 ) THEN
+//	IF xError
+//		AND NOT ((PackTags.Machine.Status.StateCurrent=ePMLState_Aborted) 
+//		OR (PackTags.Machine.Status.StateCurrent=ePMLState_Aborting) 
+//		OR (PackTags.Machine.Status.StateCurrent = ePMLState_Clearing))
+//	THEN
+//		PackTags.Machine.Command.CntrlCmd := ePMLCommand_Abort;
+//		PackTags.Machine.Command.CmdChangeRequest := TRUE;
+//	END_IF
+//ELSIF xSeverity = E_Severity.Level6 THEN
+//	IF xError THEN
+//		IF (PackTags.Machine.Status.StateCurrent= ePMLState_Execute AND NOT ((PackTags.Machine.Status.UnitModeCurrent = E_MachineMode.Manual) AND bSafetyDoorOpened) )
+//			OR  (PackTags.Machine.Status.StateCurrent= ePMLState_Suspended)
+//			OR  (PackTags.Machine.Status.StateCurrent= ePMLState_Unsuspending)
+//			OR  (PackTags.Machine.Status.StateCurrent= ePMLState_Suspending)
+//			OR  (PackTags.Machine.Status.StateCurrent= ePMLState_Held)
+//			OR  (PackTags.Machine.Status.StateCurrent= ePMLState_Unholding)
+//			OR  (PackTags.Machine.Status.StateCurrent= ePMLState_Holding) 
+//		THEN
+//		PackTags.Machine.Command.CntrlCmd := ePMLCommand_Hold;
+//		PackTags.Machine.Command.CmdChangeRequest := TRUE;
+//		ELSIF (PackTags.Machine.Status.UnitModeCurrent = E_MachineMode.Manual) AND bSafetyDoorOpened
+//				AND NOT FB_MDS.bAllShuttlesNotMoving
+////				AND NOT (PackTags.XTS.Status.StateCurrent = ePMLState_Aborted)
+////				AND NOT (PackTags.XTS.Status.StateCurrent = ePMLState_Aborting)
+////				AND NOT (PackTags.XTS.Status.StateCurrent = ePMLState_Clearing)
+//		THEN
+//		PackTags.XTS.Command.CntrlCmd := ePMLCommand_Abort;
+//		PackTags.XTS.Command.CmdChangeRequest := TRUE;
+//		END_IF
+//	END_IF
+//ELSIF xSeverity = E_Severity.Level5 THEN
+//	IF xError THEN
+//		IF (PackTags.Machine.Status.StateCurrent= ePMLState_Execute)
+//			AND (PackTags.Machine.Status.UnitModeCurrent = E_MachineMode.Initialization)
+//		THEN
+//		PackTags.Machine.Command.CntrlCmd := ePMLCommand_Stop;
+//		PackTags.Machine.Command.CmdChangeRequest := TRUE;
+//		END_IF
+//	END_IF
+//END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_EtherCATErrorHandler" Id="{655103fc-0170-4089-8b8f-c7c90ac8c8d4}" FolderPath="Module\">
+      <Declaration><![CDATA[METHOD M_EtherCATErrorHandler
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	xError:BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//THIS^.xError := FALSE;
+FOR udiIndex := 1 TO udiECatMasterNum DO
+	arFB_ECatDiag[udiIndex](udiEcDeviceIndex:=udiIndex,xError=>);
+	IF arFB_ECatDiag[udiIndex].xError THEN
+		xError :=TRUE;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_FindMDSError" Id="{e434fcac-5ec3-4bdb-b4b5-aa2c0831f53b}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_FindMDSError : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	udiAlarmIndex : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR udiAlarmIndex := 1 TO udiMax_MachineAlarm_Index DO
+	IF PackTags.Machine.Admin.Alarm[udiAlarmIndex].ID = DINT#990281 THEN
+		M_FindMDSError := TRUE;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_OneTimeInit" Id="{ba555be6-95bf-44f7-ba38-122fb6aedb25}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_OneTimeInit
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+IF Ton_InitBypassDelay.Q THEN
+	bFirstCycle := FALSE;
+	Ton_InitBypassDelay.IN := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Reset" Id="{b5a8932b-3463-4ff6-8a4f-da58096f0fdd}">
+      <Declaration><![CDATA[METHOD M_Reset
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//// Clear Safety error.
+//IF FB_Safety.stSafetyMapping.stSafetyProject.stGroupInput.bInRun
+//	AND NOT bEStopActived_gb THEN
+//	FB_Safety.reset();
+//END_IF
+
+//// XTS motion calculation
+//IF fbXTSCalc.bError THEN
+//	fbXTSCalc.M_Reset();
+//END_IF
+
+
+//IF FB_XTS.FB_InitializationMode.xError THEN
+//	FB_XTS.FB_InitializationMode.M_ClearStatus();
+//END_IF
+
+//IF fbShuttlesConsvNGMon.bError THEN
+//	fbShuttlesConsvNGMon.M_Reset();
+//END_IF
+
+
+
+//IF FB_CoreSys_gb.FB_Machine_ProductionMode.xError THEN
+//	FB_CoreSys_gb.FB_Machine_ProductionMode.M_ClearError();
+//END_IF
+
+
+//IF FB_CoreSys_gb.FB_Machine_InitializationMode.xError THEN
+//	FB_CoreSys_gb.FB_Machine_InitializationMode.M_ClearError();
+//END_IF
+
+
+//IF FB_LubricationCamPnp.Error THEN
+//	FB_LubricationCamPnp.Reset();
+//END_IF
+
+//IF FB_LubricationXTS.Error THEN
+//	FB_LubricationXTS.Reset();
+//END_IF
+	
+
+//IF FB_HealthBit_HMI.bError THEN
+//	FB_HealthBit_HMI.M_Reset();
+//END_IF
+
+//IF FB_IPCShutDown.bError THEN
+//	FB_IPCShutDown.M_Reset();
+//END_IF 		
+
+//IF FB_IPCPowerFailureHandler.bError THEN
+//	FB_IPCPowerFailureHandler.M_Reset();
+//END_IF
+
+//IF FB_Reset_Rtrig.Q AND FB_DataRecovery.bError THEN
+//	FB_DataRecovery.M_Reset();
+//END_IF 
+
+//IF FB_Reset_Rtrig.Q AND fbTerminateBatch.bError THEN
+//	fbTerminateBatch.M_Reset();
+//END_IF
+
+//IF bECatError THEN
+//	bECatError := FALSE;
+//END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ScanError" Id="{d0e99aed-2ece-49ca-8422-0c3e310bd7ee}">
+      <Declaration><![CDATA[METHOD M_ScanError
+VAR_INPUT
+END_VAR
+
+VAR
+	udiLoop : UDINT;
+END_VAR
+VAR_INST
+	bECatError_Mem : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Ethercat Diag
+EtherCAT_Diag();
+//FB_EtherCATErrorHandler(xError=>bECatError);
+M_EtherCATErrorHandler(xError =>bECatError_Mem);
+IF  bECatError_Mem THEN
+	bECatError := TRUE;
+END_IF
+// XTS error combinations.
+M_XTSErrorHandle();
+
+// Coresys error combinations.
+M_CoresysErrorHandle(xError=> bAppError);
+bCoresysError := bXTSError OR bAppError OR bECatError;
+
+// Subsys error combinations
+
+M_SubsysErrorHandle(xError => bSubsysError);
+//M_SubsysWarrningHandle(xWarning => bSubsysWarning);
+M_SubsysWarningHandler();
+//------------------------------------------------------------------------------------------------------
+//------------------------------ Calculate global error flag  ------------------------------------------  
+//------------------------------------------------------------------------------------------------------
+xError := bCoresysError OR bSubsysError;
+xWarning := bSubsysWarning;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SubsysErrorHandle" Id="{9cc41f94-e4dd-42db-9723-9d05a5ebbe2f}" FolderPath="Module\">
+      <Declaration><![CDATA[METHOD M_SubsysErrorHandle
+VAR_INPUT
+END_VAR
+VAR
+	udiLoop : UDINT;
+END_VAR
+VAR_OUTPUT
+	xError : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bMachineCtrlInitDOne THEN
+	FOR udiLoop := 1 TO cudiXTS_MaxIndex DO
+		IF arAlarmHandleValid[udiLoop] = E_AlarmHandleValid.Valid THEN
+			arFB_SubsysErrorScan[udiLoop](xSubPMLa := PackTags.arrSubSys_Station^[udiLoop].Admin,
+										xUnitName := CONCAT('ST', UDINT_TO_STRING(udiLoop)),
+										xUnitID := UDINT_TO_DINT(udiLoop));
+		END_IF
+	END_FOR
+END_IF
+
+bST01_Alarm := (arFB_SubsysErrorScan[1].uiCurrentAlarmsCount > 0);
+bST03_Alarm := (arFB_SubsysErrorScan[3].uiCurrentAlarmsCount > 0);
+bST06_Alarm := (arFB_SubsysErrorScan[6].uiCurrentAlarmsCount > 0);
+bST10_Alarm := (arFB_SubsysErrorScan[10].uiCurrentAlarmsCount > 0);
+bST12_Alarm := (arFB_SubsysErrorScan[12].uiCurrentAlarmsCount > 0);
+bST14_Alarm := (arFB_SubsysErrorScan[14].uiCurrentAlarmsCount > 0);
+bST15_Alarm := (arFB_SubsysErrorScan[15].uiCurrentAlarmsCount > 0);
+bST17_Alarm := (arFB_SubsysErrorScan[17].uiCurrentAlarmsCount > 0);
+bST18_Alarm := (arFB_SubsysErrorScan[18].uiCurrentAlarmsCount > 0);
+bST20_Alarm := (arFB_SubsysErrorScan[20].uiCurrentAlarmsCount > 0);
+bST22_Alarm := (arFB_SubsysErrorScan[22].uiCurrentAlarmsCount > 0);
+bST23_Alarm := (arFB_SubsysErrorScan[23].uiCurrentAlarmsCount > 0);
+bST25_Alarm := (arFB_SubsysErrorScan[25].uiCurrentAlarmsCount > 0);
+bST27_Alarm := (arFB_SubsysErrorScan[27].uiCurrentAlarmsCount > 0);
+bST30_Alarm := (arFB_SubsysErrorScan[30].uiCurrentAlarmsCount > 0);
+
+xError := bST01_Alarm
+	OR bST03_Alarm
+	OR bST06_Alarm
+	OR bST10_Alarm
+	OR bST12_Alarm
+	OR bST14_Alarm
+	OR bST15_Alarm
+	OR bST17_Alarm
+	OR bST18_Alarm
+	OR bST20_Alarm
+	OR bST22_Alarm
+	OR bST23_Alarm
+	OR bST25_Alarm
+	OR bST27_Alarm
+	OR bST30_Alarm;
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SubsysWarningHandler" Id="{c63cf90d-a285-4d97-96ed-34d07f8b23e8}" FolderPath="Module\">
+      <Declaration><![CDATA[METHOD M_SubsysWarningHandler
+VAR_INPUT
+END_VAR
+
+VAR
+	udiLoop: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bMachineCtrlInitDOne THEN
+	FOR udiLoop := 1 TO cudiXTS_MaxIndex DO
+		arrUnitsWarningHandler[udiLoop]();
+		IF arAlarmHandleValid[udiLoop] = E_AlarmHandleValid.Valid THEN
+			I_UnitsWarningHandler[udiLoop] := arrUnitsWarningHandler[udiLoop];
+			I_UnitsWarningHandler[udiLoop].SetUnitWarningList := (PackTags.arrSubSys_Station^[udiLoop].Admin.Warning );
+			I_UnitsWarningHandler[udiLoop].SetUnitID := UDINT_TO_DINT(udiLoop);
+			I_UnitsWarningHandler[udiLoop].SetUnitName := CONCAT('ST', UDINT_TO_STRING(udiLoop));
+		END_IF
+	END_FOR
+	bSubsysWarning := FALSE;
+	FOR udiLoop := 1 TO cudiXTS_MaxIndex DO
+		IF arAlarmHandleValid[udiLoop] = E_AlarmHandleValid.Valid THEN
+			IF  I_UnitsWarningHandler[udiLoop].GetWarningStatus THEN
+				bSubsysWarning := TRUE;
+			END_IF
+		END_IF
+	END_FOR
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SubsysWarrningHandle" Id="{0af05b86-df3f-44bb-85ce-b73892f5a7a6}">
+      <Declaration><![CDATA[METHOD M_SubsysWarrningHandle
+VAR_INPUT
+END_VAR
+
+VAR
+	udiLoop : UDINT;
+END_VAR
+VAR_INST
+	bST30_EmphtyCheck_NG1 : BOOL;
+	bST30_EmphtyCheck_NG2 : BOOL;
+	bST30_EmphtyCheck_NG3 : BOOL;
+	bST30_EmphtyCheck_NG4 : BOOL;
+END_VAR
+VAR_OUTPUT
+	xWarning : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bMachineCtrlInitDOne THEN
+//	FOR udiLoop := 1 TO cudiXTS_MaxIndex DO
+//		IF arAlarmHandleValid[udiLoop] = E_AlarmHandleValid.Valid THEN
+//			arFB_WarrningHandler[udiLoop](xSubPMLa := PackTags.arrSubSys_Station^[udiLoop].Admin,
+//											xUnitName := CONCAT('ST', UDINT_TO_STRING(udiLoop)),
+//											xUnitID := UDINT_TO_DINT(udiLoop));
+//		END_IF
+//	END_FOR
+END_IF
+
+bST30_EmphtyCheck_NG1 := FUN_ObserverWarning(xErrorID := 200, xUnitID := 30);
+bST30_EmphtyCheck_NG2 := FUN_ObserverWarning(xErrorID := 201, xUnitID := 30);
+bST30_EmphtyCheck_NG3 := FUN_ObserverWarning(xErrorID := 202, xUnitID := 30);
+bST30_EmphtyCheck_NG4 := FUN_ObserverWarning(xErrorID := 203, xUnitID := 30);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_UploadData" Id="{55d46ed3-adae-41a7-b7c9-e56b18e72956}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_UploadData
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_UploadTriggerData();
+M_UploadResetData();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_UploadResetData" Id="{1e8c3aa1-bef0-4026-a582-da79a3f48a12}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_UploadResetData : BOOL
+VAR_INPUT
+END_VAR
+VAR_INST
+	iStep : INT;
+	stAlarm	: ST_Alarm_WString;
+	stAlarmInf_DB: ST_AlarmInfo_DB;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iStep OF
+	0:
+		IF 			fbAlarmResetList.udiGetQueuedAmount <> 0 // Queue裡面有資料
+		AND_THEN 	fbAlarmResetList.readElementbyIndex(udiIndex := 1,	pbtReadElement := ADR(stAlarm),	udiReadSize := SIZEOF(stAlarm),	uiErrorID =>) THEN
+			
+			iStep := iStep + 100;
+		END_IF
+	
+	100:
+		stAlarmInf_DB.diMsgNumber := stAlarm.ID;
+		stAlarmInf_DB.iMsgClass := stAlarm.eMsgClass;
+		stAlarmInf_DB.iMsgProc := 1;
+		stAlarmInf_DB.iStateAfter := 0;
+		stAlarmInf_DB.sPLC := 'CoreSystem';
+		stAlarmInf_DB.sTimeString := FUN_DateTime_To_TMaxString(DateTime := stAlarm.ackDateTime);
+		stAlarmInf_DB.wsMsgText := stAlarm.Message;
+		
+		IF NOT Global_DataFlow.bDataFlowTestByLeo THEN
+			IF FB_DataUpload.M_AddAlarmHistory(stAlarmInfo := stAlarmInf_DB) THEN
+				iStep := iStep + 100;
+			END_IF
+		ELSE
+			(* Add alarm history to database *)
+//			IF Global_DataFlow.fbDataBaseManagement.M_Add_AlarmHistory(addData := stAlarmInf_DB) THEN
+//				iStep := iStep + 100;
+//			END_IF
+		END_IF
+	
+	200:
+		IF fbAlarmResetList.dequeueElement(pbtDequeueElement := ADR(stAlarm),
+														udiDequeueSize := SIZEOF(stAlarm),
+														uiErrorID =>)
+			THEN // 清除已經上傳的資料
+			iStep := 0;
+		END_IF
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_UploadTriggerData" Id="{33c1a95f-7f19-4ae6-b970-f7bbba125654}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_UploadTriggerData : BOOL
+VAR_INPUT
+END_VAR
+VAR_INST
+	iStep : INT;
+	stAlarm	: ST_Alarm_WString;
+	stAlarmInf_DB: ST_AlarmInfo_DB;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iStep OF
+	0:
+		IF 			fbAlarmTrigList.udiGetQueuedAmount <> 0 // Queue裡面有資料
+		AND_THEN 	fbAlarmTrigList.readElementbyIndex(udiIndex := 1,	pbtReadElement := ADR(stAlarm),	udiReadSize := SIZEOF(stAlarm),	uiErrorID =>) THEN
+			
+			iStep := iStep + 100;
+		END_IF
+	
+	100:
+		stAlarmInf_DB.diMsgNumber := stAlarm.ID;
+		stAlarmInf_DB.iMsgClass := stAlarm.eMsgClass;
+		stAlarmInf_DB.iMsgProc := 1;
+		stAlarmInf_DB.iStateAfter := 1;
+		stAlarmInf_DB.sPLC := 'CoreSystem';
+		stAlarmInf_DB.sTimeString := FUN_DateTime_To_TMaxString(DateTime := stAlarm.DateTime);
+		stAlarmInf_DB.wsMsgText := stAlarm.Message;
+		
+		IF NOT Global_DataFlow.bDataFlowTestByLeo THEN
+			IF FB_DataUpload.M_AddAlarmHistory(stAlarmInfo := stAlarmInf_DB) THEN
+				iStep := iStep + 100;
+			END_IF
+		ELSE
+			IF Global_DataFlow.fbDataBaseManagement.M_Add_AlarmHistory(addData := stAlarmInf_DB) THEN
+				iStep := iStep + 100;
+			END_IF
+		END_IF
+		
+	200:
+		IF fbAlarmTrigList.dequeueElement(pbtDequeueElement := ADR(stAlarm),
+														udiDequeueSize := SIZEOF(stAlarm),
+														uiErrorID =>)
+			THEN // 清除已經上傳的資料
+			iStep := 0;
+		END_IF
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_XTSErrorHandle" Id="{ec9bdbe6-6d16-4067-801b-78c91de65c88}" FolderPath="Module\">
+      <Declaration><![CDATA[METHOD M_XTSErrorHandle
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FB_XTSErrorHandler(xSubPMLa := PackTags.XTS.Admin, xUnitName := 'XTS', xUnitID := 99,xError=>bXTSError);
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ErrorHandling">
+      <LineId Id="4372" Count="8" />
+      <LineId Id="4387" Count="0" />
+      <LineId Id="4472" Count="24" />
+      <LineId Id="4402" Count="1" />
+      <LineId Id="4466" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.EtherCAT_Diag">
+      <LineId Id="181" Count="53" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.FB_exit">
+      <LineId Id="9" Count="0" />
+      <LineId Id="7" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.GetAbort">
+      <LineId Id="120" Count="17" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.GetHeld">
+      <LineId Id="30" Count="9" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_CoresysErrorHandle">
+      <LineId Id="25" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="49" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_ErrorAction">
+      <LineId Id="101" Count="5" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="112" Count="20" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="171" Count="2" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="165" Count="1" />
+      <LineId Id="133" Count="10" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_EtherCATErrorHandler">
+      <LineId Id="19" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="16" Count="2" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_FindMDSError">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_OneTimeInit">
+      <LineId Id="9" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_Reset">
+      <LineId Id="189" Count="58" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="252" Count="0" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="253" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_ScanError">
+      <LineId Id="65" Count="2" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="92" Count="1" />
+      <LineId Id="69" Count="15" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_SubsysErrorHandle">
+      <LineId Id="228" Count="40" />
+      <LineId Id="210" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_SubsysWarningHandler">
+      <LineId Id="6" Count="18" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_SubsysWarrningHandle">
+      <LineId Id="52" Count="12" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_UploadData">
+      <LineId Id="5" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_UploadResetData">
+      <LineId Id="13" Count="16" />
+      <LineId Id="58" Count="4" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="63" Count="2" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="41" Count="1" />
+      <LineId Id="44" Count="3" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_UploadTriggerData">
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="11" Count="2" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="32" Count="5" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="65" Count="7" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="51" Count="4" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandling.M_XTSErrorHandle">
+      <LineId Id="13" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_HoleIndex_Y" Id="{10c676a5-72f1-4e9d-a38f-ac380e77825b}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE E_HoleIndex_Y :
+(
+    Column1 :=1,
+    Column2,
+    Column3,
+    Column4,
+    Column5
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

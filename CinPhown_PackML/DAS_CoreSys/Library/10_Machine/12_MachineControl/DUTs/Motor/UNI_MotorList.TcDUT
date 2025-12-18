@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="UNI_MotorList" Id="{9df8411c-71d4-4573-974d-8de6c3ba6440}">
+    <Declaration><![CDATA[TYPE
+    UNI_MotorList :
+    UNION
+        arMotor : ARRAY[1..26] OF FB_Motor;
+        List    : ST_MotorList;
+    END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

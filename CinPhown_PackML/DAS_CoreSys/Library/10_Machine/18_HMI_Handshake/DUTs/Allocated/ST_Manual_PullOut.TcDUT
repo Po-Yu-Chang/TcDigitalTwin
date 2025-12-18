@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_PullOut" Id="{2a061b40-f256-45a8-a275-c2ed35b02795}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_PullOut :
+    STRUCT
+        AsidePress1 : ST_SignleValve;
+        AsidePress2 : ST_SignleValve;
+        AsideBlock  : ST_SignleValve;
+        BsidePress1 : ST_SignleValve;
+        BsidePress2 : ST_SignleValve;
+        BsideBlock  : ST_SignleValve;
+        PullOutCV_A : ST_MotorCommand;
+        PullOutCV_B : ST_MotorCommand;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

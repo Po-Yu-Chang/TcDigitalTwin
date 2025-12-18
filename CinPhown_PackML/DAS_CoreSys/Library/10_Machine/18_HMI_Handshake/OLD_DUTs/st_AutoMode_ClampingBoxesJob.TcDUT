@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AutoMode_ClampingBoxesJob" Id="{3fe39d01-bede-45ad-82b6-eac05ba8d4a6}">
+    <Declaration><![CDATA[TYPE st_AutoMode_ClampingBoxesJob :
+STRUCT
+	ClampingInfo			: st_ClampingBoxesInfo;
+	HandShake				: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

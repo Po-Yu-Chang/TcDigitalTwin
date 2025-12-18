@@ -1,0 +1,941 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_AddBoxes_v2" Id="{11e6da6f-01a9-4b4c-b8de-011d03c04171}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AddBoxes_v2 EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+//	UpperBoxRefillDetection		:REFERENCE TO FB_Sensor;
+//	RackPusherCylinder			:REFERENCE TO FB_Cylinder;
+//	RackMotor					:REFERENCE TO FB_RackMotor_V2;
+//	bUpperLayerFeedInConveyor	:REFERENCE TO FB_Motor;
+	Cylinder 	: REFERENCE TO UNI_CylinderList;
+	Motor	 	: REFERENCE TO UNI_MotorList;
+	Input 	 	: REFERENCE TO ST_InputTable;
+	OutPut	 	: REFERENCE TO ST_OutputTable;
+	CurrentData      : ST_SetupPara;
+
+	ERackState	:E_RackState;
+	bClearInterventionRequest : BOOL;
+	_bForceUpperCV_Use		:BOOL;
+END_VAR
+VAR_OUTPUT
+	InterventionRequest	 : BOOL;
+	FeedingBoxes		:BOOL;
+END_VAR
+VAR
+	RackMotorStationTable   : ARRAY[0..9] OF st_StationPositions;
+	uiMaxRackStation :INT :=10;
+//	eState :E_MethodStatus_Basic;
+//	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+//	uiResettingStep : UDINT;
+//	uiAbortingStep : UDINT;
+//	_Executed :BOOL; // Executing process completed.
+//	_Error : BOOL; // FB has an error.
+//	_ResetCompleted : BOOL; // FB resetting completed.
+//	_AbortCompleted : BOOL; // FB aborting completed.	
+
+	tonAddBoxTimeOut	:TON;
+	tonDetectSensor		:TON;
+	tonConveyorTimeOut	:TON;
+	tonFeedInUseAddBoxesDelay :TON;
+	strStatus	:STRING;
+	_Abort		:BOOL;
+	uiResumeStep : UDINT;
+	CurrStation : UINT;
+	bInterventionRequest	 : BOOL;
+	trigClearInterventionRequest : R_TRIG;
+	_bClearInterventionRequestLast :BOOL;
+	ftrigRackStateLeaveFeedBox		:F_Trig;	
+	_UniqueErrorCode : STRING;
+	_RetryCompleted	 : BOOL; // FB Aboted STATE use
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="Private" Id="{2ce1c8cb-b732-4dc9-877e-291d3e9b7568}" />
+    <Folder Name="STATE" Id="{8f45b950-0851-424e-829e-bd5e5f7ff7e1}" />
+    <Action Name="A00_BasicUnits" Id="{1ddad176-be7b-474e-9872-dfb34dcf8407}">
+      <Implementation>
+        <ST><![CDATA[tonAddBoxTimeOut(PT:=T#120S);
+tonDetectSensor(PT:=T#1S);
+tonConveyorTimeOut(PT:=T#5S);
+tonFeedInUseAddBoxesDelay(PT:=T#1S);
+ErrorID := 2700;
+
+InterventionRequest:=bInterventionRequest;
+ftrigRackStateLeaveFeedBox(CLK := (eRackState = E_RackState.FeedBox));
+IF ftrigRackStateLeaveFeedBox.Q THEN
+	bInterventionRequest:=FALSE;
+END_IF
+
+FeedingBoxes := eRackState=E_RackState.FeedBox;
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{794a08ec-bc7b-4c3e-86ee-7581fc56f7b9}">
+      <Declaration><![CDATA[METHOD PRIVATE M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckCommand	:= true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetCurrentStation" Id="{1d173ada-9992-4afb-ba27-8c0f7ef419b8}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GetCurrentStation : BOOL
+VAR
+	i : UINT;
+	SetPos	 :LREAL;
+END_VAR
+
+VAR_OUTPUT
+	uiCurrentStation	:UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//SetPos := THIS^.fbMotor.NcToPlc.SetPos;
+SetPos := arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.NcToPlc.SetPos;
+M_RefreshStationPos();
+//IF  THIS^.fbMotor.Status.Homed THEN
+IF arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Homed THEN
+	FOR i:=0 TO 9 BY 1 DO 
+		IF SetPos> RackMotorStationTable[i].Position-5 AND SetPos< RackMotorStationTable[i].Position+5 THEN // Range should be confirm
+			uiCurrentStation :=i;
+			M_GetCurrentStation :=TRUE;
+			RETURN;
+		END_IF
+	END_FOR
+	
+	uiCurrentStation:=99;
+	M_GetCurrentStation :=FALSE;
+ELSE
+	M_GetCurrentStation :=FALSE;
+	uiCurrentStation:=99;
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_MoveToStation" Id="{1db7facf-a8d7-49ae-8466-74cc522693dc}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_MoveToStation : BOOL
+VAR_INPUT
+	uiStation : UINT;
+END_VAR
+VAR
+	bDone	:BOOL;
+	uiTargetPosition	:LREAL ;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_RefreshStationPos();
+IF uiStation>=0 AND uiStation <10 THEN
+	uiTargetPosition :=RackMotorStationTable[uiStation].Position;
+	
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Acc := CurrentData.Axes.RackMotor.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Dec := CurrentData.Axes.RackMotor.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Jerk := CurrentData.Axes.RackMotor.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Velocity := CurrentData.Axes.RackMotor.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Position := uiTargetPosition;
+	
+//	THIS^.fbMotor.MoveAbs(lrPosition	:=uiTargetPosition,
+//						lrVelocity 		:=GVL.MotorCore[AxisNo.RackMotor].VCC,
+//						lrAcceleration	:=GVL.MotorCore[AxisNo.RackMotor].ACC,
+//						lrDeceleration	:=GVL.MotorCore[AxisNo.RackMotor].DCC,
+//						lrJerk			:=GVL.MotorCore[AxisNo.RackMotor].Jerk,
+//						BufferMode		:=MC_BufferMode.MC_Aborting);
+	//THIS^.fbMotor.GetCmdDoneStatus(bMotionCmdDone=>bDone);
+ELSE
+	M_MoveToStation :=FALSE;
+	RETURN;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RefreshStationPos" Id="{66e89b25-e6a9-40b0-9059-17dee354a26c}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_RefreshStationPos : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	i: UINT;
+	position : ST_PositionTable;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO 9 DO
+	position :=FUN_GetPositionTableData(PositionName:='W',Index:=i,Clip:=0);
+RackMotorStationTable[i].Position:= position.X_Pos;
+END_FOR
+	M_RefreshStationPos :=TRUE;
+
+// todo : update position of each stations
+//FOR i:=1 TO 200 BY 1 DO
+//	FOR iIndex:=0 TO 9 BY 1 DO
+//		IF 		
+//			DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Index= iIndex AND
+//			DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Zone ='W' THEN
+//			RackMotorStationTable[iIndex].Position := DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].X_Pos;
+
+//			StationsPosition[iIndex]:=RackMotorStationTable[i].Position;
+//		ELSE
+//			M_RefreshStationPos :=FALSE;
+//		END_IF
+//	END_FOR
+//END_FOR
+
+
+
+		
+		
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{dcd7990a-1ed2-495a-9291-73fa4c9b25dd}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=TRUE;
+Busy :=FALSE;
+Done := FALSE;
+Status :=strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+uiAbortingStep := 0;
+_AbortCompleted := FALSE;
+
+
+CASE uiExecutingStep OF 
+	
+	100:
+			_RetryCompleted := TRUE;
+			uiExecutingStep := 100;
+			strStatus := 'no error , retrying';
+			
+	210:
+			_RetryCompleted := TRUE;
+			uiExecutingStep := 200;
+			strStatus := 'no error , retrying';
+			
+	300:
+			_RetryCompleted := TRUE;
+			uiExecutingStep := 300;
+			strStatus := 'no error , retrying';
+			
+	500:
+			_RetryCompleted := TRUE;
+			uiExecutingStep := 400;
+			strStatus := 'no error , retrying';
+			
+	610:
+			_RetryCompleted := TRUE;
+			uiExecutingStep := 600;
+			strStatus := 'no error , retrying';
+END_CASE
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset AND _RetryCompleted THEN
+	_Abort := Error := _Error := FALSE;
+	eState:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{36590fd4-2d09-4869-b874-c2a91340f66e}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep of
+	 0:		// 清空參數
+			tonAddBoxTimeOut.IN			 := FALSE;
+			tonDetectSensor.IN			 := FALSE;
+			tonConveyorTimeOut.IN		 := FALSE;
+			tonFeedInUseAddBoxesDelay.IN := FALSE;
+			_RetryCompleted := FALSE;
+			Motor.List.UpCV.M_MotorStop();
+			
+			uiAbortingStep := 100;
+			
+	100:	// 確認軸、氣缸是否有報錯
+			IF  NOT arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Error AND 
+				NOT Cylinder.List.fbStackPush.xError THEN
+				uiAbortingStep := 200;	
+			ELSIF arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Error THEN
+				arAxisCtrl_gb[AxisNo.RackMotor].Admin.ClearError := TRUE;
+			ELSIF Cylinder.List.fbStackPush.xError THEN
+				Cylinder.List.fbStackPush.M_Reset();
+			END_IF
+			IF arAxisCtrl_gb[AxisNo.RackMotor].Admin.ClearError THEN 
+				arAxisCtrl_gb[AxisNo.RackMotor].Admin.ClearError := FALSE;
+			END_IF
+			
+	200:	// 推盒氣缸往後，料架軸
+			Cylinder.List.fbStackPush.M_Retract();
+			arAxisCtrl_gb[AxisNo.RackMotor].Admin._OpMode.en := E_AXIS_MODE.ModeAH;
+			uiAbortingStep:=9999;
+		
+	9999:	
+			_AbortCompleted:=TRUE;
+END_CASE
+
+IF	 _AbortCompleted THEN
+	eSTATE:=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{7c6e3654-21cd-4445-9a61-8278b8fca1cb}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{a18b993d-5ad1-4c28-bd99-ff50ed93afdd}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+VAR
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy    := FALSE;
+Done    := FALSE;
+Aborted := FALSE;
+Error   := FALSE;
+strStatus  := 'No error';
+uiExecutingStep := 0;
+uiResettingStep := 0;
+uiAbortingStep:=0;
+uiResumeStep:=0;
+_ResetCompleted := FALSE;
+_RetryCompleted := FALSE;
+_AbortCompleted := FALSE;
+_Abort := _Executed := _Error:= _ResetCompleted:=_AbortCompleted:=FALSE;
+tonAddBoxTimeOut.IN :=FALSE;
+tonDetectSensor.IN:=FALSE;
+tonFeedInUseAddBoxesDelay.IN :=FALSE;
+_UniqueErrorCode :='0';
+
+IF Execute  THEN 
+	IF eRackState = E_RackState.FeedBox THEN
+		eState:= STATE_ERROR;
+		strStatus :='Rack occupied by user Push FeedButton';
+		
+	ELSIF  Input.bUpCV_ReLoadDetect_Sensor THEN
+		_Executed :=TRUE;
+		eState	:= STATE_Done;
+	ELSE
+		eState := STATE_EXECUTING;
+	END_IF	
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{825819ce-d8db-4ee6-985e-1a9fb2773c13}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error := TRUE;
+Busy :=FALSE;
+Status :=strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+IF NOT Execute THEN
+	eSTATE :=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{e40bf5b3-3683-4773-8d30-8ec485b07448}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	uiTargetStation	: UINT;
+	bMoveConveyor	:BOOL;
+END_VAR
+VAR
+	bMotionDone : BOOL;
+	
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := TRUE; 
+IF NOT _bForceUpperCV_Use THEN
+	IF bMoveConveyor THEN
+		Motor.List.UpCV.M_MoveForward();	
+//	ELSE		
+//		Motor.List.UpCV.M_MotorStop();	
+	END_IF
+END_IF
+CASE uiExecutingStep OF			
+	
+	0:	//check command
+		tonAddBoxTimeOut.IN:=FALSE;
+		tonFeedInUseAddBoxesDelay.IN :=TRUE;
+		
+		IF M_CheckCommand() THEN
+			IF tonFeedInUseAddBoxesDelay.Q THEN
+				tonFeedInUseAddBoxesDelay.IN :=FALSE;
+				uiExecutingStep	:= 10 ;
+			END_IF
+		ELSE
+			strStatus := 'Wrong command, check the command setting';
+			_Error := TRUE;
+		END_IF
+	10:
+		IF 	NOT	Motor.List.UpCV.InBackWard THEN
+			uiExecutingStep	:= 100 ;
+		END_IF
+		//todo : Add timeout
+		
+ 	100:	//release cylinder, check rackmotor currentStation
+		tonAddBoxTimeOut.IN:=TRUE;
+		tonDetectSensor.IN:=FALSE;
+		Cylinder.List.fbStackPush.M_Retract();
+		M_GetCurrentStation(uiCurrentStation =>CurrStation);
+		
+		IF	Cylinder.List.fbStackPush.InRearPosition THEN
+			 CASE CurrStation OF
+				0 ,99 :
+					uiTargetStation:=1;				
+				1,2,3,4,5,6,7,8,9 :
+					uiTargetStation :=CurrStation;	
+				ELSE // Error
+					strStatus := 'Station get Error';
+                    _Abort := TRUE;
+			 END_CASE
+			 
+			 IF NOT _Abort THEN
+                tonAddBoxTimeOut.IN := FALSE;
+                uiExecutingStep := 200;
+             END_IF
+		END_IF
+		
+		IF tonAddBoxTimeOut.Q THEN
+			strStatus := 'RackPusher move back timeout';
+			uiResumeStep:=100;
+            _Abort := TRUE;
+		END_IF
+		
+	200:	//check rackmotor station 
+		tonDetectSensor.IN :=FALSE;
+		IF uiTargetStation<10 THEN
+			M_MoveToStation(uiTargetStation);
+			uiExecutingStep := 210;	
+		ELSE
+			uiExecutingStep := 500;	
+		END_IF
+		
+	
+	210:
+		tonAddBoxTimeOut.IN:=TRUE;
+		bMotionDone:= arAxisStatus_gb[AxisNo.RackMotor].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.RackMotor].Admin.CmdDone;
+	//	RackMotor.fbMotor.GetCmdDoneStatus(bMotionCmdDone=>bMotionDone);
+		M_GetCurrentStation(uiCurrentStation =>CurrStation);
+	//CurrStation:= RackMotor.P_CurrentStattion;
+		IF bMotionDone AND uiTargetStation = CurrStation THEN
+			tonAddBoxTimeOut.IN:=FALSE;
+			uiExecutingStep := 300;	
+		END_IF
+		IF tonAddBoxTimeOut.Q THEN
+			strStatus := 'Rackmotor moving timeout';
+            _Abort := TRUE;
+		END_IF
+		
+	300:	//Cylinder moveforward
+		tonAddBoxTimeOut.IN:=TRUE;
+		Cylinder.List.fbStackPush.M_Extend();
+		//bUpperLayerFeedInConveyor.M_ForwardMotor('');
+		bMoveConveyor :=TRUE; //Move conveyor motor forward
+		IF  Motor.List.UpCV.InForWard THEN	// make sure upperCV release force use
+			IF Cylinder.List.fbStackPush.InFrontPosition THEN
+				tonAddBoxTimeOut.IN:=FALSE;
+				uiExecutingStep := 400;
+			END_IF
+		END_IF
+		IF tonAddBoxTimeOut.Q THEN
+			strStatus := 'RackPusher move forward timeout';
+			uiResumeStep:=300;
+            _Abort := TRUE;
+		END_IF
+		
+	400:	//check refillsensor have refill
+		tonDetectSensor.IN:= NOT Input.bUpCV_ReLoadDetect_Sensor;
+		Cylinder.List.fbStackPush.M_Retract();
+		IF Cylinder.List.fbStackPush.InRearPosition THEN
+			IF Input.bUpCV_ReLoadDetect_Sensor THEN
+				uiExecutingStep :=500;
+			ELSIF tonDetectSensor.Q THEN
+				uiTargetStation := CurrStation+1;		
+				uiExecutingStep :=200;
+			END_IF
+		END_IF
+		
+	500:	//確認氣缸是否在後，Done
+		tonAddBoxTimeOut.IN:=TRUE;
+			//bUpperLayerFeedInConveyor.M_StopMotor(''); 
+			//bMoveConveyor :=FALSE;// Stop Conveyor
+			tonAddBoxTimeOut.IN:=FALSE;
+			IF uiTargetStation>=9 THEN
+				uiExecutingStep :=600;
+			ELSE
+				bMoveConveyor :=FALSE;
+				Motor.List.UpCV.M_MotorStop();	
+				uiExecutingStep :=1000;
+			END_IF
+		
+		
+		IF tonAddBoxTimeOut.Q THEN
+			strStatus := 'RackPusher move back timeout';
+			uiResumeStep:=400;
+            _Abort := TRUE;
+		END_IF
+	600:
+		tonAddBoxTimeOut.IN:=FALSE	;
+		 M_MoveToStation(0);
+		 uiExecutingStep:=610;
+		 
+	610:	
+		M_GetCurrentStation(uiCurrentStation =>CurrStation);
+		tonAddBoxTimeOut.IN:=TRUE;
+		bMotionDone:=arAxisStatus_gb[AxisNo.RackMotor].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.RackMotor].Admin.CmdDone;
+		IF bMotionDone AND 0 = CurrStation THEN
+			bInterventionRequest	 :=TRUE;
+			tonAddBoxTimeOut.IN:=FALSE	;
+			bMoveConveyor :=FALSE;
+			Motor.List.UpCV.M_MotorStop();	
+			uiExecutingStep:=1000;
+		END_IF
+ 		IF tonAddBoxTimeOut.Q THEN
+			strStatus := 'RackPusher move back timeout';
+			uiResumeStep:=400;
+            _Abort := TRUE;
+		END_IF
+	1000:
+		bMoveConveyor :=FALSE;// Stop Conveyor
+		uiExecutingStep:=1100;
+		
+	1100:		
+		_Executed := TRUE;
+	
+		
+//		strStatus := 'Rack is empty';
+//		_Error :=TRUE;
+	
+	
+END_CASE
+
+IF NOT Execute THEN
+	eSTATE :=STATE_RESETTING;
+END_IF
+IF _Executed THEN
+	eSTATE := STATE_DONE;
+END_IF
+IF _Error THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eSTATE:=STATE_ERROR;
+END_IF
+IF _Abort OR Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eSTATE:=STATE_ABORTING;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{108c1015-4a2d-4b34-afec-62c31b4087fa}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+
+VAR
+	bMotionDone : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiResettingStep OF
+	0:
+		tonAddBoxTimeOut.IN:=FALSE;		
+		tonDetectSensor.IN:=FALSE;
+		Cylinder.List.fbStackPush.M_Retract();
+
+		IF Cylinder.List.fbStackPush.InRearPosition THEN
+		uiResettingStep :=100;
+		END_IF
+		
+	100:
+		arAxisCtrl_gb[AxisNo.RackMotor].Admin._OpMode.en := E_AXIS_MODE.ModeAH;
+		//RackMotor.fbMotor.Stop(0,0);
+		//RackMotor.fbMotor.GetCmdDoneStatus(bMotionCmdDone=>bMotionDone);
+		Motor.List.UpCV.M_MotorStop();
+		uiResettingStep := 200;
+
+		
+	200:
+		 Error :=false;
+		_ResetCompleted := TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+	eState := STATE_DORMANT;
+END_IF
+	
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_AddBoxes_v2">
+      <LineId Id="22" Count="0" />
+      <LineId Id="47" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.A00_BasicUnits">
+      <LineId Id="6" Count="2" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="19" Count="3" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_CheckCommand">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_GetCurrentStation">
+      <LineId Id="6" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="7" Count="1" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="12" Count="4" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_MoveToStation">
+      <LineId Id="37" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="48" Count="3" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="24" Count="5" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_RefreshStationPos">
+      <LineId Id="92" Count="3" />
+      <LineId Id="90" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="79" Count="4" />
+      <LineId Id="85" Count="2" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="58" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_STATE_ABORTED">
+      <LineId Id="21" Count="2" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="40" Count="1" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="44" Count="3" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="48" Count="1" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="43" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="61" Count="2" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="67" Count="2" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="57" Count="3" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="43" Count="1" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_STATE_DONE">
+      <LineId Id="6" Count="1" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_STATE_DORMANT">
+      <LineId Id="9" Count="3" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="119" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="97" Count="2" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="101" Count="2" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_STATE_ERROR">
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_STATE_EXECUTING">
+      <LineId Id="22" Count="0" />
+      <LineId Id="350" Count="0" />
+      <LineId Id="228" Count="1" />
+      <LineId Id="231" Count="1" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="537" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="363" Count="0" />
+      <LineId Id="518" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="367" Count="1" />
+      <LineId Id="370" Count="0" />
+      <LineId Id="369" Count="0" />
+      <LineId Id="39" Count="2" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="365" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="444" Count="3" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="143" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="259" Count="0" />
+      <LineId Id="245" Count="2" />
+      <LineId Id="252" Count="0" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="256" Count="0" />
+      <LineId Id="505" Count="0" />
+      <LineId Id="519" Count="0" />
+      <LineId Id="248" Count="0" />
+      <LineId Id="520" Count="0" />
+      <LineId Id="522" Count="2" />
+      <LineId Id="521" Count="0" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="120" Count="1" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="487" Count="0" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="261" Count="0" />
+      <LineId Id="263" Count="0" />
+      <LineId Id="262" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="474" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="130" Count="2" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="383" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="134" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="234" Count="0" />
+      <LineId Id="488" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="489" Count="0" />
+      <LineId Id="137" Count="3" />
+      <LineId Id="136" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="141" Count="0" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="429" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="208" Count="0" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="215" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="102" Count="1" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="267" Count="2" />
+      <LineId Id="333" Count="0" />
+      <LineId Id="502" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="270" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="148" Count="3" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="264" Count="0" />
+      <LineId Id="282" Count="0" />
+      <LineId Id="271" Count="0" />
+      <LineId Id="266" Count="0" />
+      <LineId Id="289" Count="0" />
+      <LineId Id="272" Count="0" />
+      <LineId Id="288" Count="0" />
+      <LineId Id="283" Count="0" />
+      <LineId Id="273" Count="0" />
+      <LineId Id="275" Count="0" />
+      <LineId Id="416" Count="0" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="334" Count="0" />
+      <LineId Id="503" Count="0" />
+      <LineId Id="274" Count="0" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="278" Count="3" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="209" Count="0" />
+      <LineId Id="216" Count="0" />
+      <LineId Id="320" Count="0" />
+      <LineId Id="390" Count="0" />
+      <LineId Id="318" Count="0" />
+      <LineId Id="389" Count="0" />
+      <LineId Id="385" Count="0" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="210" Count="0" />
+      <LineId Id="213" Count="0" />
+      <LineId Id="211" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="160" Count="1" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="155" Count="1" />
+      <LineId Id="162" Count="1" />
+      <LineId Id="460" Count="0" />
+      <LineId Id="164" Count="2" />
+      <LineId Id="461" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="157" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AddBoxes_v2.M_STATE_RESETTING">
+      <LineId Id="5" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="28" Count="3" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="9" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

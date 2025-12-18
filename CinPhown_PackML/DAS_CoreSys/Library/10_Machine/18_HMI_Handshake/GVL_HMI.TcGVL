@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="GVL_HMI" Id="{bb22d655-0986-4f43-b809-14788facb945}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	OpMode : E_UnitMode; // Only Manual and Auto
+    Allocated : ST_HMI_AllocateArea;
+    Storage   : ST_HMI_StorageArea;
+    Shipping  : ST_HMI_ShippingArea;
+    IOMonitor : ST_HMI_IOMonitor;
+    Setup     : ST_SetupPara;
+    Status    : ST_HMI_MachineStatus;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

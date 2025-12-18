@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_DetectDiameterInfo" Id="{f0ac0559-3613-40b6-a0a2-5d764e4af285}">
+    <Declaration><![CDATA[TYPE ST_DetectDiameterInfo :
+STRUCT
+	ClampA_Used : BOOL;
+	ClampB_Used : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

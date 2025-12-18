@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<TcLicenseInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2011/11/TcLicenseInfo">
+	<TargetInfo>
+		<TcTargetDesc>
+			<TargetType>PC-WIN 10.0</TargetType>
+			<TargetVersion>
+				<Version>3</Version>
+				<Revision>1</Revision>
+				<Build>4024</Build>
+			</TargetVersion>
+			<TargetFeatures>
+				<Level>CP</Level>
+				<NetId>169.254.53.69.1.1</NetId>
+			</TargetFeatures>
+			<Hardware>
+				<Model/>
+				<SerialNo/>
+				<CPUVersion>0.0</CPUVersion>
+				<Date>0.0.00</Date>
+				<CPUArchitecture>0</CPUArchitecture>
+			</Hardware>
+			<OsImage>
+				<ImageDevice/>
+				<ImageVersion/>
+				<ImageLevel/>
+				<OsName>Windows 10 Enterprise</OsName>
+				<OsVersion>10.0</OsVersion>
+			</OsImage>
+		</TcTargetDesc>
+	</TargetInfo>
+	<LicenseInfo>
+		<SystemId Level="92">{A256EF43-CAE9-4BE9-1D91-FE9B75471B24}</SystemId>
+		<PurchaseOrder><![CDATA[123566]]></PurchaseOrder>
+		<IssueTime>2025-07-02T10:51:00</IssueTime>
+		<License>
+			<LicenseId>{66689887-CCBD-452C-AC9A-039D997C6E66}</LicenseId>
+			<Name>TC3 PLC</Name>
+			<OrderNo>TC1200</OrderNo>
+		</License>
+		<License>
+			<LicenseId>{520DE751-9DB6-47CB-8240-BD5C466E7E64}</LicenseId>
+			<Name>TC3 NC PTP</Name>
+			<OrderNo>TF5000</OrderNo>
+		</License>
+		<License>
+			<LicenseId>{A1AF8A04-C08D-4853-A5A0-0E6C3A278A8C}</LicenseId>
+			<Name>TC3 Modbus-RTU</Name>
+			<OrderNo>TF6255</OrderNo>
+		</License>
+		<License>
+			<LicenseId>{BCA6EE0A-9CE1-4D3F-98CA-413ABC0D94FD}</LicenseId>
+			<Name>TC3 Serial-Communication</Name>
+			<OrderNo>TF6340</OrderNo>
+		</License>
+		<License>
+			<LicenseId>{FBEA583E-F05B-406A-BD9F-2BFA59244888}</LicenseId>
+			<Name>TC3 NC Flying Saw</Name>
+			<OrderNo>TF5055</OrderNo>
+		</License>
+		<License>
+			<LicenseId>{6C4B2C28-7A9E-41AD-B5FE-6D61422A73D6}</LicenseId>
+			<Name>TC3 NC Camming</Name>
+			<OrderNo>TF5050</OrderNo>
+		</License>
+	</LicenseInfo>
+</TcLicenseInfo>

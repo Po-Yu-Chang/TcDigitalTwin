@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_FeedInAction" Id="{0a7540e9-0d80-48bb-9635-00f310dd655b}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_FeedInAction :
+(
+	Undefined := 0,
+	ClampA_WareHouseA,
+	ClampA_WareHouseB,
+	ClampA_PullOutConveyor,
+	ClampB_WareHouseA,
+	ClampB_WareHouseB,
+	ClampB_PullOutConveyor,
+	A_PullOut_B_WareHouseA,
+	A_PullOut_B_WareHouseB,
+	A_PullOut_B_PullOut,
+	A_WareHouseA_B_WareHouseA,
+	A_WareHouseA_B_WareHouseB,
+	A_WareHouseA_B_PullOut,
+	A_WareHouseB_B_WareHouseA,
+	A_WareHouseB_B_WareHouseB,
+	A_WareHouseB_B_PullOut
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

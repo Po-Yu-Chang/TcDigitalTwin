@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_Allocated" Id="{1d8017de-800a-4470-8d32-c95047e9e9a7}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_Allocated :
+    STRUCT
+        OutRobot       : ST_Manual_OutRobot;       // Allocated out robot manual control
+        AllocatedRobot : ST_Manual_AllocatedRobot; // Allocated allocated robot manual control
+        RoundBelt      : ST_Manual_RoundBelt;      // Allocated round belt manual control
+        TurnTable      : ST_Manual_TurnTable;      // Allocated turn table manual control
+        PullOutCV      : ST_Manual_PullOut;        // Allocated pullout conveyor manual control
+        TransCV        : ST_Manual_TransCV;        // Allocated transmit conveyor manual control
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

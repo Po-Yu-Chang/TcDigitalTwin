@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SetupAxis" Id="{aaadc2da-6143-4c6b-ba64-3f87b05f6d34}">
+    <Declaration><![CDATA[TYPE
+    ST_SetupAxis :
+    STRUCT
+        TurnTable  : ST_AxisPara; // Setup TurnTable Axis parameter, in DAS_CoreSys
+        RoundBelt  : ST_AxisPara; // Setup RoundBelt Axis parameter, in DAS_CoreSys
+        OutRobot_X : ST_AxisPara; // Setup OutRobot_X Axis parameter, in DAS_CoreSys
+        OutRobot_Y : ST_AxisPara; // Setup OutRobot_Y Axis parameter, in DAS_CoreSys
+        Allocate_X : ST_AxisPara; // Setup Allocate_X Axis parameter, in DAS_CoreSys
+        Allocate_Y : ST_AxisPara; // Setup Allocate_Y Axis parameter, in DAS_CoreSys
+		RackMotor  : ST_AxisPara; // Setup RackMotor  Axis parameter, in DAS_CoreSys
+    END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

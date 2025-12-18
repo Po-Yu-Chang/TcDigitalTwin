@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AutoSixAxisAbsMoveParameter" Id="{7494454d-79f3-489a-8fc8-ceb24e46caf5}">
+    <Declaration><![CDATA[TYPE st_AutoSixAxisAbsMoveParameter :
+STRUCT
+	A_Area:LREAL;
+	B_Area:LREAL;
+	A_Position:LREAL;
+	B_Position:LREAL;
+	A_Get:BOOL;
+	B_Get:BOOL;
+	AClampMoveDone	: BOOL;
+	BClampMoveDone	: BOOL;
+	(*Excute:BOOL;
+	Done  :BOOL;
+	Busy  : BOOL;
+	Occupied : BOOL;
+	Error : BOOL;	*)
+	HandShake				: st_HandshakeBase;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

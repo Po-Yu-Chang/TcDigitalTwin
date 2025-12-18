@@ -1,0 +1,437 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_LowerFeedInConveyor" Id="{5557469c-d97a-40d7-bb66-ecb3bf04945c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LowerFeedInConveyor EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute    : BOOL;
+    xAbort      : BOOL;
+	xReset		: BOOL;
+    Cylinder 	: REFERENCE TO UNI_CylinderList;
+    TimeOut  	: LREAL := 30; // Unit : s
+	Input		: ST_InputTable;
+	OutPut		: ST_OutputTable;
+	Motor		: REFERENCE TO UNI_MotorList;
+END_VAR	
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : T_MaxString;
+END_VAR
+VAR
+    StateBehaviour   : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+	uiCyclicStep    : UINT := 0;
+	Reset_Rtrig 	:R_TRIG;
+	
+	TON_SensorDelay :TON;
+	TON_ArrivedTimeOut :TON;
+	TON_TimeOut :TON;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+StateBehaviour(xExecute := xExecute,
+              xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);
+//Error Mes
+iErrorID := StateBehaviour._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);  
+
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);
+
+//Reset 
+Reset_Rtrig(CLK:= xReset);
+IF Reset_Rtrig.Q THEN
+	StateBehaviour.ResetModel(xCommit:=xReset);
+END_IF
+
+//Action
+A00_BaseUnits();]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{f5856412-dfb9-4fb4-b243-7971692074bb}" />
+    <Action Name="A00_BaseUnits" Id="{434e8967-4fd8-4058-924a-a11daddc7b45}">
+      <Implementation>
+        <ST><![CDATA[TON_SensorDelay(PT:= T#500MS);
+TON_ArrivedTimeOut(PT:=T#30S);
+TON_TimeOut(PT:=T#10S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="CleanupAction" Id="{3ec3a4b0-0d7f-4322-b10b-b786adcf1a42}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{f1645a9f-a0da-4f2c-bba8-1031ddfe8693}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete :=FALSE;
+
+CASE uiCyclicStep OF 
+	
+	100:	//檔盒上升， 呼叫輸送帶
+		TON_TimeOut.IN:= TRUE;
+		Cylinder.List.fbLowCV_Block2.M_Extend();
+		IF Cylinder.List.fbLowCV_Block2.InFrontPosition THEN
+			TON_TimeOut.IN:=FALSE;
+			Motor.List.LowCV.M_MoveForward();
+			uiCyclicStep:=150;
+		END_IF
+		IF TON_TimeOut.Q THEN 
+			iErrorID :=10;
+		END_IF
+	150:	//check motor forward
+		TON_TimeOut.IN :=TRUE;
+		IF Motor.List.LowCV.InForWard THEN 
+			TON_TimeOut.IN:=FALSE;
+			uiCyclicStep:=200;
+		END_IF
+		IF TON_TimeOut.Q THEN
+			iErrorID :=11;
+		END_IF
+	
+	200:	//盒子到位, 延遲訊號,
+		TON_ArrivedTimeOut.IN:= TRUE;
+		TON_SensorDelay.IN := Input.bLowCV_Block2Detect_Sensor;
+		IF TON_SensorDelay.Q THEN
+			TON_SensorDelay.IN:=FALSE;
+			TON_ArrivedTimeOut.IN:=FALSE;
+			Cylinder.List.fbLowCV_Press4.M_Extend();
+			uiCyclicStep:=300;
+		END_IF
+		IF TON_ArrivedTimeOut.Q THEN
+			iErrorID :=9;
+		END_IF
+		
+	300:	//檔盒下 等待第一盒到達最前sensor
+		TON_TimeOut.IN:=TRUE;
+		IF Cylinder.List.fbLowCV_Press4.InFrontPosition THEN
+			Cylinder.List.fbLowCV_Block2.M_Retract();
+		END_IF
+		IF Cylinder.List.fbLowCV_Block2.InRearPosition THEN
+			TON_TimeOut.IN:=FALSE;
+			uiCyclicStep:=400;	
+		END_IF
+		IF TON_TimeOut.Q THEN
+			iErrorID :=11;
+		END_IF
+		
+	400:	//確認到最前sensor 
+		TON_SensorDelay.IN:=Input.bLowCV_BoxArrived_Sensor;
+		IF TON_SensorDelay.Q THEN
+			TON_SensorDelay.IN:=FALSE;
+			Cylinder.List.fbLowCV_Block2.M_Extend();
+			uiCyclicStep:=500;
+		END_IF
+	
+	500:	//釋放第二盒 
+		IF 	Cylinder.List.fbLowCV_Block2.InFrontPosition THEN
+			Cylinder.List.fbLowCV_Press4.M_Retract();
+			uiCyclicStep:=600;
+		END_IF
+	600:	// 第二盒到檔盒位 第三盒壓盒檔上
+		TON_SensorDelay.IN:= Input.bLowCV_Block2Detect_Sensor;
+		IF TON_SensorDelay.Q THEN
+			TON_SensorDelay.IN :=FALSE;
+			Cylinder.List.fbLowCV_Press4.M_Extend();
+			uiCyclicStep:= 700;
+		END_IF
+	
+	700:	//釋放第二盒
+		IF Cylinder.List.fbLowCV_Press4.InFrontPosition THEN
+			Cylinder.List.fbLowCV_Block2.M_Retract();
+			Cylinder.List.fbLowCV_Block1.M_Extend();
+		END_IF
+		IF Cylinder.List.fbLowCV_Block2.InRearPosition AND 
+			Cylinder.List.fbLowCV_Block1.InFrontPosition THEN
+			uiCyclicStep:= 800;
+		END_IF
+		
+	800:	// 等待第二盒到夾盒位
+		TON_SensorDelay.IN:=Input.bLowCV_Block1Detect_Sensor;
+		IF TON_SensorDelay.Q THEN
+			TON_SensorDelay.IN:=FALSE;
+			Motor.List.LowCV.M_MotorStop();
+			uiCyclicStep:=900;
+		END_IF
+	900:	//馬達停止 第一第二盒壓盒上
+		IF Motor.List.LowCV.InStopped THEN
+			Cylinder.List.fbLowCV_Press1.M_Extend();
+			Cylinder.List.fbLowCV_Press2.M_Extend();
+			Cylinder.List.fbLowCV_Block1.M_Retract();
+			uiCyclicStep :=1000;
+		END_IF
+	1000:	//壓盒下
+		IF Cylinder.List.fbLowCV_Press1.InFrontPosition AND 
+			Cylinder.List.fbLowCV_Press2.InFrontPosition AND 
+			Cylinder.List.fbLowCV_Block1.InRearPosition THEN
+			Cylinder.List.fbLowCV_Press1.M_Retract();
+			Cylinder.List.fbLowCV_Press2.M_Retract();
+		END_IF
+	1100:	//確認壓盒位置 回done
+		IF Cylinder.List.fbLowCV_Press1.InRearPosition AND 
+			Cylinder.List.fbLowCV_Press2.InRearPosition THEN 
+			xComplete :=TRUE;
+		END_IF
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{d057ae92-e162-415f-951a-6900793738e9}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TON_SensorDelay.IN:=FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{e76159c4-33a5-4234-a15a-b5dc4c12c867}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	0:
+		M_GetErrorMsg := 'No Error';
+	1:
+		M_GetErrorMsg := 'Action time out';
+	2:
+		M_GetErrorMsg := 'Position Data invalid';
+	3:
+		M_GetErrorMsg := 'LowCV_Block1 has Error in StartAction ';
+	4:
+		M_GetErrorMsg := 'LowCV_Block2 has Error in StartAction';
+	5:
+		M_GetErrorMsg := 'LowCV_Press1 has Error in StartAction';
+	6:
+		M_GetErrorMsg := 'LowCV_Press2 has Error in StartAction';
+	7:
+		M_GetErrorMsg := 'fbLowCV_Press3 has Error in StartAction';
+	8:
+		M_GetErrorMsg := 'fbLowCV_Press4 has Error in StartAction';
+	9:
+		M_GetErrorMsg := 'Box Arrived Time out not on LowCVBlock2' ;
+	10:
+		M_GetErrorMsg := 'Cylinder Error in CyclicAction';
+	11:
+		M_GetErrorMsg := 'Motor Error in CyclicAction';
+									
+		
+		
+		
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{99fe9777-c7c6-45ea-a666-49c22fa3e079}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{3869020d-6432-4cf6-ac84-2285162f0a11}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete :=FALSE;
+
+TON_SensorDelay.IN:=FALSE;
+
+IF Cylinder.List.fbLowCV_Block1.xError THEN
+	iErrorID := 3;
+END_IF
+IF Cylinder.List.fbLowCV_Block2.xError THEN
+	iErrorID := 4;
+END_IF
+IF Cylinder.List.fbLowCV_Press1.xError THEN
+	iErrorID := 5;
+END_IF
+IF Cylinder.List.fbLowCV_Press2.xError THEN
+	iErrorID := 6;
+END_IF
+IF Cylinder.List.fbLowCV_Press3.xError THEN
+	iErrorID := 7;
+END_IF
+IF Cylinder.List.fbLowCV_Press4.xError THEN
+	iErrorID := 8;
+END_IF
+
+IF Cylinder.List.fbLowCV_Block1.InRearPosition AND
+	Cylinder.List.fbLowCV_Block2.InRearPosition AND 
+	Cylinder.List.fbLowCV_Press1.InRearPosition AND 
+	Cylinder.List.fbLowCV_Press2.InRearPosition AND 
+	Cylinder.List.fbLowCV_Press3.InRearPosition AND 
+	Cylinder.List.fbLowCV_Press4.InRearPosition AND 
+	Input.bLowCV_2ndBoxGap_Sensor THEN	//reverse logic sensor ,do make sure no box here 
+	xComplete :=TRUE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_LowerFeedInConveyor">
+      <LineId Id="39" Count="10" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="50" Count="7" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LowerFeedInConveyor.A00_BaseUnits">
+      <LineId Id="1" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_LowerFeedInConveyor.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LowerFeedInConveyor.CyclicAction">
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="134" Count="2" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="116" Count="1" />
+      <LineId Id="139" Count="2" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="28" Count="2" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="122" Count="2" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="37" Count="2" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="143" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="144" Count="2" />
+      <LineId Id="40" Count="1" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="53" Count="2" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="87" Count="1" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="90" Count="2" />
+      <LineId Id="72" Count="1" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="63" Count="1" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="100" Count="1" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="103" Count="1" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="108" Count="1" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="110" Count="1" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LowerFeedInConveyor.ExitAction">
+      <LineId Id="13" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LowerFeedInConveyor.M_GetErrorMsg">
+      <LineId Id="5" Count="0" />
+      <LineId Id="93" Count="4" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="104" Count="7" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="113" Count="7" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="100" Count="3" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LowerFeedInConveyor.ResetAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LowerFeedInConveyor.StartAction">
+      <LineId Id="6" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="13" Count="21" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

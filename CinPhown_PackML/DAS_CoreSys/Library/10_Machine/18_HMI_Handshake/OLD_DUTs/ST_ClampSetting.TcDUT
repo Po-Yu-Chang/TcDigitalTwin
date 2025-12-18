@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ClampSetting" Id="{b3fd65f8-cbc6-46d6-a6f2-57c507344dba}">
+    <Declaration><![CDATA[TYPE
+    ST_ClampSetting :
+    STRUCT
+        Behavior         : E_ClampWork;
+        WareHouseSetting : ST_WareHouseCoordinates;
+		PullOutConveyorSetting : E_PullOutConveyorAddress;
+        PickUpArea : E_FeedInEmptyBox_PickUpArea; // Set the position where are the Fanuc robot going to pickup box.
+        PlaceArea  : E_FeedInEmptyBox_PlaceArea; // Set the position where are the Fanuc robot going to place box.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

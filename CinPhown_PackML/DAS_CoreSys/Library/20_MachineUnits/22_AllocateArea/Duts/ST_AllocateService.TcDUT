@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AllocateService" Id="{753fdce4-dce3-4125-bf5f-509a92258756}">
+    <Declaration><![CDATA[TYPE
+    ST_AllocateService :
+    STRUCT
+        AllocateMoveStructure              : REFERENCE TO st_ads_AllocateMoveStructure;
+        AllocateCircleMove                 : REFERENCE TO st_AllocateCircleMoveStructure;
+        TurnTableMove                      : REFERENCE TO st_ads_OneAxisMoveWithPosition;
+        AutoMode_AllocateBatchMode         : REFERENCE TO ST_AllocationJobBatchMode;
+        AutoMode_SimpleAllocation_Batch    : REFERENCE TO ST_AllocationJobBatchMode;
+        AutoMode_AllocateBatchMode_Reverse : REFERENCE TO ST_AllocationJobBatchMode;
+        AutoMode_RareBoxMove               : REFERENCE TO st_AutoMode_ClampingBoxesJob;
+        AutoMode_EmptyBoxMove              : REFERENCE TO st_AutoMode_ClampingBoxesJob;
+        AutoMode_BoxMoveReverse            : REFERENCE TO st_AutoMode_ClampingBoxesJob;
+        AutoMode_SameSizeCVCamera          : REFERENCE TO ST_AutoMode_TransCVCamera;
+        AutoMode_DifferentCVCamera         : REFERENCE TO ST_AutoMode_TransCVCamera;
+        AllocateRegionHome                 : REFERENCE TO st_RegionHome;
+        AutoMode_PullOutConveyor           : REFERENCE TO ST_AutoPullOutConveyor;
+		AutoMode_AllocateCircleMove 	   : REFERENCE TO st_AllocateCircleMoveStructure;
+		AutoMode_TurnTableMove 			   : REFERENCE TO st_ads_OneAxisMoveWithPosition;
+		AllocateRobotNeedlingMove 		   : REFERENCE TO st_AllocateRobotNeedlingMove;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

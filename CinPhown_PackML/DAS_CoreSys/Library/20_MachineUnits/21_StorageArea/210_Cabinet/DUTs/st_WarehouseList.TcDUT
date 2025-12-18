@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_WarehouseList" Id="{82a21005-8dd8-4d6f-9b87-fefe874e6228}">
+    <Declaration><![CDATA[TYPE st_WarehouseList :
+STRUCT
+	A_Side_Layer1	:	ST_WarehouseLayer;
+	A_Side_Layer2	:	ST_WarehouseLayer;
+	A_Side_Layer3	:	ST_WarehouseLayer;
+	A_Side_Layer4	:	ST_WarehouseLayer;
+	A_Side_Layer5	:	ST_WarehouseLayer;
+	A_Side_Layer6	:	ST_WarehouseLayer;
+	A_Side_Layer7	:	ST_WarehouseLayer;
+	A_Side_Layer8	:	ST_WarehouseLayer;
+	A_Side_Layer9	:	ST_WarehouseLayer;
+	A_Side_Layer10	:	ST_WarehouseLayer;
+	B_Side_Layer1	:	ST_WarehouseLayer;
+	B_Side_Layer2	:	ST_WarehouseLayer;
+	B_Side_Layer3	:	ST_WarehouseLayer;
+	B_Side_Layer4	:	ST_WarehouseLayer;
+	B_Side_Layer5	:	ST_WarehouseLayer;
+	B_Side_Layer6	:	ST_WarehouseLayer;
+	B_Side_Layer7	:	ST_WarehouseLayer;
+	B_Side_Layer8	:	ST_WarehouseLayer;
+	B_Side_Layer9	:	ST_WarehouseLayer;
+	B_Side_Layer10	:	ST_WarehouseLayer;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

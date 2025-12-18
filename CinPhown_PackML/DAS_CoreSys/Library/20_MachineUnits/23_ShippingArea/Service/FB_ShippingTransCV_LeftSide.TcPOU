@@ -1,0 +1,276 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ShippingTransCV_LeftSide" Id="{3251d885-8122-4d6b-97be-a737c3f81fdd}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingTransCV_LeftSide EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute    : BOOL;
+    xAbort      : BOOL;
+	xReset		: BOOL;
+	TimeOut  	: LREAL := 60; // Unit : s
+    Cylinder 	: REFERENCE TO UNI_CylinderList;
+	Motor		: REFERENCE TO UNI_MotorList;
+	Input		: REFERENCE TO ST_InputTable;
+	OutPut		: REFERENCE TO ST_OutputTable;
+	ShippingTransCVRequest_LeftSide : BOOL;
+	RobotStatus	: ST_StatusBasic;		// robot Service 
+END_VAR
+VAR_OUTPUT
+	xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : STRING;
+END_VAR
+VAR
+	// model setting 
+	StateBehaviour   : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+	Reset_Rtrig 	:R_TRIG;
+	uiCyclicStep    : UINT := 0;
+	
+	//Timer
+	TON_DelayArrivedDetect	: TON;
+	TON_TransCVAllowDelay	: TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+
+StateBehaviour(xExecute := xExecute,
+              xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);
+			  
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);
+  
+//Error Msg
+iErrorID := StateBehaviour._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+
+//Reset
+Reset_Rtrig(CLK:= xReset);
+IF Reset_Rtrig.Q THEN
+	StateBehaviour.ResetModel(xCommit:=xReset);
+END_IF
+
+//Action
+A00_BaseUnit();]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{bb766b2f-628b-4e49-b30f-ceca13d5809f}" />
+    <Action Name="A00_BaseUnit" Id="{34085937-00e1-496c-b8a9-c92e8ffa9d5e}">
+      <Implementation>
+        <ST><![CDATA[TON_DelayArrivedDetect(PT:=T#1S);
+TON_TransCVAllowDelay(PT :=T#1S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="CleanupAction" Id="{78be9580-f971-4554-9741-9b798826f82a}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{8c013b82-1618-4b69-a150-95cdf7f2f1c3}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+
+CASE uiCyclicStep OF 
+	0:	// robot status , send allow signal
+		IF ShippingTransCVRequest_LeftSide AND NOT RobotStatus.Busy THEN
+			TON_TransCVAllowDelay.IN := TRUE;
+			OutPut.bShippingTransCV_Leftside_Allow := TRUE;
+		END_IF
+		IF TON_TransCVAllowDelay.Q THEN
+			OutPut.bShippingTransCV_Leftside_Allow := FALSE;
+			uiCyclicStep := 100;
+		END_IF
+
+	100:	//check HansLaser cancel signal
+		TON_TransCVAllowDelay.IN := FALSE;
+		IF NOT Input.bShippingTransCV_Leftside_Arrived THEN 
+			xComplete := TRUE;
+		END_IF
+END_CASE
+
+IF Input.bHansLaserMachineError THEN
+	iErrorID := 10;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{23b115d1-7595-4767-94b4-e4093c085e87}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{d9ab3778-f06d-470b-a3b8-c7cceef991fe}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	0:
+		M_GetErrorMsg := 'No Error';
+	1:
+		M_GetErrorMsg := 'Action time out';
+///
+	10:
+		M_GetErrorMsg := 'HansLaser Machine Error';
+	11:
+		M_GetErrorMsg := 'Wrong Command , TransCV not IntargetPosition';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{f31d21b4-d912-43b2-bc88-5832af690956}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+ShippingTransCVRequest_LeftSide 		:= FALSE;
+OutPut.bShippingTransCV_Leftside_Allow := FALSE;
+
+TON_DelayArrivedDetect.IN := FALSE;
+TON_TransCVAllowDelay.IN := FALSE;
+
+uiCyclicStep := 0;
+
+xComplete := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{8d70a5a7-c8e7-4c6f-9470-f1ae13f3fd85}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+ShippingTransCVRequest_LeftSide 		:= FALSE;
+OutPut.bShippingTransCV_Leftside_Allow := FALSE;
+
+uiCyclicStep := 0;
+
+TON_DelayArrivedDetect.IN := FALSE;
+TON_TransCVAllowDelay.IN := FALSE;
+
+
+xComplete := TRUE;
+
+IF Input.bHansLaserMachineError THEN
+	iErrorID := 10;
+END_IF
+
+IF NOT Input.bShippingTransCV_Leftside_Arrived THEN
+	iErrorID := 11;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ShippingTransCV_LeftSide">
+      <LineId Id="29" Count="7" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="13" />
+      <LineId Id="38" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingTransCV_LeftSide.A00_BaseUnit">
+      <LineId Id="1" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ShippingTransCV_LeftSide.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingTransCV_LeftSide.CyclicAction">
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="54" Count="2" />
+      <LineId Id="53" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingTransCV_LeftSide.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingTransCV_LeftSide.M_GetErrorMsg">
+      <LineId Id="5" Count="1" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="88" Count="2" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingTransCV_LeftSide.ResetAction">
+      <LineId Id="23" Count="1" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="25" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingTransCV_LeftSide.StartAction">
+      <LineId Id="6" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="26" Count="1" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="22" Count="2" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="2" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="37" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

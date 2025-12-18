@@ -1,0 +1,242 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_WareHouse" Id="{9e34fd6d-a388-4d89-ad3c-398bb6e81101}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_WareHouse EXTENDS FB_Objectbase
+VAR_INPUT
+	 Motors 		  : REFERENCE TO UNI_MotorList;
+	 WheelhouseSensor : REFERENCE TO UNI_HMI_WheelHouseInput;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+   
+    nMotorIndex    : UINT;
+    CabinetJob     : E_CabinetJob := E_CabinetJob.Idle;    
+
+    stLayerStatus    : st_LayerStatus;
+    stWarehouseLayer : st_WarehouseLayer;
+    stWarehouseList  : st_WarehouseList;
+    _stWarehouseList : _st_WarehouseList;
+
+	fbReloadBox : FB_ReloadBox;
+	fbFeedInBox : FB_FeedInBox;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.M_clcUpdate();
+THIS^.M_clcUpdate();]]></ST>
+    </Implementation>
+    <Folder Name="Private" Id="{db09577f-eb2b-47c1-a52b-dae3fd8202aa}" />
+    <Folder Name="Property" Id="{bb2235b2-a2c9-483d-9eb5-f9250ec26d07}" />
+    <Folder Name="Public" Id="{7decc950-39da-4c47-ba15-9910095d4e79}" />
+    <Property Name="bFeedInBox_Completed" Id="{1a121a0b-5fea-4b2f-98ce-48de81120080}" FolderPath="Property\">
+      <Declaration><![CDATA[PROPERTY PUBLIC bFeedInBox_Completed : BOOL]]></Declaration>
+      <Get Name="Get" Id="{c36db18e-453d-49fe-9631-767a2fd2c62e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bFeedInBox_Completed := fbFeedInBox.Done;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="bReloadBox_Completed" Id="{d094b7e4-02a0-4847-8cc4-6ce221d9dfa1}" FolderPath="Property\">
+      <Declaration><![CDATA[PROPERTY bReloadBox_Completed : BOOL]]></Declaration>
+      <Get Name="Get" Id="{6b3b17bf-4a42-4193-a77e-d4e5e1d85cf9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bReloadBox_Completed := fbReloadBox.Done;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="M_clcFBs" Id="{807c3ae5-39b2-4244-84be-cbe713bcde55}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_clcFBs : BOOL
+VAR_INPUT	
+END_VAR
+VAR
+	nELIndex			:	INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbReloadBox(
+	Execute:= , 
+	Abort:= , 
+	Reset:= , 
+	ObjectName:= 'Warehouse Reload box', 
+	Busy=> bBusy, 
+	Done=> bDone, 
+	Aborted=> , 
+	Error=> bError, 
+	ErrorID=> , 
+	Status=> , 
+	Motors:= Motors, 
+	WarehouseStatus:= WheelhouseSensor.List, 
+	ArrivedDelayTime:= T#1.5S, 
+	WarehouseSelect:= , 
+	WarehouseCoordinates:= , 
+	TimeOut:= T#10S);
+	
+fbFeedInBox(
+	Execute:= , 
+	Abort:= , 
+	Reset:= , 
+	ObjectName:= 'Warehouse FeedIn box', 
+	Busy=> bBusy, 
+	Done=> bDone, 
+	Aborted=> , 
+	Error=> bError, 
+	ErrorID=> , 
+	Status=> , 
+	Motors:= Motors, 
+	WarehouseStatus:= WheelhouseSensor.List, 
+	ArrivedDelayTime:= T#2.0S, 
+	WarehouseSelect:= , 
+	WarehouseCoordinates:= , 
+	TimeOut:= T#10S);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_clcUpdate" Id="{701c4651-0044-45e4-8c49-c7027fc05428}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_clcUpdate : BOOL
+VAR_INPUT	
+END_VAR
+VAR	
+	i : INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//clc FBs
+M_clcFBs();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GotoCommandStep" Id="{70bb7f48-95b9-42f9-92fd-88a6b932af74}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GotoCommandStep : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CabinetJob := E_CabinetJob.Initial;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GotoErrorStep" Id="{7392dba7-e112-4341-ac92-00c5c2ab3ce3}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GotoErrorStep : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CabinetJob := E_CabinetJob.error;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetFeedInBox" Id="{2a934a59-1200-4f64-811f-54910fd6220d}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD PUBLIC M_ResetFeedInBox : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	uiMotorInder : UINT; 
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// reset reload box execute
+fbFeedInBox.Execute := FALSE;
+ 
+M_ResetFeedInBox := TRUE; // Method end
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetReloadBox" Id="{c6c9a42a-9b24-4a85-8550-77ba05aeb881}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_ResetReloadBox : Bool
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// reset reload box execute
+fbReloadBox.Execute := FALSE;
+
+M_ResetReloadBox := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartFeedInBox" Id="{96df12ea-7239-4aa6-a966-7188a4268391}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD PUBLIC M_StartFeedInBox : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	WarehouseCoordinates : ST_WareHouseCoordinates;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Send command to Feedin box fb
+fbFeedInBox.WarehouseSelect := WareHouseSelect;
+fbFeedInBox.WarehouseCoordinates := WarehouseCoordinates;
+fbFeedInBox.Execute := TRUE;
+
+M_StartFeedInBox := TRUE; // Method end
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartReloadBox" Id="{707d4576-a459-43b2-8d3a-60f9ff63aa4d}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD M_StartReloadBox : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	WarehouseCoordinates : ST_WareHouseCoordinates;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Send command to reload box fb
+fbReloadBox.WarehouseSelect := WareHouseSelect;
+fbReloadBox.WarehouseCoordinates := WarehouseCoordinates;
+fbReloadBox.Execute := TRUE;
+
+M_StartReloadBox := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_WareHouse">
+      <LineId Id="22" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.bFeedInBox_Completed.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.bReloadBox_Completed.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_clcFBs">
+      <LineId Id="36" Count="15" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="67" Count="1" />
+      <LineId Id="70" Count="14" />
+      <LineId Id="69" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_clcUpdate">
+      <LineId Id="1786" Count="1" />
+      <LineId Id="2763" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_GotoCommandStep">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_GotoErrorStep">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_ResetFeedInBox">
+      <LineId Id="9" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_ResetReloadBox">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_StartFeedInBox">
+      <LineId Id="9" Count="4" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouse.M_StartReloadBox">
+      <LineId Id="16" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

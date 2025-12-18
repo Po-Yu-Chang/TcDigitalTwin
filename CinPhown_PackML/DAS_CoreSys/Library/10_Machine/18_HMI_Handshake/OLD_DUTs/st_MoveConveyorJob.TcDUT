@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_MoveConveyorJob" Id="{116d9c4e-5264-4f8e-bb84-383810b58046}">
+    <Declaration><![CDATA[TYPE st_MoveConveyorJob :
+STRUCT
+	tTime			: LREAL;	//Time in s
+	bMoveReverse	: BOOL;		//Move backward if true
+	HandShake		: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

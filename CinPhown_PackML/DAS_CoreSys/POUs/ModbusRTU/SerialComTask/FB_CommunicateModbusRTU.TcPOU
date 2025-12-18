@@ -1,0 +1,522 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_CommunicateModbusRTU" Id="{03cc2744-2e25-479e-be02-7e4ba9b1325c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CommunicateModbusRTU EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+//    Execute    :BOOL;   // True : This prog will start.
+//    Abort      :BOOL;   // True : This prog will be abort.
+//    Reset      :BOOL;   // True : This prog will be reset.
+//    ObjectName :STRING; // Set this fb name(About it's action)
+	  
+	  
+	  unitID	  :BYTE;
+	  MBdata_Read_ControllerN	: REFERENCE TO 	ARRAY[0..21] OF BYTE;
+END_VAR
+
+VAR_OUTPUT
+//    Busy    :BOOL;        // True : This prog is running.
+//    Done    :BOOL;        // True : Command has been executed.
+//    Aborted :BOOL;        // True : This prog is aborted.
+//    Error   :BOOL;        // True : This prog has an error.
+//    ErrorID :UINT;       // Output ErrorID
+//    Status  :T_MaxString; // Output this prog status by string(255bytes)
+	arrSensor		: ARRAY[0..99] OF BOOL;
+END_VAR
+
+VAR
+//    eState :E_MethodStatus_Basic;
+//	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+//	uiResettingStep : UDINT;
+//	uiAbortingStep : UDINT;
+//	_Executed :BOOL; // Executing process completed.
+//	_Error : BOOL; // FB has an error.
+//	_ResetCompleted : BOOL; // FB resetting completed.
+//	_AbortCompleted : BOOL; // FB aborting completed.
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+	arrSensorEmpty : ARRAY[0..99] OF BOOL;
+	MB_EL6X22B_ControllerN	: ModbusRtuMasterV2_KL6x22B;
+	fbComReset_ControllerN	: ComReset;	
+	fbClearComBuffer		: ClearComBuffer;
+	SensorState : un_RS485States;
+	bComReset	:BOOL;
+	bComResetBusy :BOOL;
+	bComResetError :BOOL;
+	bFB_ErrorOccur :BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="Methods" Id="{c6fa9ba5-cbe7-4ce8-b61f-41f34e5b97f0}" />
+    <Folder Name="STATE" Id="{3f70b608-8564-45c6-b0ac-32547b1ac059}" />
+    <Action Name="A00_BasicUnits" Id="{80a06a94-6e8f-4204-858d-8ea6befe977c}">
+      <Implementation>
+        <ST><![CDATA[MB_EL6X22B_ControllerN();
+fbComReset_ControllerN(
+		Execute:= bComReset, 
+		pComIn:= ADR(MB_EL6X22B_ControllerN.InData), 
+		pComOut:= ADR(MB_EL6X22B_ControllerN.OutData), 
+		SizeComIn:= SIZEOF(MB_EL6X22B_ControllerN.InData), 
+		Done=> , 
+		Busy=> bComResetBusy, 
+		Error=> bComResetError, 
+		ErrorID=> );
+		
+
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GetModelState" Id="{14458b4b-f254-4888-9ff5-a00ab90264e0}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_OUTPUT
+    xDone    :BOOL;
+    xBusy    :BOOL;
+    xError   :BOOL;
+    xAborted :BOOL;
+    iErrorID :UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xDone    := Done;
+xBusy    := Busy;
+xError   := Error;
+xAborted := Abort;
+iErrorID := ErrorID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{e2f0cf76-e6d7-4eaf-872b-2afa9c936ee3}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := ObjectName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AnalyzeData" Id="{10ee825f-8352-4f41-b587-12ecb878f971}" FolderPath="Methods\">
+      <Declaration><![CDATA[METHOD PRIVATE M_AnalyzeData : BOOL
+VAR_INPUT
+	Data : ARRAY [0..21] OF BYTE;
+END_VAR
+
+VAR_OUTPUT
+	arrSensor : ARRAY[0..9] OF BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+arrSensor[0] :=Data[4].1;
+arrSensor[1] :=Data[4].0;
+arrSensor[2] :=Data[3].7;
+arrSensor[3] :=Data[3].6;
+arrSensor[4] :=Data[3].5;
+arrSensor[5] :=Data[3].4;
+arrSensor[6] :=Data[3].3;
+arrSensor[7] :=Data[3].2;
+arrSensor[8] :=Data[3].1;
+arrSensor[9] :=Data[3].0;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{70afd64a-9a9a-4916-a3f0-1cbe3f60ab36}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy    := FALSE;
+Aborted := TRUE;
+Status := strStatus;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+	uiExecutingStep :=uiResumeStep;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{7b39eca7-0bcc-4a6a-9a29-1072afc6664b}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		uiAbortingStep:=9999;
+	
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{14ae00cb-7125-4c3a-9274-b08187d9cdbe}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy 	:= FALSE;
+Done	:=TRUE;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{8d8c95c3-07a9-452f-81bf-fced1e15953a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+bComReset		:= FALSE;
+
+arrSensor :=arrSensorEmpty;
+// output all false if program stop working
+
+IF Execute THEN
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{4d35d366-8ac6-4dcd-92ee-f328881e86ec}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+
+VAR
+	tempStr	:	STRING ;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+tempStr := CONCAT( 'Controllor ' , BYTE_TO_STRING(unitID));
+Status := CONCAT(tempStr, strStatus);
+ErrorID := unitID + 2600;// Start from 2600
+
+IF NOT Execute OR Reset	THEN	
+	eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{2e4f04a6-3509-4400-90a2-73fba78bac55}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+
+VAR
+	arrSensorSingleModule : ARRAY [0..9] OF BOOL;	
+	pMemoryAddr : ARRAY[0..7] OF BYTE;
+END_VAR
+
+VAR_INST
+	Quantity : WORD;
+	cbLength : UINT;
+	
+	iReadMBAddr :  WORD :=0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy :=TRUE;
+IF  MB_EL6X22B_ControllerN.Error AND NOT bFB_ErrorOccur  THEN
+	bFB_ErrorOccur :=TRUE;
+	_Error :=TRUE;
+	strStatus :=' Modbus connection error';
+END_IF
+
+arrSensor:=SensorState.arrSensorByController;
+
+IF iReadMBAddr <= 900 THEN
+		Quantity :=10;	
+	    cbLength :=20;
+		MB_EL6X22B_ControllerN.ReadCoils();
+ELSE
+		Quantity :=1;
+		cbLength :=2;
+		MB_EL6X22B_ControllerN.ReadInputRegs();
+END_IF
+
+CASE uiExecutingStep OF
+	
+0: // Init
+	MB_EL6X22B_ControllerN.Execute:=FALSE;
+	iReadMBAddr:=0;
+	uiExecutingStep:=100;
+	
+100:	
+	MB_EL6X22B_ControllerN.UnitID:= unitID;
+	MB_EL6X22B_ControllerN.Quantity:= Quantity; 
+	MB_EL6X22B_ControllerN.MBAddr:= iReadMBAddr; 
+	MB_EL6X22B_ControllerN.cbLength:= cbLength;
+	MB_EL6X22B_ControllerN.pMemoryAddr:=ADR(pMemoryAddr) ; 
+	MB_EL6X22B_ControllerN.Timeout:= T#1000MS; 
+	MB_EL6X22B_ControllerN.Execute:=TRUE;	
+	IF MB_EL6X22B_ControllerN.BUSY THEN
+		uiExecutingStep:=200;
+	END_IF	
+	IF bFB_ErrorOccur THEN
+		uiExecutingStep:=110;		
+	END_IF
+	
+110:
+	bFB_ErrorOccur :=FALSE; //Internal error flag 
+	IF MB_EL6X22B_ControllerN.BUSY THEN
+		uiExecutingStep:=200;
+	END_IF
+		
+200:
+	IF NOT MB_EL6X22B_ControllerN.BUSY THEN
+		MB_EL6X22B_ControllerN.Execute:=FALSE;
+		
+		IF iReadMBAddr>=1000 THEN
+			// Error checking step			
+			IF MBdata_Read_ControllerN[1] = 4 AND MBdata_Read_ControllerN[3] + MBdata_Read_ControllerN[4] > 0 THEN
+				_Error := TRUE;
+				strStatus :=' Controller report error';
+			END_IF
+			
+			iReadMBAddr :=0;
+			
+		ELSE
+			// Signal step
+			M_AnalyzeData(Data :=MBdata_Read_ControllerN,arrSensor=>arrSensorSingleModule);
+			SensorState.arrSensorBySingleModule[iReadMBAddr/100] :=arrSensorSingleModule;		
+			iReadMBAddr :=iReadMBAddr +100;
+		END_IF
+		
+		uiExecutingStep:=100;		
+		
+	 END_IF
+
+END_CASE
+	
+IF NOT Execute THEN
+	eState:=STATE_RESETTING;
+END_IF
+IF _Error THEN
+	eState:=STATE_ERROR;
+END_IF
+IF _Abort THEN
+	eSTATE:=STATE_ABORTING;
+END_IF
+IF _Executed THEN
+	eSTATE:=STATE_Done;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{9b317f88-9ce4-4f92-84de-4c424231fb02}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=FALSE;
+Done :=FALSE;
+Busy := FALSE;
+
+
+CASE uiResettingStep OF
+	
+	0:
+		MB_EL6X22B_ControllerN.Execute:=FALSE;
+//		fbClearComBuffer(Buffer:=MB_EL6X22B_ControllerN.InData);
+//		fbClearComBuffer(Buffer:=MB_EL6X22B_ControllerN.OutData);
+		uiResettingStep:=100;
+	100:	
+		bComReset := TRUE;
+		IF fbComReset_ControllerN.Busy THEN
+			uiResettingStep:=200;
+		END_IF
+	200:
+		IF fbComReset_ControllerN.Done THEN
+			uiResettingStep:=9999;
+		END_IF
+
+	9999:
+		_Error:=FALSE;
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_CommunicateModbusRTU">
+      <LineId Id="23" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="7" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.GetModelState">
+      <LineId Id="17" Count="3" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.GetName">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_AnalyzeData">
+      <LineId Id="18" Count="1" />
+      <LineId Id="21" Count="8" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_STATE_ABORTED">
+      <LineId Id="9" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_STATE_DONE">
+      <LineId Id="9" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_STATE_DORMANT">
+      <LineId Id="22" Count="7" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="33" Count="1" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_STATE_ERROR">
+      <LineId Id="9" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="20" Count="1" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_STATE_EXECUTING">
+      <LineId Id="118" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="130" Count="0" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="168" Count="2" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="171" Count="2" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="56" Count="1" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="66" Count="3" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="207" Count="3" />
+      <LineId Id="215" Count="0" />
+      <LineId Id="213" Count="1" />
+      <LineId Id="212" Count="0" />
+      <LineId Id="211" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="95" Count="1" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="125" Count="1" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="115" Count="1" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="37" Count="5" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="49" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CommunicateModbusRTU.M_STATE_RESETTING">
+      <LineId Id="9" Count="2" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="44" Count="2" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SINGLEAXIS_STATUS" Id="{30bfd4ab-d45d-4896-8f5b-cc06fef07aa6}">
+    <Declaration><![CDATA[TYPE ST_SINGLEAXIS_STATUS :
+    STRUCT
+        ActPos    : LREAL; // Axis actual position with gear ratio
+        ActVel    : LREAL; // Axis actual velocity with gear ratio
+        MotorTemp : LREAL; // Motor current tempture, if motor doesn't have temp sensor, this value will be zero.
+        DriveTemp : LREAL; // Driver current tempture
+        Homed     : BOOL; // Axis has homed 
+        Error     : BOOL; // Axis has error
+        CmdDone   : BOOL; // Axis Cmd completed
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

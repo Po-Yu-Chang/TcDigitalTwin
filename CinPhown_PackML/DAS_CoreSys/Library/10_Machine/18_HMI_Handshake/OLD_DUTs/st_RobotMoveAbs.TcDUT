@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_RobotMoveAbs" Id="{79370f9e-7ea9-419f-a9fc-d7942f17f765}">
+    <Declaration><![CDATA[TYPE st_RobotMoveAbs :
+STRUCT
+	
+AbsPositionX : LREAL;
+AbsPositionY : LREAL;
+AbsPositionR : LREAL; // for allocate robot , R targer position whith no effevt
+Execute		 : BOOL;
+Done		 : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

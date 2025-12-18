@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Setup_Light" Id="{f66b2c77-aebc-47a0-ab01-23f9753ac445}">
+    <Declaration><![CDATA[TYPE
+    ST_Setup_Light :
+    STRUCT
+        Storage_EleBoxLight_Off : BOOL; // True : Turn off light
+        Storage_AreaLight_Off : BOOL; // True : Turn off light
+        Allocated_AreaLight_Off : BOOL; //True : Turn off light
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

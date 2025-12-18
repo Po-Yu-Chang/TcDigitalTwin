@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AllocateRobotPositionTable" Id="{f7948936-9a60-48a3-8748-9422c66eebbc}">
+    <Declaration><![CDATA[TYPE
+    ST_AllocateRobotPositionTable :
+    STRUCT
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

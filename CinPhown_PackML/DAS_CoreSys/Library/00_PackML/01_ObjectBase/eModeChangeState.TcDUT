@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="eModeChangeState" Id="{c6464330-5fb5-40e4-b9e6-ce12e72f6295}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE eModeChangeState :
+(
+	WaitingRequest := 0, // Waiting for user request
+	StartingUnitModeManager := 1, // Execute unit manager
+	ErrorHandling :=2 // After execute, check unit manager status
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

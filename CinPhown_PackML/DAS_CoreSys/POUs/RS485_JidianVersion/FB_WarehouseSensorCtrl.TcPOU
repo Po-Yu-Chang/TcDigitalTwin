@@ -1,0 +1,330 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_WarehouseSensorCtrl" Id="{275bc48d-0e2b-43c5-b7b9-ba83ab63729c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_WarehouseSensorCtrl
+VAR_INPUT
+	bEnable: BOOL;
+//	UnitID: INT:= 1; //AFU改
+	UnitID: BYTE:= 1;  //AFU改
+	nQuantity: INT:= 16;
+	nMBAddr: INT;
+END_VAR
+VAR_OUTPUT
+	bBusy: BOOL;
+	bError: BOOL;
+	ErrorId: MODBUS_ERRORS;
+	ErrorMsg	:T_MaxString;
+	stRS485Controller: ST_RS485Controller;
+END_VAR
+VAR
+	stSliderStatusALL: ST_RS485_SliderStatusALL;
+	stLayerStatus: ST_RS485_LayerStatus;
+	stHeartbeat: ST_RS485_Heartbeat;
+	ModbusRtuMasterV2_KL6x22B: ModbusRtuMasterV2_KL6x22B;
+	//ModbusBIT: ModbusBIT;
+	Data: ARRAY[0..9] OF WORD;
+	Switch: INT;
+	bEnableTest: BOOL;
+	Count_Error: CTU;
+	RS485_ErrorCount: WORD;
+	bCheckHeartBitOnline	: BOOL;
+	TON_checkHeart	: TON;
+END_VAR
+VAR CONSTANT
+	nMBAddrMax: INT := 10;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[TON_checkHeart(PT:=T#10S);
+IF nMBAddr <= 0 THEN
+	nMBAddr:= 0;
+ELSIF nMBAddr >= 9 THEN
+	nMBAddr:= 9;
+END_IF
+(*
+CC(
+	CU:= , 
+	RESET:= , 
+	PV:= , 
+	Q=> , 
+	CV=> );
+
+*)
+
+
+Count_Error(
+	CU:= bError, 
+	RESET:= , 
+	PV:= 1000, 
+	Q=> , 
+	CV=> );
+	
+RS485_ErrorCount := Count_Error.CV;
+	
+	
+	
+IF bEnableTest THEN
+	ModbusRtuMasterV2_KL6x22B.ReadCoils(
+			UnitID:= UnitID, 
+			Quantity:= nQuantity, 
+			MBAddr:= nMBAddr * 100 , 
+			cbLength:= nQuantity * 2 , 
+			pMemoryAddr:= ADR(Data[nMBAddr]) , 
+			AuxQuantity:= , 
+			AuxMBAddr:= , 
+			AuxcbLength:= , 
+			pAuxMemoryAddr:= , 
+			Execute:= , 
+			Timeout:= T#1S, 
+			BUSY=> bBusy, 
+			Error=> , 
+			ErrorId=> ErrorId, 
+			cbRead=> );
+END_IF
+
+
+
+CASE Switch OF
+	0:
+		IF NOT bEnableTest THEN
+			ModbusRtuMasterV2_KL6x22B.ReadCoils(
+				UnitID:= UnitID, 
+				Quantity:= nQuantity, 
+				MBAddr:= nMBAddr * 100 , 
+				cbLength:= nQuantity * 2 , 
+				pMemoryAddr:= ADR(Data[nMBAddr]) , 
+				AuxQuantity:= , 
+				AuxMBAddr:= , 
+				AuxcbLength:= , 
+				pAuxMemoryAddr:= , 
+				Execute:= FALSE, 
+				Timeout:= T#1S, 
+				BUSY=> bBusy, 
+				Error=>, 
+				ErrorId=> ErrorId, 
+				cbRead=> );
+			END_IF
+		IF bEnable THEN
+			Switch:= 100;
+		END_IF
+	100:
+		ModbusRtuMasterV2_KL6x22B.ReadCoils(
+			UnitID:= UnitID, 
+			Quantity:= nQuantity, 
+			MBAddr:= nMBAddr * 100 , 
+			cbLength:= nQuantity * 2 , 
+			pMemoryAddr:= ADR(Data[nMBAddr]) , 
+			AuxQuantity:= , 
+			AuxMBAddr:= , 
+			AuxcbLength:= , 
+			pAuxMemoryAddr:= , 
+			Execute:= TRUE, 
+			Timeout:= T#1S, 
+			BUSY=> bBusy, 
+			Error=> , 
+			ErrorId=> ErrorId, 
+			cbRead=> );
+		IF ModbusRtuMasterV2_KL6x22B.BUSY THEN
+			ModbusRtuMasterV2_KL6x22B.ReadCoils(Execute:= FALSE);
+			Switch:=Switch+10;
+		END_IF	
+	110:
+		ModbusRtuMasterV2_KL6x22B.ReadCoils(Execute:= FALSE ,Timeout:=T#1S ,BUSY=>bBusy ,Error=> ,ErrorId=>ErrorId ,);	
+		IF NOT ModbusRtuMasterV2_KL6x22B.BUSY AND NOT ModbusRtuMasterV2_KL6x22B.Error THEN
+			Switch:= 200;
+		ELSIF ModbusRtuMasterV2_KL6x22B.Error THEN
+			Switch:= 0;
+		END_IF
+	200:
+		IF nMBAddr < (nMBAddrMax - 1) THEN
+			nMBAddr:= nMBAddr + 1;
+		ELSE
+			nMBAddr:= 0;
+		END_IF
+		Switch:= 500;
+	500:
+		IF bEnable THEN
+			Switch:= 100;
+		ELSE
+			Switch:= 0;
+		END_IF
+END_CASE	
+		
+
+	stHeartbeat.nHeartbeat1:= Data[0].10;
+	stHeartbeat.nHeartbeat2:= Data[1].11;
+	stHeartbeat.nHeartbeat3:= Data[2].10 AND Data[2].11;
+	stHeartbeat.nHeartbeat4:= Data[3].12;
+	stHeartbeat.nHeartbeat5:= Data[4].10 AND Data[4].12;
+	stHeartbeat.nHeartbeat6:= Data[5].11 AND Data[5].12;
+	stHeartbeat.nHeartbeat7:= Data[6].10 AND Data[6].11 AND Data[6].12;
+	stHeartbeat.nHeartbeat8:= Data[7].13;
+	stHeartbeat.nHeartbeat9:= Data[8].10 AND Data[8].13;
+	stHeartbeat.nHeartbeat10:= Data[9].11 AND Data[9].13;
+	
+	bCheckHeartBitOnline := stHeartbeat.nHeartbeat1 AND
+							stHeartbeat.nHeartbeat2 AND
+							stHeartbeat.nHeartbeat3 AND
+							stHeartbeat.nHeartbeat4 AND
+							stHeartbeat.nHeartbeat5 AND
+							stHeartbeat.nHeartbeat6 AND
+							stHeartbeat.nHeartbeat7 AND
+							stHeartbeat.nHeartbeat8 AND
+							stHeartbeat.nHeartbeat9 AND 
+							stHeartbeat.nHeartbeat10;
+	
+	TON_checkHeart.IN := NOT bCheckHeartBitOnline;
+	IF TON_checkHeart.Q THEN
+//		bError := TRUE;
+		ErrorMsg := 'ModBus RTU heartBit not Online ,please ';
+	ELSE
+		ErrorMsg := '';
+	END_IF
+	
+	bError := TON_checkHeart.Q OR ModbusRtuMasterV2_KL6x22B.Error;
+							
+	(*
+	stLayerStatus.PCB1:=NOT ModbusBIT.b1001;
+	stLayerStatus.PCB2:=NOT ModbusBIT.b1002;
+	stLayerStatus.PCB3:=NOT ModbusBIT.b1003;
+	stLayerStatus.PCB4:=NOT ModbusBIT.b1004;
+	stLayerStatus.PCB5:=NOT ModbusBIT.b1005;
+	stLayerStatus.PCB6:=NOT ModbusBIT.b1006;
+	stLayerStatus.PCB7:=NOT ModbusBIT.b1007;
+	stLayerStatus.PCB8:=NOT ModbusBIT.b1008;
+	stLayerStatus.PCB9:=NOT ModbusBIT.b1009;
+	stLayerStatus.PCB10:=NOT ModbusBIT.b1010;
+	*)
+	
+	 stSliderStatusALL.bPos[10]:=Data[0].0;
+	 stSliderStatusALL.bPos[9]:=Data[0].1;
+	 stSliderStatusALL.bPos[8]:=Data[0].2;
+	 stSliderStatusALL.bPos[7]:=Data[0].3;
+	 stSliderStatusALL.bPos[6]:=Data[0].4;
+	 stSliderStatusALL.bPos[5]:=Data[0].5;
+	 stSliderStatusALL.bPos[4]:=Data[0].6;
+	 stSliderStatusALL.bPos[3]:=Data[0].7;
+	 stSliderStatusALL.bPos[2]:=Data[0].8;
+	 stSliderStatusALL.bPos[1]:=Data[0].9;
+	 
+	 stSliderStatusALL.bPos[20]:=Data[1].0;
+	 stSliderStatusALL.bPos[19]:=Data[1].1;
+	 stSliderStatusALL.bPos[18]:=Data[1].2;
+	 stSliderStatusALL.bPos[17]:=Data[1].3;
+	 stSliderStatusALL.bPos[16]:=Data[1].4;
+	 stSliderStatusALL.bPos[15]:=Data[1].5;
+	 stSliderStatusALL.bPos[14]:=Data[1].6;
+	 stSliderStatusALL.bPos[13]:=Data[1].7;
+	 stSliderStatusALL.bPos[12]:=Data[1].8;
+	 stSliderStatusALL.bPos[11]:=Data[1].9;
+	 
+	 stSliderStatusALL.bPos[30]:=Data[2].0;
+	 stSliderStatusALL.bPos[29]:=Data[2].1;
+	 stSliderStatusALL.bPos[28]:=Data[2].2;
+	 stSliderStatusALL.bPos[27]:=Data[2].3;
+	 stSliderStatusALL.bPos[26]:=Data[2].4;
+	 stSliderStatusALL.bPos[25]:=Data[2].5;
+	 stSliderStatusALL.bPos[24]:=Data[2].6;
+	 stSliderStatusALL.bPos[23]:=Data[2].7;
+	 stSliderStatusALL.bPos[22]:=Data[2].8;
+	 stSliderStatusALL.bPos[21]:=Data[2].9;
+	 
+	 stSliderStatusALL.bPos[40]:=Data[3].0;
+	 stSliderStatusALL.bPos[39]:=Data[3].1;
+	 stSliderStatusALL.bPos[38]:=Data[3].2;
+	 stSliderStatusALL.bPos[37]:=Data[3].3;
+	 stSliderStatusALL.bPos[36]:=Data[3].4;
+	 stSliderStatusALL.bPos[35]:=Data[3].5;
+	 stSliderStatusALL.bPos[34]:=Data[3].6;
+	 stSliderStatusALL.bPos[33]:=Data[3].7;
+	 stSliderStatusALL.bPos[32]:=Data[3].8;
+	 stSliderStatusALL.bPos[31]:=Data[3].9;
+	 
+	 stSliderStatusALL.bPos[50]:=Data[4].0;
+	 stSliderStatusALL.bPos[49]:=Data[4].1;
+	 stSliderStatusALL.bPos[48]:=Data[4].2;
+	 stSliderStatusALL.bPos[47]:=Data[4].3;
+	 stSliderStatusALL.bPos[46]:=Data[4].4;
+	 stSliderStatusALL.bPos[45]:=Data[4].5;
+	 stSliderStatusALL.bPos[44]:=Data[4].6;
+	 stSliderStatusALL.bPos[43]:=Data[4].7;
+	 stSliderStatusALL.bPos[42]:=Data[4].8;
+	 stSliderStatusALL.bPos[41]:=Data[4].9;
+	 
+	 stSliderStatusALL.bPos[60]:=Data[5].0;
+	 stSliderStatusALL.bPos[59]:=Data[5].1;
+	 stSliderStatusALL.bPos[58]:=Data[5].2;
+	 stSliderStatusALL.bPos[57]:=Data[5].3;
+	 stSliderStatusALL.bPos[56]:=Data[5].4;
+	 stSliderStatusALL.bPos[55]:=Data[5].5;
+	 stSliderStatusALL.bPos[54]:=Data[5].6;
+	 stSliderStatusALL.bPos[53]:=Data[5].7;
+	 stSliderStatusALL.bPos[52]:=Data[5].8;
+	 stSliderStatusALL.bPos[51]:=Data[5].9;
+	 
+	 stSliderStatusALL.bPos[70]:=Data[6].0;
+	 stSliderStatusALL.bPos[69]:=Data[6].1;
+	 stSliderStatusALL.bPos[68]:=Data[6].2;
+	 stSliderStatusALL.bPos[67]:=Data[6].3;
+	 stSliderStatusALL.bPos[66]:=Data[6].4;
+	 stSliderStatusALL.bPos[65]:=Data[6].5;
+	 stSliderStatusALL.bPos[64]:=Data[6].6;
+	 stSliderStatusALL.bPos[63]:=Data[6].7;
+	 stSliderStatusALL.bPos[62]:=Data[6].8;
+	 stSliderStatusALL.bPos[61]:=Data[6].9;
+	 
+	 stSliderStatusALL.bPos[80]:=Data[7].0;
+	 stSliderStatusALL.bPos[79]:=Data[7].1;
+	 stSliderStatusALL.bPos[78]:=Data[7].2;
+	 stSliderStatusALL.bPos[77]:=Data[7].3;
+	 stSliderStatusALL.bPos[76]:=Data[7].4;
+	 stSliderStatusALL.bPos[75]:=Data[7].5;
+	 stSliderStatusALL.bPos[74]:=Data[7].6;
+	 stSliderStatusALL.bPos[73]:=Data[7].7;
+	 stSliderStatusALL.bPos[72]:=Data[7].8;
+	 stSliderStatusALL.bPos[71]:=Data[7].9;
+	 
+	 stSliderStatusALL.bPos[90]:=Data[8].0;
+	 stSliderStatusALL.bPos[89]:=Data[8].1;
+	 stSliderStatusALL.bPos[88]:=Data[8].2;
+	 stSliderStatusALL.bPos[87]:=Data[8].3;
+	 stSliderStatusALL.bPos[86]:=Data[8].4;
+	 stSliderStatusALL.bPos[85]:=Data[8].5;
+	 stSliderStatusALL.bPos[84]:=Data[8].6;
+	 stSliderStatusALL.bPos[83]:=Data[8].7;
+	 stSliderStatusALL.bPos[82]:=Data[8].8;
+	 stSliderStatusALL.bPos[81]:=Data[8].9;
+	 
+	 stSliderStatusALL.bPos[100]:=Data[9].0;
+	 stSliderStatusALL.bPos[99]:=Data[9].1;
+	 stSliderStatusALL.bPos[98]:=Data[9].2;
+	 stSliderStatusALL.bPos[97]:=Data[9].3;
+	 stSliderStatusALL.bPos[96]:=Data[9].4;
+	 stSliderStatusALL.bPos[95]:=Data[9].5;
+	 stSliderStatusALL.bPos[94]:=Data[9].6;
+	 stSliderStatusALL.bPos[93]:=Data[9].7;
+	 stSliderStatusALL.bPos[92]:=Data[9].8;
+	 stSliderStatusALL.bPos[91]:=Data[9].9;	
+	 
+	stRS485Controller.stSliderStatusALL:=stSliderStatusALL;
+	stRS485Controller.stLayerStatus:=stLayerStatus;
+	stRS485Controller.stHeartbeat:=stHeartbeat;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_WarehouseSensorCtrl">
+      <LineId Id="637" Count="0" />
+      <LineId Id="343" Count="125" />
+      <LineId Id="623" Count="0" />
+      <LineId Id="625" Count="8" />
+      <LineId Id="624" Count="0" />
+      <LineId Id="634" Count="0" />
+      <LineId Id="638" Count="1" />
+      <LineId Id="643" Count="0" />
+      <LineId Id="641" Count="0" />
+      <LineId Id="644" Count="0" />
+      <LineId Id="640" Count="0" />
+      <LineId Id="645" Count="1" />
+      <LineId Id="635" Count="0" />
+      <LineId Id="469" Count="124" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

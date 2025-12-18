@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AxisPara_Auto" Id="{b2d49c89-e0f4-4de6-becf-b305fed6dca6}">
+    <Declaration><![CDATA[TYPE
+    ST_AxisPara_Auto :
+    STRUCT
+        Velocity     : LREAL := 10; // The velocity command used during AxisMove in AutoMode within DAS_CoreSys.
+        Acceleration : LREAL := 100; // The Acceleration command used during AxisMove in AutoMode within DAS_CoreSys.
+        Deceleration : LREAL := 100; // The Deceleration command used during AxisMove in AutoMode within DAS_CoreSys.
+        Jerk         : LREAL := 1000; // The Jerk command used during AxisMove in AutoMode within DAS_CoreSys.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

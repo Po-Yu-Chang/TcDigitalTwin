@@ -1,0 +1,1451 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_RobotRegionMove_AllocatedConveyor" Id="{b872a835-1d75-4fdc-8270-a8c157b9bdf9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RobotRegionMove_AllocatedConveyor EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    Robot     					: REFERENCE TO FB_FanucRobot_Basic_V2;
+	DifferenceCV 				: REFERENCE TO FB_motor;    // Allocated area feed in conveyor(diff and same size conveyor)
+	SamesizeCV					: REFERENCE TO FB_motor;
+//	SameSizeFullSensor 			: REFERENCE TO BOOL; 				 // Because the same size sensor implement FB_ConveyorSameSize, so use reference to connect it
+   // Command   : ST_WareHouseWithRobotMove_Command;
+   	cylinder : REFERENCE TO UNI_CylinderList;
+   	Input : ST_InputTable;
+    Info	  : ST_RobotRegionMove_Info;
+	Stop	  : BOOL;
+END_VAR
+VAR_OUTPUT
+  // Status : ST_WareHouseWithRobotMove_Status;
+END_VAR
+VAR
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+	
+	Area	: E_RobotArea :=E_RobotArea.TransmitCV;
+	UseA 	: BOOL;
+	UseB	: BOOL;
+	SameSizeFullSensor 			: BOOL; 				 // Because the same size sensor implement FB_ConveyorSameSize, so use reference to connect it
+	Get 	:BOOL;
+	tonTimeOut	:TON;
+	tonDelay	:TON;
+	tonDelay_SameSizeGetBox 	: TON;
+	tonDelay_SameSizeDelayBox 	: TON;
+	tonFeedBoxTimeout 			: TON;
+	TON_CVmovedelay				: TON;
+	_UniqueErrorCode :STRING;
+	PreviousStrStatus : STRING;
+	PreviousErrorCode : STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
+SameSizeFullSensor := Input.bSameSizeCV_BoxNearStorageSensor;]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{a4239636-7ee3-4895-a57f-25269708e78a}" />
+    <Folder Name="State" Id="{7a280747-8a3a-44cf-81bf-eeed27a38ec8}" />
+    <Action Name="A00_BasicUnits" Id="{8689e687-336d-4ea9-8d03-cc4be06e76ed}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT:=T#60S);
+tonFeedBoxTimeout(PT:=T#30s);
+tonDelay(PT:=T#1.5S);
+tonDelay_SameSizeDelayBox(PT:=T#1.5S);
+tonDelay_SameSizeGetBox(PT:=T#50MS);
+TON_CVmovedelay(PT:= T#1S);
+ErrorID:=2210;]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{a0a56b2c-4a8e-4c84-9511-f934763f5581}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
+VAR_INPUT
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Check command paremeter is correct
+	
+	THIS^.Get :=Info.Get;	
+	UseA :=Info.UseA;
+	UseB :=Info.UseB;
+	
+//Allocated/Empty conveyor
+		IF UseA AND ( Info.A_Position<1 OR  Info.A_Position>2 ) THEN
+			strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;		
+		END_IF
+	
+		IF UseB AND ( Info.B_Position<1 OR  Info.B_Position>2 )THEN
+			strStatus:='Wrong command ,Position B Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;		
+		END_IF	
+M_CheckCommand:=TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{bd699f8a-95b7-4794-a4f8-0f5a8d076bda}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{c157d73f-43b9-43cf-b386-ee2652830f33}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{545087cf-44b0-4b0c-9d9c-06ac12763b96}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy    := FALSE;
+Aborted := TRUE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+_AbortCompleted:=FALSE;
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+	uiExecutingStep :=uiResumeStep;
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	ERROR := FALSE;
+	Aborted := FALSE;
+	_Abort := FALSE;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{272367ac-711e-4377-9234-10bb14ffed4a}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		uiAbortingStep:=9999;
+		tonFeedBoxTimeout.IN :=FALSE;
+		tonTimeOut.IN :=FALSE;
+		tonDelay.IN :=FALSE;
+		TON_CVmovedelay.IN := FALSE;
+		_Abort :=FALSE;
+		DifferenceCV.M_MotorStop();
+		SamesizeCV.M_MotorStop();
+		IF strStatus = PreviousStrStatus THEN
+			_UniqueErrorCode :=PreviousErrorCode;
+		END_IF
+		
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{995b98d7-79de-40b8-b4db-bcd57e12d7cd}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{54c771d1-5869-4b0f-b1c8-039798218fc6}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+_Abort			:= FALSE;
+tonDelay_SameSizeGetBox.IN := FALSE;
+tonDelay_SameSizeDelayBox.IN :=false;
+tonTimeOut.IN:=FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+tonDelay.IN :=FALSE;
+tonFeedBoxTimeout.IN :=FALSE;
+TON_CVmovedelay.IN := FALSE;
+_UniqueErrorCode :='0';
+PreviousStrStatus			 :='';
+PreviousErrorCode			 :='';
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{ca523e99-edc6-46b6-9c52-ae0823ef3080}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+cylinder.List.fbSameSizeCV_Press3.M_Retract();
+cylinder.List.fbSameSizeCV_Press4.M_Retract();
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{074a31ee-2180-4eb9-8692-a35ade6092c7}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	BoxReady_1st : BOOL;
+	BoxReady_2nd : BOOL;
+    uiBothStep : UINT;
+    uiSingleClampStep : UINT;	
+	Address_A : INT;
+	Address_B : INT;
+	bGetBoxInSameSizeConveyor : BOOL;
+	uiSameGetBoxStep : UINT;
+	bSameSizeCVMoveForward  : BOOL;
+	bSameSizeCVMoveBackward : BOOL;
+	bDiffCVMoveForward		:BOOL;
+	bDiffCVMoveBackward		:BOOL;
+
+
+END_VAR
+VAR
+	WareHouse: INT;
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set Busy active edit by johnson
+Busy := TRUE;
+IF THIS^.Stop THEN // Pending the timeout when Stop signal occur
+	tonTimeout.IN :=FALSE;
+END_IF
+
+IF bSameSizeCVMoveForward THEN
+	IF NOT SamesizeCV.InBackWard THEN
+		SamesizeCV.M_MoveForward();
+	END_IF
+END_IF
+IF bSameSizeCVMoveBackward THEN
+	IF NOT SamesizeCV.InForWard THEN
+	 SamesizeCV.M_MoveBackward();
+	END_IF
+END_IF
+IF bDiffCVMoveForward THEN
+	IF NOT DifferenceCV.InBackWard THEN
+		DifferenceCV.M_MoveForward();
+	END_IF
+END_IF
+IF bDiffCVMoveBackward THEN
+	IF NOT DifferenceCV.InForWard THEN
+		DifferenceCV.M_MoveBackward();
+	END_IF
+END_IF
+
+
+// Service Process
+CASE uiExecutingStep OF
+	0:
+        // Clear variable
+        uiBothStep := 0;
+		uiSingleClampStep :=0;
+		BoxReady_1st := 0;
+		BoxReady_2nd := 0;
+		tonTimeOut.IN:=FALSE;
+		bSameSizeCVMoveForward  :=FALSE;
+		bSameSizeCVMoveBackward :=FALSE;
+		bDiffCVMoveForward		:=FALSE;
+		bDiffCVMoveBackward		:=FALSE;
+        // Check command
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 10;
+		ELSE
+			_Error:=TRUE;
+        END_IF
+    10:
+        // Start process, check units first
+        IF M_CheckUnitsReady() THEN
+            uiExecutingStep := 20;
+        END_IF
+    20:
+        // CHeck units not busy state
+        IF M_CheckUnitsNotBusy() THEN
+            uiExecutingStep := 1000;
+        END_IF
+   
+	1000:   
+			// Read   coordinate
+			 Area := THIS^.Area;
+ 			 Address_A := LREAL_TO_INT(Info.A_Position);
+			 Address_B := LREAL_TO_INT(Info.B_Position);
+			 bGetBoxInSameSizeConveyor := Get AND ((UseA AND Address_A=2) OR (UseB AND Address_B=2));
+			 IF bGetBoxInSameSizeConveyor THEN
+				 cylinder.List.fbSameSizeCV_Press3.M_Retract();
+				 cylinder.List.fbSameSizeCV_Press4.M_Retract();
+			 END_IF
+			 uiSameGetBoxStep :=0;
+			 tonDelay_SameSizeGetBox.IN:=FALSE;
+			IF UseA AND NOT UseB THEN
+				//Only clampA
+				uiExecutingStep := 10000;
+			ELSIF NOT UseA AND UseB THEN
+				//Only ClampB 
+				uiExecutingStep := 20000;
+			ELSIF UseA AND UseB THEN
+				//Both Clamps
+				uiExecutingStep := 30000;		
+			END_IF
+       
+    10000: // Only ClampA 
+        IF NOT Robot._DI1.Done THEN
+            
+            
+			CASE uiSingleClampStep OF
+				
+				0://
+					 IF Get THEN // Get box job
+//						IF FeedInConveyor.P_PermitCommand AND NOT FeedInConveyor.P_isRunningBackward THEN
+//            				FeedInConveyor.M_AutoMoveReverse(sRecordSource := '');
+//						END_IF
+//						IF 
+					 	
+						CASE Address_A OF
+							1:
+								tonDelay.IN :=Input.bDifferentSizeCV_BoxDetect7_Sensor;
+								bDiffCVMoveBackward:=TRUE;
+								bDiffCVMoveForward:=FALSE;
+								DifferenceCV.M_MoveBackward();
+								
+							2:
+								CASE uiSameGetBoxStep OF
+									0:
+									//tonDelay.IN :=SameSizeFullSensor;	
+									bSameSizeCVMoveBackward := TRUE;
+									bSameSizeCVMoveForward := FALSE;
+									SamesizeCV.M_MoveBackward();
+									cylinder.List.fbSameSizeCV_Press3.M_Retract();
+									cylinder.List.fbSameSizeCV_Press4.M_Retract();
+									uiSameGetBoxStep :=100;
+									
+									100:
+										tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF tonDelay_SameSizeGetBox.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											uiSameGetBoxStep :=200;
+										END_IF
+									200:
+										tonDelay_SameSizeGetBox.IN:=FALSE;
+										tonDelay_SameSizeDelayBox.IN :=SameSizeFullSensor;
+										IF 	tonDelay_SameSizeDelayBox.Q THEN
+												uiSameGetBoxStep :=300;
+										END_IF	
+									300:
+										cylinder.List.fbSameSizeCV_Press4.M_Extend();
+										IF NOT Input.bSameSizeCV_BoxDetect6_Sensor THEN
+											tonDelay.IN :=TRUE;
+											uiSameGetBoxStep := 400;
+										ELSE
+											cylinder.List.fbSameSizeCV_Press3.M_Retract();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 325;
+										END_IF
+									325:
+										bSameSizeCVMoveBackward := FALSE;
+										bSameSizeCVMoveForward 	:= TRUE;
+										IF SamesizeCV.InForWard THEN
+											uiSameGetBoxStep := 350;
+										END_IF
+										
+									350:
+										TON_CVmovedelay.IN := NOT Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF TON_CVmovedelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 375;
+										END_IF
+									375:
+										TON_CVmovedelay.IN 		:= FALSE;
+										bSameSizeCVMoveBackward := TRUE;
+										bSameSizeCVMoveForward  := FALSE;
+										IF SamesizeCV.InBackWard THEN
+											uiSameGetBoxStep := 400;
+										END_IF
+									400: 
+										tonDelay.IN :=TRUE;
+										IF tonDelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press4.M_Retract();
+										END_IF
+								END_CASE
+						END_CASE	
+			
+					ELSE
+//						IF FeedInConveyor.P_PermitCommand AND NOT FeedInConveyor.P_isRunningBackward THEN
+//            				FeedInConveyor.M_MoveForward(sRecordSource := '');
+//						END_IF
+						CASE Address_A OF
+							1:
+								tonDelay.IN := NOT Input.bDifferentSizeCV_BoxDetect7_Sensor;
+								bDiffCVMoveForward :=TRUE;
+								bDiffCVMoveBackward:=FALSE;
+								DifferenceCV.M_MoveForward();
+							2:
+								tonDelay.IN :=NOT SameSizeFullSensor;
+								bSameSizeCVMoveForward :=TRUE;
+								bSameSizeCVMoveBackward:=FALSE;
+								SamesizeCV.M_MoveForward();			
+						END_CASE					
+				
+					END_IF	
+				
+						IF tonDelay.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							uiSingleClampStep:=1000;
+						END_IF
+						tonFeedBoxTimeout.IN :=TRUE;
+						IF tonFeedBoxTimeout.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							strStatus :='Feed Box timeout';
+							uiResumeStep:=10000;
+							_Abort:=TRUE;
+						END_IF
+				1000:
+						BoxReady_1st:=TRUE;
+						tonDelay.IN:=FALSE;
+						bSameSizeCVMoveForward  :=FALSE;
+						bSameSizeCVMoveBackward :=FALSE;
+						bDiffCVMoveForward		:=FALSE;
+						bDiffCVMoveBackward		:=FALSE;						
+						DifferenceCV.M_MotorStop();
+						SamesizeCV.M_MotorStop();
+						uiSingleClampStep:=9999;
+				9999: //Wait	
+			END_CASE
+			          		 
+				  // Robot Abs move
+           		 Robot.M_StartRobotAbsMove(GetBox:=Get,
+											UseClampA:=UseA,
+											UseClampB:=UseB,
+											Area:=Area,
+											ClampA_Address:=Address_A,
+											ClampB_Address:=Address_B,
+											BoxReady_1:=BoxReady_1st,
+											BoxReady_2:=BoxReady_2nd);				  
+		
+        ELSE
+			tonTimeOut.IN:=FALSE;
+            uiExecutingStep := 10080;
+        END_IF
+		tonTimeOut.IN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			tonTimeOut.IN:=FALSE;
+			strStatus :='Robot move timeout';
+			_Error:=TRUE;
+		END_IF	
+    10080:
+        Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
+		tonTimeOut.IN:=TRUE;
+		uiSameGetBoxStep:=0;
+        IF NOT Robot._DI1.Done THEN
+			tonTimeOut.IN:=FALSE;
+            uiExecutingStep := 50000; 
+        END_IF
+		
+    	IF tonTimeOut.Q=TRUE THEN
+			strStatus :='Reset Robot timeout';
+			_Error:=TRUE;
+		END_IF	
+    
+   20000: // Only ClampB
+        IF NOT Robot._DI1.Done THEN
+            			
+			CASE uiSingleClampStep OF
+			0:	
+					 IF Get THEN // Get box job
+//						IF FeedInConveyor.P_PermitCommand AND NOT FeedInConveyor.P_isRunningBackward THEN
+//            				FeedInConveyor.M_AutoMoveReverse(sRecordSource := '');
+//						END_IF
+//						IF 
+					 	
+						CASE Address_B OF
+							1:
+								tonDelay.IN :=Input.bDifferentSizeCV_BoxDetect7_Sensor;
+								bDiffCVMoveBackward:=TRUE;
+								bDiffCVMoveForward := FALSE;
+								DifferenceCV.M_MoveBackward();
+								
+							2:
+//								tonDelay.IN :=SameSizeFullSensor;	
+//								SamesizeCV.M_MoveBackward();
+//								cylinder.List.fbSameSizeCV_Press3.M_Retract();
+//								cylinder.List.fbSameSizeCV_Press4.M_Retract();
+								CASE uiSameGetBoxStep OF
+									0:
+									//tonDelay.IN :=SameSizeFullSensor;	
+									bSameSizeCVMoveForward :=FALSE;
+									bSameSizeCVMoveBackward := TRUE;
+									SamesizeCV.M_MoveBackward();
+									cylinder.List.fbSameSizeCV_Press3.M_Retract();
+									cylinder.List.fbSameSizeCV_Press4.M_Retract();
+									uiSameGetBoxStep :=100;
+									
+									100:
+										tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF tonDelay_SameSizeGetBox.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											uiSameGetBoxStep :=200;
+										END_IF
+									200:
+										tonDelay_SameSizeGetBox.IN:=FALSE;
+										tonDelay_SameSizeDelayBox.IN :=SameSizeFullSensor;
+										IF 	tonDelay_SameSizeDelayBox.Q THEN
+											uiSameGetBoxStep :=300;
+										END_IF	
+									300:
+										cylinder.List.fbSameSizeCV_Press4.M_Extend();
+										IF NOT Input.bSameSizeCV_BoxDetect6_Sensor THEN
+											tonDelay.IN :=TRUE;
+											uiSameGetBoxStep := 400;
+										ELSE
+											cylinder.List.fbSameSizeCV_Press3.M_Retract();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 325;
+										END_IF
+									325:
+										bSameSizeCVMoveBackward := FALSE;
+										bSameSizeCVMoveForward 	:= TRUE;
+										IF SamesizeCV.InForWard THEN
+											uiSameGetBoxStep := 350;
+										END_IF
+										
+									350:
+										TON_CVmovedelay.IN := NOT Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF TON_CVmovedelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 375;
+										END_IF
+									375:
+										TON_CVmovedelay.IN 		:= FALSE;
+										bSameSizeCVMoveBackward := TRUE;
+										bSameSizeCVMoveForward  := FALSE;
+										IF SamesizeCV.InBackWard THEN
+											uiSameGetBoxStep := 400;
+										END_IF
+									400: 
+										tonDelay.IN :=TRUE;
+										IF tonDelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press4.M_Retract();
+										END_IF
+								END_CASE			
+
+						END_CASE	
+			
+					ELSE
+//						IF FeedInConveyor.P_PermitCommand AND NOT FeedInConveyor.P_isRunningBackward THEN
+//            				FeedInConveyor.M_MoveForward(sRecordSource := '');
+//						END_IF
+						CASE Address_B OF
+							1:
+								tonDelay.IN := NOT Input.bDifferentSizeCV_BoxDetect7_Sensor;
+								bDiffCVMoveForward	:=TRUE;
+								bDiffCVMoveBackward	:=FALSE;
+								DifferenceCV.M_MoveForward();
+							2:
+								tonDelay.IN :=NOT SameSizeFullSensor;
+								bSameSizeCVMoveForward :=TRUE;
+								bSameSizeCVMoveBackward :=FALSE;
+								SamesizeCV.M_MoveForward();			
+						END_CASE					
+				
+					END_IF	
+				
+						IF tonDelay.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							uiSingleClampStep:=1000;
+						END_IF
+						tonFeedBoxTimeout.IN :=TRUE;
+						IF tonFeedBoxTimeout.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							strStatus :='Feed Box timeout';
+							uiResumeStep:=10000;
+							_Abort:=TRUE;
+						END_IF
+				1000:
+						//BoxReady_1st:=TRUE;
+						BoxReady_2nd:=TRUE;
+						tonDelay.IN:=FALSE;
+						bSameSizeCVMoveForward  :=FALSE;
+						bSameSizeCVMoveBackward :=FALSE;
+						bDiffCVMoveForward		:=FALSE;
+						bDiffCVMoveBackward		:=FALSE;
+						DifferenceCV.M_MotorStop();
+						SamesizeCV.M_MotorStop();
+						uiSingleClampStep:=9999;
+				9999: //Wait	
+
+			END_CASE
+			          		 
+				  // Robot Abs move
+           		 Robot.M_StartRobotAbsMove( GetBox:=Get,
+											UseClampA:=UseA,
+											UseClampB:=UseB,
+											Area:=Area,
+											ClampA_Address:=Address_A,
+											ClampB_Address:=Address_B,
+											BoxReady_1:=BoxReady_1st,
+											BoxReady_2:=BoxReady_2nd);	
+        ELSE
+			tonTimeOut.IN:=FALSE;
+            uiExecutingStep := 20080;
+        END_IF
+		tonTimeOut.IN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			tonTimeOut.IN:=FALSE;
+			strStatus :='Robot move timeout';
+			_Error:=TRUE;
+		END_IF	
+    20080:
+       Robot.M_ResetRobotAbsMove(UseA,UseB);; // Clear command 
+		uiSameGetBoxStep :=0;
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 50000; 
+        END_IF
+		tonTimeOut.IN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			strStatus :='Reset Robot timeout';
+			_Error:=TRUE;
+		END_IF	
+    30000: // Both Clamps
+        		
+		
+		  CASE uiBothStep OF
+           		0://	
+					BoxReady_1st := FALSE;
+					BoxReady_2nd := FALSE;					
+					uiBothStep:=1000;						
+				
+				1000:
+						IF Get THEN // Get box job
+							CASE Address_A OF
+								1:
+									tonDelay.IN :=Input.bDifferentSizeCV_BoxDetect7_Sensor;
+									bDiffCVMoveForward	:=FALSE;
+									bDiffCVMoveBackward	:=TRUE;
+									DifferenceCV.M_MoveBackward();
+									
+								2:
+//									tonDelay.IN :=SameSizeFullSensor;	
+//									SamesizeCV.M_MoveBackward();
+//									cylinder.List.fbSameSizeCV_Press3.M_Retract();
+//									cylinder.List.fbSameSizeCV_Press4.M_Retract();
+								CASE uiSameGetBoxStep OF
+									0:
+									//tonDelay.IN :=SameSizeFullSensor;	
+									bSameSizeCVMoveForward  :=FALSE;
+									bSameSizeCVMoveBackward :=TRUE;
+									SamesizeCV.M_MoveBackward();
+									cylinder.List.fbSameSizeCV_Press3.M_Retract();
+									cylinder.List.fbSameSizeCV_Press4.M_Retract();
+									uiSameGetBoxStep :=100;
+									
+									100:
+										tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF tonDelay_SameSizeGetBox.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											uiSameGetBoxStep :=200;
+										END_IF
+									200:
+										tonDelay_SameSizeGetBox.IN:=FALSE;
+										tonDelay_SameSizeDelayBox.IN :=SameSizeFullSensor;
+										IF 	tonDelay_SameSizeDelayBox.Q THEN
+											uiSameGetBoxStep :=300;
+										END_IF	
+									300:
+										cylinder.List.fbSameSizeCV_Press4.M_Extend();
+										IF NOT Input.bSameSizeCV_BoxDetect6_Sensor THEN
+											tonDelay.IN :=TRUE;
+											uiSameGetBoxStep := 400;
+										ELSE
+											cylinder.List.fbSameSizeCV_Press3.M_Retract();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 325;
+										END_IF
+									325:
+										bSameSizeCVMoveBackward := FALSE;
+										bSameSizeCVMoveForward 	:= TRUE;
+										IF SamesizeCV.InForWard THEN
+											uiSameGetBoxStep := 350;
+										END_IF
+										
+									350:
+										TON_CVmovedelay.IN := NOT Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF TON_CVmovedelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 375;
+										END_IF
+									375:
+										TON_CVmovedelay.IN 		:= FALSE;
+										bSameSizeCVMoveBackward := TRUE;
+										bSameSizeCVMoveForward  := FALSE;
+										IF SamesizeCV.InBackWard THEN
+											uiSameGetBoxStep := 400;
+										END_IF
+									400: 
+										tonDelay.IN :=TRUE;
+										IF tonDelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press4.M_Retract();
+										END_IF
+								END_CASE
+				
+							END_CASE	
+			
+						ELSE
+							CASE Address_A OF
+								1:
+									tonDelay.IN := NOT Input.bDifferentSizeCV_BoxDetect7_Sensor;
+									bDiffCVMoveForward	:=TRUE;
+									bDiffCVMoveBackward	:=FALSE;
+									DifferenceCV.M_MoveForward();
+								2:
+									tonDelay.IN :=NOT SameSizeFullSensor;
+									bSameSizeCVMoveForward  :=TRUE;
+									bSameSizeCVMoveBackward :=FALSE;
+									SamesizeCV.M_MoveForward();			
+							END_CASE					
+				
+						END_IF	
+				
+						IF tonDelay.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							uiSameGetBoxStep:=0;
+							uiBothStep:=2000;
+						END_IF
+						tonFeedBoxTimeout.IN :=TRUE;
+						IF tonFeedBoxTimeout.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							strStatus :='Feed Box timeout';
+							uiResumeStep:=30000;
+							_Abort:=TRUE;
+						END_IF
+				2000:
+						tonDelay.IN :=FALSE;
+						bSameSizeCVMoveForward  :=FALSE;
+						bSameSizeCVMoveBackward :=FALSE;
+						bDiffCVMoveForward		:=FALSE;
+						bDiffCVMoveBackward		:=FALSE;
+						DifferenceCV.M_MotorStop();
+						SamesizeCV.M_MotorStop();
+						BoxReady_1st:=TRUE;
+						tonDelay_SameSizeGetBox.IN := FALSE;
+						tonDelay_SameSizeDelayBox.IN :=FALSE;
+						IF Robot._DI1.Notification THEN
+							uiBothStep:=3000;
+						END_IF
+				3000:
+						IF Get THEN // Get box job
+							CASE Address_B OF
+								1:
+									tonDelay.IN :=Input.bDifferentSizeCV_BoxDetect7_Sensor;
+									bDiffCVMoveForward	:=FALSE;
+									bDiffCVMoveBackward :=TRUE;
+									DifferenceCV.M_MoveBackward();
+									
+								2:
+//									tonDelay.IN :=SameSizeFullSensor;	
+//									SamesizeCV.M_MoveBackward();
+//									cylinder.List.fbSameSizeCV_Press3.M_Retract();
+//									cylinder.List.fbSameSizeCV_Press4.M_Retract();
+									CASE uiSameGetBoxStep OF
+									0:
+									//tonDelay.IN :=SameSizeFullSensor;	
+									bSameSizeCVMoveForward :=FALSE;
+									bSameSizeCVMoveBackward :=TRUE;
+									SamesizeCV.M_MoveBackward();
+									cylinder.List.fbSameSizeCV_Press3.M_Retract();
+									cylinder.List.fbSameSizeCV_Press4.M_Retract();
+									uiSameGetBoxStep :=100;
+									
+									100:
+										tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF tonDelay_SameSizeGetBox.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											uiSameGetBoxStep :=200;
+										END_IF
+									200:
+										tonDelay_SameSizeGetBox.IN:=FALSE;
+										tonDelay_SameSizeDelayBox.IN :=SameSizeFullSensor;
+										IF 	tonDelay_SameSizeDelayBox.Q THEN
+											uiSameGetBoxStep :=300;
+										END_IF	
+									300:
+										cylinder.List.fbSameSizeCV_Press4.M_Extend();
+										IF NOT Input.bSameSizeCV_BoxDetect6_Sensor THEN
+											tonDelay.IN :=TRUE;
+											uiSameGetBoxStep := 400;
+										ELSE
+											cylinder.List.fbSameSizeCV_Press3.M_Retract();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 325;
+										END_IF
+									325:
+										bSameSizeCVMoveBackward := FALSE;
+										bSameSizeCVMoveForward 	:= TRUE;
+										IF SamesizeCV.InForWard THEN
+											uiSameGetBoxStep := 350;
+										END_IF
+										
+									350:
+										TON_CVmovedelay.IN := NOT Input.bSameSizeCV_BoxDetect6_Sensor;
+										IF TON_CVmovedelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press3.M_Extend();
+											bSameSizeCVMoveBackward := FALSE;
+											bSameSizeCVMoveForward 	:= FALSE;
+											SamesizeCV.M_MotorStop();
+											uiSameGetBoxStep := 375;
+										END_IF
+									375:
+										TON_CVmovedelay.IN 		:= FALSE;
+										bSameSizeCVMoveBackward := TRUE;
+										bSameSizeCVMoveForward  := FALSE;
+										IF SamesizeCV.InBackWard THEN
+											uiSameGetBoxStep := 400;
+										END_IF
+									400: 
+										tonDelay.IN := TRUE;
+										IF tonDelay.Q THEN
+											cylinder.List.fbSameSizeCV_Press4.M_Retract();
+										END_IF
+								END_CASE
+							END_CASE	
+			
+						ELSE
+							CASE Address_B OF
+								1:
+									tonDelay.IN := NOT Input.bDifferentSizeCV_BoxDetect7_Sensor;
+									bDiffCVMoveForward	:=TRUE;
+									bDiffCVMoveBackward := FALSE;
+									DifferenceCV.M_MoveForward();
+								2:
+									tonDelay.IN :=NOT SameSizeFullSensor;
+									bSameSizeCVMoveForward :=TRUE;
+									bSameSizeCVMoveBackward := FALSE;
+									SamesizeCV.M_MoveForward();			
+							END_CASE					
+				
+						END_IF	
+				
+						IF tonDelay.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							uiBothStep:=9000;
+						END_IF
+						IF tonFeedBoxTimeout.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							strStatus :='Feed Box timeout';
+							uiResumeStep:=30000;
+							_Abort:=TRUE;
+						END_IF
+				
+				9000:
+						BoxReady_2nd:=TRUE;
+						tonDelay.IN :=FALSE;
+						bSameSizeCVMoveForward  :=FALSE;
+						bSameSizeCVMoveBackward :=FALSE;
+						bDiffCVMoveForward		:=FALSE;
+						bDiffCVMoveBackward		:=FALSE;
+						DifferenceCV.M_MotorStop();
+						SamesizeCV.M_MotorStop();
+				
+					
+       
+      	  END_CASE
+
+       	  // Robot Abs move
+           		 Robot.M_StartRobotAbsMove( GetBox:=Get,
+											UseClampA:=UseA,
+											UseClampB:=UseB,
+											Area:=Area,
+											ClampA_Address:=Address_A,
+											ClampB_Address:=Address_B,
+											BoxReady_1:=BoxReady_1st,
+											BoxReady_2:=BoxReady_2nd);	
+		
+		
+        IF Robot._DI1.Done THEN
+			tonTimeOut.IN:=FALSE;
+            uiExecutingStep := 30080;
+        END_IF
+			tonTimeOut.IN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			tonTimeOut.IN:=FALSE;
+			strStatus :='Robot move timeout';
+			_Abort:=TRUE;
+		END_IF
+    30080: // Check robot command is clear
+        
+        Robot.M_ResetRobotAbsMove(UseA,UseB);
+
+        IF NOT Robot._DI1.Done THEN
+			tonTimeOut.IN:=FALSE;
+            uiExecutingStep := 50000; // go to place step
+        END_IF    
+   		tonTimeOut.IN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			strStatus :='Stop Robot timeout';
+			_Error:=TRUE;
+		END_IF	
+  	50000:	// if robot put need box forward more time
+			IF NOT Get THEN
+				uiExecutingStep :=51000;
+			ELSE
+				uiExecutingStep :=99000;
+			END_IF
+    51000:	//conveyor forward 
+			IF UseA THEN
+				CASE Address_A OF
+					1:
+						tonDelay.IN := NOT Input.bDifferentSizeCV_BoxDetect7_Sensor;
+						DifferenceCV.M_MoveForward();
+					2:
+						tonDelay.IN :=NOT SameSizeFullSensor;
+						SamesizeCV.M_MoveForward();			
+				END_CASE
+			END_IF					
+			IF UseB THEN
+				CASE Address_B OF
+					1:
+						tonDelay.IN := NOT Input.bDifferentSizeCV_BoxDetect7_Sensor;
+						DifferenceCV.M_MoveForward();
+					2:
+						tonDelay.IN :=NOT SameSizeFullSensor;
+						SamesizeCV.M_MoveForward();			
+				END_CASE
+			END_IF
+						IF tonDelay.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							uiExecutingStep:=99000;
+						END_IF
+						IF tonFeedBoxTimeout.Q THEN
+							tonFeedBoxTimeout.IN :=FALSE;
+							strStatus :='Feed Box timeout';
+							uiResumeStep:=30000;
+							_Abort:=TRUE;
+						END_IF
+    99000: // process done
+         Status    := 'Process completed';
+		 bSameSizeCVMoveForward  :=FALSE;
+		 bSameSizeCVMoveBackward :=FALSE;
+		 bDiffCVMoveForward		:=FALSE;
+		 bDiffCVMoveBackward		:=FALSE;
+		 cylinder.List.fbSameSizeCV_Press3.M_Retract();
+		 cylinder.List.fbSameSizeCV_Press4.M_Retract();
+        _Executed := TRUE;
+END_CASE
+IF _Executed THEN
+    eState := STATE_DONE;
+ELSIF _Error THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eState := STATE_ERROR;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+IF _Abort OR Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eSTATE:=STATE_ABORTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{f1009dde-1906-4ace-a6ac-b1d2a7de8631}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=FALSE;
+Done :=FALSE;
+Busy := FALSE;
+
+
+CASE uiResettingStep OF
+	
+	0:
+		tonTimeOut.IN:=FALSE;
+		tonDelay_SameSizeDelayBox.IN :=FALSE;
+		TON_CVmovedelay.IN := FALSE;
+		Robot.M_ResetAllCommand();
+		Robot.M_ResetRobotAbsMove(TRUE,TRUE);
+		DifferenceCV.M_MotorStop();
+		SamesizeCV.M_MotorStop();
+		cylinder.List.fbSameSizeCV_Press3.M_Retract();
+		cylinder.List.fbSameSizeCV_Press4.M_Retract();
+		uiResettingStep:=100;
+		
+	100:	
+	
+		uiResettingStep:=9999;
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor">
+      <LineId Id="9" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="56" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_CheckCommand">
+      <LineId Id="24" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="283" Count="1" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="187" Count="2" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="224" Count="3" />
+      <LineId Id="230" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="109" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_ABORTED">
+      <LineId Id="14" Count="4" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="19" Count="5" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="38" Count="2" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_ABORTING">
+      <LineId Id="12" Count="3" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="16" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_DONE">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_DORMANT">
+      <LineId Id="6" Count="0" />
+      <LineId Id="23" Count="8" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_ERROR">
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_EXECUTING">
+      <LineId Id="6" Count="1" />
+      <LineId Id="1084" Count="1" />
+      <LineId Id="1083" Count="0" />
+      <LineId Id="1555" Count="0" />
+      <LineId Id="1554" Count="0" />
+      <LineId Id="1655" Count="0" />
+      <LineId Id="1556" Count="0" />
+      <LineId Id="1656" Count="0" />
+      <LineId Id="1557" Count="0" />
+      <LineId Id="1561" Count="0" />
+      <LineId Id="1651" Count="0" />
+      <LineId Id="1562" Count="0" />
+      <LineId Id="1652" Count="0" />
+      <LineId Id="1560" Count="0" />
+      <LineId Id="1563" Count="0" />
+      <LineId Id="1657" Count="0" />
+      <LineId Id="1564" Count="0" />
+      <LineId Id="1658" Count="0" />
+      <LineId Id="1565" Count="0" />
+      <LineId Id="1567" Count="0" />
+      <LineId Id="1653" Count="0" />
+      <LineId Id="1568" Count="0" />
+      <LineId Id="1654" Count="0" />
+      <LineId Id="1566" Count="0" />
+      <LineId Id="1559" Count="0" />
+      <LineId Id="1558" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="722" Count="0" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="873" Count="0" />
+      <LineId Id="1578" Count="2" />
+      <LineId Id="1577" Count="0" />
+      <LineId Id="55" Count="2" />
+      <LineId Id="561" Count="1" />
+      <LineId Id="58" Count="11" />
+      <LineId Id="707" Count="0" />
+      <LineId Id="710" Count="0" />
+      <LineId Id="708" Count="0" />
+      <LineId Id="731" Count="0" />
+      <LineId Id="734" Count="1" />
+      <LineId Id="1210" Count="1" />
+      <LineId Id="1235" Count="0" />
+      <LineId Id="1212" Count="0" />
+      <LineId Id="1209" Count="0" />
+      <LineId Id="1441" Count="0" />
+      <LineId Id="563" Count="1" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="566" Count="1" />
+      <LineId Id="571" Count="0" />
+      <LineId Id="568" Count="1" />
+      <LineId Id="572" Count="0" />
+      <LineId Id="565" Count="0" />
+      <LineId Id="91" Count="4" />
+      <LineId Id="573" Count="0" />
+      <LineId Id="723" Count="0" />
+      <LineId Id="727" Count="0" />
+      <LineId Id="945" Count="0" />
+      <LineId Id="966" Count="1" />
+      <LineId Id="946" Count="0" />
+      <LineId Id="1236" Count="0" />
+      <LineId Id="962" Count="0" />
+      <LineId Id="947" Count="1" />
+      <LineId Id="1239" Count="0" />
+      <LineId Id="1596" Count="1" />
+      <LineId Id="1240" Count="0" />
+      <LineId Id="949" Count="1" />
+      <LineId Id="1435" Count="0" />
+      <LineId Id="951" Count="0" />
+      <LineId Id="1436" Count="0" />
+      <LineId Id="1601" Count="1" />
+      <LineId Id="1241" Count="0" />
+      <LineId Id="1204" Count="0" />
+      <LineId Id="1242" Count="0" />
+      <LineId Id="1437" Count="0" />
+      <LineId Id="1439" Count="0" />
+      <LineId Id="1438" Count="0" />
+      <LineId Id="1440" Count="0" />
+      <LineId Id="1442" Count="1" />
+      <LineId Id="1445" Count="0" />
+      <LineId Id="1444" Count="0" />
+      <LineId Id="1446" Count="0" />
+      <LineId Id="1448" Count="0" />
+      <LineId Id="1447" Count="0" />
+      <LineId Id="1449" Count="0" />
+      <LineId Id="1710" Count="0" />
+      <LineId Id="1450" Count="0" />
+      <LineId Id="1890" Count="8" />
+      <LineId Id="1962" Count="0" />
+      <LineId Id="1899" Count="14" />
+      <LineId Id="1963" Count="0" />
+      <LineId Id="1914" Count="9" />
+      <LineId Id="1975" Count="0" />
+      <LineId Id="1924" Count="1" />
+      <LineId Id="1459" Count="0" />
+      <LineId Id="1237" Count="0" />
+      <LineId Id="952" Count="2" />
+      <LineId Id="963" Count="2" />
+      <LineId Id="955" Count="2" />
+      <LineId Id="1571" Count="0" />
+      <LineId Id="1598" Count="0" />
+      <LineId Id="1243" Count="0" />
+      <LineId Id="958" Count="1" />
+      <LineId Id="1572" Count="0" />
+      <LineId Id="1599" Count="0" />
+      <LineId Id="1244" Count="0" />
+      <LineId Id="960" Count="1" />
+      <LineId Id="737" Count="0" />
+      <LineId Id="747" Count="0" />
+      <LineId Id="969" Count="0" />
+      <LineId Id="1149" Count="0" />
+      <LineId Id="970" Count="1" />
+      <LineId Id="1144" Count="1" />
+      <LineId Id="1158" Count="0" />
+      <LineId Id="1146" Count="0" />
+      <LineId Id="1150" Count="0" />
+      <LineId Id="1148" Count="0" />
+      <LineId Id="1147" Count="0" />
+      <LineId Id="726" Count="0" />
+      <LineId Id="757" Count="0" />
+      <LineId Id="972" Count="0" />
+      <LineId Id="1573" Count="3" />
+      <LineId Id="973" Count="0" />
+      <LineId Id="1245" Count="0" />
+      <LineId Id="812" Count="1" />
+      <LineId Id="724" Count="0" />
+      <LineId Id="574" Count="0" />
+      <LineId Id="614" Count="1" />
+      <LineId Id="758" Count="1" />
+      <LineId Id="617" Count="0" />
+      <LineId Id="761" Count="3" />
+      <LineId Id="111" Count="1" />
+      <LineId Id="1131" Count="0" />
+      <LineId Id="113" Count="1" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="1127" Count="0" />
+      <LineId Id="1130" Count="0" />
+      <LineId Id="1128" Count="1" />
+      <LineId Id="1126" Count="0" />
+      <LineId Id="115" Count="2" />
+      <LineId Id="1489" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="887" Count="0" />
+      <LineId Id="119" Count="1" />
+      <LineId Id="1099" Count="0" />
+      <LineId Id="884" Count="2" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="620" Count="2" />
+      <LineId Id="1246" Count="1" />
+      <LineId Id="1292" Count="8" />
+      <LineId Id="1593" Count="1" />
+      <LineId Id="1301" Count="6" />
+      <LineId Id="1461" Count="2" />
+      <LineId Id="1603" Count="1" />
+      <LineId Id="1464" Count="16" />
+      <LineId Id="1926" Count="8" />
+      <LineId Id="1964" Count="0" />
+      <LineId Id="1935" Count="14" />
+      <LineId Id="1965" Count="0" />
+      <LineId Id="1950" Count="9" />
+      <LineId Id="1972" Count="0" />
+      <LineId Id="1960" Count="1" />
+      <LineId Id="1488" Count="0" />
+      <LineId Id="1308" Count="0" />
+      <LineId Id="1460" Count="0" />
+      <LineId Id="1309" Count="8" />
+      <LineId Id="1607" Count="1" />
+      <LineId Id="1318" Count="2" />
+      <LineId Id="1605" Count="1" />
+      <LineId Id="1321" Count="17" />
+      <LineId Id="1685" Count="0" />
+      <LineId Id="1339" Count="0" />
+      <LineId Id="1582" Count="2" />
+      <LineId Id="1581" Count="0" />
+      <LineId Id="1340" Count="3" />
+      <LineId Id="1290" Count="0" />
+      <LineId Id="791" Count="9" />
+      <LineId Id="652" Count="1" />
+      <LineId Id="1137" Count="0" />
+      <LineId Id="654" Count="1" />
+      <LineId Id="1132" Count="4" />
+      <LineId Id="656" Count="5" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="899" Count="3" />
+      <LineId Id="662" Count="0" />
+      <LineId Id="206" Count="1" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="667" Count="0" />
+      <LineId Id="814" Count="0" />
+      <LineId Id="838" Count="0" />
+      <LineId Id="815" Count="0" />
+      <LineId Id="818" Count="0" />
+      <LineId Id="835" Count="1" />
+      <LineId Id="1011" Count="0" />
+      <LineId Id="1344" Count="2" />
+      <LineId Id="1609" Count="1" />
+      <LineId Id="1347" Count="6" />
+      <LineId Id="1491" Count="2" />
+      <LineId Id="1611" Count="1" />
+      <LineId Id="1494" Count="16" />
+      <LineId Id="1818" Count="8" />
+      <LineId Id="1966" Count="0" />
+      <LineId Id="1827" Count="14" />
+      <LineId Id="1967" Count="0" />
+      <LineId Id="1842" Count="9" />
+      <LineId Id="1971" Count="0" />
+      <LineId Id="1852" Count="1" />
+      <LineId Id="1518" Count="0" />
+      <LineId Id="1490" Count="0" />
+      <LineId Id="1354" Count="1" />
+      <LineId Id="1023" Count="1" />
+      <LineId Id="1356" Count="2" />
+      <LineId Id="1615" Count="1" />
+      <LineId Id="1359" Count="2" />
+      <LineId Id="1613" Count="1" />
+      <LineId Id="1362" Count="1" />
+      <LineId Id="1034" Count="3" />
+      <LineId Id="1166" Count="0" />
+      <LineId Id="1547" Count="0" />
+      <LineId Id="1038" Count="0" />
+      <LineId Id="1009" Count="0" />
+      <LineId Id="1160" Count="5" />
+      <LineId Id="1159" Count="0" />
+      <LineId Id="1010" Count="0" />
+      <LineId Id="1039" Count="0" />
+      <LineId Id="1618" Count="2" />
+      <LineId Id="1617" Count="0" />
+      <LineId Id="1364" Count="1" />
+      <LineId Id="837" Count="0" />
+      <LineId Id="841" Count="0" />
+      <LineId Id="1684" Count="0" />
+      <LineId Id="842" Count="3" />
+      <LineId Id="1041" Count="0" />
+      <LineId Id="1366" Count="2" />
+      <LineId Id="1623" Count="1" />
+      <LineId Id="1369" Count="6" />
+      <LineId Id="1519" Count="2" />
+      <LineId Id="1621" Count="1" />
+      <LineId Id="1522" Count="16" />
+      <LineId Id="1854" Count="8" />
+      <LineId Id="1968" Count="0" />
+      <LineId Id="1863" Count="14" />
+      <LineId Id="1969" Count="0" />
+      <LineId Id="1878" Count="9" />
+      <LineId Id="1970" Count="0" />
+      <LineId Id="1888" Count="1" />
+      <LineId Id="1546" Count="0" />
+      <LineId Id="1376" Count="1" />
+      <LineId Id="1053" Count="1" />
+      <LineId Id="1378" Count="2" />
+      <LineId Id="1625" Count="1" />
+      <LineId Id="1381" Count="2" />
+      <LineId Id="1627" Count="1" />
+      <LineId Id="1384" Count="1" />
+      <LineId Id="1064" Count="3" />
+      <LineId Id="1172" Count="0" />
+      <LineId Id="1068" Count="0" />
+      <LineId Id="847" Count="0" />
+      <LineId Id="1167" Count="4" />
+      <LineId Id="851" Count="0" />
+      <LineId Id="868" Count="3" />
+      <LineId Id="1586" Count="2" />
+      <LineId Id="1585" Count="0" />
+      <LineId Id="1386" Count="1" />
+      <LineId Id="872" Count="0" />
+      <LineId Id="846" Count="0" />
+      <LineId Id="698" Count="2" />
+      <LineId Id="801" Count="7" />
+      <LineId Id="664" Count="2" />
+      <LineId Id="252" Count="0" />
+      <LineId Id="1143" Count="0" />
+      <LineId Id="253" Count="1" />
+      <LineId Id="1138" Count="4" />
+      <LineId Id="705" Count="0" />
+      <LineId Id="255" Count="4" />
+      <LineId Id="927" Count="0" />
+      <LineId Id="260" Count="1" />
+      <LineId Id="923" Count="3" />
+      <LineId Id="469" Count="0" />
+      <LineId Id="554" Count="0" />
+      <LineId Id="1101" Count="1" />
+      <LineId Id="1104" Count="1" />
+      <LineId Id="1103" Count="0" />
+      <LineId Id="1100" Count="0" />
+      <LineId Id="1397" Count="0" />
+      <LineId Id="1389" Count="7" />
+      <LineId Id="1398" Count="20" />
+      <LineId Id="555" Count="1" />
+      <LineId Id="1590" Count="2" />
+      <LineId Id="1589" Count="0" />
+      <LineId Id="1660" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="8" Count="3" />
+      <LineId Id="1186" Count="1" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="1190" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="1189" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_RESETTING">
+      <LineId Id="11" Count="7" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="21" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

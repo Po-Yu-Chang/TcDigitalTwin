@@ -1,0 +1,1467 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_AllocateMoveAutoBatchMode" Id="{730c5c6f-85c9-47e4-bfa7-de413646d16a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateMoveAutoBatchMode EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+//    Execute    :BOOL;   // True : This prog will start.
+//    Abort      :BOOL;   // True : This prog will be abort.
+//    Reset      :BOOL;   // True : This prog will be reset.
+//    ObjectName :STRING; // Set this fb name(About it's action)
+	Pause				:BOOL;
+	SimpleAllocateMode	:BOOL;
+	bOccupied			: BOOL;	
+	Clips 				: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;
+	cylinders 			: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;
+	//AllocateRobot :REFERENCE TO FB_xyRobot;
+	//TurnTable : REFERENCE TO FB_RotateTable;
+	//RoundBelt : REFERENCE TO FB_RoundBelt;
+	TurnTable_Press		 		   : REFERENCE TO FB_Cylinder;
+	RoundBelt_Press 			   : REFERENCE TO FB_Cylinder;
+	AutoAllocateJobBatch_Ctrl      :st_AllocateMoveAutoBatchMode_Ctrl;
+	INPUT            			   : REFERENCE TO ST_InputTable;
+    OUTPUT           			   : REFERENCE TO ST_OutputTable;
+	NrOfAllocateCylinder 		   : UINT :=4;
+	CurrentData 				   : REFERENCE TO ST_SetupPara; // Componets setup parameter
+	bAutoAllocateJobDryRun         : BOOL := FALSE;
+	RoundBeltMoveJob_Status 		: ST_StatusBasic;
+END_VAR
+
+VAR_OUTPUT
+//    Busy    :BOOL;        // True : This prog is running.
+//    Done    :BOOL;        // True : Command has been executed.
+//    Aborted :BOOL;        // True : This prog is aborted.
+//    Error   :BOOL;        // True : This prog has an error.
+//    ErrorID :UINT;       // Output ErrorID
+//    Status  :T_MaxString; // Output this prog status by string(255bytes)
+	RoundBeltMoveJob_Ctrl : ST_CommandBasic;
+	RoundBeltMoveJob_Position	:LREAL;
+	ProcessedIndex : ARRAY[0..49] OF INT;
+	//UniqueErrorCode :STRING;
+	// AutoAllocateJobBatch_Status    :st_AllocateMoveAutoBatchMode_Status;
+
+END_VAR
+
+VAR
+//    eState :E_MethodStatus_Basic;
+//	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+//	uiResettingStep : UDINT;
+//	uiAbortingStep : UDINT;
+//	_Executed :BOOL; // Executing process completed.
+//	_Error : BOOL; // FB has an error.
+//	_ResetCompleted : BOOL; // FB resetting completed.
+//	_AbortCompleted : BOOL; // FB aborting completed.
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+
+//	bSimpleAllocationBatchEnable		 :BOOL;
+//	AutoRotatebelt_Internal_Ctrl   : st_RoundBeltAutoSingleMove_Ctrl;
+	_UniqueErrorCode : STRING;
+	arrProcessedIndex : ARRAY[0..49] OF INT;
+ //   eState              :E_MethodStatus_Basic;  
+  //  uiAbortingStep      :UDINT;
+    uiAbortedStep       :UDINT;
+  //  uiResettingStep     :UDINT;
+	uiResumableStep		: E_AllocationJob;
+    bAborttingCompleted :BOOL; // True: Aborting process finished
+    bAborted            :BOOL; // True : Aborted process finished
+    bExecuted           :BOOL; // True : Executing process finished
+    bResettingCompleted :BOOL; // True : Resetting process finished  
+    iWorkingIndex		:UINT:=0;	
+	iProcessingIndex	:INT :=0;
+	iWorkingCylinder	:INT;
+	//_Error				:BOOL :=FALSE;
+	StatusDescription	:STRING;
+	ClipsHaveNeedle		: ARRAY[0..3] OF BOOL;
+	ClipsHaveNeedle_Pick		: ARRAY[0..3] OF BOOL;
+	bCylinderCheck 		: BOOL;
+	bCylinderCheckFastMode : BOOL;
+	iPickingNeedleCount		:INT;
+	iPlacingNeedleCount		:INT;
+	bIfNextCycle			:BOOL;
+	bCheckStation			:BOOL:=FALSE;
+	
+	
+	tAutoAllocationJobBatchTimeOut :Tc2_Standard.TON;
+    sAllocationJobBatchStatus      :STRING;
+    tonFastModeTimeDelayBatch      :Tc2_Standard.TON;
+	AllocationJobBatchMode		:E_AllocationJob := E_AllocationJob.Defult;
+	 Ton_RoundBeltArrivedDelay     : TON;
+	 CurrentPosition : ST_PositionTable;
+	
+  	RoundBeltMoveJob : st_AllocateCircleMoveStructure;	
+	
+		
+//==========================M_AllocationJobBatchMode================================
+
+	{attribute 'hide'}
+	bCheckTrue : BOOL:=TRUE;
+	iCurrentRotateBeltStation : UINT;
+	i : UINT;	
+	j : UINT;	
+
+	bMoveRotateBeltBusy	:BOOL;
+	bMoveRotateBeltDone : BOOL;
+	A1Used				:BOOL :=FALSE;
+	A2Used				:BOOL :=FALSE;
+	R1Used				:BOOL :=FALSE;
+	R2Used				:BOOL :=FALSE;
+	bBoxCheck			:BOOL :=TRUE;
+	PickingStation		:UINT;
+	iNextPickingStation :UINT;
+	
+	
+
+	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{83f0bd84-786e-4b0d-bc45-62a0a5dd5861}" />
+    <Folder Name="STATE" Id="{5bccb11f-c9ea-4bd6-9a5f-1c28c5589cc7}" />
+    <Action Name="A00_BasicUnits" Id="{2368ece2-50ec-44e9-b8c6-c71fb0f23bae}">
+      <Implementation>
+        <ST><![CDATA[Ton_RoundBeltArrivedDelay();
+tonFastModeTimeDelayBatch();
+tAutoAllocationJobBatchTimeOut(PT := T#60s);	//default 20s ]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GetModelState" Id="{f5131c8d-4837-4ef7-a086-459351eb9e53}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_OUTPUT
+    xDone    :BOOL;
+    xBusy    :BOOL;
+    xError   :BOOL;
+    xAborted :BOOL;
+    iErrorID :UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xDone    := Done;
+xBusy    := Busy;
+xError   := Error;
+xAborted := Abort;
+iErrorID := ErrorID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{43ef450e-78ad-45fd-b7c8-5ebb60751c68}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := ObjectName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckClipsNoError" Id="{88a765d6-2986-4a78-8250-7b78ae2c09f7}" FolderPath="Method\">
+      <Declaration><![CDATA[(* Check Allocate Robot Clip cylinder no error
+	Return True : no error
+*)
+METHOD M_CheckClipsNoError : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//IF Clips[E_ClipsNo.ClipA].bError OR Clips[E_ClipsNo.ClipB].bError OR Clips[E_ClipsNo.ClipC].bError OR Clips[E_ClipsNo.ClipD].bError THEN
+//    M_CheckClipsNoError := FALSE;
+//ELSE
+//    M_CheckClipsNoError := TRUE;
+//END_IF
+M_CheckClipsNoError := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckCylindersNoError" Id="{ffa534e9-070f-43b5-8242-fe29cd7d3055}" FolderPath="Method\">
+      <Declaration><![CDATA[(* Check Allocate Robot vertical cylinder no error
+	return True : no error
+*)
+METHOD M_CheckCylindersNoError : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//IF cylinders[E_CylinderNo.CylinderA].bError OR
+//   cylinders[E_CylinderNo.CylinderB].bError OR
+//   cylinders[E_CylinderNo.CylinderC].bError OR
+//   cylinders[E_CylinderNo.CylinderD].bError
+//THEN
+//    M_CheckCylindersNoError := FALSE;
+//ELSE
+//    M_CheckCylindersNoError := TRUE;
+//END_IF
+
+M_CheckCylindersNoError := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RecoveryAxes" Id="{483ce099-f0ed-4349-8363-151feaf708ce}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_RecoveryAxes : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bCheckTrue : BOOL;
+	CheckErrorIndex : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bCheckTrue := TRUE;
+FOR CheckErrorIndex:=1 TO 4 DO 
+	IF arAxisCtrl_gb[CheckErrorIndex].Admin.Axis.Status.Error THEN
+		arAxisCtrl_gb[CheckErrorIndex].Admin.ClearError:=TRUE;
+		bCheckTrue:=FALSE;
+	ELSE
+		arAxisCtrl_gb[AxisNo.TurnTable].Admin.ClearError:=FALSE;	
+	END_IF
+END_FOR
+//		TurnTable := 1,
+//      RoundBelt := 2,
+//      Allocate_X := 3,
+//      Allocate_Y := 4,
+
+M_RecoveryAxes:= bCheckTrue;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{1a009bdf-47bd-48c5-a1d6-af240f38bbdc}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy     := FALSE;
+Aborted := TRUE;
+Status                       := StatusDescription;
+Error                        := TRUE;
+
+IF Aborted AND NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+IF SimpleAllocateMode THEN
+	ErrorID						 := 112;
+ELSE
+	ErrorID						 := 108;
+	END_IF
+IF Aborted AND Reset THEN
+	AllocationJobBatchMode :=uiResumableStep;
+	eState :=STATE_EXECUTING;
+	Aborted :=FALSE;
+END_IF
+		]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{77902caf-78a3-46d0-b13c-c0e79594172c}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+            0:
+				tAutoAllocationJobBatchTimeOut.IN:=FALSE;
+				
+				uiAbortingStep:=100;
+                // Aborting process start
+                
+			100:
+//					FOR i:=1 TO GVL.NrOfAllocateCylinder DO
+					
+//					IF  clips[i].P_Error THEN clips[i].M_Reset('');	END_IF					
+//					IF cylinders[i].P_Error THEN cylinders[i].M_Reset(''); END_IF
+					
+//				END_FOR
+				FOR i:=0 TO 3 DO
+					IF cylinders[i].xError THEN
+						cylinders[i].M_Reset();
+					ELSE
+						cylinders[i].M_Retract();	
+					END_IF
+				END_FOR
+					uiAbortingStep:=9000;
+					
+            9000:
+                // Aborting process finished
+				_abort:=FALSE;
+                _AbortCompleted := TRUE;
+        END_CASE
+
+        IF _AbortCompleted THEN
+            // Aborting process is running normally 
+			uiAbortingStep:=0;
+            eState := STATE_Aborted;
+        ELSIF Error THEN
+            // An error event occurred
+            eState := STATE_ERROR;
+        END_IF
+		]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{8ef9bd5f-7dbd-4f25-9321-1d403f95b063}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+RoundBeltMoveJob.HandShake.Execute:=FALSE;
+RoundBeltMoveJob_Ctrl.Execute:= RoundBeltMoveJob.HandShake.Execute;
+DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(E_RoundBeltControlAccess.Allocating);
+IF Done AND NOT Execute THEN
+    eState := STATE_DORMANT;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{5370bb1d-2458-45b8-9aa5-247764b78999}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+VAR
+	_arrProcessedIndex : ARRAY[0..49] OF INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Busy                         := FALSE;
+Done                         := FALSE;
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+_Abort			:= FALSE;
+Aborted			:= FALSE;
+strStatus 		:='No Error';
+Status          := '';
+
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+AllocationJobBatchMode := E_AllocationJob.PreDataProcess;
+i :=0;
+j :=0;
+iProcessingIndex :=0;
+iWorkingCylinder :=0;
+iWorkingIndex                := 0;	
+Ton_RoundBeltArrivedDelay.IN := FALSE;
+tAutoAllocationJobBatchTimeOut.IN := FALSE;
+
+R1Used                       := FALSE;
+R2Used                       := FALSE;
+A1Used                       := FALSE;
+A2Used                       := FALSE;
+bMoveRotateBeltDone          := FALSE;	
+bIfNextCycle				 := FALSE;	
+bResettingCompleted :=false;
+arrProcessedIndex :=_arrProcessedIndex;
+IF Execute THEN
+	
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{3d5b50a2-4b21-4553-b62f-e9ad51c26144}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+VAR
+	i : INT;
+	RoundBelt_PressIF: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy                         := FALSE;
+Error                        := _Error;
+tAutoAllocationJobBatchTimeOut.IN := FALSE;
+Status                       := StatusDescription;
+RoundBeltMoveJob.HandShake.Execute:=FALSE;
+RoundBeltMoveJob_Ctrl.Execute:= RoundBeltMoveJob.HandShake.Execute;
+DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(E_RoundBeltControlAccess.Allocating);
+FOR i:=0 TO 3 DO
+	IF cylinders[i].xError THEN
+		cylinders[i].M_Reset();
+	ELSE
+		cylinders[i].M_Retract();	
+	END_IF
+END_FOR
+
+TurnTable_Press.M_Retract();
+RoundBelt_Press.M_Retract();
+
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{9c949f4f-7990-416f-b4c1-885789dfb146}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+
+VAR_INST	
+	CurrentProcessData	: ST_AllocationJobBatchModeInfo;
+	CurrentPickingCoordinates : ARRAY[0..3] OF st_Coordinate;
+	CurrentPlacingCoordinates : ARRAY[0..3] OF st_Coordinate;
+	CurrentSyncGroupPicking		  : ARRAY[0..3] OF UINT :=[0,1,2,3];
+	CurrentSyncGroupPiacing		  : ARRAY[0..3] OF UINT :=[0,1,2,3];
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[		Busy := TRUE;			
+		
+		tonFastModeTimeDelayBatch.PT:=T#10MS;
+		ProcessedIndex:=arrProcessedIndex;
+		IF NOT bAutoAllocateJobDryRun THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(E_RoundBeltControlAccess.Allocating);	
+			RoundBeltMoveJob_Position:= RoundBeltMoveJob.Position;
+			RoundBeltMoveJob_Ctrl.Execute:= RoundBeltMoveJob.HandShake.Execute;
+			RoundBeltMoveJob_Ctrl.Reset:= RoundBeltMoveJob.HandShake.Reset;	
+			RoundBeltMoveJob.HandShake.Busy :=RoundBeltMoveJob_Status.Busy;
+			RoundBeltMoveJob.HandShake.Done :=RoundBeltMoveJob_Status.Done;
+			RoundBeltMoveJob.HandShake.Error :=RoundBeltMoveJob_Status.Error;	
+	
+		END_IF
+		
+		CASE AllocationJobBatchMode OF
+			
+			E_AllocationJob.PreDataProcess:			
+			
+				IF NOT Pause THEN // Pausing here waiting pause finish
+					
+					bCheckStation:=FALSE;
+					//Get current allocation data
+					FOR i:=iProcessingIndex TO AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob-1 BY 1  DO
+						CurrentProcessData :=AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[iProcessingIndex];
+						
+						FOR j:=0 TO 3 DO
+							IF NOT (CurrentProcessData.PickingNeedleInfo[j].Station=99) THEN
+									bCheckStation:=TRUE; //Station = 99 means this job should be ignou , Therefor any station of job is "not" 99 , means this job should be process
+								EXIT;
+							END_IF						
+						END_FOR
+						
+						IF bCheckStation THEN // CheckStation = true means this job is vaild 
+								AllocationJobBatchMode:=E_AllocationJob.Idle;
+								EXIT;
+							ELSE // Other wise , this job is no need to process , just go check next job
+								iProcessingIndex:=iProcessingIndex+1;
+								arrProcessedIndex[i] :=CurrentProcessData.ID;
+						END_IF						
+					END_FOR		
+
+					IF 	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob<= iProcessingIndex THEN
+							AllocationJobBatchMode:=E_AllocationJob.Finish; // If all jobs was processed or checked , Batch jobs done
+					END_IF				
+				END_IF
+				
+			E_AllocationJob.Idle:
+				//idle 
+				FOR i :=0 TO 3 DO
+						
+						FUN_GetNeedleCoordinates(uiLocation:=0,	// Location 0 : Rotate belt , 1 : turn table
+										uiBox:=CurrentProcessData.PickingNeedleInfo[i].Box,
+										uiClip:=CurrentProcessData.PickingNeedleInfo[i].Clip,
+										uiNeedleLocation :=CurrentProcessData.PickingNeedleInfo[i].NeedleLocation,
+										NeedleCoordinate=>CurrentPickingCoordinates[i]);
+						// Get picking coordinate , always from rotate belt
+				
+						IF SimpleAllocateMode THEN // Get placing coordinate , if working mode Simple allocate : Place to rotate belt
+								FUN_GetNeedleCoordinates(uiLocation:=0,
+										uiBox:=CurrentProcessData.PlacingNeedleInfo[i].Box,
+										uiClip:=CurrentProcessData.PlacingNeedleInfo[i].Clip,
+										uiNeedleLocation :=CurrentProcessData.PlacingNeedleInfo[i].NeedleLocation,
+										NeedleCoordinate=>CurrentPlacingCoordinates[i]);
+						ELSE	//Otherwias , place to turn table
+								FUN_GetNeedleCoordinates(uiLocation:=1,
+										uiBox:=CurrentProcessData.PlacingNeedleInfo[i].Box,
+										uiClip:=CurrentProcessData.PlacingNeedleInfo[i].Clip,
+										uiNeedleLocation :=CurrentProcessData.PlacingNeedleInfo[i].NeedleLocation,
+										NeedleCoordinate=>CurrentPlacingCoordinates[i]);
+						END_IF
+										
+									
+						CurrentSyncGroupPicking[i] :=i;
+						CurrentSyncGroupPiacing[i] :=i;
+					
+				
+						ClipsHaveNeedle_Pick[i]:=CurrentProcessdata.PickingNeedleInfo[i].CycleStart;
+					//Get placing needle info	
+				END_FOR
+				
+				FUN_GetSyncGroup_AllocationJob(Coordinates :=CurrentPickingCoordinates,NeedleInfo:=CurrentProcessData.PickingNeedleInfo, SyncGroup=>CurrentSyncGroupPicking);
+				FUN_GetSyncGroup_AllocationJob(Coordinates :=CurrentPlacingCoordinates,NeedleInfo:=CurrentProcessData.PlacingNeedleInfo, SyncGroup=>CurrentSyncGroupPiacing);
+				// arrange sync group in this picking/placing job
+				ClipsHaveNeedle:=ClipsHaveNeedle_Pick;
+				tAutoAllocationJobBatchTimeOut.IN:=FALSE;
+				AllocationJobBatchMode:=E_AllocationJob.Initial;
+	
+			E_AllocationJob.Initial:						
+				//Get All cylinders & clips back
+				bCheckTrue:=TRUE;				
+				tAutoAllocationJobBatchTimeOut.IN:=TRUE	;
+				
+				FOR i:=1 TO NrOfAllocateCylinder DO
+					clips[i].M_Retract();
+					IF  clips[i].InRearPosition THEN
+						cylinders[i].M_Retract();		
+					END_IF	
+		
+					IF NOT cylinders[i].InRearPosition THEN
+						bCheckTrue:=FALSE;			
+					END_IF
+		
+				END_FOR
+				// recovery Axes if error occur
+				bCheckTrue:=M_RecoveryAxes();
+			
+				IF bCheckTrue THEN	 // Only go next step if everything is fine 
+					tAutoAllocationJobBatchTimeOut.IN:=FALSE	;	
+					IF bAutoAllocateJobDryRun OR SimpleAllocateMode THEN //Simple allocate mode will not placing to turn table therefor no need to check boxes on turntable						
+						AllocationJobBatchMode:=E_AllocationJob.CheckRotateBeltStation;
+					ELSE						
+						AllocationJobBatchMode:=E_AllocationJob.CheckBoxesOnTurnTableReady;
+					END_IF
+					
+				END_IF
+				IF tAutoAllocationJobBatchTimeOut.Q THEN //Timeout error
+					StatusDescription :='initiial Cylindes timeout';
+					uiResumableStep := E_AllocationJob.Initial;
+					_Abort :=TRUE;					
+				END_IF
+	
+	E_AllocationJob.CheckBoxesOnTurnTableReady:
+		tAutoAllocationJobBatchTimeOut.IN:=TRUE	;
+		bBoxCheck:=TRUE;		
+				FOR i:=0 TO 3 DO
+					// if R1 or R2 used in this cycle
+					IF CurrentProcessdata.PlacingNeedleInfo[i].CycleStart  THEN
+						IF CurrentProcessdata.PlacingNeedleInfo[i].Box=0 THEN
+							R1Used :=TRUE;
+							END_IF
+						
+						 IF  CurrentProcessdata.PlacingNeedleInfo[i].Box=1 THEN
+ 							R2Used :=TRUE;
+						END_IF
+					END_IF
+
+				END_FOR
+				
+				IF  R1Used THEN 
+					  bBoxCheck :=INPUT.bTurnTable_I1Detect_Sensor AND bBoxCheck; 
+				END_IF
+				IF  R2Used THEN 
+					  bBoxCheck := INPUT.bTurnTable_I2Detect_Sensor AND bBoxCheck; 
+				END_IF
+ 				
+				IF bBoxCheck THEN
+					R1Used:=FALSE;
+					R2Used:=FALSE;
+					bBoxCheck :=FALSE;
+					IF NOT TurnTable_Press.InFrontPosition THEN
+						TurnTable_Press.M_Extend();
+					END_IF
+					AllocationJobBatchMode:=E_AllocationJob.CheckRotateBeltStation;
+				END_IF
+				
+				IF tAutoAllocationJobBatchTimeOut.Q THEN
+					uiResumableStep := E_AllocationJob.CheckBoxesOnTurnTableReady;
+					_Abort :=TRUE	;
+					StatusDescription :='Box not ready on Turn table';
+				END_IF
+				
+	E_AllocationJob.CheckRotateBeltStation:	
+		// 
+		tAutoAllocationJobBatchTimeOut.IN:=FALSE;
+		tAutoAllocationJobBatchTimeOut.PT := T#300S;
+		
+		IF ClipsHaveNeedle_Pick[iWorkingIndex] THEN
+				RoundBeltMoveJob.Position:=CurrentProcessData.PickingNeedleInfo[iWorkingIndex].Station;		
+				// Give RoundBelt station information
+				
+				IF CurrentProcessData.FastMode THEN // Fast mode : XY robot will start move to picking during rotate belt moving to request station
+
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].X;
+				
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;						
+																	
+				END_IF		
+				AllocationJobBatchMode:=E_AllocationJob.MovingRotateBeltStation;
+
+			ELSE				
+				AllocationJobBatchMode:=E_AllocationJob.IfNextPTP_Picking;
+			END_IF
+
+            E_AllocationJob.MovingRotateBeltStation:
+
+              RoundBeltMoveJob.HandShake.Execute := TRUE; //Internally call rotate belt to move to request station
+
+                IF RoundBeltMoveJob.HandShake.Busy OR RoundBeltMoveJob.HandShake.Done OR bAutoAllocateJobDryRun THEN
+                  AllocationJobBatchMode := E_AllocationJob.MovedRotateBeltStation;
+              END_IF
+			
+				IF  RoundBeltMoveJob.HandShake.Error THEN
+					_Error:=TRUE;
+					StatusDescription := 'Allocation batch job , Rotate belt error';
+				END_IF
+				AllocationJobBatchMode := E_AllocationJob.MovedRotateBeltStation;
+				
+            E_AllocationJob.MovedRotateBeltStation:
+				// wait roundbelt object
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+
+                bMoveRotateBeltDone := RoundBeltMoveJob.HandShake.Done;
+                Ton_RoundBeltArrivedDelay.IN := bMoveRotateBeltDone;
+
+                IF bMoveRotateBeltDone OR bAutoAllocateJobDryRun THEN
+                    RoundBeltMoveJob.HandShake.Execute := FALSE;
+                    tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode := E_AllocationJob.MoveToTargetPos;
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+                    StatusDescription := 'Rotate Belt TimeOut';
+                    _Error            := TRUE;
+                END_IF
+				
+					
+            E_AllocationJob.MoveToTargetPos:
+                Ton_RoundBeltArrivedDelay.IN := FALSE;
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+
+                iWorkingCylinder :=CurrentProcessData.PickingNeedleInfo[iWorkingIndex].Clip ;
+
+                IF NOT CurrentProcessData.FastMode THEN
+												
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].X;
+				
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;	
+
+                END_IF
+
+                IF (arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Moving OR  
+			(arAxisStatus_gb[AxisNo.Allocate_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_X].Admin.CmdDone) )AND  
+					(arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Moving OR 
+					(arAxisStatus_gb[AxisNo.Allocate_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_Y].Admin.CmdDone))
+					(* AND RoundBelt.AllocatingArea.PressCylinder.InFrontPosition *) THEN
+					tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode := E_AllocationJob.MovingToTargetPos;
+                END_IF
+ 				
+				IF arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error AND 
+					arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error  THEN
+					_Error :=TRUE;
+					StatusDescription :='Allocate robot error';
+				END_IF
+				
+				 IF tAutoAllocationJobBatchTimeOut.Q THEN
+
+                    StatusDescription := 'Allocate robot TimeOut';
+                    _Error            := TRUE;
+
+                END_IF
+				
+            E_AllocationJob.MovingToTargetPos:
+
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+
+                IF (arAxisStatus_gb[AxisNo.Allocate_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_Y].Admin.CmdDone) AND 
+					(arAxisStatus_gb[AxisNo.Allocate_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_X].Admin.CmdDone) THEN
+                    tAutoAllocationJobBatchTimeOut.IN := FALSE;
+					IF bAutoAllocateJobDryRun THEN
+                   	 AllocationJobBatchMode                := E_AllocationJob.CylinderDownPick;
+					ELSE
+						AllocationJobBatchMode             := E_AllocationJob.CheckBoxReadyOnAllocatePosOfRoundBelt;
+					END_IF
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+                    StatusDescription := 'Moving to picking position timeout';
+                    _Error            := TRUE;
+                END_IF
+				
+				
+			E_AllocationJob.CheckBoxReadyOnAllocatePosOfRoundBelt:
+				tAutoAllocationJobBatchTimeOut.IN:=TRUE	;
+				bBoxCheck :=TRUE;
+				FOR i:=0 TO 3 DO //Check if request box is on the belt 
+					IF CurrentProcessData.PickingNeedleInfo[i].Station =  CurrentProcessData.PickingNeedleInfo[iWorkingIndex].Station THEN
+						IF CurrentProcessData.PickingNeedleInfo[i].Box=0   THEN
+							A1Used :=TRUE;
+							END_IF
+						
+						 IF  CurrentProcessData.PickingNeedleInfo[i].Box=1 THEN
+ 							A2Used :=TRUE;
+						END_IF
+					END_IF
+				END_FOR
+				
+				IF  A1Used THEN 
+					  bBoxCheck :=INPUT.bRoundBelt_WorkZoneQ1Detect_Sensor AND bBoxCheck; 
+				END_IF
+				IF  A2Used THEN 
+					  bBoxCheck :=INPUT.bRoundBelt_WorkZoneQ2Detect_Sensor AND bBoxCheck; 
+				END_IF
+ 				
+				IF bBoxCheck THEN
+						bBoxCheck:=A1Used:=A2Used:=FALSE;
+						tAutoAllocationJobBatchTimeOut.IN:=FALSE	;
+						IF RoundBelt_Press.InFrontPosition THEN
+							AllocationJobBatchMode:=E_AllocationJob.CylinderDownPick;
+						ELSE
+							//RoundBelt_Press.M_Extend();	
+						END_IF
+				END_IF
+				
+				IF tAutoAllocationJobBatchTimeOut.Q THEN
+					_Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.CheckBoxReadyOnAllocatePosOfRoundBelt;
+					StatusDescription :='Box not ready on Rotate Belt';
+				END_IF
+
+            E_AllocationJob.CylinderDownPick:
+                
+                bCylinderCheck:=TRUE;
+				tAutoAllocationJobBatchTimeOut.IN := TRUE;       
+				
+				
+                THIS^.cylinders[iWorkingCylinder].M_Extend();//'AutoMode E_AllocationJob.CylinderDownPick');
+				// Cylinder move down
+				
+				IF CurrentProcessData.SyncMode THEN
+					///Sync mode : all clips in same sync group will move together to picking / placing
+					FOR i := iWorkingIndex+1 TO 3 DO
+						IF CurrentSyncGroupPicking[i]=CurrentSyncGroupPicking[iWorkingIndex] AND 
+							ClipsHaveNeedle_Pick[i]	 THEN
+							cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].M_Extend();//'Auto Mode E_AllocationJob.CylinderDownPick in Sync picking Mode');
+							bCylinderCheck :=cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].InFrontPosition AND bCylinderCheck;			
+						END_IF
+					END_FOR
+					
+				END_IF
+                
+                IF cylinders[iWorkingCylinder].InFrontPosition AND bCylinderCheck THEN
+                    tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode                := E_AllocationJob.ClipColse;
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+
+                    StatusDescription := 'Picking down timeout';
+                    _Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.CylinderDownPick;
+
+                END_IF
+
+            E_AllocationJob.ClipColse:
+                Ton_RoundBeltArrivedDelay.IN := FALSE;
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+				bCylinderCheck:=TRUE;
+				
+                THIS^.clips[iWorkingCylinder].M_Extend();//'Auto Mode E_AllocationJob.ClipColse');
+				IF CurrentProcessData.SyncMode THEN
+					FOR i := iWorkingIndex+1 TO 3 DO
+						IF CurrentSyncGroupPicking[i]=CurrentSyncGroupPicking[iWorkingIndex] AND 
+							ClipsHaveNeedle_Pick[i]	 THEN
+							clips[CurrentProcessData.PickingNeedleInfo[i].Clip].M_Extend();//'Auto Mode E_AllocationJob.ClipColse in Sync pick Mode');
+							bCylinderCheck :=clips[CurrentProcessData.PickingNeedleInfo[i].Clip].InFrontPosition AND bCylinderCheck;			
+						END_IF
+					END_FOR
+					
+				END_IF
+				
+                IF clips[iWorkingCylinder].InFrontPosition AND bCylinderCheck THEN
+                    tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode                := E_AllocationJob.CylinderUpPick;
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+
+                    StatusDescription := 'Picking Close timeout';
+                    _Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.ClipColse;
+
+                END_IF
+
+	E_AllocationJob.CylinderUpPick:
+		bCylinderCheck:=TRUE;
+		bCylinderCheckFastMode:=TRUE;					
+		bBoxCheck :=TRUE;
+		
+		tAutoAllocationJobBatchTimeOut.IN:=TRUE	;
+		
+		THIS^.cylinders[iWorkingCylinder].M_Retract();// 'Auto Mode E_AllocationJob.CylinderUpPick');		
+		
+		IF CurrentProcessData.SyncMode THEN
+					FOR i := iWorkingIndex+1 TO 3 DO
+						IF CurrentSyncGroupPicking[i]=CurrentSyncGroupPicking[iWorkingIndex] AND 
+							ClipsHaveNeedle_Pick[i]	 THEN
+							cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].M_Retract();// 'Auto Mode E_AllocationJob.CylinderUpPick in Sync pick Mode');
+							bCylinderCheck :=cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].InRearPosition AND bCylinderCheck;
+							bCylinderCheckFastMode := (NOT cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].InFrontPosition) AND bCylinderCheckFastMode;
+						END_IF
+					END_FOR
+					
+		END_IF
+		
+				IF  A1Used THEN 
+					  bBoxCheck :=INPUT.bRoundBelt_WorkZoneQ1Detect_Sensor AND bBoxCheck; 
+				END_IF
+				IF  A2Used THEN 
+					  bBoxCheck :=INPUT.bRoundBelt_WorkZoneQ2Detect_Sensor AND bBoxCheck; 
+				END_IF
+				//Check if box still there
+		
+		IF CurrentProcessData.FastMode AND bCylinderCheckFastMode AND (NOT cylinders[iWorkingCylinder].InFrontPosition) THEN
+			tonFastModeTimeDelayBatch.IN:=TRUE;
+		END_IF
+		
+		IF (cylinders[iWorkingCylinder].InRearPosition AND bCylinderCheck )OR  tonFastModeTimeDelayBatch.Q  THEN
+			//Fast mode : go next step when cylinder is leave the front sensor with certain time delay
+				tonFastModeTimeDelayBatch.IN:=FALSE;			
+				AllocationJobBatchMode:=E_AllocationJob.IfNextPTP_Picking;
+		END_IF
+		
+		IF tAutoAllocationJobBatchTimeOut.Q THEN			
+			StatusDescription :='Picking Up timeout';
+			_Abort :=TRUE	;
+			uiResumableStep :=E_AllocationJob.CylinderUpPick;
+		END_IF
+		
+	E_AllocationJob.IfNextPTP_Picking:
+		tAutoAllocationJobBatchTimeOut.IN:=FALSE	;	
+		iPickingNeedleCount:=1;
+			FOR i := iWorkingIndex+1 TO 3 DO //remove request if already processed in previous sync group
+				IF CurrentSyncGroupPicking[i]=CurrentSyncGroupPicking[iWorkingIndex] AND 
+				   ClipsHaveNeedle_Pick[i]	 THEN
+						iPickingNeedleCount:=iPickingNeedleCount+1;
+						ClipsHaveNeedle_Pick[i]:=FALSE;		
+				END_IF
+			END_FOR
+			
+		iWorkingIndex:=iWorkingIndex+1;
+		IF iWorkingIndex>= NrOfAllocateCylinder THEN //All picking job done in this cycle , go to placing processing
+			iWorkingIndex:=0;
+			tAutoAllocationJobBatchTimeOut.IN:=FALSE	;
+			IF SimpleAllocateMode THEN //If Simple allocate mode , need to check the target box is ready on rotate belt
+				AllocationJobBatchMode:=E_AllocationJob.CheckRotateBeltStation_SimpleAllocatePlacing;
+			ELSE
+				AllocationJobBatchMode:=E_AllocationJob.MoveToPlacingPos;
+			END_IF
+		ELSE
+			
+			AllocationJobBatchMode:=E_AllocationJob.CheckRotateBeltStation;		
+			 //Still picking job
+		END_IF
+		
+	
+
+	E_AllocationJob.CheckRotateBeltStation_SimpleAllocatePlacing:	
+		// Check if the Rotate belt is in the target.
+		tAutoAllocationJobBatchTimeOut.IN:=FALSE;		
+		IF ClipsHaveNeedle[iWorkingIndex] THEN
+			RoundBeltMoveJob.Position:=CurrentProcessData.PlacingNeedleInfo[iWorkingIndex].Station;	
+			// Give roundBelt station
+			AllocationJobBatchMode:=E_AllocationJob.MovingRotateBeltStation_SimpleAllocatePlacing;
+				IF CurrentProcessData.FastMode THEN // Fast mode : XY robot will start move to picking during rotate belt moving to request station
+										
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].X;
+				
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;						
+													
+				END_IF
+		
+			ELSE
+				
+				AllocationJobBatchMode:=E_AllocationJob.IfNextPTP_Placing;
+			END_IF
+
+            E_AllocationJob.MovingRotateBeltStation_SimpleAllocatePlacing:
+
+                
+
+                RoundBeltMoveJob.HandShake.Execute := TRUE; //Internally call rotate belt to move to request station
+
+                IF RoundBeltMoveJob.HandShake.Busy OR RoundBeltMoveJob.HandShake.Done OR bAutoAllocateJobDryRun THEN
+                    AllocationJobBatchMode := E_AllocationJob.MovedRotateBeltStation_SimpleAllocatePlacing;
+                END_IF
+				
+				IF  RoundBeltMoveJob.HandShake.Error THEN
+					_Error:=TRUE;
+					StatusDescription := 'Allocation batch job , Rotate belt error';
+				END_IF
+
+            E_AllocationJob.MovedRotateBeltStation_SimpleAllocatePlacing:
+
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+
+                bMoveRotateBeltDone := RoundBeltMoveJob.HandShake.Done;
+                Ton_RoundBeltArrivedDelay.IN := bMoveRotateBeltDone;
+
+                IF bMoveRotateBeltDone OR bAutoAllocateJobDryRun THEN
+                    RoundBeltMoveJob.HandShake.Execute := FALSE;
+                	tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode := E_AllocationJob.CheckBoxReadyOnRoundBelt_SimpleAllocateMode;
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+                    StatusDescription := 'Rotate Belt TimeOut';
+                    _Error            := TRUE;
+                END_IF
+				
+	E_AllocationJob.CheckBoxReadyOnRoundBelt_SimpleAllocateMode:
+		tAutoAllocationJobBatchTimeOut.IN:=TRUE	;
+				bBoxCheck :=TRUE;
+				FOR i:=0 TO 3 DO //Check if request box is on the belt 					
+						IF CurrentProcessData.PlacingNeedleInfo[i].Box=0   THEN
+							A1Used :=TRUE;
+							END_IF
+						
+						 IF  CurrentProcessData.PlacingNeedleInfo[i].Box=1 THEN
+ 							A2Used :=TRUE;
+						END_IF
+					
+				END_FOR
+				
+				IF  A1Used THEN 
+					  bBoxCheck :=INPUT.bRoundBelt_WorkZoneQ1Detect_Sensor AND bBoxCheck; 
+				END_IF
+				IF  A2Used THEN 
+					  bBoxCheck :=INPUT.bRoundBelt_WorkZoneQ2Detect_Sensor AND bBoxCheck; 
+				END_IF
+ 				
+				IF bBoxCheck THEN
+						bBoxCheck:=A1Used:=A2Used:=FALSE;
+						tAutoAllocationJobBatchTimeOut.IN:=FALSE;
+						AllocationJobBatchMode:=E_AllocationJob.MoveToPlacingPos;
+				END_IF
+				
+				IF tAutoAllocationJobBatchTimeOut.Q THEN
+					_Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.CheckBoxReadyOnRoundBelt_SimpleAllocateMode;
+					StatusDescription :='Box not ready on Rotate Belt ';
+				END_IF			
+	
+     E_AllocationJob.MoveToPlacingPos:
+                
+				tAutoAllocationJobBatchTimeOut.IN:=TRUE;
+                IF ClipsHaveNeedle[iWorkingIndex] THEN 
+                    iWorkingCylinder := CurrentProcessData.PlacingNeedleInfo[iWorkingIndex].Clip;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].X;
+				
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;						
+								
+							
+					IF CurrentProcessData.FastMode AND NOT SimpleAllocateMode THEN // Fast mode : When robot go to placing needles , Rotatebelt will start to move to next picking station	But not allow in simple allocate job due to placing location is rotatebelt also					
+						IF AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob > iProcessingIndex+1 THEN//AND AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[iProcessingIndex+1]. <> iCurrentRotateBeltStation THEN
+							FOR i := 0 TO 3 DO 
+								IF	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[iProcessingIndex+1].PickingNeedleInfo[i].CycleStart THEN
+									iNextPickingStation :=   AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[iProcessingIndex+1].PickingNeedleInfo[i].Station;
+									bIfNextCycle:=TRUE;
+									EXIT;
+								END_IF
+							END_FOR
+						END_IF					
+					END_IF							
+							
+
+                    IF (arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Moving AND  arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Moving) OR
+ 						(arAxisStatus_gb[AxisNo.Allocate_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_X].Admin.CmdDone) AND 
+						(arAxisStatus_gb[AxisNo.Allocate_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_Y].Admin.CmdDone) THEN
+						bIfNextCycle :=FALSE;
+						tAutoAllocationJobBatchTimeOut.IN:=FALSE	;
+                        AllocationJobBatchMode := E_AllocationJob.MovingToPlacingPos;
+                    END_IF
+
+                ELSE
+
+                    AllocationJobBatchMode := E_AllocationJob.IfNextPTP_Placing;
+                END_IF
+				
+				IF tAutoAllocationJobBatchTimeOut.Q THEN
+			
+					StatusDescription :='Move to placing timeout';
+					_Error :=TRUE	;
+					
+				END_IF
+
+            E_AllocationJob.MovingToPlacingPos:
+
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+
+					IF (arAxisStatus_gb[AxisNo.Allocate_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_X].Admin.CmdDone) AND 
+						(arAxisStatus_gb[AxisNo.Allocate_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_Y].Admin.CmdDone) THEN
+                    tAutoAllocationJobBatchTimeOut.PT := T#300S;
+                    tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode                := E_AllocationJob.CylinderDownPlace;
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+                    StatusDescription := 'Moving placing timeout';
+                    _Error            := TRUE;
+
+                END_IF
+
+            E_AllocationJob.CylinderDownPlace:
+				bCylinderCheck:=TRUE;
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+                cylinders[iWorkingCylinder].M_Extend();//'Auto Mode E_AllocationJob.CylinderDownPlace');
+				
+				IF CurrentProcessData.SyncMode THEN
+					FOR i := iWorkingIndex+1 TO 3 DO
+						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND 
+							ClipsHaveNeedle[i]	 THEN
+							cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].M_Extend();//'Auto Mode E_AllocationJob.CylinderDownPlace in Sync placing Mode');
+							bCylinderCheck :=cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip ].InFrontPosition AND bCylinderCheck;			
+						END_IF
+					END_FOR
+					
+				END_IF
+				
+               	 IF cylinders[iWorkingCylinder].InFrontPosition AND bCylinderCheck THEN
+                    tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode            := E_AllocationJob.ClipOpen;
+              	  END_IF
+				
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+
+                    StatusDescription := ' placing down timeout';
+                   _Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.CylinderDownPlace;
+
+                END_IF
+
+            E_AllocationJob.ClipOpen:
+                tAutoAllocationJobBatchTimeOut.IN := TRUE;
+				bCylinderCheck:=TRUE;
+                clips[iWorkingCylinder].M_Retract();// 'Auto Mode E_AllocationJob.ClipOpen');
+					IF CurrentProcessData.SyncMode THEN
+					FOR i := iWorkingIndex+1 TO 3 DO
+						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND 
+							ClipsHaveNeedle[i]	 THEN
+							clips[CurrentProcessData.PlacingNeedleInfo[i].Clip].M_Retract();// 'Auto Mode E_AllocationJob.ClipOpen in Sync placing Mode');
+							bCylinderCheck :=clips[CurrentProcessData.PlacingNeedleInfo[i].Clip].InRearPosition AND bCylinderCheck;			
+						END_IF
+					END_FOR
+					
+				END_IF
+				
+				
+                IF clips[iWorkingCylinder].InRearPosition AND bCylinderCheck THEN
+                    tAutoAllocationJobBatchTimeOut.IN := FALSE;
+                    AllocationJobBatchMode                := E_AllocationJob.CylinderUpPlace;
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+
+                    StatusDescription := ' placing Open timeout';
+                    _Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.ClipOpen;
+
+                END_IF
+
+            E_AllocationJob.CylinderUpPlace:
+				bCylinderCheck:=TRUE;
+				bCylinderCheckFastMode:=TRUE;
+				tAutoAllocationJobBatchTimeOut.IN:=TRUE;
+				
+                cylinders[iWorkingCylinder].M_Retract();// ' Auto Mode E_AllocationJob.CylinderUpPlace');
+				
+					IF CurrentProcessData.SyncMode THEN
+					FOR i := iWorkingIndex+1 TO 3 DO
+						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND 
+							ClipsHaveNeedle[i]	 THEN
+							cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].M_Retract();// 'Auto Mode E_AllocationJob.CylinderUpPlace in Sync placing Mode');
+							bCylinderCheck :=cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip ].InRearPosition AND bCylinderCheck;	
+							bCylinderCheckFastMode := (NOT cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip ].InFrontPosition) AND bCylinderCheckFastMode ;
+							
+						END_IF
+					END_FOR					
+				END_IF
+				
+				IF CurrentProcessData.FastMode  AND (NOT cylinders[iWorkingCylinder].InFrontPosition) AND bCylinderCheckFastMode THEN						
+               		 tonFastModeTimeDelayBatch.IN := TRUE;
+				END_IF
+				
+                IF (cylinders[iWorkingCylinder].InRearPosition AND bCylinderCheck) OR tonFastModeTimeDelayBatch.Q THEN
+                    tAutoAllocationJobBatchTimeOut.IN         := FALSE;
+					tonFastModeTimeDelayBatch.IN 				  := FALSE;
+                    
+                    AllocationJobBatchMode := E_AllocationJob.CheckNeedlePlaced;
+
+                END_IF
+
+                IF tAutoAllocationJobBatchTimeOut.Q THEN
+
+                    StatusDescription := ' placing Up timeout';
+                    _Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.CylinderUpPlace;
+
+                END_IF
+
+			E_AllocationJob.CheckNeedlePlaced:
+				ClipsHaveNeedle[iWorkingIndex] :=FALSE;
+					IF CurrentProcessData.SyncMode THEN
+					FOR i := iWorkingIndex+1 TO 3 DO
+						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND 
+							ClipsHaveNeedle[i]	 THEN
+							ClipsHaveNeedle[i]:=FALSE;
+							
+						END_IF
+					END_FOR		
+				END_IF
+				
+				
+				AllocationJobBatchMode := E_AllocationJob.IfNextPTP_Placing;
+				
+            E_AllocationJob.IfNextPTP_Placing:
+                iWorkingIndex := iWorkingIndex + 1;
+
+                IF iWorkingIndex >= NrOfAllocateCylinder THEN
+                    iWorkingIndex := 0;
+                    AllocationJobBatchMode := E_AllocationJob.Finish;
+                ELSE
+					IF SimpleAllocateMode THEN
+						AllocationJobBatchMode := E_AllocationJob.CheckRotateBeltStation_SimpleAllocatePlacing;
+					ELSE
+                    	AllocationJobBatchMode := E_AllocationJob.MoveToPlacingPos;
+               	 END_IF
+				END_IF        
+
+            E_AllocationJob.Finish:
+                // Finish
+					//Update needling data
+					arrProcessedIndex[iProcessingIndex] :=CurrentProcessData.ID;					
+				IF 	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob> iProcessingIndex THEN			
+					
+					iProcessingIndex :=iProcessingIndex+1;
+					AllocationJobBatchMode := E_AllocationJob.PreDataProcess;
+				ELSE
+					_Executed := TRUE;
+				END_IF				
+				
+        END_CASE 
+
+IF NOT Execute THEN
+	eState:=STATE_RESETTING;
+END_IF
+IF _Error THEN
+	eState:=STATE_ERROR;
+END_IF
+IF _Abort THEN
+	eSTATE:=STATE_ABORTING;
+END_IF
+IF _Executed THEN
+	eSTATE:=STATE_Done;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{8985c9ba-4b10-4911-a07c-7385c5c77b01}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+VAR	
+	bCylinderCheck : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy                         := FALSE;
+Done                         := _Executed;
+Error                        := _Error;
+tAutoAllocationJobBatchTimeOut.IN := FALSE;
+
+  CASE uiResettingStep OF
+            0:
+                // Resetting process start
+
+                uiAbortingStep := 0;
+                uiAbortedStep  := 0;
+			
+                IF M_RecoveryAxes() THEN
+					uiResettingStep := 1000;
+				END_IF
+
+            1000:
+				bCylinderCheck :=TRUE;
+//                FOR i := 1 TO 3 DO
+//                    IF cylinders[i].xError THEN
+//                         cylinders[i].M_Reset();
+//						 ELSE
+//						 cylinders[i].M_Retract();	 
+//                    END_IF
+//				bCylinderCheck := bCylinderCheck AND cylinders[i].InRearPosition;
+                  
+//                END_FOR
+				RoundBeltMoveJob.HandShake.Execute:=FALSE;
+				RoundBeltMoveJob_Ctrl.Execute:= RoundBeltMoveJob.HandShake.Execute;
+				DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(E_RoundBeltControlAccess.Allocating);
+                uiResettingStep := 2000;
+			
+			2000:
+//					IF TurnTable.Motor.Error THEN
+//					TurnTable.Motor.Reset();
+//				END_IF
+				
+//				IF  AllocateRobot.axX.Error THEN
+//					  AllocateRobot.axX.Reset();
+//				END_IF
+				
+//				IF  AllocateRobot.axY.Error THEN
+//					  AllocateRobot.axY.Reset();
+//				END_IF
+				
+//				IF RoundBelt.Motor.Error THEN
+//					RoundBelt.Motor.Reset();			
+//				END_IF
+				uiResettingStep := 9000;
+				
+            9000:
+                // Resetting process is finished
+                bResettingCompleted := TRUE;
+        END_CASE
+
+        IF bResettingCompleted THEN
+            eState := STATE_DORMANT;
+        END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode">
+      <LineId Id="23" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.A00_BasicUnits">
+      <LineId Id="1" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.GetModelState">
+      <LineId Id="17" Count="3" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.GetName">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_CheckClipsNoError">
+      <LineId Id="33" Count="3" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="43" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_CheckCylindersNoError">
+      <LineId Id="15" Count="8" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_RecoveryAxes">
+      <LineId Id="32" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="40" Count="2" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_ABORTED">
+      <LineId Id="29" Count="2" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="35" Count="2" />
+      <LineId Id="47" Count="3" />
+      <LineId Id="38" Count="5" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_ABORTING">
+      <LineId Id="27" Count="13" />
+      <LineId Id="61" Count="5" />
+      <LineId Id="41" Count="16" />
+      <LineId Id="25" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_DONE">
+      <LineId Id="71" Count="1" />
+      <LineId Id="81" Count="1" />
+      <LineId Id="73" Count="4" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_DORMANT">
+      <LineId Id="24" Count="2" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="27" Count="2" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="76" Count="1" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="37" Count="2" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="62" Count="5" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_ERROR">
+      <LineId Id="22" Count="3" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="49" Count="2" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="33" Count="1" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_EXECUTING">
+      <LineId Id="55" Count="2" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="997" Count="1" />
+      <LineId Id="1048" Count="1" />
+      <LineId Id="1051" Count="2" />
+      <LineId Id="1055" Count="0" />
+      <LineId Id="1054" Count="0" />
+      <LineId Id="999" Count="1" />
+      <LineId Id="61" Count="2" />
+      <LineId Id="1070" Count="0" />
+      <LineId Id="65" Count="66" />
+      <LineId Id="133" Count="4" />
+      <LineId Id="139" Count="13" />
+      <LineId Id="171" Count="63" />
+      <LineId Id="247" Count="0" />
+      <LineId Id="1002" Count="0" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="1001" Count="0" />
+      <LineId Id="949" Count="10" />
+      <LineId Id="948" Count="0" />
+      <LineId Id="255" Count="0" />
+      <LineId Id="1018" Count="1" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="259" Count="3" />
+      <LineId Id="1003" Count="0" />
+      <LineId Id="266" Count="10" />
+      <LineId Id="972" Count="0" />
+      <LineId Id="277" Count="2" />
+      <LineId Id="1004" Count="0" />
+      <LineId Id="281" Count="4" />
+      <LineId Id="288" Count="4" />
+      <LineId Id="294" Count="1" />
+      <LineId Id="297" Count="0" />
+      <LineId Id="1005" Count="0" />
+      <LineId Id="973" Count="0" />
+      <LineId Id="299" Count="6" />
+      <LineId Id="917" Count="0" />
+      <LineId Id="974" Count="9" />
+      <LineId Id="916" Count="0" />
+      <LineId Id="919" Count="0" />
+      <LineId Id="311" Count="2" />
+      <LineId Id="1020" Count="0" />
+      <LineId Id="922" Count="0" />
+      <LineId Id="1021" Count="0" />
+      <LineId Id="921" Count="0" />
+      <LineId Id="314" Count="4" />
+      <LineId Id="923" Count="0" />
+      <LineId Id="319" Count="15" />
+      <LineId Id="924" Count="0" />
+      <LineId Id="335" Count="0" />
+      <LineId Id="337" Count="7" />
+      <LineId Id="346" Count="1" />
+      <LineId Id="349" Count="144" />
+      <LineId Id="495" Count="15" />
+      <LineId Id="512" Count="13" />
+      <LineId Id="529" Count="1" />
+      <LineId Id="551" Count="3" />
+      <LineId Id="557" Count="1" />
+      <LineId Id="571" Count="2" />
+      <LineId Id="947" Count="0" />
+      <LineId Id="937" Count="9" />
+      <LineId Id="935" Count="1" />
+      <LineId Id="579" Count="30" />
+      <LineId Id="612" Count="4" />
+      <LineId Id="618" Count="1" />
+      <LineId Id="621" Count="39" />
+      <LineId Id="961" Count="10" />
+      <LineId Id="960" Count="0" />
+      <LineId Id="666" Count="9" />
+      <LineId Id="685" Count="4" />
+      <LineId Id="932" Count="0" />
+      <LineId Id="1022" Count="0" />
+      <LineId Id="690" Count="19" />
+      <LineId Id="711" Count="0" />
+      <LineId Id="933" Count="1" />
+      <LineId Id="712" Count="5" />
+      <LineId Id="719" Count="1" />
+      <LineId Id="1035" Count="0" />
+      <LineId Id="722" Count="100" />
+      <LineId Id="825" Count="25" />
+      <LineId Id="870" Count="13" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="37" Count="5" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="49" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_RESETTING">
+      <LineId Id="36" Count="2" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="42" Count="6" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="107" Count="1" />
+      <LineId Id="59" Count="2" />
+      <LineId Id="109" Count="2" />
+      <LineId Id="117" Count="1" />
+      <LineId Id="112" Count="1" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="102" Count="1" />
+      <LineId Id="71" Count="27" />
+      <LineId Id="34" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

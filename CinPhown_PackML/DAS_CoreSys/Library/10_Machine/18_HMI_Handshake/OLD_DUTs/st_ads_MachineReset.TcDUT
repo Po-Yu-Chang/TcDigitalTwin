@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ads_MachineReset" Id="{359fca8b-8b02-4548-a22e-9b7c5fcd3870}">
+    <Declaration><![CDATA[TYPE st_ads_MachineReset :
+    STRUCT
+        //清除各分區除了伺服軸外的所有動件(氣壓缸、馬達)的邏輯層錯誤
+        ResetStorage    :BOOL;
+        ResetAllocation :BOOL;
+        ResetFGA        :BOOL;
+        AllReset        :BOOL;// Machine reset signal, True: machine try to clear alarm and reset method 
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FUN_GetPositionTableData" Id="{53559992-5bd3-45c0-a805-fdfad065ed0b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_GetPositionTableData : ST_PositionTable
+VAR_INPUT
+	PositionName : STRING;
+	Index : LREAL;
+	Clip : LREAL;
+END_VAR
+VAR
+	udiIndex : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FOR udiIndex := 1 TO 200 DO
+    IF GVL_HMI.Setup.PositionTable[udiIndex].Zone = PositionName AND
+       GVL_HMI.Setup.PositionTable[udiIndex].Index = Index AND
+       GVL_HMI.Setup.PositionTable[udiIndex].Clip = Clip
+    THEN
+        FUN_GetPositionTableData := DAS_CoreSys.MachineControl.currentdata.PositionTable[udiIndex];
+        EXIT;
+    END_IF
+END_FOR
+]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_GetPositionTableData">
+      <LineId Id="63" Count="4" />
+      <LineId Id="70" Count="3" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

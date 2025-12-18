@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Fanuc_WarehouseHandshake" Id="{2e193eed-99d4-406e-85e6-dc4dfe1e7bff}">
+    <Declaration><![CDATA[(* This Struct is for DAS system - Faunc Robot
+	 handshake for Clamp A/B to warehouse pick/place box
+*)
+TYPE ST_Fanuc_WarehouseHandshake :
+    STRUCT
+        nLayer1           :BIT; // The 1st bit of the int representing the Layer. 
+        nLayer2           :BIT; // The 2nd bit of the int representing the Layer. 
+        nLayer3           :BIT; // The 3rd bit of the int representing the Layer. 
+        nLayer4           :BIT; // The 4th bit of the int representing the Layer. 
+        nSlide1           :BIT; // The 1st bit of the int representing the Slide
+        nSlide2           :BIT; // The 2nd bit of the int representing the Slide
+        nSlide3           :BIT; // The 3rd bit of the int representing the Slide
+        nSlide4           :BIT; // The 4th bit of the int representing the Slide
+        nSlide5           :BIT; // The 5th bit of the int representing the Slide
+        bTargetWareHouseA :BIT; // True : ClampA's Target is Warehouse A
+        bTargetWareHouseB :BIT; // True : ClampA's Target is Warehouse B
+        bGet              :BIT; // Ture : ClampA goto target to pickup box, False : ClampB goto target to place box
+        bReserve1         :BIT; // Spare
+        bExecute          :BIT; // True : Send command to Robot to process
+        bContinue         :BIT; // True : Send command to Robot, that robot do next clamp's job
+        bReserve2         :BIT; // Spare
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

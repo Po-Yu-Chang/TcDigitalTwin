@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Setup_Mechanical" Id="{1fd72bb2-b655-4d14-a85b-dd4dcd9f7187}">
+    <Declaration><![CDATA[TYPE
+    ST_Setup_Mechanical :
+    STRUCT
+        //配針手臂在圓帶的盒的左右的間距
+        Allocate_box_leftandRight_Distance : LREAL;
+        //配針手臂在圓帶的盒的上下的間距
+        Allocate_box_UpandDown_Distance : LREAL;  
+		// timeout setting
+		stTimeoutSetting	:st_ServiceTimeoutSetting;
+		// RS485 by pass
+		stModbusByPass			:st_ModbusSwitchOff;
+		//SafetyDoor
+		stSafetyByPass			:st_SafetyByPass;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

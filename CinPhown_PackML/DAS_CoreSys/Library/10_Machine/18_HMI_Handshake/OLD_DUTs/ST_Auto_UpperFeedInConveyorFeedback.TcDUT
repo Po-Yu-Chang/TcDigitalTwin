@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Auto_UpperFeedInConveyorFeedback" Id="{21d7e873-b0e4-4a71-8d83-e5b8278ed5e1}">
+    <Declaration><![CDATA[TYPE ST_Auto_UpperFeedInConveyorFeedback :
+STRUCT
+	FirstBoxCamera : BOOL;
+	SecondBoxCamera : BOOL;	
+	FirstBoxCameraDiameter : BOOL;
+	SecondBoxCameraDiameter : BOOL;
+	ActualNrOfBox			:INT;
+	InterventionRequest	 : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_OpPannelStatus" Id="{f1566df0-2448-4a9e-98ef-e597777361ff}">
+    <Declaration><![CDATA[TYPE ST_OpPannelStatus :
+    STRUCT
+        StartBtnStatus :BOOL; // True : Start botton have been active
+        StopBtnStatus  :BOOL; // True : Stop botton have been active
+        ResetBtnStatus :BOOL; // True : Reset botton have been active
+        EStopBtnStatus :BOOL; // True : EStop botton have been active
+		HomeRequestStatus : BOOL; // Home request from panel operator
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

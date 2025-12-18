@@ -1,0 +1,163 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_PullOutConveyorBtnCtrl" Id="{76992362-851c-469d-9037-6798a28c9f95}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PullOutConveyorBtnCtrl 
+VAR_INPUT
+	Input	:REFERENCE TO ST_InputTable;
+	Output	:REFERENCE TO ST_OutputTable;
+//	ConveyorMotorA :REFERENCE TO FB_Motor;
+//	ConveyorMotorB :REFERENCE TO FB_Motor;
+	Motor	:REFERENCE TO UNI_MotorList;
+	
+	
+	bPullOutConveyorExecute	:BOOL;
+	bPullOutConveyorDone	:BOOL;
+	bPullOutConveyorBusy	:BOOL;
+	StroageRegionMode :E_UnitMode ;
+END_VAR
+VAR_OUTPUT
+	PullOutConveyorState :E_PullOutConveyorState;
+END_VAR
+VAR
+	ExecutingStep	:E_PullOutConveyorState;
+	bReferenceComponetIsRefed :BOOL;
+	Forward_EdgeDetect	:FB_EdgeDetect;
+	Backward_EdgeDetect	:FB_EdgeDetect;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[clcUpdate();
+Forward_EdgeDetect(xInput:=Input.bPullOutCV_FwdPb);
+Backward_EdgeDetect(xInput :=Input.bPullOutCV_RevPb);
+//IF __ISVALIDREF(BtnMoveForward) AND
+//	__ISVALIDREF(BtnMoveReverse) AND
+//	__ISVALIDREF(ConveyorMotorA) AND
+//	__ISVALIDREF(ConveyorMotorB) THEN
+	
+//	bReferenceComponetIsRefed :=TRUE;
+//END_IF
+
+//IF bReferenceComponetIsRefed THEN
+//	clcUpdate();
+//END_IF
+]]></ST>
+    </Implementation>
+    <Folder Name="Private" Id="{caaf42e2-40f6-45c0-bdca-a45a1e319be9}" />
+    <Method Name="clcUpdate" Id="{8b7b3c91-e386-4fd9-b552-7c518cea4903}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE clcUpdate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+CASE ExecutingStep OF
+	E_PullOutConveyorState.idle:
+	;
+	
+	E_PullOutConveyorState.AutoMode:
+		M_TurnOff();
+		M_TurnOff();
+			IF bPullOutConveyorDone AND 
+				NOT bPullOutConveyorExecute AND 
+				NOT (StroageRegionMode = E_MachineMode.AUTO)  THEN
+				ExecutingStep := E_PullOutConveyorState.Free;
+			END_IF
+	
+	E_PullOutConveyorState.Free:
+		M_TurnOn();
+		M_TurnOn();
+		IF NOT (StroageRegionMode = E_UnitMode.AUTO) AND 
+				(StroageRegionMode = E_UnitMode.MANUAL) THEN
+//			IF BtnMoveReverse.P_ButtonState AND BtnMoveForward.P_ButtonState THEN
+			IF Input.bPullOutCV_FwdPb AND Input.bPullOutCV_RevPb THEN
+//				ConveyorMotorA.M_StopMotor('');
+//				ConveyorMotorB.M_StopMotor('');
+				Motor.List.PullOutCV_A.M_MotorStop();
+				Motor.List.PullOutCV_B.M_MotorStop();
+					ELSIF Forward_EdgeDetect.xFallingEdge THEN 
+						Motor.List.PullOutCV_A.M_MotorStop();
+						Motor.List.PullOutCV_B.M_MotorStop();
+					ELSIF Backward_EdgeDetect.xFallingEdge THEN
+						Motor.List.PullOutCV_A.M_MotorStop();
+						Motor.List.PullOutCV_B.M_MotorStop();
+					ELSIF Input.bPullOutCV_RevPb THEN
+							Motor.List.PullOutCV_A.M_MoveBackward();
+							Motor.List.PullOutCV_B.M_MoveBackward();
+					ELSIF Input.bPullOutCV_FwdPb  THEN
+							Motor.List.PullOutCV_A.M_MoveForward();
+							Motor.List.PullOutCV_B.M_MoveForward();					
+			END_IF
+		END_IF
+END_CASE
+
+IF (bPullOutConveyorExecute AND bPullOutConveyorBusy ) OR (StroageRegionMode = E_UnitMode.AUTO)  THEN
+	ExecutingStep := E_PullOutConveyorState.AutoMode;
+ELSE
+	ExecutingStep := E_PullOutConveyorState.Free;
+END_IF
+
+PullOutConveyorState:=ExecutingStep;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TurnOff" Id="{1fe1057f-edb4-41cb-bd06-6e0d35338b6a}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_TurnOff : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Output.bPullOutCV_FwdPbLamp:=FALSE;
+Output.bPullOutCV_RevPbLamp:=FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_TurnOn" Id="{769ae96d-5601-4cd8-82a1-60104bccf7e1}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE M_TurnOn : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Output.bPullOutCV_FwdPbLamp:=TRUE;
+Output.bPullOutCV_RevPbLamp:=TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_PullOutConveyorBtnCtrl">
+      <LineId Id="130" Count="0" />
+      <LineId Id="154" Count="2" />
+      <LineId Id="122" Count="6" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="99" Count="1" />
+      <LineId Id="129" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PullOutConveyorBtnCtrl.clcUpdate">
+      <LineId Id="55" Count="0" />
+      <LineId Id="8" Count="7" />
+      <LineId Id="66" Count="1" />
+      <LineId Id="16" Count="5" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="74" Count="1" />
+      <LineId Id="91" Count="1" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="93" Count="2" />
+      <LineId Id="57" Count="1" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="59" Count="1" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="37" Count="7" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PullOutConveyorBtnCtrl.M_TurnOff">
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PullOutConveyorBtnCtrl.M_TurnOn">
+      <LineId Id="5" Count="2" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

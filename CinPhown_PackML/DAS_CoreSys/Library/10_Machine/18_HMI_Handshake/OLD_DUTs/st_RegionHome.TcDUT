@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_RegionHome" Id="{e538e28f-deea-4331-a292-be5f9fc512a3}">
+    <Declaration><![CDATA[TYPE st_RegionHome :
+STRUCT
+	Homed	:BOOL;
+	HandShake :st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

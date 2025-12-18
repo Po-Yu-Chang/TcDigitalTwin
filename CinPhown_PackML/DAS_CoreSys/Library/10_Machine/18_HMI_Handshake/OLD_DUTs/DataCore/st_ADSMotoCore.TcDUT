@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ADSMotoCore" Id="{6295a093-1e71-485f-88c2-7b8a813c6968}">
+    <Declaration><![CDATA[//上位系統給控制器馬達參數結構
+TYPE st_ADSMotoCore  :
+STRUCT
+	//馬達名稱
+	MotoName:STRING;
+	//是否使用軟體極限
+	UseSoftlimit:BOOL;
+	//軟體負極限
+	SoftNegative:LREAL;
+	//軟體正極限
+	SoftPositive:LREAL;
+	//速度
+	VCC:LREAL;
+	//加速
+	ACC:LREAL;
+	//減速
+	DCC:LREAL;
+	//Jerk
+	Jerk:LREAL;
+	//back home abs
+	home_abs:LREAL;
+	//執行
+	Excute:BOOL;
+	//馬達是否完成移動
+	Done:BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

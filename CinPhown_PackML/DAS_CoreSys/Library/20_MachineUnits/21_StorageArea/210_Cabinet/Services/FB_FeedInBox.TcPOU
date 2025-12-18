@@ -1,0 +1,396 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_FeedInBox" Id="{53e6ff26-6b2d-4a7d-85a2-b69d8ef24360}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FeedInBox EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+	Motors : REFERENCE TO UNI_MotorList ; // The motors with warehouse conveyor
+	WarehouseStatus : REFERENCE TO ST_WheelhouseInput; // The warehouse motor and sensor status
+	ArrivedDelayTime : TIME;
+	WarehouseSelect :E_WareHouse;
+	WarehouseCoordinates : ST_WareHouseCoordinates;
+	TimeOut : TIME; // Set the time if the process stop
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	Ton_ArriveDelay : TON; // When box arrived the front sensor, delay some time.
+	Ton_BoxMoveForward : TON;// When the conveyor send the box forward, but not useful.
+	tonFirstReserveTime	:TON;
+	tonSecondForwardTime	:TON;
+	tonThirdReserceTime	:TON;
+	uiMotorIndex: INT;
+	CurrentTargetSensorStatus : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{0b51163e-6665-493e-bb6c-319078a835e8}" />
+    <Folder Name="State" Id="{39c48c63-3c7a-46a4-9fc8-958f960261d5}" />
+    <Action Name="A00_BasicUnits" Id="{4d31a9dd-4ce6-43b5-b856-21d3b5527957}" FolderPath="Action\">
+      <Implementation>
+        <ST><![CDATA[// Timer
+Ton_ArriveDelay(PT:= ArrivedDelayTime);//2.0s
+Ton_BoxMoveForward(PT:= TimeOut);//10S
+
+//check full box in cabinet time
+tonFirstReserveTime(PT :=T#1.5S);	
+tonSecondForwardTime(PT :=T#750MS);
+tonThirdReserceTime(PT :=T#2.0S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckSlideSensor" Id="{2ead7186-fc6a-4154-8439-32582083264a}">
+      <Declaration><![CDATA[(* Check Warehouse front sensor status
+*)
+METHOD M_CheckSlideSensor
+VAR_INPUT
+    WarehouseSelect      : E_WareHouse;
+    WarehouseCoordinates : ST_WareHouseCoordinates;
+END_VAR
+VAR_OUTPUT
+	SensorStatus : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF WarehouseSelect = E_WareHouse.WareHouseA THEN
+    SensorStatus := WarehouseStatus.WheelhouseA.arLayer[WarehouseCoordinates.Layer].Line[WarehouseCoordinates.Slide];
+ELSIF WarehouseSelect = E_WareHouse.WareHouseB THEN
+    SensorStatus := WarehouseStatus.WheelhouseB.arLayer[WarehouseCoordinates.Layer].Line[WarehouseCoordinates.Slide];
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{9f752abb-7321-4be2-b9fb-736e166318c6}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{99b8876c-4250-4a37-b3af-e3744d83cfcc}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{ccbb01bd-ca27-4044-b9d2-4aad15aa72f9}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{fdd5deec-47b8-4ee0-bb7d-9f2963a604c9}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+Ton_ArriveDelay.IN := FALSE;
+Ton_BoxMoveForward.IN := FALSE;
+tonFirstReserveTime.IN :=FALSE;
+tonSecondForwardTime.IN :=FALSE;
+tonThirdReserceTime.IN :=FALSE;
+uiExecutingStep := 0;
+CurrentTargetSensorStatus := FALSE;
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{780f5d95-b1f3-46e3-a5c3-d40be5ff7e0e}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR uiMotorIndex := 1 TO 20 DO
+	Motors.arMotor[uiMotorIndex].M_MotorStop();
+END_FOR
+
+IF NOT Execute THEN
+	estate := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{d8650fdc-22c4-4b3a-962a-0680d7ff4d03}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	TargetLayer : INT;
+	TargetSlide :E_WareHouseSlide;
+END_VAR
+VAR
+	them: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set FB state is busy
+Busy := TRUE;
+
+// Process
+CASE uiExecutingStep OF
+    0: // Command analize
+		Ton_BoxMoveForward.IN := FALSE;
+		Ton_ArriveDelay.IN := FALSE;
+		tonFirstReserveTime.IN :=FALSE;
+		tonSecondForwardTime.IN :=FALSE;
+		tonThirdReserceTime.IN :=FALSE;
+		TargetLayer := WarehouseCoordinates.Layer+(WarehouseSelect-1)*10 ; // Warehouse A=1 , B = 2;
+		TargetSlide := WarehouseCoordinates.Slide;
+		//uiExecutingStep := 10;
+		uiExecutingStep := 50;		//modify : just backward CV  edit 20251112 Min
+		
+	10:	//Motor reverse make sure have space can retreat
+		Motors.arMotor[TargetLayer].M_MoveBackward();
+		Ton_BoxMoveForward.IN := TRUE;
+		IF NOT Motors.arMotor[TargetLayer].InStopped  THEN 
+			uiExecutingStep := 15;
+		END_IF
+		IF Ton_BoxMoveForward.Q THEN
+			_Error :=TRUE;
+			Status :='Storage Cabinet MoveBackward motor timeout';
+		END_IF
+	15:	//Motor First reverse  then stop motor 
+		tonFirstReserveTime.IN := TRUE;
+		Ton_BoxMoveForward.IN := FALSE;
+		IF tonFirstReserveTime.Q THEN
+			tonFirstReserveTime.IN :=FALSE;
+			Motors.arMotor[TargetLayer].M_MotorStop();// .M_MotorStop();//('FeedIn Motors.arMotor stop reverse');
+			IF Motors.arMotor[TargetLayer].InStopped THEN
+				uiExecutingStep := 20;
+			END_IF
+		END_IF
+		
+	20:	//Motor SecondForward check cabinet layer have't full box inside 
+		Motors.arMotor[TargetLayer].M_MoveForward();// .M_MoveForward();//('FeedIn box : make sure have space can feedIn');
+		Ton_BoxMoveForward.IN :=TRUE;
+		IF NOT Motors.arMotor[TargetLayer].InStopped THEN
+			uiExecutingStep := 25;
+		END_IF
+		IF Ton_BoxMoveForward.Q THEN
+			_Error :=TRUE;
+			Status :='Storage Cabinet MoveForward motor timeout';
+		END_IF
+		
+	25:	//Motor second MoveForward  then stop motor
+		tonSecondForwardTime.IN := TRUE;
+		Ton_BoxMoveForward.IN := FALSE;
+		IF tonSecondForwardTime.Q THEN
+			tonSecondForwardTime.IN :=FALSE;
+			Motors.arMotor[TargetLayer].M_MotorStop();//('');
+			IF Motors.arMotor[TargetLayer].InStopped THEN
+				uiExecutingStep :=30;
+			END_IF
+		END_IF
+		
+	30:	//check layer haven't full box behind
+		M_CheckSlideSensor(WarehouseSelect := WarehouseSelect, 
+						   WarehouseCoordinates := WarehouseCoordinates,
+						   SensorStatus=>CurrentTargetSensorStatus);
+		IF NOT  CurrentTargetSensorStatus THEN
+			uiExecutingStep :=50;
+		ELSE
+			_Error :=TRUE;
+			Status :='Storage Cabinet Layer full box inside ,plaease remove box ';
+		END_IF	
+		
+	50:
+        Motors.arMotor[TargetLayer].M_MoveBackward();// .M_MoveBackward();// ('FeedIn box : conveyor move backward');
+		Ton_BoxMoveForward.IN := TRUE;
+		IF  NOT Motors.arMotor[TargetLayer].InStopped THEN
+			Ton_BoxMoveForward.IN := FALSE;	
+			uiExecutingStep := 100;
+		END_IF		
+		IF  Ton_BoxMoveForward.Q THEN
+		  _Error := TRUE;
+           Status := 'Move motor timeout';
+		END_IF
+		
+    100: // Wait box arrived
+		M_CheckSlideSensor(WarehouseSelect := WarehouseSelect, 
+						   WarehouseCoordinates := WarehouseCoordinates,
+						   SensorStatus=>CurrentTargetSensorStatus);
+        IF NOT CurrentTargetSensorStatus THEN
+            uiExecutingStep := 200;
+        END_IF
+    200:// third reverse 
+        tonThirdReserceTime.IN := TRUE;
+        IF tonThirdReserceTime.Q THEN
+			tonThirdReserceTime.IN :=FALSE;
+            uiExecutingStep := 300;
+        END_IF
+    300:
+        Motors.arMotor[TargetLayer].M_MotorStop();//('FeedIn box : conveyor stop move');
+        uiExecutingStep := 9900;
+    9900:
+        // Command completed
+        _Executed := TRUE;
+END_CASE
+
+IF _Executed THEN
+    eState := STATE_DONE;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+ELSIF _Error THEN
+    eState := STATE_ERROR;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{7915f0c5-b9ad-4fcd-b6f3-e83adf57091f}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+VAR 
+	uiMotorIndex : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Done := _Executed;
+
+FOR uiMotorIndex := 1 TO 20 DO 
+	Motors.arMotor[uiMotorIndex].M_MotorStop();
+END_FOR	
+IF NOT Execute THEN
+	eState := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_FeedInBox">
+      <LineId Id="9" Count="0" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.A00_BasicUnits">
+      <LineId Id="2" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="4" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_CheckSlideSensor">
+      <LineId Id="34" Count="3" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_STATE_ABORTED">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_STATE_DONE">
+      <LineId Id="11" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_STATE_DORMANT">
+      <LineId Id="9" Count="10" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="32" Count="2" />
+      <LineId Id="27" Count="1" />
+      <LineId Id="20" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_STATE_ERROR">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_STATE_EXECUTING">
+      <LineId Id="76" Count="1" />
+      <LineId Id="87" Count="3" />
+      <LineId Id="137" Count="1" />
+      <LineId Id="245" Count="2" />
+      <LineId Id="258" Count="1" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="280" Count="0" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="166" Count="1" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="177" Count="1" />
+      <LineId Id="180" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="181" Count="1" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="192" Count="2" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="196" Count="3" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="208" Count="2" />
+      <LineId Id="207" Count="0" />
+      <LineId Id="234" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="270" Count="0" />
+      <LineId Id="211" Count="0" />
+      <LineId Id="217" Count="4" />
+      <LineId Id="213" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="223" Count="1" />
+      <LineId Id="222" Count="0" />
+      <LineId Id="225" Count="1" />
+      <LineId Id="229" Count="2" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="232" Count="0" />
+      <LineId Id="136" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="155" Count="2" />
+      <LineId Id="148" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="170" Count="1" />
+      <LineId Id="95" Count="1" />
+      <LineId Id="100" Count="2" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="248" Count="0" />
+      <LineId Id="105" Count="16" />
+      <LineId Id="68" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInBox.M_STATE_RESETTING">
+      <LineId Id="14" Count="0" />
+      <LineId Id="19" Count="2" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

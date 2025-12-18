@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Fanuc_AbsMove" Id="{c9e2b108-de0e-48f0-b1bc-349d36db3fc2}">
+    <Declaration><![CDATA[(* This Struct is for DAS system - Faunc Robot
+	handshake for clamp A/B to target position
+*)
+TYPE ST_Fanuc_AbsMove :
+    STRUCT
+        nArea1    :BIT; // The 1st bit of the int representing the Area. 
+        nArea2    :BIT; // The 2nd bit of the int representing the Area. 
+        nArea3    :BIT; // The 3rd bit of the int representing the Area. 
+        nArea4    :BIT; // The 4th bit of the int representing the Area. 
+        nAddress1 :BIT; // The 1st bit of the int representing the Address. 
+        nAddress2 :BIT; // The 2nd bit of the int representing the Address.
+        nAddress3 :BIT; // The 3rd bit of the int representing the Address.
+        nAddress4 :BIT; // The 4th bit of the int representing the Address.
+        nAddress5 :BIT; // The 5th bit of the int representing the Address.
+        nAddress6 :BIT; // The 6th bit of the int representing the Address.
+        nAddress7 :BIT; // The 7th bit of the int representing the Address.
+        bGet      :BIT; // Ture : ClampA goto target to pickup box, False : ClampB goto target to place box
+        bReserve1 :BIT; // Spare
+        bExecute  :BIT; // True : Send command to Robot to process
+        bContinue :BIT; // True : Send command to Robot, that robot do next clamp's job
+        bReserve2 :BIT; // Spare
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

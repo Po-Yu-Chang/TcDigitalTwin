@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_TableMoveCtrl" Id="{2d093f28-c30d-4cf7-9fc2-fd5d7ed3d37a}">
+    <Declaration><![CDATA[TYPE
+    ST_TableMoveCtrl EXTENDS ST_ServiceCtrl_Base :
+    STRUCT
+        Index : INT; // PositionTable array index
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

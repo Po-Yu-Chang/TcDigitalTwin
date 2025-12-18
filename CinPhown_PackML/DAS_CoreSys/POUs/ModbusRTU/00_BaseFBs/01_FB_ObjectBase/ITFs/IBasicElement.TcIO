@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <Itf Name="IBasicElement" Id="{26d4507e-e06d-4253-9642-41e206344b1d}">
+    <Declaration><![CDATA[INTERFACE IBasicElement
+]]></Declaration>
+    <Method Name="GetModelState" Id="{f7b30fda-c760-4669-af64-dc3fa3d6ad6e}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+    xDone : BOOL;
+    xBusy : BOOL;
+    xError : BOOL;
+    xAborted : BOOL;
+    iErrorID : UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="GetName" Id="{baf1da5f-3fb9-43d4-a21d-161c0b854311}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <Itf Name="I_ErrorElement" Id="{0f828575-e886-4ef7-bd6f-f5e1150ff524}">
+    <Declaration><![CDATA[INTERFACE I_ErrorElement
+]]></Declaration>
+    <Method Name="M_GetError" Id="{1e9cbffb-3e4f-458b-a0ed-3acee17a923c}">
+      <Declaration><![CDATA[METHOD M_GetError
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	Error : BOOL;
+	ErrorID : DINT;
+	ErrorMsg : T_MaxString;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_GetName" Id="{86508989-de7e-467c-a96f-d9805e02dbfc}">
+      <Declaration><![CDATA[METHOD M_GetName :STRING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="RegisterAlarm" Id="{bda0d40e-fd85-48e4-a39b-c51deb1b027e}">
+      <Declaration><![CDATA[METHOD RegisterAlarm
+VAR_INPUT
+	Trigger : REFERENCE TO BOOL;
+	ID : DINT;
+	value :DINT;
+	Message : STRING;
+	Category : DINT;
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

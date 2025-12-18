@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AxisPara_Manual" Id="{c2a393ba-9d08-432c-8979-13f44108046b}">
+    <Declaration><![CDATA[TYPE
+    ST_AxisPara_Manual :
+    STRUCT
+        JogVelocity     : LREAL := 10; // According to the unit defined in NC_Parameter, typically mm/s or deg/s.
+        JogAcceleration : LREAL := 100; // According to the unit defined in NC_Parameter, typically mm/s^2 or deg/s^2.
+        JogDeceleration : LREAL := 100; // According to the unit defined in NC_Parameter, typically mm/s^2 or deg/s^2.
+        JogJerk         : LREAL := 1000; // According to the unit defined in NC_Parameter, typically mm/s^3 or deg/s^3.
+        PtpVelocity     : LREAL := 10;
+        PtpAcceleration : LREAL := 100;
+        PtpDeceleration : LREAL := 100;
+        PtpJerk         : LREAL := 1000;
+        PtpPosition     : LREAL := 0;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

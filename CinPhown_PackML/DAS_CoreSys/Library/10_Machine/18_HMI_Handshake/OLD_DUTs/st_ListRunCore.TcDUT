@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ListRunCore" Id="{affdd455-49bb-4846-bb84-e4ed20855371}">
+    <Declaration><![CDATA[TYPE st_ListRunCore :
+STRUCT
+	ListRunCore : ARRAY[0..12] OF st_FlowBaseCore;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_LayerStatus" Id="{e9198192-a56e-49ae-aa97-9a085353d05c}">
+    <Declaration><![CDATA[TYPE st_LayerStatus :
+STRUCT
+	bSlide1		:	BOOL;
+	bSlide2		:	BOOL;
+	bSlide3		:	BOOL;
+	bSlide4		:	BOOL;
+	bSlide5		:	BOOL;
+	bSlide6		:	BOOL;
+	bSlide7		:	BOOL;
+	bSlide8		:	BOOL;
+	bSlide9		:	BOOL;
+	bSlide10	:	BOOL;
+	bSlide11	:	BOOL;
+	bSlide12	:	BOOL;
+	bSlide13	:	BOOL;
+	bSlide14	:	BOOL;
+	bSlide15	:	BOOL;
+	bSlide16	:	BOOL;
+	bSlide17	:	BOOL;
+	bSlide18	:	BOOL;
+	bSlide19	:	BOOL;
+	bSlide20	:	BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

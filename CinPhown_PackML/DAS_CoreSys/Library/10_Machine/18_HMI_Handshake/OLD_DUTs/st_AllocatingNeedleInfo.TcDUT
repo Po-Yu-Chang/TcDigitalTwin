@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AllocatingNeedleInfo" Id="{bf042382-88c2-4e5c-8306-28be9839c47d}">
+    <Declaration><![CDATA[TYPE st_AllocatingNeedleInfo :
+STRUCT
+	NeedleLocation		: INT;	//針位，0~49
+	Box					: UINT;	//盒位，0~3
+	Clip				: INT;	//使用夾爪，0~3(可新增到5)
+	Station				: UINT;	//圓帶站點 ，(放針時無效) 1..40
+	CycleStart			: BOOL;	//取到此針後執行放針，討論放針做為作動依據
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="_st_LayerStatus" Id="{572d47d1-44ca-45d6-bf6b-78e321beb238}">
+    <Declaration><![CDATA[TYPE _st_LayerStatus :
+STRUCT
+	bSlides		:ARRAY[1..20]OF	BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

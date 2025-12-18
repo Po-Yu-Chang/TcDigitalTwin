@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_RoundBeltCoordinates" Id="{11028e02-c3c3-4bac-97eb-34148e547dc9}">
+    <Declaration><![CDATA[TYPE ST_RoundBeltCoordinates :
+STRUCT
+	Station : E_RoundBeltStation;
+	ReloadCarrier : E_ReloadRoundBelt_PlaceAddress;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

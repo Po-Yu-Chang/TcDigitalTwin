@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="DAS_MotionSync" Id="{445b1210-9ce8-43e0-9271-a5543f119091}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM DAS_MotionSync
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[AxisInterface_Type03();
+M_InputMapping();]]></ST>
+    </Implementation>
+    <Method Name="M_InputMapping" Id="{e123f82b-4486-455a-8ca2-11803ec326de}">
+      <Declaration><![CDATA[METHOD M_InputMapping
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// TurnTable Axis sensor
+arAxisCtrl_gb[AxisNo.TurnTable].SetupMode.bHomeSignal := NOT GVL_Input.uniDI.stDI.bTurnTable_Axis_HomeSensor;
+// RoundBelt Axis sensor
+arAxisCtrl_gb[AxisNo.RoundBelt].SetupMode.bHomeSignal := GVL_Input.uniDI.stDI.bRoundBelt_Axis_HomeSensor;
+// Allocate Robot X Axis
+arAxisCtrl_gb[AxisNo.Allocate_X].SetupMode.bPosLimitSignal:= NOT GVL_Input.uniDI.stDI.bAllocateRobot_Xaxis_PosLimit;
+arAxisCtrl_gb[AxisNo.Allocate_X].SetupMode.bNegimitSignal:=  NOT GVL_Input.uniDI.stDI.bAllocateRobot_Xaxis_NegLimit;
+
+//arAxisCtrl_gb[AxisNo.Allocate_Y].SetupMode.bHomeSignal:= ;
+	//arAxisCtrl_gb[AxisNo.Allo cate_Y].SetupMode.bNegimitSignal:=;
+
+arAxisCtrl_gb[AxisNo.OutRobot_X].SetupMode.bHomeSignal:= GVL_Input.uniDI.stDI.bOutRobot_Xaxis_HomeSensor;
+arAxisCtrl_gb[AxisNo.OutRobot_X].SetupMode.bPosLimitSignal:=  NOT GVL_Input.uniDI.stDI.bOutRobot_Xaxis_PosLimit;
+arAxisCtrl_gb[AxisNo.OutRobot_X].SetupMode.bNegimitSignal:=  NOT GVL_Input.uniDI.stDI.bOutRobot_Xaxis_NegLimit;
+
+arAxisCtrl_gb[AxisNo.OutRobot_Y].SetupMode.bHomeSignal:= GVL_Input.uniDI.stDI.bOutRobot_Yaxis_HomeSensor;
+arAxisCtrl_gb[AxisNo.OutRobot_Y].SetupMode.bPosLimitSignal:=  NOT GVL_Input.uniDI.stDI.bOutRobot_Yaxis_PosLimit;
+arAxisCtrl_gb[AxisNo.OutRobot_Y].SetupMode.bNegimitSignal:=  NOT GVL_Input.uniDI.stDI.bOutRobot_Yaxis_NegLimit;
+
+arAxisCtrl_gb[AxisNo.RackMotor].SetupMode.bNegimitSignal := NOT GVL_Input.uniDI.stDI.bStackPush_DCMotor_NegLimit;
+arAxisCtrl_gb[AxisNo.RackMotor].SetupMode.bPosLimitSignal := not GVL_Input.uniDI.stDI.bStackPush_DCMotor_PosLimit;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="DAS_MotionSync">
+      <LineId Id="5" Count="0" />
+      <LineId Id="18" Count="0" />
+    </LineIds>
+    <LineIds Name="DAS_MotionSync.M_InputMapping">
+      <LineId Id="28" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="16" Count="2" />
+      <LineId Id="20" Count="7" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

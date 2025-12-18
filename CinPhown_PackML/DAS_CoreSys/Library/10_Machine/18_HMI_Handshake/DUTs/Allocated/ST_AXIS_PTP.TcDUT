@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AXIS_PTP" Id="{21215587-16ee-4720-88ef-6ff391993507}">
+    <Declaration><![CDATA[TYPE
+    ST_AXIS_PTP :
+    STRUCT
+		Enable 		 : BOOL; // True : Position Absolute mode active
+        Position     : LREAL; // The position command during PTP (Point-to-Point) positioning.
+        Velocity     : LREAL; // The velocity command during PTP (Point-to-Point) positioning.
+        Acceleration : LREAL; // The acceleration command during PTP (Point-to-Point) positioning.
+        Deceleration : LREAL; // The deceleration command during PTP (Point-to-Point) positioning.
+        Jerk         : LREAL; // The jerk command during PTP (Point-to-Point) positioning.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

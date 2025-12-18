@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_PullOutConveyorPosition" Id="{74dcb94a-105e-4d9c-878c-7f302b131778}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE
+    E_PullOutConveyorPosition :
+    (
+        Undefined := 0,
+        I3_Slide, // The left side when facing the machine’s operating side.
+        I4_Slide  // The right side when facing the machine’s operating side.
+    );
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

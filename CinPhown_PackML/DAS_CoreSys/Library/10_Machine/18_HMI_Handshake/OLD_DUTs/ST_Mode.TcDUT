@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Mode" Id="{c843dc29-2dad-47a0-a5ce-5a8dcdba93e2}">
+    <Declaration><![CDATA[TYPE ST_Mode :
+STRUCT
+	// Mode :  0 : Trainsitioning
+	// 		   1 : Manual
+	// 		   2 : Auto
+	// 		   3 : Service(No implement yet)
+	//        99 : ModeSelect
+	TargetMode	:E_MachineMode := E_MachineMode.UNDEFINE; 	
+	CurrentMode :E_MachineMode:=E_MachineMode.ModeSelect;
+	HandshakeBase : st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

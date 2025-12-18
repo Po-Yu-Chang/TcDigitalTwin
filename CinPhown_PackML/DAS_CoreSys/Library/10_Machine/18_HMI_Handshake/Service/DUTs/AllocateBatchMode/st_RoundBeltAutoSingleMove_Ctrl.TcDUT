@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_RoundBeltAutoSingleMove_Ctrl" Id="{1a0d076c-1715-4453-8892-c62ec8a635b3}">
+    <Declaration><![CDATA[TYPE st_RoundBeltAutoSingleMove_Ctrl :
+STRUCT	
+		bExecute                  :BOOL;                     
+        bReset                    :BOOL;                     
+        bAbort                    :BOOL;           
+        uiStation				  :UINT;  
+		uiLatch					  :UINT;     
+        Timeout					  :TIME := T#3S; 
+		bOccupied				  :BOOL;
+		bSendPressBox			  :BOOL;	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Fanuc_Status" Id="{3588473d-4bc9-4758-bdf4-ad02589e9d73}">
+    <Declaration><![CDATA[(* This Struct is for DAS system - Faunc Robot handshake for clamp A/B to target position
+*)
+TYPE
+    ST_Fanuc_Status :
+    STRUCT
+        Done : BIT;       // True : Command process completed
+        Error : BIT;      // True : Process has an error
+        ErrorID_01 : BIT; // The 1st bit of the int representing the ErrorID. 
+        ErrorID_02 : BIT; // The 2nd bit of the int representing the ErrorID. 
+        ErrorID_03 : BIT; // The 3rd bit of the int representing the ErrorID. 
+        ErrorID_04 : BIT; // The 4th bit of the int representing the ErrorID. 
+        ErrorID_05 : BIT; // The 5th bit of the int representing the ErrorID. 
+        ErrorID_06 : BIT; // The 6th bit of the int representing the ErrorID. 
+        ErrorID_07 : BIT; // The 7th bit of the int representing the ErrorID. 
+        ErrorID_08 : BIT; // The 8th bit of the int representing the ErrorID. 
+        ErrorID_09 : BIT; // The 9th bit of the int representing the ErrorID. 
+        ErrorID_10 : BIT; // The 10th bit of the int representing the ErrorID. 
+        Reserve1 : BIT;
+        Reserve2 : BIT;
+        Notification : BIT;  // True : Robot send this flag to notify PLC for waiting continue cmd
+        AllowContinue : BIT; // True :
+        WarehouseA : BIT;    // True : The program for warehouse A is running.
+        WarehouseB : BIT;    //True:The program for warehouse B is running.
+        AbsMoveA : BIT;      //True:The program for AbsMove A is running.
+        AbsMoveB : BIT;      //True:The program for AbsMove B is running.
+        ClampA_Open : BIT;   //True: ClampA open
+        ClampB_Open : BIT;   // True:ClampB open
+        ClampA_Sensor : BIT; // True: ClampA sensor detact
+        ClampB_Sensor : BIT; //True:CLampB sensor detact
+//        RSR1_active : BIT; // True : Robot running in the RSR1 prog
+//        RSR2_active : BIT; // True : Robot running in the RSR2 prog
+//        RSR3_active : BIT; // True : Robot running in the RSR3 prog
+//        BzoneInWork : BIT; // True : Robot in B zone now
+//        EzoneInWork : BIT; // True : Robot in E zone now
+//        JzoneInWork : BIT; // True : Robot in J zone now
+
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_StationPositions" Id="{b6aa8d1f-cb47-461c-ab03-da745cbb3b4a}">
+    <Declaration><![CDATA[TYPE st_StationPositions :
+STRUCT
+	Position : LREAL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

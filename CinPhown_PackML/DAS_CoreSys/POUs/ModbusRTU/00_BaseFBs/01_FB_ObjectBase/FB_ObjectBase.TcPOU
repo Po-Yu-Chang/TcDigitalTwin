@@ -1,0 +1,283 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ObjectBase" Id="{3d0c5aba-3ff5-4166-9aaa-8238cc7e29e5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ObjectBase
+
+VAR
+	{attribute 'hide'}
+	fbLocalSystemTime				: FB_LocalSystemTime := (bEnable := TRUE, dwCycle := 1);
+	{attribute 'hide'}
+	uiCmdIndex						: UINT := 1;
+	arCmdRecord						: ARRAY[1..Para_ObjectBase.cNumCmdRecord] OF ST_CmdContent;
+	{attribute 'hide'}
+	uiMsgIndex						: UINT := 1;
+	arMsgRecord						: ARRAY[1..Para_ObjectBase.cNumMsgRecord] OF ST_MsgContent;
+	{attribute 'hide'}
+	bReset							: BOOL;
+END_VAR
+
+VAR_OUTPUT
+	bBusy							: BOOL;
+	bDone							: BOOL;
+	bError							: BOOL;
+	sErrMessage						: STRING;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* Info - Please update if you modify something. =========================
+Create Date	: 2023/12/12
+Last Update	: 2023/12/15
+Description	: Base object for "Unit" FB to extend.
+			  Provide basic status method and record function.
+			  Please extend this FB and call super^() in your FB.
+Change Log	: 2023/12/12 -> Add Reset method, user should clear after reseting done.
+			  2023/12/13 -> Debug ErrMessage logic.
+			  2023/12/15 -> Add command record when reseting.
+=========================================================================*)
+
+THIS^.M_clcUpdate();]]></ST>
+    </Implementation>
+    <Method Name="M_clcUpdate" Id="{fcc5035d-d238-487a-aaaa-074b8d05c417}">
+      <Declaration><![CDATA[METHOD  M_clcUpdate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbLocalSystemTime();
+IF bError THEN
+	IF uiMsgIndex > 1 THEN
+		sErrMessage := arMsgRecord[uiMsgIndex-1].Message;
+	END_IF
+ELSE
+	sErrMessage := '';
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RecordCmd" Id="{c5e18541-3d47-47eb-b28f-850e6db12dd4}">
+      <Declaration><![CDATA[METHOD M_RecordCmd : BOOL
+VAR_INPUT
+	sSource					: STRING;
+	sCommand				: STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[arCmdRecord[uiCmdIndex].SysTime := SYSTEMTIME_TO_STRING(fbLocalSystemTime.systemTime);
+arCmdRecord[uiCmdIndex].Source := sSource;
+arCmdRecord[uiCmdIndex].Command := sCommand;
+
+uiCmdIndex := uiCmdIndex + 1;
+IF uiCmdIndex > Para_ObjectBase.cNumCmdRecord THEN uiCmdIndex := 1; END_IF
+
+M_RecordCmd := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RecordMsg" Id="{17c33526-deec-42dc-93c2-f7eaffb32dcf}">
+      <Declaration><![CDATA[METHOD M_RecordMsg : BOOL
+VAR_INPUT
+	sSource					: STRING;
+	sMessgae				: STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[arMsgRecord[uiMsgIndex].SysTime := SYSTEMTIME_TO_STRING(fbLocalSystemTime.systemTime);
+arMsgRecord[uiMsgIndex].Source := sSource;
+arMsgRecord[uiMsgIndex].Message := sMessgae;
+
+uiMsgIndex := uiMsgIndex + 1;
+IF uiMsgIndex > Para_ObjectBase.cNumMsgRecord THEN uiMsgIndex := 1; END_IF
+
+M_RecordMsg := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Reset" Id="{432d4024-312c-4eb6-9f37-eddd6b74d34a}">
+      <Declaration><![CDATA[METHOD M_Reset : BOOL
+VAR_INPUT
+    sRecordSource :STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bError THEN
+	bReset := TRUE;
+	M_RecordCmd(sSource:=sRecordSource, sCommand:='Reset');
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SearchCommand" Id="{d96f7380-b57f-4f29-988f-d27190d82ab5}">
+      <Declaration><![CDATA[METHOD M_SearchCommand : ST_CmdContent
+VAR_INPUT
+	uiCmdIndex				: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF uiCmdIndex > 0 AND uiCmdIndex <= Para_ObjectBase.cNumCmdRecord THEN
+	M_SearchCommand := arCmdRecord[uiCmdIndex];
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SearchMessage" Id="{3652b616-02c2-4567-b034-12f13042a399}">
+      <Declaration><![CDATA[METHOD M_SearchMessage : ST_MsgContent
+VAR_INPUT
+	uiMsgIndex				: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF uiMsgIndex > 0 AND uiMsgIndex <= Para_ObjectBase.cNumMsgRecord THEN
+	M_SearchMessage := arMsgRecord[uiMsgIndex];
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetBusy" Id="{f63b6089-46ae-4774-bf7d-6890f52c1c23}">
+      <Declaration><![CDATA[METHOD M_SetBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.bBusy := TRUE;
+THIS^.bDone := FALSE;
+THIS^.bError := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetDone" Id="{65063acc-f2da-4fef-ae6d-f3c1a563a3f0}">
+      <Declaration><![CDATA[METHOD M_SetDone : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.bBusy := FALSE;
+THIS^.bDone := TRUE;
+THIS^.bError := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetError" Id="{45c36227-f996-4ec7-847c-6c1ca00c037c}">
+      <Declaration><![CDATA[METHOD M_SetError : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.bBusy := FALSE;
+THIS^.bDone := FALSE;
+THIS^.bError := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="P_Busy" Id="{2626fdf0-1c4f-478c-b525-6edf9076a3d1}">
+      <Declaration><![CDATA[PROPERTY P_Busy : BOOL]]></Declaration>
+      <Get Name="Get" Id="{761eca80-a076-4613-b8ce-8dae5789fd68}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_Busy := THIS^.bBusy;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_Done" Id="{a184f77a-a790-4c56-ab3f-0523a39a5562}">
+      <Declaration><![CDATA[PROPERTY P_Done : BOOL]]></Declaration>
+      <Get Name="Get" Id="{d0887a2c-d9b3-4a14-8fab-2d4050144a28}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_Done := THIS^.bDone;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_Error" Id="{80ec64b9-839f-44b1-9fe7-15916237066a}">
+      <Declaration><![CDATA[{attribute 'monitoring' := 'variable'}
+PROPERTY P_Error : BOOL]]></Declaration>
+      <Get Name="Get" Id="{8f91ed24-03f1-4594-8527-507a03ef6414}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_Error := THIS^.bError;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="P_ErrorMessage" Id="{8afe664e-0b2b-4ef1-a46f-92aa4b9cdc38}">
+      <Declaration><![CDATA[PROPERTY P_ErrorMessage : STRING]]></Declaration>
+      <Get Name="Get" Id="{60e5692a-fddb-4acc-b771-9cee3124cd0f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[P_ErrorMessage := THIS^.sErrMessage;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <LineIds Name="FB_ObjectBase">
+      <LineId Id="27" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_clcUpdate">
+      <LineId Id="5" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="10" Count="2" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_RecordCmd">
+      <LineId Id="19" Count="2" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_RecordMsg">
+      <LineId Id="19" Count="2" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_Reset">
+      <LineId Id="9" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_SearchCommand">
+      <LineId Id="7" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_SearchMessage">
+      <LineId Id="7" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_SetBusy">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_SetDone">
+      <LineId Id="6" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.M_SetError">
+      <LineId Id="6" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.P_Busy.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.P_Done.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.P_Error.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase.P_ErrorMessage.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

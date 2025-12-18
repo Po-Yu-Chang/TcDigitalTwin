@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_RS485_SliderStatusALL" Id="{7224e8da-a4af-4404-9046-a373bff2e2fd}">
+    <Declaration><![CDATA[TYPE ST_RS485_SliderStatusALL :
+STRUCT
+	bPos:ARRAY[1..100]OF BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

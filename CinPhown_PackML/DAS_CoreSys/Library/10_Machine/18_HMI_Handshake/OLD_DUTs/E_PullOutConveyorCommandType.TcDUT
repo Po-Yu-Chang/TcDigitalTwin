@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_PullOutConveyorCommandType" Id="{fadd4661-2b18-4f6f-b161-7e259ea50dfb}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE
+    E_PullOutConveyorCommandType :
+    (
+		SideA_FeedIn := 1, // Pull out conveyor A-side feed in box.
+		SideB_FeedIn , // Pull out conveyor B-Side feed in box.
+		Both_FeedIn, // Pull out conveyor both side feed in box.
+		SideA_FeedOut, // Pull out conveyor A-side feed out box.
+		SideB_FeedOut, // Pull out conveyor B-Side feed out box.
+		Both_FeedOut, // Pull out conveyor both side feed out box.
+        MoveForward, // Pull out conveyor motor move forward.
+        MoveBackward, // Pull out conveyor motor move backward.
+		SlideA_FeedOut_Ext, // Pullout Conveyor A-side feed out box, fast flow(Design by Johnson)
+		SlideB_FeedOut_Ext, // Pullout Conveyor B-Side feed out box, fast flow(Design by Johnson)
+		SlideA_FeedIn_Ext, // Pullout Conveyor A-side feed in box, fast flow(Design by Johnson)
+		SlideB_FeedIn_Ext // Pullout Conveyor B-side feed in box, fast flow(Design by Johnson)
+    );
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

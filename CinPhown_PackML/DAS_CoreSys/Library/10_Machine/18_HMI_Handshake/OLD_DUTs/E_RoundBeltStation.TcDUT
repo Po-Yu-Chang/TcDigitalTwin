@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_RoundBeltStation" Id="{19d11278-3a7e-4f35-920a-d4e80286ef71}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE E_RoundBeltStation :
+(
+	Undefined := 0,
+	Station01,
+	Station02,
+	Station03,
+	Station04,
+	Station05,
+	Station06,
+	Station07,
+	Station08,
+	Station09,
+	Station10,
+	Station11,
+	Station12,
+	Station13,
+	Station14,
+	Station15,
+	Station16,
+	Station17,
+	Station18,
+	Station19,
+	Station20,
+	Station21,
+	Station22,
+	Station23,
+	Station24,
+	Station25,
+	Station26,
+	Station27,
+	Station28,
+	Station29,
+	Station30,
+	Station31,
+	Station32,
+	Station33,
+	Station34,
+	Station35,
+	Station36,
+	Station37,
+	Station38,
+	Station39,
+	Station40
+)UINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_SafetyByPass" Id="{a9b9684b-8783-4786-9450-01b4f7850c88}">
+    <Declaration><![CDATA[TYPE st_SafetyByPass :
+STRUCT
+	SafeDoorByPass :BOOL;
+	//AliveCheckingBYPass : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

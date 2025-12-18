@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_WareHouse" Id="{a1346d1d-7aa9-4916-8eb9-c5eb4dab5e80}">
+    <Declaration><![CDATA[TYPE E_WareHouse :
+(
+	None := 0,
+	WareHouseA := 1,
+	WareHouseB := 2
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_MechanicalList" Id="{5cd168b5-5a38-48f7-af63-0a14700b03c2}">
+    <Declaration><![CDATA[TYPE
+    ST_MechanicalList :
+    STRUCT
+        BoxRow : INT := 5; // Number of rows of the box containing drill pins.
+        BoxColumn : INT := 10; // Number of columns of the box containing drill pins.
+        TableWaitBoxPos : LREAL := 352.2; // Storage SimpleAllocate Table position for load / unload box.
+        O5_OffsetData : stPositionCommand; // The position offset of O5 position
+		O6_OffsetData : stPositionCommand; // The position offset of O6 position
+		O7_OffsetData : stPositionCommand; // The position offset of O7 position
+		O8_OffsetData : stPositionCommand; // The position offset of O8 position
+    END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

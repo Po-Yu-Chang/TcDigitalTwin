@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_Severity" Id="{0620725f-7890-4e45-8f9e-40b01471293c}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE E_Severity :
+(
+	// No define or form subsys issue
+	Disregard := 0,
+	// Level1 Subsys Error or normal alarm
+	Level1,
+	// Level2 Set Held -> normal error
+	Level2,
+	Level3,
+	Level4,
+	Level5,
+	// Level6 Set Held -> XTS
+	Level6, 
+	// Level7 Set Aobrt
+	Level7 := 7
+)DINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

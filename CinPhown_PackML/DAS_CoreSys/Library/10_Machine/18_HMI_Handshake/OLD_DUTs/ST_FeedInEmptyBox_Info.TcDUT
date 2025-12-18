@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FeedInEmptyBox_Info" Id="{3668979b-53ed-4bfc-a0e9-96e99b6ef269}">
+    <Declaration><![CDATA[TYPE
+    ST_FeedInEmptyBox_Info :
+    STRUCT
+		ClampA_Setting : ST_ClampSetting; // Set clampA action.
+		ClampB_Setting : ST_ClampSetting; // Set clampB action.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

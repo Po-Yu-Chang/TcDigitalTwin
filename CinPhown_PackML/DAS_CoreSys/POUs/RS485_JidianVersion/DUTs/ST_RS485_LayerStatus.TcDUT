@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_RS485_LayerStatus" Id="{18756b06-5f13-4c1e-b5a7-70780baa2558}">
+    <Declaration><![CDATA[TYPE ST_RS485_LayerStatus :
+STRUCT
+	nPCB1:BIT;
+	nPCB2:BIT;
+	nPCB3:BIT;
+	nPCB4:BIT;
+	nPCB5:BIT;
+	nPCB6:BIT;
+	nPCB7:BIT;
+	nPCB8:BIT;
+	nPCB9:BIT;
+	nPCB10:BIT;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="AxisNo" Id="{797364c5-5076-43ed-8dbb-f44dc9b77368}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE
+    AxisNo :
+    (
+        TurnTable := 1,
+        RoundBelt := 2,
+        Allocate_X := 3,
+        Allocate_Y := 4,
+        OutRobot_X := 5,
+        OutRobot_Y := 6,
+        RackMotor := 7
+    ) UDINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_HMI_ShippingArea" Id="{fc509919-1459-4ef2-8600-ff37a539f56a}">
+    <Declaration><![CDATA[TYPE
+    ST_HMI_ShippingArea :
+    STRUCT
+        Manual   : ST_Manual_Shipping;
+        //HalfAuto : ST_HalfAuto_Shipping;
+        //Auto     : ST_Auto_Shipping;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

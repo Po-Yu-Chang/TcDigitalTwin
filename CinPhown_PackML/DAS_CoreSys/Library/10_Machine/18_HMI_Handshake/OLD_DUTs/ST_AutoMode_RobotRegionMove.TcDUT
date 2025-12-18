@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_RobotRegionMove" Id="{28950b79-4859-4482-abfd-6fafbd1e919f}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_RobotRegionMove :
+STRUCT
+	Command 	: ST_CommandBasic;
+	Status 		: ST_StatusBasic;
+	Info 		: ST_RobotRegionMove_Info;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

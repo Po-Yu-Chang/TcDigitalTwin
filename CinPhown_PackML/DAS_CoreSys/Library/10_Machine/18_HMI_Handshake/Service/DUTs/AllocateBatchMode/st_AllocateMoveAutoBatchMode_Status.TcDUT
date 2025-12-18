@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AllocateMoveAutoBatchMode_Status" Id="{89bd0839-5848-4e97-8be7-7939a5c420e6}">
+    <Declaration><![CDATA[TYPE st_AllocateMoveAutoBatchMode_Status :
+STRUCT
+	bBusy	: BOOL;
+	bDone	: BOOL;
+	bError	: BOOL;	
+	bAborted : BOOL;
+	ErrorID :UDINT;
+	iIndex	: ARRAY[0..49] OF INT;
+	Status   :STRING;
+	uniqurErrorCode : STRING;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

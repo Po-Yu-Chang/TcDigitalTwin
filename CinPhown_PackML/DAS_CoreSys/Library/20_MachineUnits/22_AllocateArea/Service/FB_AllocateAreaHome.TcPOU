@@ -1,0 +1,411 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_AllocateAreaHome" Id="{82d6eee9-7a7b-4866-9cd8-e39b9dfe1a74}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateAreaHome EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute      : BOOL;
+    xAbort        : BOOL;
+
+    Cylinder : REFERENCE TO UNI_CylinderList;
+	Motor    : REFERENCE TO UNI_MotorList;
+	CurrentData      : ST_SetupPara;
+    TimeOut  : LREAL := 90; // Unit : s
+	Homed : REFERENCE TO BOOL;
+END_VAR
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : STRING;
+	AxisHomingRequest : BOOL;
+END_VAR
+VAR
+    StateBehavior   : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+    uiCyclicStep    : UINT := 0;
+    uiIndexLoop     : UINT;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehavior;
+StateBehavior(xExecute := xExecute,
+              xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);	
+
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);
+
+//Error Msg
+iErrorID := StateBehavior._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+		  
+]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{b2826b27-761f-468f-96b0-fc3b1f4f52c0}" />
+    <Method Name="CleanupAction" Id="{4eb0bbe9-7020-4290-9834-736acbc7ae4f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[uiCyclicStep := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{994472a8-d8ea-403e-ae7c-27741bae394d}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR_INST
+	
+END_VAR
+
+VAR
+	AxisIndex 		: INT ; //1-6
+	CylinderIndex 	: INT ;
+	MotorIndex		: INT ;// 23-26
+	bAxesCheck 		: BOOL;
+	bCylinderCheck  : BOOL;
+	bHomeCheck 		: BOOL;
+	bMotorCheck		: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+CASE uiCyclicStep OF
+    0: //Check Motor
+		bMotorCheck:= TRUE;
+		FOR MotorIndex :=23 TO 26 DO
+			bMotorCheck := bMotorCheck AND Motor.arMotor[MotorIndex].InStopped;
+			IF Motor.arMotor[MotorIndex].xError THEN
+				Motor.arMotor[MotorIndex].M_Reset();
+			ELSE
+				Motor.arMotor[MotorIndex].M_MotorStop();
+			END_IF
+		END_FOR
+		IF bMotorCheck THEN
+			uiCyclicStep:=100;
+		END_IF
+		
+	100: // Check Axes error
+		bAxesCheck:=TRUE;
+		FOR AxisIndex :=1 TO 6 DO
+			bAxesCheck := bAxesCheck AND NOT arAxisCtrl_gb[AxisIndex].Admin.Axis.Status.Error;
+			IF arAxisCtrl_gb[AxisIndex].Admin.Axis.Status.Error THEN
+				arAxisCtrl_gb[AxisIndex].Admin.ClearError:=TRUE;
+			END_IF
+		END_FOR
+		
+		IF bAxesCheck THEN
+			uiCyclicStep:=200;
+		END_IF
+			
+	200: // Reset All cylinder
+		FOR AxisIndex :=1 TO 6 DO 	arAxisCtrl_gb[AxisIndex].Admin.ClearError:=FALSE;	END_FOR
+		bCylinderCheck:=TRUE;
+		FOR CylinderIndex:=15 TO 20 DO
+			bCylinderCheck:=bCylinderCheck AND NOT Cylinder.arCylinder[CylinderIndex].xError;
+			IF Cylinder.arCylinder[CylinderIndex].xError THEN
+				Cylinder.arCylinder[CylinderIndex].M_Reset();
+			END_IF
+		END_FOR
+		FOR CylinderIndex:=27 TO 53 DO
+			bCylinderCheck:=bCylinderCheck AND NOT Cylinder.arCylinder[CylinderIndex].xError;
+			IF Cylinder.arCylinder[CylinderIndex].xError THEN
+				Cylinder.arCylinder[CylinderIndex].M_Reset();
+			END_IF
+		END_FOR
+		IF bCylinderCheck THEN
+			uiCyclicStep:=300;
+		END_IF
+		
+	300:
+		bCylinderCheck:=TRUE;
+		FOR CylinderIndex:=15 TO 20 DO
+			bCylinderCheck:=bCylinderCheck AND Cylinder.arCylinder[CylinderIndex].InRearPosition;
+			Cylinder.arCylinder[CylinderIndex].M_Retract();			
+		END_FOR
+		FOR CylinderIndex:=27 TO 53 DO
+			bCylinderCheck:=bCylinderCheck AND Cylinder.arCylinder[CylinderIndex].InRearPosition;
+			Cylinder.arCylinder[CylinderIndex].M_Retract();			
+		END_FOR
+		IF bCylinderCheck THEN
+			uiCyclicStep:=400;
+		END_IF
+
+	400:
+		//bHomeCheck := TRUE;
+		//IF DAS_CoreSys.MachineControl.fanucrobot.List.StorageRobot._uo1.UO07_AtPerch THEN
+			AxisHomingRequest := TRUE;
+			IF NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Homed  THEN
+			uiCyclicStep:=500;
+		//END_IF
+		END_IF
+		
+		
+
+500:	
+		bHomeCheck:=TRUE;
+		FOR AxisIndex :=1 TO 6 DO
+			bHomeCheck := bHomeCheck AND arAxisStatus_gb[AxisIndex].Admin.CmdDone ;//AND arAxisCtrl_gb[AxisIndex].Admin.Axis.Status.Homed;
+		END_FOR
+		bHomeCheck := arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Homed AND
+			 arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Homed AND 
+			 arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Homed AND 
+			 arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Homed AND 
+			 arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Homed AND 
+			 GVL_Machine.AllocatYAxisHome;
+
+		
+		IF bHomeCheck THEN
+			uiCyclicStep:=600;
+		END_IF
+	
+	600:
+		Homed := TRUE;
+		xComplete := TRUE;
+END_CASE
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{492078a1-02ca-44d5-8b2d-0552eaf37df1}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{7f8fff97-79fd-49e0-a6d1-f6f6d29cbb0b}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	0:
+		M_GetErrorMsg := 'No Error';
+	1:
+		M_GetErrorMsg := 'Action time out';
+//	2:
+//		M_GetErrorMsg := 'Position Data invalid';
+//	3:
+//		M_GetErrorMsg := 'Index invalid';
+//	4:
+//		M_GetErrorMsg := 'Axis roundbelt not ready has Error';
+//	5:
+//		M_GetErrorMsg := 'Cylinder not ready has Error';
+//	6:
+//		M_GetErrorMsg := 'Axis RoundBelt has Error';
+//	7:
+//		M_GetErrorMsg := 'ChargeZone_Plug has Error';
+//	8:
+//		M_GetErrorMsg := 'TransmitCVZone_Plug has Error';
+//	9:
+//		M_GetErrorMsg := 'WorkZone_Plug has Error';
+//	10:
+//		M_GetErrorMsg := 'WorkZone_Press has Error';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetAllHomePars" Id="{84d47c79-b5f3-4bbe-a13b-b5beed7e5742}">
+      <Declaration><![CDATA[METHOD PRIVATE M_SetAllHomePars : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//Allocate X
+
+arAxisCtrl_gb[AxisNo.Allocate_X].Admin._OpMode.en := ModeHoming;
+
+//Allocate Y
+arAxisCtrl_gb[AxisNo.Allocate_Y].Admin._OpMode.en := ModePosAbs;
+
+//OutRobot X
+arAxisCtrl_gb[AxisNo.OutRobot_X].Admin._OpMode.en := ModeHoming;
+
+//OutRobot Y
+
+arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin._OpMode.en := ModeHoming;
+
+//RoundBelt
+
+arAxisCtrl_gb[AxisNo.RoundBelt].Admin._OpMode.en := ModeHoming;
+
+//TurnTable
+
+arAxisCtrl_gb[AxisNo.TurnTable].Admin._OpMode.en := ModeHoming;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{8b015131-b71c-43b5-ad4f-c0b30d5f0e8f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AxisHomingRequest := FALSE;
+uiCyclicStep := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{97227b81-d7bb-4e83-bb4e-2e234bccb52f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+uiCyclicStep := 0;
+Homed := FALSE;
+
+xComplete := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_AllocateAreaHome">
+      <LineId Id="64" Count="6" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="148" Count="0" />
+      <LineId Id="118" Count="3" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="93" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaHome.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaHome.CyclicAction">
+      <LineId Id="140" Count="0" />
+      <LineId Id="87" Count="1" />
+      <LineId Id="288" Count="1" />
+      <LineId Id="292" Count="0" />
+      <LineId Id="294" Count="0" />
+      <LineId Id="290" Count="0" />
+      <LineId Id="295" Count="1" />
+      <LineId Id="293" Count="0" />
+      <LineId Id="291" Count="0" />
+      <LineId Id="297" Count="0" />
+      <LineId Id="215" Count="1" />
+      <LineId Id="298" Count="0" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="229" Count="0" />
+      <LineId Id="219" Count="0" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="224" Count="0" />
+      <LineId Id="226" Count="1" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="232" Count="2" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="237" Count="0" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="238" Count="0" />
+      <LineId Id="246" Count="0" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="244" Count="1" />
+      <LineId Id="243" Count="0" />
+      <LineId Id="253" Count="4" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="247" Count="4" />
+      <LineId Id="258" Count="3" />
+      <LineId Id="264" Count="3" />
+      <LineId Id="252" Count="0" />
+      <LineId Id="270" Count="1" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="273" Count="0" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="355" Count="0" />
+      <LineId Id="272" Count="0" />
+      <LineId Id="407" Count="1" />
+      <LineId Id="381" Count="0" />
+      <LineId Id="356" Count="0" />
+      <LineId Id="383" Count="0" />
+      <LineId Id="386" Count="0" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="380" Count="0" />
+      <LineId Id="382" Count="0" />
+      <LineId Id="378" Count="1" />
+      <LineId Id="280" Count="0" />
+      <LineId Id="350" Count="4" />
+      <LineId Id="349" Count="0" />
+      <LineId Id="342" Count="0" />
+      <LineId Id="281" Count="3" />
+      <LineId Id="274" Count="0" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="319" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="106" Count="1" />
+      <LineId Id="32" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaHome.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaHome.M_GetErrorMsg">
+      <LineId Id="5" Count="1" />
+      <LineId Id="12" Count="8" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaHome.M_SetAllHomePars">
+      <LineId Id="73" Count="0" />
+      <LineId Id="79" Count="3" />
+      <LineId Id="88" Count="2" />
+      <LineId Id="97" Count="3" />
+      <LineId Id="107" Count="3" />
+      <LineId Id="117" Count="3" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="51" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaHome.ResetAction">
+      <LineId Id="6" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaHome.StartAction">
+      <LineId Id="50" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

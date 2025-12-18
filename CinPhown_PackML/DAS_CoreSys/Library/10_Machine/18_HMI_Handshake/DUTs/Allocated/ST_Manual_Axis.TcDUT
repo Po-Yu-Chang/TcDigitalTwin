@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_Axis" Id="{a068fcc0-b0f2-4562-8bed-a841c5ebdb77}">
+    <Declaration><![CDATA[TYPE ST_Manual_Axis :
+STRUCT
+	JOG : ST_AXIS_JOG;
+	PTP : ST_AXIS_PTP;
+	Homing : ST_AXIS_HOMING;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

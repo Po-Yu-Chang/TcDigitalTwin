@@ -1,0 +1,713 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_RobotRegionMove_PullOutConveyor" Id="{ec2c88f9-6441-41f8-a25c-357c1c02a0a9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RobotRegionMove_PullOutConveyor EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    Robot     				: REFERENCE TO FB_FanucRobot_Basic_V2;
+	PullOutConveyor 		: REFERENCE TO FB_PullOutConveyorAction; // Allocated area pull out conveyor
+    Info	  				: ST_RobotRegionMove_Info;
+	Stop	  : BOOL;
+END_VAR
+VAR_OUTPUT
+  // Status : ST_WareHouseWithRobotMove_Status;
+END_VAR
+VAR
+	_Abort		: BOOL;
+	strStatus	: STRING;
+	uiResumeStep : UINT;
+	
+	Area	: E_RobotArea:=E_RobotArea.PullOutConveyor;
+	UseA 	: BOOL;
+	UseB	: BOOL;
+	
+	Get 	:BOOL;
+	tonTimeOut	:TON;
+	_UniqueErrorCode :STRING;
+	PreviousStrStatus : STRING;
+	PreviousErrorCode : STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{fc6643cb-19e6-482f-a29c-ef1331c2f03f}" />
+    <Folder Name="State" Id="{927310bc-a29c-4cdc-a20d-cf5fdc05cce2}" />
+    <Action Name="A00_BasicUnits" Id="{07f3781e-c92e-4194-9951-a10436cd65bf}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT:=T#60S);
+ErrorID:=2230;]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{b27f05d9-827a-4a87-81cf-246e9f6fe888}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
+VAR_INPUT
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Check command paremeter is correct
+		
+	THIS^.Get :=Info.Get;
+	UseA :=Info.UseA;
+	UseB :=Info.UseB;
+
+	 // PullOut conveyor
+		IF UseA AND (Info.A_Position<1 OR  Info.A_Position>2 )THEN
+			strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;				
+		END_IF	
+	
+		IF UseB AND (Info.B_Position<1 OR  Info.B_Position>2 )THEN
+			strStatus:='Wrong command ,Position B Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;			
+		END_IF
+	
+
+
+
+M_CheckCommand:=TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{493e9380-f5ba-4be0-b079-7055fac7f3d1}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{5c291d9c-5407-40e7-876c-93be03b3de59}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{907cfa73-c510-4880-80d5-0ab5712e5d72}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy    := FALSE;
+Aborted := TRUE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	uiExecutingStep :=uiResumeStep;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{d4ea9df2-9300-4960-9c04-41517bae9a12}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		uiAbortingStep:=9999;
+		DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlides_FeedOut();
+		tonTimeOut.IN:=FALSE;
+		_Abort :=FALSE;
+		IF strStatus = PreviousStrStatus THEN
+			_UniqueErrorCode :=PreviousErrorCode;
+		END_IF
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{1a081913-b314-46b8-abe4-b21378885345}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{ec5f0716-b94b-4ac2-858a-ab6144ea417e}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+
+tonTimeOut.IN:=FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+PreviousStrStatus			 :='';
+PreviousErrorCode			 :='';
+
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{9fcedcbb-cf13-4f76-83e4-f6e027fb8595}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{71f152ab-1a92-4538-8d73-b8f64e67682b}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	BoxReady_1st : BOOL;
+	BoxReady_2nd : BOOL;
+    uiBothStep : UINT;
+    uiSingleClampStep : UINT;	
+	Area : E_RobotArea;
+	Address_A : INT;
+	Address_B : INT;
+END_VAR
+VAR
+	WareHouse: INT;
+	LowerConveyor: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set Busy active edit by johnson
+Busy := TRUE;
+
+IF THIS^.Stop THEN // Pending the timeout when Stop signal occur
+    tonTimeout.IN := FALSE;
+END_IF
+
+// Service Process
+CASE uiExecutingStep OF
+    0:
+        // Clear variable
+        uiBothStep := 0;
+        uiSingleClampStep := 0;
+        BoxReady_1st := 0;
+        BoxReady_2nd := 0;
+        tonTimeOut.IN := FALSE;
+
+        // Check command
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 10;
+        ELSE
+            _Error := TRUE;
+        END_IF
+    10:
+        // Start process, check units first
+        IF M_CheckUnitsReady() THEN
+            uiExecutingStep := 20;
+        END_IF
+    20:
+        // CHeck units not busy state
+        IF M_CheckUnitsNotBusy() THEN
+            uiExecutingStep := 1000;
+        END_IF
+
+    1000:
+        // Read   coordinate
+        Area := THIS^.Area;
+        Address_A := LREAL_TO_INT(Info.A_Position);
+        Address_B := LREAL_TO_INT(Info.B_Position);
+        DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+        IF UseA AND NOT UseB THEN
+            //Only clampA
+            uiExecutingStep := 10000;
+        ELSIF NOT UseA AND UseB THEN
+            //Only ClampB 
+            uiExecutingStep := 20000;
+        ELSIF UseA AND UseB THEN
+            //Both Clamps
+            uiExecutingStep := 30000;
+        END_IF
+
+    10000: // Only ClampA 
+        IF NOT Robot._DI1.Done THEN
+
+            IF Get THEN // Get box job
+
+                CASE Address_A OF
+                    1:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+                    2:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+                END_CASE
+
+            ELSE
+                CASE Address_A OF
+                    1:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+                                                         CV_BackwardTIme := T#2S,
+                                                         CV_ForwardTime := T#0S);
+
+                    2:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+                                                         CV_BackwardTIme := T#2S,
+                                                         CV_ForwardTime := T#0S);
+                END_CASE
+
+            END_IF
+
+            // Robot Abs move
+            Robot.M_StartRobotAbsMove(GetBox := Get,
+                                      UseClampA := UseA,
+                                      UseClampB := UseB,
+                                      Area := Area,
+                                      ClampA_Address := Address_A,
+                                      ClampB_Address := Address_B,
+                                      BoxReady_1 := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCv.Done,
+                                      BoxReady_2 := FALSE);
+
+        ELSE
+            tonTimeOut.IN := FALSE;
+            uiExecutingStep := 10080;
+        END_IF
+
+        IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCv.Error THEN
+            DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+            uiResumeStep := 10000;
+            _Abort := TRUE;
+            strStatus := 'Feed box error';
+        END_IF
+
+        tonTimeOut.IN := TRUE;
+
+        IF tonTimeOut.Q = TRUE THEN
+            tonTimeOut.IN := FALSE;
+            strStatus := 'Reset Robot timeout';
+            _Error := TRUE;
+        END_IF
+    10080:
+        Robot.M_ResetRobotAbsMove(UseA, UseB); // Clear command and go to place box
+        DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+        tonTimeOut.IN := TRUE;
+
+        IF NOT Robot._DI1.Done THEN
+            tonTimeOut.IN := FALSE;
+            uiExecutingStep := 99000;
+        END_IF
+
+        IF tonTimeOut.Q = TRUE THEN
+            strStatus := 'Reset Robot timeout';
+            _Error := TRUE;
+        END_IF
+
+    20000: // Only ClampB
+        IF NOT Robot._DI1.Done THEN
+
+            IF Get THEN // Get box job
+
+                CASE Address_B OF
+                    1:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#2S,
+                                                         CV_ForwardTime := T#0S);
+
+                    2:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#2S,
+                                                         CV_ForwardTime := T#0S);
+                END_CASE
+
+            ELSE
+                CASE Address_B OF
+                    1:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+                                                         CV_BackwardTIme := T#2S,
+                                                         CV_ForwardTime := T#0S);
+
+                    2:
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+                                                         CV_BackwardTIme := T#2S,
+                                                         CV_ForwardTime := T#0S);
+                END_CASE
+
+            END_IF
+
+            // Robot Abs move
+            Robot.M_StartRobotAbsMove(GetBox := Get,
+                                      UseClampA := UseA,
+                                      UseClampB := UseB,
+                                      Area := Area,
+                                      ClampA_Address := Address_A,
+                                      ClampB_Address := Address_B,
+                                      BoxReady_1 := FALSE,
+                                      BoxReady_2 := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+
+        ELSE
+            tonTimeOut.IN := FALSE;
+            uiExecutingStep := 20080;
+        END_IF
+
+        IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCv.Error THEN
+            DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+            uiResumeStep := 20000;
+            _Abort := TRUE;
+            strStatus := 'Feed box timeout';
+        END_IF
+
+        tonTimeOut.IN := TRUE;
+
+        IF tonTimeOut.Q = TRUE THEN
+            tonTimeOut.IN := FALSE;
+            strStatus := 'Reset Robot timeout';
+            _Error := TRUE;
+        END_IF
+    20080:
+        Robot.M_ResetRobotAbsMove(UseA, UseB);
+        DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+        ; // Clear command 
+
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 99000;
+        END_IF
+
+        tonTimeOut.IN := TRUE;
+
+        IF tonTimeOut.Q = TRUE THEN
+            strStatus := 'Reset Robot timeout';
+            _Error := TRUE;
+        END_IF
+    30000: // Both Clamps
+
+        CASE uiBothStep OF
+            0: //	
+                BoxReady_1st := FALSE;
+                BoxReady_2nd := FALSE;
+
+                uiBothStep := 1000;
+
+            1000:
+                IF Get THEN // Get box job
+
+                    CASE Address_A OF
+                        1:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                             CV_BackwardTIme := T#0S,
+                                                             CV_ForwardTime := T#0S);
+                        2:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                             CV_BackwardTIme := T#0S,
+                                                             CV_ForwardTime := T#0S);
+                    END_CASE
+
+                ELSE
+                    CASE Address_A OF
+                        1:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+                                                             CV_BackwardTIme := T#2S,
+                                                             CV_ForwardTime := T#0S);
+
+                        2:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+                                                             CV_BackwardTIme := T#2S,
+                                                             CV_ForwardTime := T#0S);
+                    END_CASE
+
+                END_IF
+
+                uiBothStep := 1100;
+            1100:
+                IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCv.Done THEN
+                    DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+                    BoxReady_1st := TRUE;
+                    uiBothStep := 2000;
+                END_IF
+
+                IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCv.Error THEN
+                    DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+                    uiResumeStep := 30000;
+                    uiBothStep := 1000;
+                    _Abort := TRUE;
+                    strStatus := 'Feed box timeout';
+                END_IF
+
+            2000:
+                IF Robot._DI1.Notification THEN
+                    uiBothStep := 3000;
+                END_IF
+            3000:
+
+                IF Get THEN // Get box job
+
+                    CASE Address_B OF
+                        1:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                             CV_BackwardTIme := T#0S,
+                                                             CV_ForwardTime := T#0S);
+                        2:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                             CV_BackwardTIme := T#0S,
+                                                             CV_ForwardTime := T#0S);
+                    END_CASE
+
+                ELSE
+                    CASE Address_B OF
+                        1:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+                                                             CV_BackwardTIme := T#2S,
+                                                             CV_ForwardTime := T#0S);
+
+                        2:
+                            DAS_CoreSys.MachineControl.fballocatearea
+                                .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+                                                             CV_BackwardTIme := T#2S,
+                                                             CV_ForwardTime := T#0S);
+                    END_CASE
+                END_IF
+
+                uiBothStep := 3100;
+            3100:
+                IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCv.Done THEN
+                    DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+                    BoxReady_2nd := TRUE;
+                    uiBothStep := 9999;
+                END_IF
+
+                IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCv.Error THEN
+                    DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+                    uiResumeStep := 30000;
+                    uiBothStep := 3000;
+                    _Abort := TRUE;
+                    strStatus := 'Feed box timeout';
+                END_IF
+            9999: //Wait		
+        // wait reset
+        END_CASE
+
+        // Robot Abs move
+        Robot.M_StartRobotAbsMove(GetBox := Get,
+                                  UseClampA := UseA,
+                                  UseClampB := UseB,
+                                  Area := Area,
+                                  ClampA_Address := Address_A,
+                                  ClampB_Address := Address_B,
+                                  BoxReady_1 := BoxReady_1st,
+                                  BoxReady_2 := BoxReady_2nd);
+
+        IF Robot._DI1.Done THEN
+            tonTimeOut.IN := FALSE;
+            uiExecutingStep := 30080;
+        END_IF
+
+        tonTimeOut.IN := TRUE;
+
+        IF tonTimeOut.Q = TRUE THEN
+            tonTimeOut.IN := FALSE;
+            strStatus := 'Reset Robot timeout';
+            _Error := TRUE;
+        END_IF
+    30080: // Check robot command is clear
+
+        Robot.M_ResetRobotAbsMove(UseA, UseB);
+        DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+
+        IF NOT Robot._DI1.Done THEN
+            tonTimeOut.IN := FALSE;
+            uiExecutingStep := 99000; // 
+        END_IF
+
+        tonTimeOut.IN := TRUE;
+
+        IF tonTimeOut.Q = TRUE THEN
+            strStatus := 'Stop Robot timeout';
+            _Error := TRUE;
+        END_IF
+
+    99000: // process done
+        DAS_CoreSys.MachineControl.fballocatearea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+        Status := 'Process completed';
+        _Executed := TRUE;
+END_CASE
+
+IF _Executed THEN
+    eState := STATE_DONE;
+ELSIF _Error THEN
+    //	FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+    eState := STATE_ERROR;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+
+IF _Abort OR Abort THEN
+    //	FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+    eSTATE := STATE_ABORTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{f10fcadc-d1a1-4976-8046-469c8190366b}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error := FALSE;
+Done := FALSE;
+Busy := FALSE;
+
+CASE uiResettingStep OF
+
+    0:
+        tonTimeOut.IN := FALSE;
+        Robot.M_ResetAllCommand();
+        Robot.M_ResetRobotAbsMove(TRUE, TRUE);
+        uiResettingStep := 100;
+        DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlides_FeedOut();
+    100:
+
+        // DAS_CoreSys.MachineControl.fbStorageArea.M_InactivePulloutConveyorInternCtrl();
+        DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+        DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+        uiResettingStep := 9999;
+    9999:
+        _ResetCompleted := TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+    eSTATE := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor">
+      <LineId Id="9" Count="0" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.A00_BasicUnits">
+      <LineId Id="1" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_CheckCommand">
+      <LineId Id="24" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="283" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="201" Count="3" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="240" Count="4" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="107" Count="1" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="109" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_ABORTED">
+      <LineId Id="14" Count="9" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_ABORTING">
+      <LineId Id="12" Count="3" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="16" Count="4" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_DONE">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_DORMANT">
+      <LineId Id="6" Count="0" />
+      <LineId Id="23" Count="8" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_ERROR">
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_EXECUTING">
+      <LineId Id="3000" Count="381" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_RESETTING">
+      <LineId Id="71" Count="23" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

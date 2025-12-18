@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Fanuc_GeneralCommand" Id="{100d9b3a-058a-4a5f-b35b-fe5855cc9a8d}">
+    <Declaration><![CDATA[TYPE ST_Fanuc_GeneralCommand :
+    STRUCT
+        ClampA_Open  :BIT; // Force clampA open
+        ClampB_Open  :BIT; // Force clampB open
+        Spare3       :BIT; // Spare
+        VelocityBit0 :BIT; // Fanuc robot system velocity in % (1~100), bit0
+        VelocityBit1 :BIT;
+        VelocityBit2 :BIT;
+        VelocityBit3 :BIT;
+        VelocityBit4 :BIT;
+        VelocityBit5 :BIT;
+        VelocityBit6 :BIT;
+        VelocityBit7 :BIT;
+        ClampA_Close :BIT;
+        ClampB_Close :BIT;
+        Spare14      :BIT;
+        SPare15      :BIT;
+        Spare16      :BIT;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

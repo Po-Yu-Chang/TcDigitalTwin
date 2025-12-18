@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucRobot_CSharpStatus" Id="{f1641c2f-1cc5-4bee-be8f-32a434f284f6}">
+    <Declaration><![CDATA[TYPE ST_FanucRobot_CSharpStatus :
+STRUCT
+	ClampA_Open : BOOL; // True : ClampA is open;
+	ClampB_Open : BOOL; // True : ClampB is open;
+	ClampA_Sensor : BOOL; // True : ClampA sensor has detected box.
+	ClampB_Sensor : BOOL; // True : ClampB sensor hase detected box.
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

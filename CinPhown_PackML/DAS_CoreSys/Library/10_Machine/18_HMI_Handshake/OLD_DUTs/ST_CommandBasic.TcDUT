@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_CommandBasic" Id="{7aa223a3-95d5-40af-b647-f5c6afbefdf8}">
+    <Declaration><![CDATA[TYPE ST_CommandBasic :
+    STRUCT
+        Execute :BOOL; // TRUE : Process start
+        Abort   :BOOL; // TRUE : Process abort
+        Reset   :BOOL; // TRUE : Process reset
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

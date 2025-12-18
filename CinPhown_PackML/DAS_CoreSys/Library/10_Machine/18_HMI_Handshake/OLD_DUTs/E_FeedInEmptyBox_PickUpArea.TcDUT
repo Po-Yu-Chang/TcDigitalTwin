@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_FeedInEmptyBox_PickUpArea" Id="{fe221463-43b0-40c9-981c-ad856e3c81f5}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE
+    E_FeedInEmptyBox_PickUpArea :
+    (
+        Undefined := 0,
+        WareHouseA := 1,
+        WareHouseB := 2,
+		PullOutConveyor := 3
+    ) UINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

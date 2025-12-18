@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_HandshakeBase" Id="{ebce1dbb-9517-4800-92ff-5b180b79ecd7}">
+    <Declaration><![CDATA[TYPE
+    st_HandshakeBase :
+    STRUCT
+        Execute  : BOOL; //觸發命令，持續On到Done出現
+        Done     : BOOL; //完成訊號
+        Busy     : BOOL; //執行動作中
+        Occupied : BOOL; //其他命令執行中，潛在干涉衝突
+        Reset    : BOOL; //清除此命令內容
+        Error    : BOOL; //錯誤回報
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

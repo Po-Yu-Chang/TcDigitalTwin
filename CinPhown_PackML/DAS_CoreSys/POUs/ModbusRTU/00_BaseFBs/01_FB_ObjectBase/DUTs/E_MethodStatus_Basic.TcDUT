@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_MethodStatus_Basic" Id="{d4270311-0a2c-466b-a2dd-a5675340d0a5}">
+    <Declaration><![CDATA[// Declare the basic level that a method typically goes through, based on PLC Open OOP guidelines.
+{attribute 'strict'}
+TYPE
+    E_MethodStatus_Basic :
+    (
+        STATE_DORMANT := 0, // In dormant state, do nothing and just wait for the start command.
+        STATE_EXECUTING, // In executing state, the state will do something that you coded
+        STATE_ABORTING, // In aborting state, stop all ongoing commands.
+        STATE_DONE, // In done state, waitting the reset command or execute signal off
+        STATE_Aborted, // In aborted state, method is frozen wait reset command or execute signal off
+        STATE_ERROR, // In error state, method has been stopped and only can be restart by reset command or execute signal off 
+        STATE_RESETTING, // In resetting state, the state will revert the status to its initial values and clear any error signals.
+        STATE_Holding, // In Hold state, stop current process
+        STATE_Held, // In Held state, waiting the unhold command and keep unit stop
+        STATE_UnHold // In UnHold state, reset unit to continue
+    ) UDINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

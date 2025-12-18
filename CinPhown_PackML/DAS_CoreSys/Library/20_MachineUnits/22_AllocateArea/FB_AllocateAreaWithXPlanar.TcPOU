@@ -1,0 +1,282 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_AllocateAreaWithXPlanar" Id="{99e40695-2fb7-4e99-82ba-c692917c1e16}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateAreaWithXPlanar EXTENDS FB_ModeBase_V1
+VAR_INPUT
+	
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	UnitInput :REFERENCE TO ST_AllocateInput;
+	UnitOutput: REFERENCE TO ST_AllocateOutput;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Folder Name="States" Id="{adc90e19-bdd2-433c-a576-5132af21cb9e}" />
+    <Method Name="M_Aborted" Id="{fd178b4e-faae-4ffb-b6bf-939a26de60f2}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Aborted'}
+METHOD M_Aborted 
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Aborting" Id="{5a02bda1-ac00-4e99-b01c-64ce1262b592}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Aborting'}
+METHOD M_Aborting
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Clearing" Id="{c293a841-89a8-4b94-943c-4546b240f3d7}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Clearing'}
+METHOD M_Clearing
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Complete" Id="{d932e01d-f79c-4f08-b634-3824b20a6747}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Complete'}
+METHOD M_Complete
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Completing" Id="{863a44c2-4519-4469-9fe6-c898cef3e302}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Completing'}
+METHOD M_Completing
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Execute" Id="{445403a2-2f82-4e1a-abea-5df627798d00}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Execute'}
+METHOD M_Execute
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_StateComplete();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Held" Id="{88a3f3b0-487b-49d9-b45f-5210c2b694c4}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Held'}
+METHOD M_Held
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Holding" Id="{1c225b28-e445-4a5b-a3ed-ef6831271c97}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Holding'}
+METHOD M_Holding
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Idle" Id="{5e3c8673-f6e7-482a-8cb9-ece8e323d52c}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Idle'}
+METHOD M_Idle
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_IOMapping" Id="{8c57a45e-2c43-40c5-85bd-c6183955c7e1}">
+      <Declaration><![CDATA[METHOD M_IOMapping
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//UnitInput := GVL_in]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Resetting" Id="{4d2600c5-7991-4f73-b370-fdd99f5a1042}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Resetting'}
+METHOD M_Resetting
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Starting" Id="{04cc518f-8d40-4b06-a44b-b6b73dca765a}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Starting'}
+METHOD M_Starting
+VAR_INPUT
+END_VAR
+VAR
+	uiStartingStep : DINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eMode OF
+    E_Mode.Auto:
+        CASE uiStartingStep OF
+            0: //
+            1: //
+            2: //
+            3: //
+            9900:
+                M_StateComplete();
+        END_CASE
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopped" Id="{20bdf14d-d302-452a-a823-b9e7ccca1d11}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Stopped'}
+METHOD M_Stopped
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Stopping" Id="{5c479a1d-e94e-44b8-8e59-1da38c86cfaa}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Stopping'}
+METHOD M_Stopping
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspended" Id="{fecd3ca6-4895-4309-96a3-184929305969}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Suspended'}
+METHOD M_Suspended
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Suspending" Id="{af40843d-ce31-4796-b692-cd030fd68611}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Suspending'}
+METHOD M_Suspending
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Undefined" Id="{fa0bf4eb-85c3-4394-b849-1686589ad908}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Undefined'}
+METHOD M_Undefined
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unholding" Id="{b3839f71-146b-490c-95c2-ac491920449e}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Unholding'}
+METHOD M_Unholding
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Unsuspending" Id="{36f55923-0380-4bf3-9815-97aaf22e7e60}" FolderPath="States\">
+      <Declaration><![CDATA[{attribute 'object_name' := 'M_Unsuspending'}
+METHOD M_Unsuspending
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_AllocateAreaWithXPlanar">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Aborted">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Aborting">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Clearing">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Complete">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Completing">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Execute">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Held">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Holding">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Idle">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_IOMapping">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Resetting">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Starting">
+      <LineId Id="33" Count="9" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Stopped">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Stopping">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Suspended">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Suspending">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Undefined">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Unholding">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateAreaWithXPlanar.M_Unsuspending">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

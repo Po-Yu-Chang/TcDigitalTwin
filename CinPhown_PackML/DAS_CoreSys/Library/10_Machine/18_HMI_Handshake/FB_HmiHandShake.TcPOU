@@ -1,0 +1,256 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_HmiHandShake" Id="{494fef37-4bfa-4525-ba18-a6feb3e054e6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HmiHandShake EXTENDS BATW_Base.FB_ActionBasic
+VAR_INPUT
+    xEnable        : BOOL;
+    CylinderStatus : ST_CylinderStatus;
+    MotorStatus    : ST_MotorStatus;
+    AxesStatus     : ST_AXES_STATUS;
+	FanucRobot : REFERENCE TO UNI_FanucRobotList;
+END_VAR
+VAR_OUTPUT
+	//AllocatingManual : st_ads_AllocateMoveStructure;
+END_VAR
+VAR
+    StateBehaviour : CBML.LConC;
+	//HMI_Handshake_Old : REFERENCE TO ST_HMI_Handshake;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+StateBehaviour(xEnable := xEnable, xBusy => xBusy, xError => xError);]]></ST>
+    </Implementation>
+    <Folder Name="Private" Id="{99472d6e-a4d0-4111-8d0b-edd44e4a179e}" />
+    <Folder Name="States" Id="{44bf4adb-bfe8-488b-8e0b-a9367c010b1d}" />
+    <Method Name="CleanupAction" Id="{02fadda7-c993-4a47-9fb3-5a295eb6d6fc}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed   : BOOL;
+    iErrorIDProposed : INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort    : BOOL := xAbortProposed;
+    iErrorID  : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{b86d6d0e-2b1f-495a-967d-73c59a1ee7dc}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID  : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetIOStatus();
+GetAxesStatus();
+GetMotorStatus();
+GetCylinderStatus();
+SetMachineParemeter();
+//AllocatingManual := GVL_ADS.AllocateMoveStructure;
+FanucRobot.List.StorageRobot.VelocityCommand := LREAL_TO_INT( GVL_HMI.Setup.StorageRobot.RobotVelocity);
+FanucRobot.List.ShippingRobot.VelocityCommand := LREAL_TO_INT( GVL_HMI.Setup.ShippingRobot.RobotVelocity);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{ca5ceaca-06b6-4e73-be84-1badf73f8a2c}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode   : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetAxesStatus" Id="{29efe634-f272-479e-ada2-2d022fc7499d}" FolderPath="Private\">
+      <Declaration><![CDATA[(* This method is used to read DAS servo status and send to GVL_HMI
+*)
+METHOD PRIVATE GetAxesStatus
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Read Axes status
+GVL_HMI.Status.Axes.Allocate_X := M_GetAxisStatus(AxisNo.Allocate_X);
+GVL_HMI.Status.Axes.Allocate_Y := M_GetAxisStatus(AxisNo.Allocate_Y);
+GVL_HMI.Status.Axes.OutRobot_X := M_GetAxisStatus(AxisNo.OutRobot_X);
+GVL_HMI.Status.Axes.OutRobot_Y := M_GetAxisStatus(AxisNo.OutRobot_Y);
+GVL_HMI.Status.Axes.RoundBelt := M_GetAxisStatus(AxisNo.RoundBelt);
+GVL_HMI.Status.Axes.TurnTable := M_GetAxisStatus(AxisNo.TurnTable);
+GVL_HMI.Status.Axes.RackMotor := M_GetAxisStatus(AxisNo.RackMotor);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetCylinderStatus" Id="{7d0cf677-cbe1-462b-b081-5f9bf508ceaf}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE GetCylinderStatus
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GVL_HMI.Status.Cylinders := CylinderStatus;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetIOStatus" Id="{e4bdfb0c-ef44-4826-a678-0f554ced6dd4}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE GetIOStatus
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Read  PLC Input Signal
+GVL_HMI.IOMonitor.Input.X0  := GVL_Input.uniDI.stDIList.X0;
+GVL_HMI.IOMonitor.Input.X1  := GVL_Input.uniDI.stDIList.X1;
+GVL_HMI.IOMonitor.Input.X2  := GVL_Input.uniDI.stDIList.X2;
+GVL_HMI.IOMonitor.Input.X3  := GVL_Input.uniDI.stDIList.X3;
+GVL_HMI.IOMonitor.Input.X4  := GVL_Input.uniDI.stDIList.X4;
+//GVL_HMI.IOMonitor.Input.X5  := GVL_Input.uniDI.stDIList.X0;
+GVL_HMI.IOMonitor.Input.X6  := GVL_Input.uniDI.stDIList.X6;
+GVL_HMI.IOMonitor.Input.X7  := GVL_Input.uniDI.stDIList.X7;
+GVL_HMI.IOMonitor.Input.X8  := GVL_Input.uniDI.stDIList.X8;
+GVL_HMI.IOMonitor.Input.X9  := GVL_Input.uniDI.stDIList.X9;
+GVL_HMI.IOMonitor.Input.X10  := GVL_Input.uniDI.stDIList.X10;
+GVL_HMI.IOMonitor.Input.X11  := GVL_Input.uniDI.stDIList.X11;
+// Read PLC Output signal
+GVL_HMI.IOMonitor.Output := GVL_Output.uniDO.stDIList;
+// Read Wheelhous ModbusRTU sensor signal
+//GVL_HMI.IOMonitor.Input.arWheelhouseInput := ComModbusRTU.arr485sensor;
+
+//RS485 Jidian Version edited Gamin 20251120
+GVL_HMI.IOMonitor.Input.arWheelhouseInput := MAIN2_RS485.arr485sensor;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetMotorStatus" Id="{422f6f84-942d-4ce3-be45-736464489f28}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE GetMotorStatus
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GVL_HMI.Status.Motor := MotorStatus;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetAxisStatus" Id="{21a6cdbc-555a-4daa-9944-aa415417f8b5}" FolderPath="Private\">
+      <Declaration><![CDATA[(* This method is used to read single axis status accroding AxisNo
+*)
+METHOD M_GetAxisStatus : ST_SINGLEAXIS_STATUS
+VAR_INPUT
+	AxisNo : AxisNo;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_GetAxisStatus.ActPos := arAxisCtrl_gb[AxisNo].Admin.Axis.NcToPlc.ActPos;
+M_GetAxisStatus.ActVel := arAxisCtrl_gb[AxisNo].Admin.Axis.NcToPlc.ActVelo;
+M_GetAxisStatus.Error := arAxisCtrl_gb[AxisNo].Admin.Axis.Status.Error;
+IF AxisNo = 4 THEN
+	M_GetAxisStatus.Homed := GVL_Machine.AllocatYAxisHome;
+ELSE
+	M_GetAxisStatus.Homed := arAxisCtrl_gb[AxisNo].Admin.Axis.Status.Homed;
+END_IF
+
+M_GetAxisStatus.CmdDone := arAxisStatus_gb[AxisNo].Admin.CmdDone;
+M_GetAxisStatus.DriveTemp := 400;
+M_GetAxisStatus.MotorTemp := 600;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{872fae4c-7187-4a65-90eb-6884accbb975}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetMachineParemeter" Id="{73804119-c571-4e1f-8634-46d50cec0813}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD PRIVATE SetMachineParemeter
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GVL_Machine.RemoteData := GVL_HMI.Setup;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{4364cae6-800f-4061-8fdc-cbcd27803ef2}" FolderPath="States\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID  : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_HmiHandShake">
+      <LineId Id="35" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.CyclicAction">
+      <LineId Id="80" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="60" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.GetAxesStatus">
+      <LineId Id="12" Count="0" />
+      <LineId Id="6" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.GetCylinderStatus">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.GetIOStatus">
+      <LineId Id="22" Count="0" />
+      <LineId Id="6" Count="10" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="20" Count="1" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="27" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.GetMotorStatus">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.M_GetAxisStatus">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="1" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="9" Count="3" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.ResetAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.SetMachineParemeter">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_HmiHandShake.StartAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

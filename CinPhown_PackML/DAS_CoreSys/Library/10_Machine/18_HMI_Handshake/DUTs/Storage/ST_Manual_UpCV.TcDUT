@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_UpCV" Id="{e04406d7-fc26-4ad8-870a-d7b8ed3a2177}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_UpCV :
+    STRUCT
+        FeedInPress1  : ST_SignleValve;
+        FeedInPress2  : ST_SignleValve;
+        DiameterPress : ST_SignleValve;
+        CamaraPress1  : ST_SignleValve;
+        CamaraPress2  : ST_SignleValve;
+        CamaraPress3  : ST_SignleValve;
+        CamaraPress4  : ST_SignleValve;
+        Block1        : ST_SignleValve;
+        Block2        : ST_SignleValve;
+        Block3        : ST_SignleValve;
+        DiameterHoriz : ST_SignleValve;
+        DiameterVert  : ST_SignleValve;
+        DiameterClamp : ST_SignleValve;
+        StackPush     : ST_SignleValve;
+		CameraBlow	  : BOOL;
+        UpCV          : ST_MotorCommand;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_EbusDO16" Id="{a5b0d3f0-a05f-4d5a-aa9a-4ab7cf39f2d4}">
+    <Declaration><![CDATA[TYPE ST_EbusDO16 :
+    STRUCT
+        DO1  AT %Q* :BIT;
+        DO2  AT %Q* :BIT;
+        DO3  AT %Q* :BIT;
+        DO4  AT %Q* :BIT;
+        DO5  AT %Q* :BIT;
+        DO6  AT %Q* :BIT;
+        DO7  AT %Q* :BIT;
+        DO8  AT %Q* :BIT;
+        DO9  AT %Q* :BIT;
+        DO10 AT %Q* :BIT;
+        DO11 AT %Q* :BIT;
+        DO12 AT %Q* :BIT;
+        DO13 AT %Q* :BIT;
+        DO14 AT %Q* :BIT;
+        DO15 AT %Q* :BIT;
+        DO16 AT %Q* :BIT;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ads_RobotToAllocateMove" Id="{d0be1d0b-5061-4e5c-8346-c430af70cc3f}">
+    <Declaration><![CDATA[TYPE
+    st_ads_RobotToAllocateMove :
+    STRUCT
+        //圓帶位置
+        AllocatePosition : LREAL;
+        //手臂夾爪 ex 0=>A爪 1=>B爪
+        RobotClip : LREAL;
+        //倉儲區域 ex>A,B
+        Area : LREAL;
+        //倉儲層
+        WarehouseLayer : LREAL;
+        //倉儲道
+        WarehouseOrbit : LREAL;
+        // :BOOL;
+        //Done :BOOL;
+        HandShake : st_HandshakeBase;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

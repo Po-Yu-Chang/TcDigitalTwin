@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_CabinetJob" Id="{45000728-fc65-4a37-a123-2c12edc483f6}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_CabinetJob :
+(
+	Idle :=0,
+	Initial,
+	MoveIn,
+	MoveOut,
+	MovingOut,
+	MovingIn,
+	Moved,
+	Finish,
+	Error
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

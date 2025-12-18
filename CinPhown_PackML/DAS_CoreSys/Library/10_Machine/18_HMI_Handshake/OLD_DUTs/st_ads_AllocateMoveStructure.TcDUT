@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ads_AllocateMoveStructure" Id="{a63c059f-7a7e-4164-a923-05c98b7de9d1}">
+    <Declaration><![CDATA[TYPE
+    st_ads_AllocateMoveStructure :
+    STRUCT
+        //手臂夾爪 ex 0=>A爪 1=>B爪 and so on...	
+        Clip         : LREAL;
+        Frombox      : LREAL;
+        Tobox        : LREAL;
+        FromPosition : LREAL;
+        ToPosition   : LREAL;
+        HandShake    : st_HandshakeBase;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

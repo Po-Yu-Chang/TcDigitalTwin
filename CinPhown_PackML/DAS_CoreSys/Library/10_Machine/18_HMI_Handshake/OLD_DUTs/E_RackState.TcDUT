@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_RackState" Id="{4cbc0657-df65-48e7-8fb1-297ef5c83fd4}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_RackState :
+(
+	idle := 0,
+	AddBoxes,
+	ManualCtrl,
+	FeedBox,
+	Free,
+	TransitingFeedBox,
+	TransitingFree
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

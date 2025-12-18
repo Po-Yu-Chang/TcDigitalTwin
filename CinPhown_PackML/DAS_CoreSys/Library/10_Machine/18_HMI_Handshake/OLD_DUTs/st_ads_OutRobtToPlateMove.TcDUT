@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ads_OutRobtToPlateMove" Id="{ba858e01-2e84-4207-84d1-c75ab3b9e4eb}">
+    <Declaration><![CDATA[TYPE st_ads_OutRobtToPlateMove :
+STRUCT
+	//軌道 散針軌道 or 同尺寸軌道
+Slide :LREAL;
+Clip:LREAL;
+//鐵盤位置
+PlatePosition :LREAL;
+//Excute :bool;
+//Done    :BOOL;
+HandShake					: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

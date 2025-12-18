@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_MachineMode" Id="{5f4649af-d81d-4702-a7c7-15f8c775ae27}">
+    <Declaration><![CDATA[TYPE E_MachineMode :
+(
+	UNDEFINE := 0,
+	MANUAL	:=1		  ,
+	AUTO	:=2		  ,
+	SERVICE :=3,
+	ModeSelect:=99
+)INT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

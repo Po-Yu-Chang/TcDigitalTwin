@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_SignalTowerLampMode" Id="{d42bc509-d420-48ef-89b8-b545d09f76c0}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_SignalTowerLampMode :
+(
+	Disable := 0,
+	AlwaysOn,
+	Flash_05Hz,
+	Flash_1Hz,
+	Flash_2Hz
+)DINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

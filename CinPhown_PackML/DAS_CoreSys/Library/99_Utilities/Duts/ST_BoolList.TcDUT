@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_BoolList" Id="{67727dcb-cd28-4960-b24d-061672bc505f}">
+    <Declaration><![CDATA[TYPE ST_BoolList :
+    STRUCT
+        Bit0  :BIT;
+        Bit1  :BIT;
+        Bit2  :BIT;
+        Bit3  :BIT;
+        Bit4  :BIT;
+        Bit5  :BIT;
+        Bit6  :BIT;
+        Bit7  :BIT;
+        Bit8  :BIT;
+        Bit9  :BIT;
+        Bit10 :BIT;
+        Bit11 :BIT;
+        Bit12 :BIT;
+        Bit13 :BIT;
+        Bit14 :BIT;
+        Bit15 :BIT;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

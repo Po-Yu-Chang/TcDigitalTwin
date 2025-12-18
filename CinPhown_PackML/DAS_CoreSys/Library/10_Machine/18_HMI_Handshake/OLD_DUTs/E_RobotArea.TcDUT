@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_RobotArea" Id="{f2ef815d-0d8f-4b06-a371-6af6db3a8aef}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+(* This enum is use to define Fanuc robot target position in the StorageArea,
+In the StorageArea, areas excluding the Warehouse.
+*)
+TYPE
+    E_RobotArea :
+    (
+        Undefined := 0,
+        // 圓帶,B區
+        RoundBelt := 1,
+        // 緩衝區,C區
+        BufferArea := 2,
+        // 補料軌道,D區
+        TransmitCV := 3,
+//        // 簡易配針區,E區
+//        SimpleAllocate := 4,
+        // 入出料軌道,F區 (倉儲區軌道)
+        InOutConveyor := 5,
+//        // 倉儲預備區,G區
+//        WareHouseA_Buffer := 6,
+        // 回拔輸送帶,H區
+        PullOutConveyor := 7,
+        // 小手臂左 (操作面)
+        ShippingRobotLeft := 8,
+        // 小手臂右 (操作面)
+        ShippingRobotRight := 9,
+		// Shipping Store,K
+		TransmitCV_End :=10
+    );
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <Task Name="MotionSync" Id="{9bf30295-9a2a-4aea-b235-7e1c43dafe19}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>2000</CycleTime>
+    <Priority>1</Priority>
+    <PouCall>
+      <Name>DAS_MotionSync</Name>
+    </PouCall>
+    <TaskFBGuid>{ae691563-cd52-4cd9-bbd9-285fc5e0dfc5}</TaskFBGuid>
+    <Fb_init>{2ff97a2c-fe9c-424a-b549-c8f8fa8d23a1}</Fb_init>
+    <Fb_exit>{601911dc-bfef-4dda-b3c5-880ad539b61d}</Fb_exit>
+    <CycleUpdate>{3a4326a1-ae4b-4eb6-821d-2bc5314989d3}</CycleUpdate>
+    <PostCycleUpdate>{b7b647bf-417d-4d82-9780-6417eb6ea655}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

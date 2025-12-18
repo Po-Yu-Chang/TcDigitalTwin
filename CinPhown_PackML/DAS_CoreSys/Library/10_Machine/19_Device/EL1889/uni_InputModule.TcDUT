@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="uni_InputModule" Id="{c7ed71cd-ae7a-4e95-8cb2-2e5d269d53c6}">
+    <Declaration><![CDATA[TYPE
+    uni_InputModule :
+    UNION
+        stEbusDI : ST_EbusInputModule;       // Input table defined based on module allocation.
+        stDI     : ST_InputTable;            // Input table defined based on variable names.
+        stDIList : ST_InputTable_Mitsubishi; //Input table defined based on Mitsubishi PLC conventions.
+    END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_SimpleAllocateTable" Id="{ea5c0caa-10f7-4d56-909e-766b2997d28e}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_SimpleAllocateTable :
+(
+    Box1 :=1,
+    Box2,
+    Box3,
+    Box4
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

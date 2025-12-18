@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_WareHouseLayer" Id="{bb821a28-fe3c-406c-a8cf-c5ec71c4706d}">
+    <Declaration><![CDATA[TYPE E_WareHouseLayer :
+(
+	Undefine := 0,
+	Layer01 := 1,
+	Layer02,
+	Layer03,
+	Layer04,
+	Layer05,
+	Layer06,
+	Layer07,
+	Layer08,
+	Layer09,
+	Layer10
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

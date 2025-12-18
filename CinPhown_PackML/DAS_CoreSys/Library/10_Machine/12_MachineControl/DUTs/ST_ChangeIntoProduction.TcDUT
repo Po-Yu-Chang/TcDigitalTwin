@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ChangeIntoProduction" Id="{a64564cb-3c2c-443e-a44f-4efc88567e58}">
+    <Declaration><![CDATA[//structure for a visu userwindow, to chnage into productionmode
+TYPE
+    ST_ChangeIntoProduction :
+    STRUCT
+        bYes      : BOOL;
+        bNo       : BOOL;
+        bYesReset : BOOL;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

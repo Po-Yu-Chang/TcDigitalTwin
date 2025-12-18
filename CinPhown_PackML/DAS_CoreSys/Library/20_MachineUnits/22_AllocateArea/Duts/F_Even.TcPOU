@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="F_Even" Id="{382c4f13-5c45-4d0f-8f4f-b79be49c4e37}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_Even : BOOL
+VAR_INPUT
+	uiNumber		: UINT;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_Even := uiNumber MOD 2 = 0;]]></ST>
+    </Implementation>
+    <LineIds Name="F_Even">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

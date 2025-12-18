@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_ReloadRoundBelt_PickupArea" Id="{cf7e9cb8-d46b-41db-a28f-87954abc5115}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE
+    E_ReloadRoundBelt_PickupArea :
+    (
+        Undefined := 0,
+        WareHouseA := 1,
+        WareHouseB := 2
+        )UINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

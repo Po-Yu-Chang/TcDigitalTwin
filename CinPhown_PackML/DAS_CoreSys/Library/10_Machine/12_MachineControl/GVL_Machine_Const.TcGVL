@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="GVL_Machine_Const" Id="{9386644b-2565-4100-ba97-6589634c725e}">
+    <Declaration><![CDATA[VAR_GLOBAL CONSTANT
+	udiMax_CylinderNum : UDINT := 53;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_EdgeDetect" Id="{a75954f7-7d88-4aa5-b969-b4d457bcf182}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EdgeDetect
+VAR_INPUT
+    xInput      : BOOL;     // 監視的布林輸入
+END_VAR
+
+VAR_OUTPUT
+    xRisingEdge : BOOL;     // 上升沿輸出 (R_Trig)
+    xFallingEdge: BOOL;     // 下降沿輸出 (F_Trig)
+END_VAR
+
+VAR
+    xLastInput  : BOOL;     // 前一個週期的輸入狀態
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// 程式邏輯
+// 檢測上升沿 (FALSE -> TRUE)
+xRisingEdge := xInput AND NOT xLastInput;
+
+// 檢測下降沿 (TRUE -> FALSE)
+xFallingEdge := NOT xInput AND xLastInput;
+
+// 儲存當前輸入狀態供下一個週期使用
+xLastInput := xInput;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_EdgeDetect">
+      <LineId Id="21" Count="7" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

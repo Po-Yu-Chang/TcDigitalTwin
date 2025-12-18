@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_CylinderStatus" Id="{87e8675f-7b80-4d1e-bbe8-036aa895f040}">
+    <Declaration><![CDATA[TYPE
+    ST_CylinderStatus :
+    STRUCT
+        UpCV_FeedInPress1             : ST_CylinderMonitor;
+        UpCV_FeedInPress2             : ST_CylinderMonitor;
+        UpCV_DiameterPress            : ST_CylinderMonitor;
+        UpCV_CamaraPress1             : ST_CylinderMonitor;
+        UpCV_CamaraPress2             : ST_CylinderMonitor;
+        UpCV_CamaraPress3             : ST_CylinderMonitor;
+        UpCV_CamaraPress4             : ST_CylinderMonitor;
+        UpCV_Block1                   : ST_CylinderMonitor;
+        UpCV_Block2                   : ST_CylinderMonitor;
+        UpCV_Block3                   : ST_CylinderMonitor;
+        UpCV_DiameterHoriz            : ST_CylinderMonitor;
+        UpCV_DiameterVert             : ST_CylinderMonitor;
+        UpCV_DiameterClamp            : ST_CylinderMonitor;
+        StackPush                     : ST_CylinderMonitor;
+        PullOutCV_AsidePress1         : ST_CylinderMonitor;
+        PullOutCV_AsidePress2         : ST_CylinderMonitor;
+        PullOutCV_AsideBlock          : ST_CylinderMonitor;
+        PullOutCV_BsidePress1         : ST_CylinderMonitor;
+        PullOutCV_BsidePress2         : ST_CylinderMonitor;
+        PullOutCV_BsideBlock          : ST_CylinderMonitor;
+        LowCV_Press1                  : ST_CylinderMonitor;
+        LowCV_Press2                  : ST_CylinderMonitor;
+        LowCV_Press3                  : ST_CylinderMonitor;
+        LowCV_Press4                  : ST_CylinderMonitor;
+        LowCV_Block1                  : ST_CylinderMonitor;
+        LowCV_Block2                  : ST_CylinderMonitor;
+        AllocateRobot_LeftVert1       : ST_CylinderMonitor;
+        AllocateRobot_LeftVert2       : ST_CylinderMonitor;
+        AllocateRobot_RightVert1      : ST_CylinderMonitor;
+        AllocateRobot_RightVert2      : ST_CylinderMonitor;
+        AllocateRobot_LeftClamp1      : ST_CylinderMonitor;
+        AllocateRobot_LeftClamp2      : ST_CylinderMonitor;
+        AllocateRobot_RightClamp1     : ST_CylinderMonitor;
+        AllocateRobot_RightClamp2     : ST_CylinderMonitor;
+        RoundBelt_WorkZone_Press      : ST_CylinderMonitor;
+        RoundBelt_WorkZone_Plug       : ST_CylinderMonitor;
+        RoundBelt_ChargeZone_Plug     : ST_CylinderMonitor;
+        RoundBelt_TransmitCVZone_Plug : ST_CylinderMonitor;
+        OutRobot_AsideVert            : ST_CylinderMonitor;
+        OutRobot_BsideVert            : ST_CylinderMonitor;
+        OutRobot_AsideClamp           : ST_CylinderMonitor;
+        OutRobot_BsideClamp           : ST_CylinderMonitor;
+        TransmitCV_CamaraHoriz        : ST_CylinderMonitor;
+        DifferentSizeCV_Press2        : ST_CylinderMonitor;
+        DifferentSizeCV_Press1        : ST_CylinderMonitor;
+        DifferentSizeCV_Block1        : ST_CylinderMonitor;
+        SameSizeCV_Press4             : ST_CylinderMonitor;
+        SameSizeCV_Press3             : ST_CylinderMonitor;
+        SameSizeCV_Press2             : ST_CylinderMonitor;
+        SameSizeCV_Press1             : ST_CylinderMonitor;
+        SameSizeCV_Block2             : ST_CylinderMonitor;
+        SameSizeCV_Block1             : ST_CylinderMonitor;
+        Turntable_Press               : ST_CylinderMonitor;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

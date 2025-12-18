@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AxisPara" Id="{8ef49e5e-9f23-47cb-b572-da51615cc22a}">
+    <Declaration><![CDATA[TYPE
+    ST_AxisPara :
+    STRUCT
+        Manual   : ST_AxisPara_Manual; // In Manual mode, Axis control will use.
+        HalfAuto : ST_AxisPara_HalfAuto; // In HalfAuto mode, Axis control will use.
+        Auto     : ST_AxisPara_Auto; // In AutoMode, Axis control will use.
+        Homing   : ST_AxisPara_Homing; // In HomingMode, Axis control will use.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

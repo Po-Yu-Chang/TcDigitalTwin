@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ADS_Y" Id="{b25b86f4-db0a-4603-99c9-23e6743a5866}">
+    <Declaration><![CDATA[TYPE st_ADS_Y :
+STRUCT
+
+Y0 : ARRAY [0..15] OF BOOL;
+Y1 : ARRAY [0..15] OF BOOL;
+Y2 : ARRAY [0..15] OF BOOL;
+Y3 : ARRAY [0..15] OF BOOL;
+Y4 : ARRAY [0..15] OF BOOL;
+Y5 : ARRAY [0..15] OF BOOL;
+Y6 : ARRAY [0..15] OF BOOL;
+Y7 : ARRAY [0..15] OF BOOL;
+Y8 : ARRAY [0..15] OF BOOL;	
+Y9 : ARRAY [0..15] OF BOOL;	
+Y10 : ARRAY [0..15] OF BOOL;	
+
+M0 : ARRAY [0..95] OF BOOL;
+M1 : ARRAY [0..141] OF BOOL;
+
+D0 : ARRAY [0..95] OF LREAL;
+D1 : ARRAY [0..95] OF LREAL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

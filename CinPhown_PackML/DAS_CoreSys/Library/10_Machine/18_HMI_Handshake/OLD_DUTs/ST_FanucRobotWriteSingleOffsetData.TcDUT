@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucRobotWriteSingleOffsetData" Id="{2b9a16ac-fd46-4c54-a559-7862ae735075}">
+    <Declaration><![CDATA[TYPE ST_FanucRobotWriteSingleOffsetData :
+STRUCT
+	Command : ST_WriteSingleOffsetData_Command;
+	Status	: ST_WriteSingleOffsetData_Status;
+	Info	: ST_WriteSingleOffsetData_Info;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

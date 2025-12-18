@@ -1,0 +1,1699 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <FileVersion>1.0.0.0</FileVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{f0c6c3ef-6481-4440-89ae-361520a7c96c}</ProjectGuid>
+    <SubObjectsSortedByName>True</SubObjectsSortedByName>
+    <DownloadApplicationInfo>true</DownloadApplicationInfo>
+    <WriteProductVersion>true</WriteProductVersion>
+    <GenerateTpy>false</GenerateTpy>
+    <Name>DAS_CoreSys</Name>
+    <ProgramVersion>3.1.4024.0</ProgramVersion>
+    <Application>{868a62e5-67fe-414f-9b6f-209e1fd7a08c}</Application>
+    <TypeSystem>{c9e191cd-4505-438a-9d5f-3656bec68b7e}</TypeSystem>
+    <Implicit_Task_Info>{f444291c-4657-4bd3-b9a5-f6487b90e079}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{b07194fa-bff4-4c30-ba0e-2df5def72d88}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{c780ff68-6a9b-47f4-862f-7e86547329e8}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{e8996419-a223-4063-b678-8aa3ac34959c}</LibraryReferences>
+    <Released>false</Released>
+    <Company>Jidain</Company>
+    <Title>DAS_TaiXin</Title>
+    <ProjectVersion>1.0.1</ProjectVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="CoreSys.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\00_PackML\01_ObjectBase\eModeChangeState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\00_PackML\01_ObjectBase\FB_ModeBase_V1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\00_PackML\01_ObjectBase\FB_ModeBase_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\00_PackML\01_ObjectBase\I_ErrorElement.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\00_PackML\01_ObjectBase\I_ErrorSubject.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\00_PackML\02_Mode\E_Severity.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\00_PackML\02_Mode\E_UnitMode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\11_IOData\GVL_EIP.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="Library\10_Machine\11_IOData\GVL_Input.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="Library\10_Machine\11_IOData\GVL_Output.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\AxisNo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Cylinders\ST_CylinderList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Cylinders\UNI_CylinderList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\E_DataFrom.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\FanucRobot\ST_FanucRobotList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\FanucRobot\UNI_FanucRobotList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Motor\ST_MotorList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Motor\UNI_MotorList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Service\ST_ServiceCtrl_Base.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Service\ST_ServiceStatus_Base.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\E_ClipNo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_AllocateRobotCoordinate.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_AllocateRobotPositionTable.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_AxisPara.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_AxisPara_Auto.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_AxisPara_HalfAuto.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_AxisPara_Homing.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_AxisPara_Manual.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_CylinderPara.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_FanucRobotCCDSetting.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_OutRobotCoordinate.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_OutRobotPositionTable.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_PositionTable.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_SetupAxis.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_SetupCylinder.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_SetupFanucRobot.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_SetupMotor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_SetupPara.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_Setup_Light.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Setup\ST_Setup_Mechanical.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\ST_ChangeIntoProduction.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\ST_CylinderMonitor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\ST_MotorMonitor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\ST_TableMoveCtrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\ST_TableMoveService.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\ST_TableMoveStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\UnitNo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\FB_MachineControl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\GVL_Machine.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\GVL_Machine_Const.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\Service\FB_MachineHoming.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\13_ErrorHandling\FB_ErrorHandler.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\13_ErrorHandling\FB_ErrorHandler_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Auto_Allocated.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_AXIS_HOMING.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_AXIS_JOG.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_AXIS_PTP.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_HalfAuto_Allocated.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_HMI_AllocateArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_Allocated.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_AllocatedRobot.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_Axis.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_OutRobot.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_PullOut.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_RoundBelt.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_TransCV.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Manual_TurnTable.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Component\ST_DoubleValve.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Component\ST_MotorCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Component\ST_SignleValve.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\E_AllocationJob.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\ST_HMI_IOMonitor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\ST_InputTable_MitsubishiWithWheelHouse.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\ST_Input_IOMonitor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\ST_Output_IOMonitor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\ST_WheelhouseInput.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\ST_WheelhouseTour.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\ST_Wheelhouse_Layer.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\UNI_HMI_WheelHouseInput.TcDUT">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>false</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor\UNI_HMI_WheelHouseInput2.TcDUT">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Shipping\ST_Auto_Shipping.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Shipping\ST_HalfAuto_Shipping.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Shipping\ST_HMI_ShippingArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Shipping\ST_Manual_Shipping.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_AllocateStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_Auto_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_AXES_STATUS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_MotorStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_SINGLEAXIS_STATUS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_CylinderStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_HalfAuto_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_HMI_MachineStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_Manual_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_ShippingStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status\ST_StorageStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_Auto_Storage.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_HalfAuto_Storage.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_HMI_StorageArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_Manual_FanucRobot.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_Manual_Rack.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_Manual_UpCV.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_Manual_LowCV.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage\ST_Manual_Storage.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\FB_HmiHandShake.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\GVL_ADS.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\GVL_HMI.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_ShippingLeftSideTransCV.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore\st_ADSBaseParaCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore\st_ADSMotoCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore\st_ADSMotoMoveCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore\st_ADS_X.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore\st_ADS_Y.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore\st_AllocateParameterCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore\st_DASCalibrationData.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_ClampWork.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_FeedInEmptyBox_PickUpArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_FeedInEmptyBox_PlaceArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_HoleIndex_X.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_HoleIndex_Y.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_MachineMode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_MachineState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_PullOutConveyorAddress.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_PullOutConveyorCommandType.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_PullOutConveyorState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_RackState.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_ReloadRoundBelt_PickupArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_ReloadRoundBelt_PlaceAddress.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_ReloadRoundBelt_PlaceArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_RobotArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_RobotClamp.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_RoundBeltStation.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_SimpleAllocateTable.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_WareHouse.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_WareHouseLayer.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_WareHouseSlide.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\stPositionCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ads_AllocateMoveStructure.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ads_MachineReset.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ads_OneAxisMoveWithoutPosition.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ads_OneAxisMoveWithPosition.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ads_OutRobtToPlateMove.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ads_RobotToAllocateMove.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Alarm_Tmax.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AllocateCircleMoveStructure.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AllocateRobotNeedlingMove.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AllocateRobotNeedlingMoveInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AllocatingNeedleInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AllocationJobBatchMode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AllocationJobBatchModeInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AllocationJobBatchMode_1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoAddsBoxes.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoAddsBoxesCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoAddsBoxesStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoMode_AllocatingJob.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoMode_AllocatingJob_1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoMode_ClampingBoxesJob.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoMode_ClampingToPlate.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_DetectDiameter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_FeedInEmptyBox.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_ReloadRoundBeltBox.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_RobotRegionMove.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_ShippingLeftSideTransCVFeedBack.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_ShippingLeftSideTransCVInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_ShippingRightSideTransCV.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_SimpleAllocateHandShake.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoMode_SingleStepWithInterventionRequest.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_TransCVCamera.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoPullOutConveyor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoPullOutConveyorCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoPullOutConveyorSatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoServoPara.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoSixAxisAbsMoveParameter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoSixAxisWarehouseParameter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AutoSperate.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_LowerFeedInConveyor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_LowerFeedInConveyorCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_LowerFeedInConveyorStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_UpperFeedInConveyor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_UpperFeedInConveyorCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_UpperFeedInConveyorFeedback.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_UpperFeedInConveyorInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Auto_UpperFeedInConveyorStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AxisControl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ClampingBoxesInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ClampSetting.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ClampSetting_ReloadRoundBelt.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_CommandBasic.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_DetectDiameterCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_DetectDiameterInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_DetectDiameterStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FanucRobotGeneralCtrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FanucRobotReadAllOffssetDate.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FanucRobotReadSingleOffsetData.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FanucRobotWriteAllOffsetDate.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FanucRobotWriteSingleOffsetData.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FanucRobot_CSharpCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FanucRobot_CSharpStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FeedInEmptyBox_Ctrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FeedInEmptyBox_Info.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FeedInEmptyBox_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_FlowBaseCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_HandshakeBase.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_HandShakeBaseWithError.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ListRunCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ManualServoPara.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_MechanicalList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ModbusSwitchOff.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_Mode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_MoveConveyorJob.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_OffsetData.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_OneDirectionCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_OneProcessServoPara.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_OpPannelStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_OutRobotParameterCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_PositionOffsetData.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_PullOutConveyorInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReadAllOffsetDataCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReadAllOffsetDateStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReadSingleOffsetData_Command.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReadSingleOffsetData_Info.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReadSingleOffsetData_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_RegionHome.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReloadRoundBeltBox_Info.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReloadRoundBelt_Ctrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ReloadRoundBelt_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_Robot.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_RobotMoveAbs.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_RobotRegionMove_Info.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_RoundBeltCoordinates.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_SafetyByPass.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_SaveParaDefault.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_SaveParaRemote.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ServiceTimeoutSetting.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ServoList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ServoParaBasic.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_SimpleAllocateCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_SimpleAllocateInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_SimpleAllocateStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_SixAxisRobotCore.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_SixAxisWarehouseParameter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_StationPositions.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_StatusBasic.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_SystemParameter.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WareHouseCoordinates.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WriteAllOffsetData_Command.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WriteAllOffsetData_Info.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WriteAllOffsetData_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WriteSingleOffsetData_Command.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WriteSingleOffsetData_Info.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WriteSingleOffsetData_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\AllocateBatchMode\st_AllocateMoveAutoBatchMode_Ctrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\AllocateBatchMode\st_AllocateMoveAutoBatchMode_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\AllocateBatchMode\st_Coordinate.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\AllocateBatchMode\ST_Cylinders.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\AllocateBatchMode\st_RoundBeltAutoSingleMove_Ctrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\AllocateBatchMode\U_Cylinders.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\ST_HMI_Handshake.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL1889\ST_EbusDI16.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL1889\ST_EbusInputModule.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL1889\ST_InputTable.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL1889\ST_InputTable_Mitsubishi.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL1889\uni_InputModule.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL2889\ST_EbusDO16.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL2889\ST_EbusOutputModule.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL2889\ST_OutputTable.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL2889\ST_OutputTable_Mitsubishi.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\EL2889\uni_OutputModule.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\E_ClampAction.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\E_FanucRobotOpMode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\E_PullOutConveyorPosition.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\E_RobotAddress.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_AutoMode_ShippingRobot_MoveAbs.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_CCD_ZoneUse.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_FanucUI1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_FanucUO1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_Fanuc_AbsMove.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_Fanuc_GeneralCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_Fanuc_GeneralCommand_1.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_Fanuc_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_Fanuc_WarehouseHandshake.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_IntToBool.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_ReadWriteParaCmd.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_ReadWriteParaStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\FB_FanucRobot_Basic.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\FB_FanucRobot_Basic_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\E_CabinetJob.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\st_LayerStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\st_WarehouseLayer.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\st_WarehouseList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\U_Bits_To_stStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\_st_LayerStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\_st_WareHouseLayer.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs\_st_WarehouseList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\FB_WareHouse.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\Services\FB_FeedInBox.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\Services\FB_ReloadBox.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_CabinetJob.TcDUT">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_FeedInAction.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_ReloadRoundBoxAction.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\st_RebootModbusDevices.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\st_RobotAbsMove_Ctrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\st_RobotAbsMove_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\st_RobotWarehouseMove_Ctrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\st_RobotWarehouseMove_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\ST_StorageService.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\FB_StorageArea.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_AddBoxes_v2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_BoxSupplyCtrl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_BoxSupplyCtrl_v1.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_DiameterMovement.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_FeedInEmptyBoxWithRobot.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_FeedInEmptyBoxWithRobot_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_FeedInEmptyBoxWithRobot_V3.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_LowerFeedInConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RebootModbusDevice.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_ReloadRoundBeltBoxWithRobot.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_ReloadRoundBeltBoxWithRobot_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotAbsMove.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotAbsMove_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_AllocatedConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_BufferArea.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_FeedInConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_FeedInConveyor_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_PullOutConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_RoundBelt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_StorageHoming.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_UpperFeedInConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_WareHouseWithRobotMove.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_WareHouseWithRobotMove_V3.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\Enums\E_RoundBeltControlAccess.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\E_Pistons.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\F_Even.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_AllocateService.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_DuoCylinders.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\st_RoundBeltAutoSingleMove_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\Uni_DuoCylinders.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\FB_AllocateAreaWithRoundbelt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\FB_AllocateAreaWithXPlanar.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\FUNs\FUN_GetNeedleCoordinates.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\FUNs\FUN_GetSyncGroup_AllocationJob.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateRobotNeedlingMove.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateMoveAutoBatchMode.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateMoveAutoBatchMode_Reverse.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_EmptyBoxMove.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_RareBoxMove.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_BoxMoveReverse.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_BoxMoveTurnTableToRoundBelt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_PullOutConveyorAction.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_PullOutConveyorBtnCtrl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_RoundBeltService.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateAreaHome.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_SameSizeCVCamera.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_DifferentCVCamera.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_TurnTableService.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Duts\ST_BlinkInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Duts\ST_ShippingService.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\FB_ShippingArea.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingHoming.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingRobot_TransmitCVEnd.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingRobot_Left.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingRobot_Right.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingTransCV_LeftSide.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingTransCV_RightSide.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\Duts\E_SignalTowerLampMode.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\Duts\ST_BoolList.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\Duts\ST_SignalTower.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\Duts\uni_IntToBool.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\ErrorHandling\FB_ErrorHandler_OLD.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\99_Utilities\ErrorHandling\FB_ErrorHandler_abond.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\99_Utilities\ErrorHandling\FB_ErrorHandling.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_CylinderManualCtrl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_EdgeDetect.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_MotorManualCtrl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_SignalGen.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_SignalTower.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_TableMove.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>false</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_XY_Move.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FB_XY_PickAndPlace.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FUNCTION\FUN_CheckAxisAllowMove.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FUNCTION\FUN_GetPositionTableData.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FUNCTION\FUN_MachineState.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FUNCTION\FUN_ResetStorageCylinder.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\FUNCTION\FUN_RetractStorageCylinder.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\99_Utilities\F_FtoPT.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ModbusTask.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MotionSync.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckBounds.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckDivDInt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckDivLInt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckDivLReal.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckDivReal.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckLRangeSigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckLRangeUnsigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckPointer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckRangeSigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\CheckProg\CheckRangeUnsigned.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\DAS_CoreSys.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\DAS_MotionSync.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs\E_MethodStatus_Basic.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs\ST_CmdContent.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs\ST_MsgContent.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\FB_ObjectBase.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\FB_ObjectBase_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\GVLs\Para_ObjectBase.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\ITFs\IBasicElement.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\ComModbusRTU.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\SerialComTask\DUTs\un_RS485States.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\SerialComTask\DUTs\un_RS485States_all.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\ModbusRTU\SerialComTask\FB_CommunicateModbusRTU.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\RS485_JidianVersion\DUTs\ST_RS485Controller.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\RS485_JidianVersion\DUTs\ST_RS485_Heartbeat.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\RS485_JidianVersion\DUTs\ST_RS485_LayerStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\RS485_JidianVersion\DUTs\ST_RS485_SliderStatusALL.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\RS485_JidianVersion\FB_WarehouseSensorCtrl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\RS485_JidianVersion\MAIN2_RS485.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Library" />
+    <Folder Include="Library\00_PackML\01_ObjectBase" />
+    <Folder Include="Library\00_PackML\02_Mode" />
+    <Folder Include="Library\10_Machine" />
+    <Folder Include="Library\10_Machine\12_MachineControl\DUTs" />
+    <Folder Include="Library\10_Machine\12_MachineControl\DUTs\Cylinders" />
+    <Folder Include="Library\10_Machine\12_MachineControl\DUTs\Motor" />
+    <Folder Include="Library\10_Machine\12_MachineControl\DUTs\FanucRobot" />
+    <Folder Include="Library\10_Machine\12_MachineControl\DUTs\Service" />
+    <Folder Include="Library\10_Machine\12_MachineControl\DUTs\Setup" />
+    <Folder Include="Library\10_Machine\12_MachineControl\Service" />
+    <Folder Include="Library\10_Machine\11_IOData" />
+    <Folder Include="Library\10_Machine\12_MachineControl" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\DUTs" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\DUTs\Component" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\DUTs\IOMonitor" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\DUTs\Status" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\DUTs\Shipping" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\DUTs\Storage" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\Service" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\DataCore" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs" />
+    <Folder Include="Library\10_Machine\18_HMI_Handshake\Service\DUTs\AllocateBatchMode" />
+    <Folder Include="Library\10_Machine\19_Device" />
+    <Folder Include="Library\10_Machine\19_Device\FanucRobot" />
+    <Folder Include="Library\10_Machine\19_Device\FanucRobot\DUTs" />
+    <Folder Include="Library\10_Machine\19_Device\EL1889" />
+    <Folder Include="Library\10_Machine\19_Device\EL2889" />
+    <Folder Include="Library\10_Machine\13_ErrorHandling" />
+    <Folder Include="Library\20_MachineUnits" />
+    <Folder Include="Library\00_PackML" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\Services" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea\Duts" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea\Service" />
+    <Folder Include="Library\20_MachineUnits\22_AllocateArea" />
+    <Folder Include="Library\20_MachineUnits\22_AllocateArea\Duts" />
+    <Folder Include="Library\20_MachineUnits\22_AllocateArea\Duts\Enums" />
+    <Folder Include="Library\20_MachineUnits\22_AllocateArea\FUNs" />
+    <Folder Include="Library\20_MachineUnits\22_AllocateArea\Service" />
+    <Folder Include="Library\20_MachineUnits\23_ShippingArea" />
+    <Folder Include="Library\20_MachineUnits\23_ShippingArea\Duts" />
+    <Folder Include="Library\20_MachineUnits\23_ShippingArea\Service" />
+    <Folder Include="Library\99_Utilities" />
+    <Folder Include="Library\99_Utilities\Duts" />
+    <Folder Include="Library\99_Utilities\ErrorHandling" />
+    <Folder Include="Library\99_Utilities\FUNCTION" />
+    <Folder Include="POUs\CheckProg" />
+    <Folder Include="POUs\ModbusRTU" />
+    <Folder Include="POUs\ModbusRTU\00_BaseFBs" />
+    <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase" />
+    <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs" />
+    <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\GVLs" />
+    <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\ITFs" />
+    <Folder Include="POUs\ModbusRTU\SerialComTask" />
+    <Folder Include="POUs\ModbusRTU\SerialComTask\DUTs" />
+    <Folder Include="POUs\RS485_JidianVersion" />
+    <Folder Include="POUs\RS485_JidianVersion\DUTs" />
+    <Folder Include="VISUs" />
+    <Folder Include="POUs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PlaceholderReference Include="AxisInterface_Type03">
+      <DefaultResolution>AxisInterface_Type03, * (Beckhoff Automation)</DefaultResolution>
+      <Namespace>BATW</Namespace>
+      <Parameters>
+        <Parameter ListName="AXISINTERFACE_PARAMETERS">
+          <Key>UIMAX_AXIS_INDEX</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="AXISINTERFACE_PARAMETERS">
+          <Key>UIMAX_AXIS_NUMBER</Key>
+          <Value>7</Value>
+        </Parameter>
+        <Parameter ListName="AXISINTERFACE_PARAMETERS">
+          <Key>UDIMAX_COMMAND_NUM</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="AXISINTERFACE_PARAMETERS">
+          <Key>EOSTYPE</Key>
+          <Value>E_OS_Type.Windows</Value>
+        </Parameter>
+        <Parameter ListName="AXISINTERFACE_PARAMETERS">
+          <Key>SAXISPARAFOLDERPATH</Key>
+          <Value>''</Value>
+        </Parameter>
+      </Parameters>
+    </PlaceholderReference>
+    <PlaceholderReference Include="BATW_Base">
+      <DefaultResolution>BATW_Base, * (Beckhoff Automation)</DefaultResolution>
+      <Namespace>BATW_Base</Namespace>
+      <Parameters>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>EOSTYPE</Key>
+          <Value>E_OS_Type.Windows</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UIHANDLERNUM</Key>
+          <Value>5</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UILOGGERNUM</Key>
+          <Value>200</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UILOGGERINHANDLERMAXNUM</Key>
+          <Value>200</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UILOGGERHANDLELIMITPERCYCLE</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UIMSGHANDLELIMITPERLOGGER</Key>
+          <Value>200</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>ELOGGERQUEUETYPE</Key>
+          <Value>E_LoggerQueueType.RingBuffer</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UIBUFFERSIZE</Key>
+          <Value>1000</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UIRINGBUFFERSIZE</Key>
+          <Value>(10 * 1000)</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>EHANDLERQUEUETYPE</Key>
+          <Value>E_HandlerQueueType.RingBuffer</Value>
+        </Parameter>
+        <Parameter ListName="JSONMSG_PARAMETER">
+          <Key>UIHANDLERRINGBUFFERSIZE</Key>
+          <Value>((3 * 1000) * 1000)</Value>
+        </Parameter>
+        <Parameter ListName="EVENTLOGGER_PARAMETER">
+          <Key>UIALARMEVENTNUM</Key>
+          <Value>200</Value>
+        </Parameter>
+        <Parameter ListName="EVENTLOGGER_PARAMETER">
+          <Key>UIMESSAGEEVENTNUM</Key>
+          <Value>1</Value>
+        </Parameter>
+      </Parameters>
+    </PlaceholderReference>
+    <PlaceholderReference Include="CBML">
+      <DefaultResolution>Common Behaviour Model, * (3S - Smart Software Solutions GmbH)</DefaultResolution>
+      <Namespace>CBML</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_EtherCAT">
+      <DefaultResolution>Tc2_EtherCAT, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_EtherCAT</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Math">
+      <DefaultResolution>Tc2_Math, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Math</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_ModbusRTU">
+      <DefaultResolution>Tc2_ModbusRTU, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_ModbusRTU</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_SerialCom">
+      <DefaultResolution>Tc2_SerialCom, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_SerialCom</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Standard">
+      <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Standard</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_System">
+      <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_System</Namespace>
+      <Parameters>
+        <Parameter ListName="PARAM" xmlns="">
+          <Key>TABLE_UPPER_BOUND</Key>
+          <Value>15</Value>
+        </Parameter>
+        <Parameter ListName="PARAM" xmlns="">
+          <Key>STRING_LENGTH_EXP</Key>
+          <Value>255</Value>
+        </Parameter>
+        <Parameter ListName="PARAM" xmlns="">
+          <Key>STRING_LENGTH_ADDRESS</Key>
+          <Value>20</Value>
+        </Parameter>
+        <Parameter ListName="PARAM" xmlns="">
+          <Key>STRING_LENGTH_COMMENT</Key>
+          <Value>255</Value>
+        </Parameter>
+        <Parameter ListName="PARAM" xmlns="">
+          <Key>STRING_LENGTH_OUTSTRING</Key>
+          <Value>255</Value>
+        </Parameter>
+        <Parameter ListName="PARAM" xmlns="">
+          <Key>TABLE_SHOW_VALID_ITEMS</Key>
+          <Value>FALSE</Value>
+        </Parameter>
+      </Parameters>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Utilities">
+      <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Utilities</Namespace>
+      <Parameters>
+        <Parameter ListName="PARAMETERLIST" xmlns="">
+          <Key>NMAXLICENSES</Key>
+          <Value>50</Value>
+        </Parameter>
+        <Parameter ListName="PARAMETERLIST" xmlns="">
+          <Key>NMAXLICENSEDEVICES</Key>
+          <Value>16</Value>
+        </Parameter>
+        <Parameter ListName="PARAMETERLIST" xmlns="">
+          <Key>NMAXCPUCOUNT</Key>
+          <Value>64</Value>
+        </Parameter>
+        <Parameter ListName="PARAMETERLIST" xmlns="">
+          <Key>CMAXCHARACTERS</Key>
+          <Value>16#FFFFFFF0</Value>
+        </Parameter>
+        <Parameter ListName="PARAMETERLIST" xmlns="">
+          <Key>NMAXFILESONDONGLE</Key>
+          <Value>20</Value>
+        </Parameter>
+        <Parameter ListName="PARAMETERLIST" xmlns="">
+          <Key>CMAXCSVFIELDVALUESIZE</Key>
+          <Value>255</Value>
+        </Parameter>
+      </Parameters>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_JsonXml">
+      <DefaultResolution>Tc3_JsonXml, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_JsonXml</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_MC2_AdvancedHoming">
+      <DefaultResolution>Tc3_MC2_AdvancedHoming, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_MC2_AdvancedHoming</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_Module">
+      <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_Module</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_PackML_V2">
+      <DefaultResolution>Tc3_PackML_V2, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_PackML_V2</Namespace>
+      <Parameters>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXINTERFACEPARAMETERS</Key>
+          <Value>5</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXPRODUCTPROCESSVARIABLES</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXINGREDIENTS</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXINGREDIENTPARAMETERS</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXCOMMANDREMOTEINTERFACES</Key>
+          <Value>2</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXCOMMANDPARAMETERS</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXCOMMANDPRODUCTS</Key>
+          <Value>5</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXSTATUSREMOTEINTERFACES</Key>
+          <Value>2</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXSTATUSPARAMETERS</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXSTATUSPRODUCTS</Key>
+          <Value>5</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXADMINPARAMETERS</Key>
+          <Value>100</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXALARMS</Key>
+          <Value>200</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXHISTORYALARMS</Key>
+          <Value>200</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXSTOPREASONS</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXWARNINGS</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXCONSUMEDCOUNTS</Key>
+          <Value>10</Value>
+        </Parameter>
+        <Parameter ListName="GLOBALPARAMETERS">
+          <Key>MAXPRODUCTCOUNTS</Key>
+          <Value>10</Value>
+        </Parameter>
+      </Parameters>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Util">
+      <DefaultResolution>Util, * (System)</DefaultResolution>
+      <Namespace>Util</Namespace>
+      <Parameters>
+        <Parameter ListName="TEXTBLOCKSIZE" xmlns="">
+          <Key>IBLOCKSIZE</Key>
+          <Value>22800</Value>
+        </Parameter>
+      </Parameters>
+    </PlaceholderReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DAS_CoreSys.tmc">
+      <SubType>Content</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <PlaceholderResolution Include="AxisInterface_Type03">
+      <Resolution>AxisInterface_Type03, 0.0.2.6 (Beckhoff Automation)</Resolution>
+    </PlaceholderResolution>
+    <PlaceholderResolution Include="Tc3_JsonXml">
+      <Resolution>Tc3_JsonXml, 3.4.4.0 (Beckhoff Automation GmbH)</Resolution>
+    </PlaceholderResolution>
+  </ItemGroup>
+  <ItemGroup>
+    <SubObject Include="FB_ErrorHandling.EtherCAT_Diag">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_ErrorHandling.GetAbort">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_ErrorHandling.GetHeld">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_ErrorHandling.M_EtherCATErrorHandler">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_ErrorHandling.M_SubsysErrorHandle">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_ErrorHandling.M_UploadResetData">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FanucRobot_Basic.A20_StateControl">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FanucRobot_Basic.M_ActiveRSR03">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FanucRobot_Basic.M_ControlRSR03">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FanucRobot_Basic_V2.A20_StateControl">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FanucRobot_Basic_V2.M_ActiveRSR03">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FanucRobot_Basic_V2.M_ControlRSR03">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FeedInEmptyBoxWithRobot.M_ReloadBox">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FeedInEmptyBoxWithRobot_V2.M_ReloadBox">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+    <SubObject Include="FB_FeedInEmptyBoxWithRobot_V3.M_ReloadBox">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </SubObject>
+  </ItemGroup>
+  <ProjectExtensions>
+    <PlcProjectOptions>
+      <XmlArchive>
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
+      <v n="Name">"&lt;ProjectRoot&gt;"</v>
+      <d n="SubKeys" t="Hashtable" />
+      <d n="Values" t="Hashtable" />
+    </o>
+        </Data>
+        <TypeList>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
+    </PlcProjectOptions>
+  </ProjectExtensions>
+</Project>

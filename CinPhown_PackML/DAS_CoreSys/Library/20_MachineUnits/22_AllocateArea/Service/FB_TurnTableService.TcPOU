@@ -1,0 +1,265 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_TurnTableService" Id="{4bd385a0-9f51-4e07-9759-c8ce4665575d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TurnTableService EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute      : BOOL;
+    xAbort        : BOOL;
+    iTurnTableTarget : INT;			//1=A ,2=B ,3=C ,4=D
+    Cylinder : REFERENCE TO UNI_CylinderList;
+    TimeOut  : LREAL := 30; // Unit : s
+END_VAR
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : STRING;
+END_VAR
+VAR
+    StateBehavior   : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+	uiCyclicStep    : UINT := 0;
+	PosCmd			: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehavior;
+StateBehavior(xExecute := xExecute,
+              xAbort := xAbort,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);
+			  
+//Error Msg
+iErrorID := StateBehavior._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+
+]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{a5765f18-10fd-4fc9-b3a9-88b0bdffd540}" />
+    <Method Name="CleanupAction" Id="{ce35767d-b1db-45dc-aa8f-da5d40e8e7bb}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{cc1f20f7-e0b1-460a-9e13-0e2b3f8dfa6d}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR_INST
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+CASE uiCyclicStep OF
+    0:
+		Cylinder.List.fbTurntable_Press.M_Retract();
+
+        IF Cylinder.List.fbTurntable_Press.InRearPosition THEN
+            uiCyclicStep := 100;
+        END_IF
+    100:
+        arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Position := PosCmd;
+		
+
+        IF arAxisStatus_gb[AxisNo.TurnTable].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.TurnTable].Admin.CmdDone THEN
+            uiCyclicStep := 200;
+        END_IF
+	200:
+        Cylinder.List.fbTurntable_Press.M_Extend();
+
+        IF Cylinder.List.fbTurntable_Press.InFrontPosition THEN
+            xComplete := TRUE;
+        END_IF
+END_CASE
+
+IF arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error THEN
+    iErrorID := 6; // Axis TurnTable has error
+END_IF
+
+//IF Cylinder.List.fbTurntable_Press.xError THEN
+//    iErrorID := 7;	//Clinder Error
+//END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{5a085846-80be-40c5-90c9-c1d06e06b59f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{716a5a99-61df-4633-9b52-c4c5677c75a7}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	0:
+		M_GetErrorMsg := 'No Error';
+	1:
+		M_GetErrorMsg := 'Action time out';
+	2:
+		M_GetErrorMsg := 'Position Data invalid';
+	3:
+		M_GetErrorMsg := 'TurnTableTarget invalid';
+	4:
+		M_GetErrorMsg := 'Axis not ready';
+	5:
+		M_GetErrorMsg := 'Cylinder not ready';
+	6:
+		M_GetErrorMsg := 'Axis TurnTable has Error';
+	7:
+		M_GetErrorMsg := 'fbTurntable_Press has Error';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{9e96d1c2-4ebe-4a38-9037-fe33ecf144af}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{fc86e512-b248-440c-bfcc-c96402127e9c}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+IF NOT (iTurnTableTarget >= 1 AND iTurnTableTarget <= 4) THEN
+    iErrorID := 3; // Target Station invalid.
+    RETURN;
+END_IF
+
+IF NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving AND
+     arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error THEN
+    iErrorID := 4; // Axis not ready
+END_IF
+
+CASE iTurnTableTarget OF 
+	1:	//A
+		PosCmd :=0;
+		xComplete := TRUE;
+	2:	//B
+		PosCmd :=270;
+		xComplete := TRUE;
+	3:	//C
+		PosCmd :=180;
+		xComplete := TRUE;
+	4:	//D
+		PosCmd :=90;
+		xComplete := TRUE;
+END_CASE
+
+
+//IF Cylinder.List.fbTurntable_Press.xBusy AND  
+//NOT Cylinder.List.fbTurntable_Press.xError  THEN
+//	iErrorID := 5; // Cylinder not ready
+//END_IF
+
+uiCyclicStep := 0;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_TurnTableService">
+      <LineId Id="64" Count="6" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="114" Count="2" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="93" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TurnTableService.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TurnTableService.CyclicAction">
+      <LineId Id="140" Count="0" />
+      <LineId Id="87" Count="1" />
+      <LineId Id="92" Count="1" />
+      <LineId Id="97" Count="4" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="102" Count="3" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="132" Count="1" />
+      <LineId Id="137" Count="2" />
+      <LineId Id="106" Count="8" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="32" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TurnTableService.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TurnTableService.M_GetErrorMsg">
+      <LineId Id="5" Count="1" />
+      <LineId Id="12" Count="8" />
+      <LineId Id="28" Count="2" />
+      <LineId Id="33" Count="2" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TurnTableService.ResetAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TurnTableService.StartAction">
+      <LineId Id="66" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="22" Count="5" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

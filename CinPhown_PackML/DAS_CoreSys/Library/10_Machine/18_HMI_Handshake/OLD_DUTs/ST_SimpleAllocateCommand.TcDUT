@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SimpleAllocateCommand" Id="{63eece17-a4f7-4a68-8d3b-33594489fd45}">
+    <Declaration><![CDATA[TYPE ST_SimpleAllocateCommand EXTENDS ST_CommandBasic:
+    STRUCT
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

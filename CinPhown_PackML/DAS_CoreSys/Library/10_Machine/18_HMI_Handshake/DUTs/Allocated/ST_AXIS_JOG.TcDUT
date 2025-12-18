@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AXIS_JOG" Id="{269199a5-27e0-4198-83b9-7ba16d7cbc85}">
+    <Declaration><![CDATA[TYPE ST_AXIS_JOG :
+STRUCT
+	MoveFWD : BOOL; // Axis Jog control, move forward
+	MoveBWD : BOOL; // Axis Jog control, move backward
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

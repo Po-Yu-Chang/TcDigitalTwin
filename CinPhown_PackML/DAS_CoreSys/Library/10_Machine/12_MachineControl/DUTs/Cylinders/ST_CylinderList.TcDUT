@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_CylinderList" Id="{1105b155-0d3f-48a8-98bf-3047b088002c}">
+    <Declaration><![CDATA[TYPE
+    ST_CylinderList :
+    STRUCT
+        fbUpCV_FeedInPress1             : FB_Cylinder;
+        fbUpCV_FeedInPress2             : FB_Cylinder;
+        fbUpCV_DiameterPress            : FB_Cylinder;
+        fbUpCV_CamaraPress1             : FB_Cylinder;
+        fbUpCV_CamaraPress2             : FB_Cylinder;
+        fbUpCV_CamaraPress3             : FB_Cylinder;
+        fbUpCV_CamaraPress4             : FB_Cylinder;
+        fbUpCV_Block1                   : FB_Cylinder;
+        fbUpCV_Block2                   : FB_Cylinder;
+        fbUpCV_Block3                   : FB_Cylinder;
+        fbUpCV_DiameterHoriz            : FB_Cylinder;
+        fbUpCV_DiameterVert             : FB_Cylinder;
+        fbUpCV_DiameterClamp            : FB_Cylinder;
+        fbStackPush                     : FB_Cylinder;
+        fbPullOutCV_AsidePress1         : FB_Cylinder;
+        fbPullOutCV_AsidePress2         : FB_Cylinder;
+        fbPullOutCV_AsideBlock          : FB_Cylinder;
+        fbPullOutCV_BsidePress1         : FB_Cylinder;
+        fbPullOutCV_BsidePress2         : FB_Cylinder;
+        fbPullOutCV_BsideBlock          : FB_Cylinder;
+        fbLowCV_Press1                  : FB_Cylinder;
+        fbLowCV_Press2                  : FB_Cylinder;
+        fbLowCV_Press3                  : FB_Cylinder;
+        fbLowCV_Press4                  : FB_Cylinder;
+        fbLowCV_Block1                  : FB_Cylinder;
+        fbLowCV_Block2                  : FB_Cylinder;
+        fbAllocateRobot_LeftVert1       : FB_Cylinder;
+        fbAllocateRobot_LeftVert2       : FB_Cylinder;
+        fbAllocateRobot_RightVert1      : FB_Cylinder;
+        fbAllocateRobot_RightVert2      : FB_Cylinder;
+        fbAllocateRobot_LeftClamp1      : FB_Cylinder;
+        fbAllocateRobot_LeftClamp2      : FB_Cylinder;
+        fbAllocateRobot_RightClamp1     : FB_Cylinder;
+        fbAllocateRobot_RightClamp2     : FB_Cylinder;
+        fbRoundBelt_WorkZone_Press      : FB_Cylinder;
+        fbRoundBelt_WorkZone_Plug       : FB_Cylinder;
+        fbRoundBelt_ChargeZone_Plug     : FB_Cylinder;
+        fbRoundBelt_TransmitCVZone_Plug : FB_Cylinder;
+        fbOutRobot_AsideVert            : FB_Cylinder;
+        fbOutRobot_BsideVert            : FB_Cylinder;
+        fbOutRobot_AsideClamp           : FB_Cylinder;
+        fbOutRobot_BsideClamp           : FB_Cylinder;
+        fbTransmitCV_CamaraHoriz        : FB_Cylinder;
+        fbDifferentSizeCV_Press2        : FB_Cylinder;
+        fbDifferentSizeCV_Press1        : FB_Cylinder;
+        fbDifferentSizeCV_Block1        : FB_Cylinder;
+        fbSameSizeCV_Press4             : FB_Cylinder;
+        fbSameSizeCV_Press3             : FB_Cylinder;
+        fbSameSizeCV_Press2             : FB_Cylinder;
+        fbSameSizeCV_Press1             : FB_Cylinder;
+        fbSameSizeCV_Block2             : FB_Cylinder;
+        fbSameSizeCV_Block1             : FB_Cylinder;
+        fbTurntable_Press               : FB_Cylinder;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

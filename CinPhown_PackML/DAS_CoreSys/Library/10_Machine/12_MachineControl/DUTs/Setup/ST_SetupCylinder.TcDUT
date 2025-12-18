@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SetupCylinder" Id="{0372ee93-25f6-4b7f-be3f-60653894a341}">
+    <Declaration><![CDATA[TYPE
+    ST_SetupCylinder :
+    STRUCT
+        UpCV_FeedInPress1             : BATW_Base.ST_CylinderPara;
+        UpCV_FeedInPress2             : BATW_Base.ST_CylinderPara;
+        UpCV_DiameterPress            : BATW_Base.ST_CylinderPara;
+        UpCV_CamaraPress1             : BATW_Base.ST_CylinderPara;
+        UpCV_CamaraPress2             : BATW_Base.ST_CylinderPara;
+        UpCV_CamaraPress3             : BATW_Base.ST_CylinderPara;
+        UpCV_CamaraPress4             : BATW_Base.ST_CylinderPara;
+        UpCV_Block1                   : BATW_Base.ST_CylinderPara;
+        UpCV_Block2                   : BATW_Base.ST_CylinderPara;
+        UpCV_Block3                   : BATW_Base.ST_CylinderPara;
+        UpCV_DiameterHoriz            : BATW_Base.ST_CylinderPara;
+        UpCV_DiameterVert             : BATW_Base.ST_CylinderPara;
+        UpCV_DiameterClamp            : BATW_Base.ST_CylinderPara;
+        StackPush                     : BATW_Base.ST_CylinderPara;
+        PullOutCV_AsidePress1         : BATW_Base.ST_CylinderPara;
+        PullOutCV_AsidePress2         : BATW_Base.ST_CylinderPara;
+        PullOutCV_AsideBlock          : BATW_Base.ST_CylinderPara;
+        PullOutCV_BsidePress1         : BATW_Base.ST_CylinderPara;
+        PullOutCV_BsidePress2         : BATW_Base.ST_CylinderPara;
+        PullOutCV_BsideBlock          : BATW_Base.ST_CylinderPara;
+        LowCV_Press1                  : BATW_Base.ST_CylinderPara;
+        LowCV_Press2                  : BATW_Base.ST_CylinderPara;
+        LowCV_Press3                  : BATW_Base.ST_CylinderPara;
+        LowCV_Press4                  : BATW_Base.ST_CylinderPara;
+        LowCV_Block1                  : BATW_Base.ST_CylinderPara;
+        LowCV_Block2                  : BATW_Base.ST_CylinderPara;
+        AllocateRobot_LeftVert1       : BATW_Base.ST_CylinderPara;
+        AllocateRobot_LeftVert2       : BATW_Base.ST_CylinderPara;
+        AllocateRobot_RightVert1      : BATW_Base.ST_CylinderPara;
+        AllocateRobot_RightVert2      : BATW_Base.ST_CylinderPara;
+        AllocateRobot_LeftClamp1      : BATW_Base.ST_CylinderPara;
+        AllocateRobot_LeftClamp2      : BATW_Base.ST_CylinderPara;
+        AllocateRobot_RightClamp1     : BATW_Base.ST_CylinderPara;
+        AllocateRobot_RightClamp2     : BATW_Base.ST_CylinderPara;
+        RoundBelt_WorkZone_Press      : BATW_Base.ST_CylinderPara;
+        RoundBelt_WorkZone_Plug       : BATW_Base.ST_CylinderPara;
+        RoundBelt_ChargeZone_Plug     : BATW_Base.ST_CylinderPara;
+        RoundBelt_TransmitCVZone_Plug : BATW_Base.ST_CylinderPara;
+        OutRobot_AsideVert            : BATW_Base.ST_CylinderPara;
+        OutRobot_BsideVert            : BATW_Base.ST_CylinderPara;
+        OutRobot_AsideClamp           : BATW_Base.ST_CylinderPara;
+        OutRobot_BsideClamp           : BATW_Base.ST_CylinderPara;
+        TransmitCV_CamaraHoriz        : BATW_Base.ST_CylinderPara;
+        DifferentSizeCV_Press2        : BATW_Base.ST_CylinderPara;
+        DifferentSizeCV_Press1        : BATW_Base.ST_CylinderPara;
+        DifferentSizeCV_Block1        : BATW_Base.ST_CylinderPara;
+        SameSizeCV_Press4             : BATW_Base.ST_CylinderPara;
+        SameSizeCV_Press3             : BATW_Base.ST_CylinderPara;
+        SameSizeCV_Press2             : BATW_Base.ST_CylinderPara;
+        SameSizeCV_Press1             : BATW_Base.ST_CylinderPara;
+        SameSizeCV_Block2             : BATW_Base.ST_CylinderPara;
+        SameSizeCV_Block1             : BATW_Base.ST_CylinderPara;
+        Turntable_Press               : BATW_Base.ST_CylinderPara;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

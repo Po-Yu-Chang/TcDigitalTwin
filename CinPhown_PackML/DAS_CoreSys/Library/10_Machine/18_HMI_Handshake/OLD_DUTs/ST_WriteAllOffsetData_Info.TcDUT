@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_WriteAllOffsetData_Info" Id="{d7a4a787-932a-4495-bd0c-3dced70b941c}">
+    <Declaration><![CDATA[TYPE ST_WriteAllOffsetData_Info EXTENDS ST_StatusBasic :
+STRUCT
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

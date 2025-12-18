@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FUN_GetSyncGroup_AllocationJob" Id="{8a0dc9df-2afc-4096-ba8f-7463002a6f7a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_GetSyncGroup_AllocationJob : Bool
+VAR_INPUT
+	Coordinates : ARRAY[0..3] OF st_Coordinate;
+	NeedleInfo	:ARRAY[0..3] OF st_AllocatingNeedleInfo;
+END_VAR
+
+VAR_OUTPUT
+	SyncGroup	:ARRAY[0..3] OF UINT ; 
+END_VAR
+VAR
+	_SyncGroup	:ARRAY[0..3] OF UINT := [0,1,2,3];
+	i : INT;
+	j : INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FOR i:=0 TO 2 DO				
+	FOR j:=i+1 TO 3 DO					
+		IF Coordinates[i].X=Coordinates[j].X AND Coordinates[i].Y=Coordinates[j].Y  AND NeedleInfo[i].Station=NeedleInfo[j].Station THEN
+			_SyncGroup[j] :=_SyncGroup[i];
+		END_IF			
+								
+	END_FOR				
+END_FOR			
+
+SyncGroup:=_SyncGroup;]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_GetSyncGroup_AllocationJob">
+      <LineId Id="14" Count="4" />
+      <LineId Id="22" Count="1" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

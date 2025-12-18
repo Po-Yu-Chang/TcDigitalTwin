@@ -1,0 +1,213 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ErrorHandler_OLD" Id="{d28e71cf-c7fb-461f-8e42-36690735adc3}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'reflection'}
+FUNCTION_BLOCK PUBLIC FB_ErrorHandler_OLD IMPLEMENTS ITF_ErrorHandlerSubject
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+    astrActive : ARRAY [0..999] OF ST_Alarm_Tmax;	//State from all existing FB
+	uiNumOfActError : UINT;	
+	bErrorOccur 	:BOOL;
+END_VAR
+VAR
+	
+	//{attribute 'hide'}
+	fbLocalSystemTime				: FB_LocalSystemTime := (bEnable := TRUE, dwCycle := 1);
+    {attribute 'instance-path'} 
+    {attribute 'noinit'}
+    _strName: STRING(255); 					// Instance path of the FB for Diagnostic
+			
+	_stInfoState : ARRAY [1..GVL.MAX_Observer] OF ST_BehaviourInfo;	//State from all existing FB
+	_stErrorState : ARRAY [1..GVL.MAX_Observer] OF BOOL;			//State from all existing FB
+	_UniqueErrorCode : ARRAY [1..GVL.MAX_Observer] OF string;
+	_uiNumberOfDevices : UINT;						//Number of Attached Devices
+	uiHelp : INT; 									//Help Variable for Loop
+	
+	//Help Variables for Attaching and read Information from Devices
+	aritfObserver : ARRAY [0..GVL.MAX_Observer]OF IBasicElement;
+	uiLoop : UINT;
+	uiErrorIndex : UINT;
+    astrClear : ARRAY [0..999] OF ST_Alarm_Tmax;	//State from all existing FB
+	_stErrorState_Clear : ARRAY [1..GVL.MAX_Observer] OF BOOL;			//State from all existing FB for clear	
+	tonClearErrorDelay : TON;
+	uiStep : UINT:=0;
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_uiNumberOfDevices := 0;
+fbLocalSystemTime();
+
+
+tonClearErrorDelay(PT:=T#100MS);
+
+CASE uiStep OF
+	
+0: //Init step
+	tonClearErrorDelay.IN :=FALSE;
+	bErrorOccur :=FALSE;
+	uiStep :=100;
+	
+100: // Delay for a while
+	tonClearErrorDelay.IN :=TRUE;
+	IF tonClearErrorDelay.Q THEN
+		uiStep := 300;
+	END_IF
+		
+200: //Clear error
+		astrActive := astrClear;
+		_stErrorState :=_stErrorState_Clear;
+		uiStep := 0;
+300: //Working
+FOR uiLoop := 0 TO GVL.MAX_Observer DO
+    IF aritfObserver[uiLoop] <> 0 THEN
+
+        _uiNumberOfDevices := _uiNumberOfDevices + 1;
+        aritfObserver[uiLoop].GetModelState(
+                xDone    => _stInfoState[uiLoop].xDone,
+                xBusy    => _stInfoState[uiLoop].xBusy,
+                xError   => _stInfoState[uiLoop].xError,
+                xAborted => _stInfoState[uiLoop].xAborted,
+                iErrorID => _stInfoState[uiLoop].iErrorID, 
+				UniqueErrorCode =>_UniqueErrorCode[uiLoop]);
+
+        _stInfoState[uiLoop].strName := aritfObserver[uiLoop].GetName();
+
+        IF NOT _stErrorState[uiLoop] AND _stInfoState[uiLoop].xError THEN
+            _stErrorState[uiLoop] := _stInfoState[uiLoop].xError;
+			bErrorOccur :=TRUE;
+
+            //Build Error String
+            FOR uiHelp := 999 TO 0 BY -1 DO
+                IF uiHelp > 0 THEN
+                    // Sort the array down once, leaving the first row of the array empty.
+                    astrActive[uiHelp] := astrActive[uiHelp - 1];
+                ELSIF uiHelp = 0 THEN
+                    astrActive[uiHelp].Message := CONCAT(
+                            CONCAT(CONCAT('In FB ', _stInfoState[uiLoop].strName), ' the error is active : '),
+                            FC_ErrorCode(_stInfoState[uiLoop].iErrorID));
+
+                    astrActive[uiHelp].ID       := _stInfoState[uiLoop].iErrorID;
+                    astrActive[uiHelp].Trigger  := _stInfoState[uiLoop].xError;
+                    astrActive[uiHelp].DateTime := TIMESTRUCT_TO_PackMLTime(fbLocalSystemTime.systemTime);
+					astrActive[uiHelp].UniqueErrorCode:=_UniqueErrorCode[uiLoop];
+               		//astrActive[uiHelp].Value   :=	_UniqueErrorCode[uiLoop];
+				 END_IF
+            END_FOR
+//        ELSIF _stErrorState[uiLoop] AND NOT _stInfoState[uiLoop].xError THEN
+//            _stErrorState[uiLoop] := _stInfoState[uiLoop].xError;
+
+//            //Build Error String
+//            FOR uiHelp := 999 TO 0 BY -1 DO
+//                IF uiHelp > 0 THEN
+//                    astrActive[uiHelp] := astrActive[uiHelp - 1];
+//                ELSIF uiHelp = 0 THEN
+//                    astrActive[uiHelp].Message := CONCAT(
+//                            CONCAT(CONCAT('In FB ', _stInfoState[uiLoop].strName), 'the following error is deactive:'),
+//                            FC_ErrorCode(_stInfoState[uiLoop].iErrorID));
+//                END_IF
+//            END_FOR
+        END_IF
+		
+	ELSE
+	//	EXIT;	
+    END_IF
+END_FOR
+
+END_CASE]]></ST>
+    </Implementation>
+    <Folder Name="Public" Id="{b2e74f7a-2a15-44e3-a98f-f2a5c85a2142}" />
+    <Method Name="AttachDevice" Id="{8b773b5b-6e87-4b43-b75e-dbd5e7a3adab}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD AttachDevice 
+(*Register a Device by the BehaiourModel Interface*)
+VAR_INPUT
+	(*Device which will be monitor from Error Handler*)
+	IDevice	: IBasicElement;
+END_VAR
+
+VAR
+	uiLoop: UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR uiLoop := 1 TO GVL.MAX_Observer DO
+	IF IDevice <> 0 AND THIS^.aritfObserver[uiLoop]= 0 THEN
+		THIS^.aritfObserver[uiLoop] := IDevice;
+		EXIT;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ClearError" Id="{bcab46d7-82fa-45e4-9460-bb2507609985}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD ClearError
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[astrActive := astrClear;
+_stErrorState :=_stErrorState_Clear; // not necessary but keep it
+
+uiStep := 200; // Go to clear error step]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DetachDevice" Id="{da05d73e-18dc-4e38-8adc-d99a97360bdc}" FolderPath="Public\">
+      <Declaration><![CDATA[METHOD DetachDevice 
+(*Unregister a Device by the BehaiourModel Interface*)
+VAR_INPUT
+	(*Device which will be deleted from the monitor Error Handler list*)
+	IDevice	: IBasicElement;
+END_VAR
+
+VAR
+	uiLoop: UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR uiLoop := 0 TO GVL.MAX_Observer DO
+	IF IDevice <> 0 AND THIS^.aritfObserver[uiLoop]= IDevice THEN
+		THIS^.aritfObserver[uiLoop] := 0;
+		EXIT;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ErrorHandler_OLD">
+      <LineId Id="508" Count="2" />
+      <LineId Id="655" Count="0" />
+      <LineId Id="670" Count="1" />
+      <LineId Id="657" Count="0" />
+      <LineId Id="672" Count="0" />
+      <LineId Id="674" Count="0" />
+      <LineId Id="680" Count="0" />
+      <LineId Id="684" Count="0" />
+      <LineId Id="675" Count="2" />
+      <LineId Id="679" Count="0" />
+      <LineId Id="681" Count="2" />
+      <LineId Id="678" Count="0" />
+      <LineId Id="673" Count="0" />
+      <LineId Id="687" Count="1" />
+      <LineId Id="685" Count="0" />
+      <LineId Id="511" Count="10" />
+      <LineId Id="592" Count="0" />
+      <LineId Id="522" Count="19" />
+      <LineId Id="623" Count="0" />
+      <LineId Id="542" Count="0" />
+      <LineId Id="593" Count="0" />
+      <LineId Id="543" Count="18" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="667" Count="0" />
+      <LineId Id="666" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandler_OLD.AttachDevice">
+      <LineId Id="33" Count="4" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandler_OLD.ClearError">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="13" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ErrorHandler_OLD.DetachDevice">
+      <LineId Id="22" Count="4" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

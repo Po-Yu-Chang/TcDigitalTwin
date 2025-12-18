@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SetupMotor" Id="{66a50f0d-dc50-4170-8474-cb2bc9306d58}">
+    <Declaration><![CDATA[TYPE
+    ST_SetupMotor :
+    STRUCT
+        WareHouseCV_10          : ST_MotorPara;
+        WareHouseCV_09          : ST_MotorPara;
+        WareHouseCV_08          : ST_MotorPara;
+        WareHouseCV_07          : ST_MotorPara;
+        WareHouseCV_06          : ST_MotorPara;
+        WareHouseCV_05          : ST_MotorPara;
+        WareHouseCV_04          : ST_MotorPara;
+        WareHouseCV_03          : ST_MotorPara;
+        WareHouseCV_02          : ST_MotorPara;
+        WareHouseCV_01          : ST_MotorPara;
+        WareHouseCV_20          : ST_MotorPara;
+        WareHouseCV_19          : ST_MotorPara;
+        WareHouseCV_18          : ST_MotorPara;
+        WareHouseCV_17          : ST_MotorPara;
+        WareHouseCV_16          : ST_MotorPara;
+        WareHouseCV_15          : ST_MotorPara;
+        WareHouseCV_14          : ST_MotorPara;
+        WareHouseCV_13          : ST_MotorPara;
+        WareHouseCV_12          : ST_MotorPara;
+        WareHouseCV_11          : ST_MotorPara;
+        UpCV                    : ST_MotorPara;
+        LowCV                   : ST_MotorPara;
+        PullOutCV_A             : ST_MotorPara;
+        PullOutCV_B             : ST_MotorPara;
+        TransmitSameSideCV      : ST_MotorPara;
+        TransmitDifferentSideCV : ST_MotorPara;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

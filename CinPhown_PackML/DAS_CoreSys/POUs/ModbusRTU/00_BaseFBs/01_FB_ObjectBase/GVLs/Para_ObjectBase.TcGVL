@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="Para_ObjectBase" Id="{7b6f6107-81db-4cfa-8865-886815eee28f}" ParameterList="True">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	cNumCmdRecord			: UINT := 500;
+	cNumMsgRecord			: UINT := 1000;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

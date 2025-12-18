@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_PullOutConveyorAddress" Id="{c17a0c81-e071-47bb-a65b-e10349278789}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_PullOutConveyorAddress :
+(
+	Undefined := 0,
+	I3_Slide, 	// it's left slide of face machine operating side 
+	I4_Slide	// it's right slide of face machine operating side 
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

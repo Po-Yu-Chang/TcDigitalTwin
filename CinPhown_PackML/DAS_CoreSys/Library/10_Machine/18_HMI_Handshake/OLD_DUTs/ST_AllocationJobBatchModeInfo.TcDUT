@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AllocationJobBatchModeInfo" Id="{2c3769c5-451f-45f1-af1f-66a537422340}">
+    <Declaration><![CDATA[TYPE ST_AllocationJobBatchModeInfo :
+STRUCT
+	PickingNeedleInfo			: ARRAY[0..3] OF st_AllocatingNeedleInfo;	//取針資料
+	PlacingNeedleInfo			: ARRAY[0..3] OF st_AllocatingNeedleInfo;	//放針資料
+	FastMode					: BOOL;
+	SyncMode					: BOOL;
+	ID							: INT;   // -1 means null , do not use
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

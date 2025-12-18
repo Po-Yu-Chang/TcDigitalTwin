@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucRobot_CSharpCommand" Id="{8cc619e9-ff0d-4796-be6f-87d625337ae1}">
+    <Declaration><![CDATA[TYPE ST_FanucRobot_CSharpCommand :
+STRUCT
+	RobotVelocity : INT:=5; // Set Fanuc Robot RSR1 prog velocity command. (0~100)
+	ClampA_Open  : BOOL; // True: set clampA open 
+	ClampA_Close : BOOL; // True: Set ClampA Close
+	ClampB_Open  : BOOL; // True: Set ClampB Open
+	ClampB_Close : BOOL; // True: Set ClampB Close
+	ByPassClampSensor : BOOL; // True : Bypass clampA and clampB
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

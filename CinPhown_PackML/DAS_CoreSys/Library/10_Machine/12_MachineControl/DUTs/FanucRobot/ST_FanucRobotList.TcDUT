@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucRobotList" Id="{d88d2db0-da63-4f1f-997f-d6be6a2b963d}">
+    <Declaration><![CDATA[TYPE
+    ST_FanucRobotList :
+    STRUCT
+        StorageRobot  : FB_FanucRobot_Basic_V2;
+        ShippingRobot : FB_FanucRobot_Basic_V2;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

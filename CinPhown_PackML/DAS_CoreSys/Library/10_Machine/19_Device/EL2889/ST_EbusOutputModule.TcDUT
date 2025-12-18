@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_EbusOutputModule" Id="{99f3b29c-6cc4-44e3-ac4a-76c716f91685}">
+    <Declaration><![CDATA[TYPE ST_EbusOutputModule :
+    STRUCT
+        EL2889_01 :ST_EbusDO16;
+        EL2889_02 :ST_EbusDO16;
+        EL2889_03 :ST_EbusDO16;
+        EL2889_04 :ST_EbusDO16;
+        EL2889_05 :ST_EbusDO16;
+        EL2889_06 :ST_EbusDO16;
+        EL2889_07 :ST_EbusDO16;
+        EL2889_08 :ST_EbusDO16;
+        EL2889_09 :ST_EbusDO16;
+        EL2889_10 :ST_EbusDO16;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="GVL_Machine" Id="{9f3a06e4-3712-4cf6-a87e-af15c1d22c60}">
+    <Declaration><![CDATA[VAR_GLOBAL
+    PackTags               : ARRAY[0..3] OF ST_PackMLv30; //PackTags
+    bButtonProductionReq   : BOOL; //TRUE when a mode change to PRODUCTION is requested
+    stChangeIntoProduction : ST_ChangeIntoProduction; //Result of command box "Change to Production requested"
+    CylinderStatus         : ST_CylinderStatus;
+    RemoteData             : ST_SetupPara;
+    AllocatYAxisHome       : BOOL;
+	stModbusByPassInternal : st_ModbusSwitchOff;
+
+END_VAR
+VAR_GLOBAL PERSISTENT
+    LocalData : ST_SetupPara;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_DASCalibrationData" Id="{20eb4078-c089-43b5-ad7a-929d738431a9}">
+    <Declaration><![CDATA[TYPE st_DASCalibrationData :
+    STRUCT
+        //出料手臂在配針區所有的校正位置
+        OutRobotCore :ARRAY[0..99] OF st_OutRobotParameterCore;
+
+        //配針手臂在圓帶的校正位置(第一盒的第一個 第二盒的第一個)
+        AllocateCore :ARRAY[0..7] OF st_AllocateParameterCore;
+
+        //配針手臂在圓盤的校正位置(第一盒的第一個 第二盒的第一個)
+        TurnTableCore :ARRAY[0..7] OF st_AllocateParameterCore;
+
+        // 成品區空盤電梯parameter //[0]=add position, [1]=empty position, [2]=plate gap
+        OutAreaPlateElvatorPosition :ARRAY[0..2] OF st_OneDirectionCore;
+        //成品區推出所有校正座標
+        OutAreaPushMotoPosition :ARRAY[0..9] OF st_OneDirectionCore;
+        //成品區電梯層架所有座標
+        OutAreaElvatorPosition :ARRAY[0..5] OF st_OneDirectionCore;
+        //分選區所有座標
+        WarehouseMovePosition :ARRAY[0..3] OF st_OneDirectionCore;
+        //所有馬達的內部參數
+        ListMotoCore :ARRAY[0..10] OF st_ADSMotoCore;
+        //所有馬達的內部移動參數
+        ListMoveMoveCore :ARRAY[1..6] OF st_ADSMotoMoveCore;
+        //出料區放盒的第一格位置 A 6-position B 6-position edit by johnson
+        OutRobotfirstPosition :ARRAY[0..11] OF st_OutRobotParameterCore;
+		//料架馬達的所有座標
+		RackMotorPosition :ARRAY[0..9] OF st_OneDirectionCore;
+    END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

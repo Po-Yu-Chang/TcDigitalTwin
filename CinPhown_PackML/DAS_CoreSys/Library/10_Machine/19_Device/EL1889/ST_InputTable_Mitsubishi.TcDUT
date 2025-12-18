@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_InputTable_Mitsubishi" Id="{dbaa14a6-4439-4f81-8a83-1a7b6a6b7a8f}">
+    <Declaration><![CDATA[TYPE
+    ST_InputTable_Mitsubishi :
+    STRUCT
+        X6  : uni_IntToBool;
+        X7  : uni_IntToBool;
+        X9  : uni_IntToBool;
+        X10 : uni_IntToBool;
+        X0  : uni_IntToBool;
+        X1  : uni_IntToBool;
+        X2  : uni_IntToBool;
+        X3  : uni_IntToBool;
+        X8  : uni_IntToBool;
+        X11 : uni_IntToBool;
+        X4  : uni_IntToBool;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

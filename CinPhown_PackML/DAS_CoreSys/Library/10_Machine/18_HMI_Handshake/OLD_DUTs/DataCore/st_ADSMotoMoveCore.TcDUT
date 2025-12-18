@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ADSMotoMoveCore" Id="{da6cea69-d8ca-440f-8d9f-9f8bd46590ca}">
+    <Declaration><![CDATA[//上位系統給控制器馬達參數結構
+TYPE st_ADSMotoMoveCore  :
+STRUCT
+	//馬達名稱
+	MotoName:STRING;
+	//是否使用軟體極限
+  	AbsolutionPosition:LREAL;
+	//執行
+	Excute:BOOL;
+	//馬達是否完成移動
+	Done:BOOL;
+	
+	//home
+	Home:BOOL;
+	HomeDone:BOOL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

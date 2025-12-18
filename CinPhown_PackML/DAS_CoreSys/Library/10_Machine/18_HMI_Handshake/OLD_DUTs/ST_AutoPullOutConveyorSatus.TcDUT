@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoPullOutConveyorSatus" Id="{4d932ad2-d527-476e-abbb-47d8cebf756e}">
+    <Declaration><![CDATA[TYPE ST_AutoPullOutConveyorSatus EXTENDS ST_StatusBasic :
+STRUCT
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

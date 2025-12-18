@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_MotorManualCtrl" Id="{3c4ea09c-99de-4c83-9912-c829cfd5027c}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'hide_all_locals'}
+FUNCTION_BLOCK FB_MotorManualCtrl
+
+VAR_INPUT
+	bForward	: BOOL;
+	bBackward	: BOOL;
+	bStop	: BOOL;
+	Motor	: REFERENCE TO  FB_Motor; 
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	ForWardrTrig	:R_TRIG;
+	ForWardfTrig	:F_TRIG;
+	
+	BackWardrTrig	:R_TRIG;
+	BackWardfTrig	:F_TRIG;
+	
+	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ForWardrTrig(CLK:=bForward);
+ForWardfTrig(CLK:=bForward);
+
+BackWardrTrig(CLK:=bBackward);
+BackWardfTrig(CLK:=bBackward);
+
+
+IF ForWardrTrig.Q AND NOT bBackward AND NOT bStop THEN
+	Motor.M_MoveForward();	
+END_IF
+
+IF BackWardrTrig.q AND NOT bForward AND NOT bStop THEN
+	Motor.M_MoveBackward();
+END_IF
+
+IF bStop OR ForWardfTrig.Q OR BackWardfTrig.Q THEN
+	Motor.M_MotorStop();
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_MotorManualCtrl">
+      <LineId Id="9" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="59" Count="1" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="64" Count="1" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="68" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

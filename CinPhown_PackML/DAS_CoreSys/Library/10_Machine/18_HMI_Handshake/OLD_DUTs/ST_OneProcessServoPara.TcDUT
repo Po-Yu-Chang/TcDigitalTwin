@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_OneProcessServoPara" Id="{ec7b37b7-2cee-4531-b3bc-97c8c08a025d}">
+    <Declaration><![CDATA[TYPE ST_OneProcessServoPara :
+    STRUCT
+        Position :LREAL;
+        Velocity :LREAL;
+        Distance :LREAL;
+        ACC      :LREAL;
+        DEC      :LREAL;
+        Jerk     :LREAL;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

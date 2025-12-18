@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_HMI_IOMonitor" Id="{707bb554-82de-4df0-bd0f-e5b009bdf722}">
+    <Declaration><![CDATA[TYPE
+    ST_HMI_IOMonitor :
+    STRUCT
+        Input  : ST_InputTable_MitsubishiWithWheelHouse;
+        Output : ST_OutputTable_Mitsubishi;
+		
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

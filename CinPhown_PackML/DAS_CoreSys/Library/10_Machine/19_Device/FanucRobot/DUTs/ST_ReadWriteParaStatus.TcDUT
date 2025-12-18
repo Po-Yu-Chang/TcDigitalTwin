@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ReadWriteParaStatus" Id="{d83ba99b-b4f0-421c-8593-f6552fd8dc6d}">
+    <Declaration><![CDATA[TYPE
+    ST_ReadWriteParaStatus :
+    STRUCT
+        ReadCompleted  : BIT; // True : Read Offset data completed
+        WriteCompleted : BIT; // True : Write Offset data completed
+        Simulation     : BIT; // True : Fanuc robot some value to be force set
+        AutoMode       : BIT; // True : Fanuc robot in Auto mode
+        T1Mode         : BIT; // True : Fanuc robot in T1 mode, Manual mode in low speed.
+        T2Mode         : BIT; // True : Fanuc robot in T2 mode, Manual mode in high speed.
+        E_Stop         : BIT; // True : Fanuce robot teach pendant's Estop has be press.
+        RSR1_Active    : BIT; // True : RSR1 prog is running
+        RSR2_Active    : BIT; // True : RSR2 prog is running
+        RSR3_Active    : BIT; // True : RSR3 prog is running
+        BzoneInWork    : BIT; // True : Robot request to move in to allocate zone
+        BzoneWaitAllow : BIT; //EzoneInWork    : BIT;
+        JzoneInWork    : BIT;
+		Space_1		   : BIT;	//======================Add Jidian Version V2 Robot ==================17~19 bit
+		Space_2		   : BIT;
+		A_Depot_Laser  : BIT; //ADepot Laser Status
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_PullOutConveyorInfo" Id="{3b9a0d9a-b042-4ee3-8e3f-373494209aad}">
+    <Declaration><![CDATA[TYPE ST_PullOutConveyorInfo :
+STRUCT
+	ConveyorRunningTime : TIME; // This variable is the operating time of the conveyor belt forward.
+	ConveyorReverseTime : TIME; // This variable is the operating time of the conveyor belt reverse.
+	CommandType : E_PullOutConveyorCommandType; // Select PullOut conveyor command.
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

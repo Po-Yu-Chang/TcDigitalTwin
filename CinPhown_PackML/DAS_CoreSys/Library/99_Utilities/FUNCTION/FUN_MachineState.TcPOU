@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FUN_MachineState" Id="{07e1174a-fe03-4e14-a0ba-027685cb59b3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_MachineState : E_MachineState
+VAR_INPUT
+	Error :BOOL;
+	Estop : BOOL;
+	Stop :BOOL;
+	Reset:BOOL;
+	Start :BOOL;
+	HomeBusy :BOOL;
+	Homed :BOOL;
+	MachineMode : E_UnitMode;
+	eMachineState : E_MachineState;
+END_VAR
+VAR
+		
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF Error OR EStop THEN
+	eMachineState:=E_MachineState.Error;
+END_IF
+
+CASE eMachineState OF
+	E_MachineState.Default :
+		eMachineState:=E_MachineState.NotHomed;
+	E_MachineState.NotHomed:
+
+		IF HomeBusy THEN
+			eMachineState:=E_MachineState.Homing;
+		ELSIF Homed THEN
+			eMachineState:=E_MachineState.Homed;
+		END_IF
+	
+	E_MachineState.Homing:
+		
+		IF Homed THEN
+			eMachineState:=E_MachineState.Homed;
+		END_IF
+	
+	E_MachineState.Homed:
+	
+		IF MachineMode = E_UnitMode.AUTO THEN
+			eMachineState:=E_MachineState.Running;
+		END_IF
+		IF HomeBusy THEN
+			eMachineState:=E_MachineState.Homing;
+		END_IF
+		
+	E_MachineState.Running:
+	
+		IF Stop THEN
+			eMachineState:=E_MachineState.StandBy;
+		END_IF
+		
+		 IF MachineMode = E_UnitMode.MANUAL THEN
+			eMachineState:=E_MachineState.Homed;			
+		 END_IF
+		 
+	E_MachineState.StandBy:
+		
+		IF Start THEN
+			eMachineState:=E_MachineState.Running;
+		END_IF
+		IF MachineMode = E_UnitMode.MANUAL THEN
+			eMachineState:=E_MachineState.Homed;			
+		 END_IF
+		 
+	E_MachineState.Error:
+		
+		IF Reset OR NOT Error THEN
+			eMachineState:=E_MachineState.StandBy;
+		END_IF
+
+END_CASE
+
+FUN_MachineState := eMachineState ;]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_MachineState">
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="25" Count="2" />
+      <LineId Id="92" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="39" Count="2" />
+      <LineId Id="75" Count="1" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="43" Count="2" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="58" Count="1" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="50" Count="3" />
+      <LineId Id="66" Count="1" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="46" Count="3" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

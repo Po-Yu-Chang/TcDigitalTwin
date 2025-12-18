@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Wheelhouse_Layer" Id="{93ae4d12-7d8b-4fe0-bc1b-1d95e2b2ec78}">
+    <Declaration><![CDATA[TYPE ST_Wheelhouse_Layer :
+STRUCT
+	Line : ARRAY[1..20] OF BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

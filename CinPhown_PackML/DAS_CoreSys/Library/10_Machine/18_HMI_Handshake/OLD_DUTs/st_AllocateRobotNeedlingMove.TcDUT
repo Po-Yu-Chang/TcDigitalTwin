@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AllocateRobotNeedlingMove" Id="{d5ca6b2d-97f1-4396-b188-2ba937757a93}">
+    <Declaration><![CDATA[TYPE st_AllocateRobotNeedlingMove :
+STRUCT
+	Command 	: ST_CommandBasic;
+	Status 		: ST_StatusBasic;
+	MovingInfo	: ST_AllocateRobotNeedlingMoveInfo;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

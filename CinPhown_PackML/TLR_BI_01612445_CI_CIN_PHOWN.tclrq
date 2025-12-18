@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<TcLicenseInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2011/11/TcLicenseInfo">
+	<TargetInfo>
+		<TcTargetDesc>
+			<TargetType>CX5100-WIN 10.0</TargetType>
+			<TargetVersion>
+				<Version>3</Version>
+				<Revision>1</Revision>
+				<Build>4024</Build>
+			</TargetVersion>
+			<TargetFeatures>
+				<Level>CP</Level>
+				<NetId>5.146.84.212.1.1</NetId>
+			</TargetFeatures>
+			<Hardware>
+				<Model>CX5130-0175</Model>
+				<SerialNo>000t4t83</SerialNo>
+				<CPUVersion>6.3</CPUVersion>
+				<Date>7.12.23</Date>
+				<CPUArchitecture>0</CPUArchitecture>
+			</Hardware>
+			<OsImage>
+				<ImageDevice>CX51x0</ImageDevice>
+				<ImageVersion>1.8</ImageVersion>
+				<ImageLevel>CX1800-0711-1011</ImageLevel>
+				<OsName>Windows 10 Enterprise LTSC 2019</OsName>
+				<OsVersion>10.0</OsVersion>
+			</OsImage>
+		</TcTargetDesc>
+	</TargetInfo>
+	<LicenseInfo>
+		<SystemId Level="40" SerialNo="000t4t83" MacAddress="0001059254d4">{A0CB5DF3-9C2C-7639-7D69-CEE4DE4B5F53}</SystemId>
+		<PurchaseOrder><![CDATA[01612445]]></PurchaseOrder>
+		<CustomOrder><![CDATA[CIN-PHOWN]]></CustomOrder>
+		<IssueTime>2025-08-13T10:19:00</IssueTime>
+		<License ManuallyAdded="true">
+			<LicenseId>{8C57D0A8-BD63-4554-BAE1-E9C797EF0D0E}</LicenseId>
+			<Name>TC3 PLC / NC PTP 10</Name>
+			<OrderNo>TC1250</OrderNo>
+		</License>
+		<License>
+			<LicenseId>{A1AF8A04-C08D-4853-A5A0-0E6C3A278A8C}</LicenseId>
+			<Name>TC3 Modbus-RTU</Name>
+			<OrderNo>TF6255</OrderNo>
+		</License>
+		<License>
+			<LicenseId>{BCA6EE0A-9CE1-4D3F-98CA-413ABC0D94FD}</LicenseId>
+			<Name>TC3 Serial-Communication</Name>
+			<OrderNo>TF6340</OrderNo>
+		</License>
+	</LicenseInfo>
+</TcLicenseInfo>

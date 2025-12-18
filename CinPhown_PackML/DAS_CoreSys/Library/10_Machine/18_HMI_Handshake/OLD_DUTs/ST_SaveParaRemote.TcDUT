@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SaveParaRemote" Id="{fb2e1f73-8733-4acc-9684-b822dcb59df7}">
+    <Declaration><![CDATA[TYPE
+    ST_SaveParaRemote :
+    STRUCT
+        Command : ST_CommandBasic;
+        Status  : ST_StatusBasic;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

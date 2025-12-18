@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_RobotAddress" Id="{dd21978f-5367-40b1-8dc9-b3a53edaa8c5}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE E_RobotAddress :
+(
+	Undefined := 0,
+	Address01,
+	Address02,
+	Address03,
+	Address04,
+	Address05,
+	Address06
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

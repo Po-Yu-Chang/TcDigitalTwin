@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_TransCV" Id="{ef16e584-9213-4c97-87ce-ee733a9f49cd}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_TransCV :
+    STRUCT
+        CamaraHoriz             : ST_SignleValve;
+        DifferentSizeCV_Press2  : ST_SignleValve;
+        DifferentSizeCV_Press1  : ST_SignleValve;
+        DifferentSizeCV_Block1  : ST_SignleValve;
+        SameSizeCV_Press4       : ST_SignleValve;
+        SameSizeCV_Press3       : ST_SignleValve;
+        SameSizeCV_Press2       : ST_SignleValve;
+        SameSizeCV_Press1       : ST_SignleValve;
+        SameSizeCV_Block2       : ST_SignleValve;
+        SameSizeCV_Block1       : ST_SignleValve;
+        TransmitSameSideCV      : ST_MotorCommand;
+        TransmitDifferentSideCV : ST_MotorCommand;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

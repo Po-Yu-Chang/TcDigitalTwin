@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_FanucRobot" Id="{dae8f7a2-7fed-4c6d-8430-f3253d4e3def}">
+    <Declaration><![CDATA[TYPE ST_Manual_FanucRobot :
+STRUCT
+	//============================   Command  ==================================
+	ClampA_Open  : BOOL; // FncRobotCommand : True: set clampA open 
+	ClampA_Close : BOOL; // FncRobotCommand : True: Set ClampA Close
+	ClampB_Open  : BOOL; // FncRobotCommand : True: Set ClampB Open
+	ClampB_Close : BOOL; // FncRobotCommand : True: Set ClampB Close
+	ByPassClampSensor : BOOL; // FncRobotCommand : True : Bypass clampA and clampB
+	
+	//FanucRobot Area Laser Function
+	bStorageA_LaserSwitch	: BOOL := TRUE;
+	bStorageB_LaserSwitch	: BOOL := TRUE;
+	bRoundBelt_LaserSwitch	: BOOL ;
+	bPrep_LaserSwitch		: BOOL := TRUE;
+	bNeedle_LaserSwitch		: BOOL := TRUE;
+	bConveyor_LaserSwitch	: BOOL := TRUE;
+	bRemoval_LaserSwitch	: BOOL := TRUE;
+	
+	//Fanuc Robot Vision Function
+	bRoundBelt_Vision_Switch	: BOOL;
+	bPrep_Vision_Switch			: BOOL;
+	bNeedle_Vision_Switch		: BOOL;
+	bRemoval_Vision_Switch		: BOOL;
+	//==========================================================================
+	
+	// ============================  Status  ===================================
+	ClampA_Open_Status 		: BOOL;   // FncRobotStatus : True : ClampA open
+    ClampB_Open_Status 		: BOOL;   // FncRobotStatus : True : ClampB open
+    ClampA_SensorStatus 	: BOOL;   // FncRobotStatus : True : ClampA sensor detact
+    ClampB_SensorStatus 	: BOOL;   // FncRobotStatus : True : CLampB sensor detact
+	
+	bStorageA_LaserStatus	: BOOL;
+	bStorageB_LaserStatus	: BOOL;
+	bRoundBelt_LaserStatus	: BOOL;
+	bPrep_LaserStatus		: BOOL;
+	bNeedle_LaserStatus		: BOOL;
+	bConveyor_LaserStatus	: BOOL;
+	bRemoval_LaserStatus	: BOOL;
+	
+	ClampA1_Laser_Status	: BOOL;
+	ClampB1_Laser_Status	: BOOL;
+	ClampA2_Laser_Status	: BOOL;
+	ClampB2_Laser_Status	: BOOL;
+	
+	bRoundBelt_Vision_Status	: BOOL;
+	bPrep_Vision_Status			: BOOL;
+	bNeedle_Vision_Status		: BOOL;
+	bRemoval_Vision_Status		: BOOL;
+	//==========================================================================
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

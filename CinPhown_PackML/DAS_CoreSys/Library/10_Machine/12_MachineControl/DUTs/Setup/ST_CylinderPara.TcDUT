@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_CylinderPara" Id="{244f090d-5350-4ef4-8324-d2c9e06e7d4e}">
+    <Declaration><![CDATA[TYPE
+    ST_CylinderPara :
+    STRUCT
+        ExtendTime       : TIME;
+        RetractTime      : TIME;
+        ExtendDelayTime  : TIME;
+        RetractDelayTime : TIME;
+        ExtendOverTime   : TIME;
+        RetractOverTime  : TIME;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

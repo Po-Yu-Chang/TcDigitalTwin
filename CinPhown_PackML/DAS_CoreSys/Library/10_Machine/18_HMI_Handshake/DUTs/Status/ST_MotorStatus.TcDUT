@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_MotorStatus" Id="{c533b804-fb56-4c57-84bb-7831d559bb46}">
+    <Declaration><![CDATA[TYPE
+    ST_MotorStatus :
+    STRUCT
+        WareHouseCV_10          : ST_MotorMonitor;
+        WareHouseCV_09          : ST_MotorMonitor;
+        WareHouseCV_08          : ST_MotorMonitor;
+        WareHouseCV_07          : ST_MotorMonitor;
+        WareHouseCV_06          : ST_MotorMonitor;
+        WareHouseCV_05          : ST_MotorMonitor;
+        WareHouseCV_04          : ST_MotorMonitor;
+        WareHouseCV_03          : ST_MotorMonitor;
+        WareHouseCV_02          : ST_MotorMonitor;
+        WareHouseCV_01          : ST_MotorMonitor;
+        WareHouseCV_20          : ST_MotorMonitor;
+        WareHouseCV_19          : ST_MotorMonitor;
+        WareHouseCV_18          : ST_MotorMonitor;
+        WareHouseCV_17          : ST_MotorMonitor;
+        WareHouseCV_16          : ST_MotorMonitor;
+        WareHouseCV_15          : ST_MotorMonitor;
+        WareHouseCV_14          : ST_MotorMonitor;
+        WareHouseCV_13          : ST_MotorMonitor;
+        WareHouseCV_12          : ST_MotorMonitor;
+        WareHouseCV_11          : ST_MotorMonitor;
+        UpCV                    : ST_MotorMonitor;
+        LowCV                   : ST_MotorMonitor;
+        PullOutCV_A             : ST_MotorMonitor;
+        PullOutCV_B             : ST_MotorMonitor;
+        TransmitSameSideCV      : ST_MotorMonitor;
+        TransmitDifferentSideCV : ST_MotorMonitor;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

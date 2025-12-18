@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ClampingBoxesInfo" Id="{1fd49343-bc83-46d8-a3e3-ce648d142c61}">
+    <Declaration><![CDATA[TYPE st_ClampingBoxesInfo :
+STRUCT
+	NrOfBoxes		: INT;	// 1,2
+	TargetOfClipA	: INT;	// 0 : R1, 1: R2 or To plate index
+	TargetOfClipB	: INT;	// 0 : R1, 1: R2 or To plate index
+	UseClibA		: BOOL;	//Clip A only work if True
+	UseClibB		: BOOL;	//Clip B only work if True
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AllocateStatus" Id="{0a8bf2e5-b109-4ac9-87df-66582705487c}">
+    <Declaration><![CDATA[TYPE
+    ST_AllocateStatus :
+    STRUCT
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

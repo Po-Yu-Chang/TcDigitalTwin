@@ -1,0 +1,208 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ObjectBase_V2" Id="{9a229dbf-569c-4d2e-b613-f9255a5a7b3c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    Execute    :BOOL;   // True : This prog will start.
+    Abort      :BOOL;   // True : This prog will be abort.
+    Reset      :BOOL;   // True : This prog will be reset.
+    ObjectName :STRING; // Set this fb name(About it's action)
+END_VAR
+
+VAR_OUTPUT
+    Busy    :BOOL;        // True : This prog is running.
+    Done    :BOOL;        // True : Command has been executed.
+    Aborted :BOOL;        // True : This prog is aborted.
+    Error   :BOOL;        // True : This prog has an error.
+    ErrorID :UINT;       // Output ErrorID
+    Status  :STRING; // Output this prog status by string(255bytes)
+	UniqueErrorCode :STRING;	
+END_VAR
+
+VAR
+    eState :E_MethodStatus_Basic;
+	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+	uiResettingStep : UDINT;
+	uiAbortingStep : UDINT;
+	_Executed :BOOL; // Executing process completed.
+	_Error : BOOL; // FB has an error.
+	_ResetCompleted : BOOL; // FB resetting completed.
+	_AbortCompleted : BOOL; // FB aborting completed.
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="STATE" Id="{f29bc40c-f94c-4d00-9112-4fc5f7479e02}" />
+    <Action Name="A00_BasicUnits" Id="{e7beb950-0ff4-452f-ad21-f987036a0354}">
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A10_StateControl" Id="{1cecd68d-19c8-433e-8666-d30d4916d754}">
+      <Implementation>
+        <ST><![CDATA[CASE eState OF
+	STATE_DORMANT:
+		M_STATE_DORMANT();
+	STATE_EXECUTING:
+		M_STATE_EXECUTING();
+	STATE_ABORTING:
+		M_STATE_ABORTING();
+	STATE_ABORTED:
+		M_STATE_ABORTED();
+	STATE_DONE:
+		M_STATE_DONE();
+	STATE_ERROR:
+		M_STATE_ERROR();
+	STATE_RESETTING:
+		M_STATE_RESETTING();
+END_CASE
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GetModelState" Id="{02e18dc0-d842-4f77-87d5-8645879337b1}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_OUTPUT
+    xDone    :BOOL;
+    xBusy    :BOOL;
+    xError   :BOOL;
+    xAborted :BOOL;
+    iErrorID :UDINT;	
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xDone    := Done;
+xBusy    := Busy;
+xError   := Error;
+xAborted := Abort;
+iErrorID := ErrorID;
+UniqueErrorCode := THIS^.UniqueErrorCode;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{fcad8b4f-3c87-4c54-a85b-c334a7010435}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := ObjectName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RefLinks" Id="{b1e0f55a-91c7-406a-8907-94fe5bddb966}">
+      <Declaration><![CDATA[METHOD M_RefLinks
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{04eff820-bbb8-4cc6-a29d-96d8b5a052f3}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{32b36f9e-9b49-4ded-aa25-f6b1e7b7b786}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{c00cc89d-031d-49e6-8d51-62dedf9ce7d2}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{3816a803-4d71-4329-95b9-f217fd3a6a05}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{1edd602d-fb03-4bfc-a73f-f32d0970a717}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{29ca477a-9cf8-41da-a9a9-6580a546527a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{cca28a45-fe94-4a4d-885c-859aa5e0107c}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ObjectBase_V2">
+      <LineId Id="23" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.A10_StateControl">
+      <LineId Id="108" Count="14" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="125" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.GetModelState">
+      <LineId Id="17" Count="3" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="31" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.GetName">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_RefLinks">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_STATE_ABORTED">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_STATE_DONE">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_STATE_DORMANT">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_STATE_ERROR">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_STATE_EXECUTING">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ObjectBase_V2.M_STATE_RESETTING">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

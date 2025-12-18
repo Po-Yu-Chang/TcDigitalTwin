@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="GVL_ADS" Id="{5efe146d-04b9-4223-9d5c-08a1f667dbdc}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	
+//========單動一行程============
+//    // one process use
+    //配針單動資料結構
+    AllocateMoveStructure : st_ads_AllocateMoveStructure;
+	//拔針單動資料結構
+    AllocateMoveStructure_Reverse : st_ads_AllocateMoveStructure;     
+    //空盒手臂單動資料結構
+    EmptyRobotToTurnTableMove : st_ads_OneAxisMoveWithPosition;
+    //圓帶單動一行程
+    AllocateCircleMove : st_AllocateCircleMoveStructure;
+    //圓盤單動一行程
+    TurnTableMove : st_ads_OneAxisMoveWithPosition;
+//    //軸還原預設狀態
+//    AxesControl : ARRAY[0..10] OF st_AxisControl;
+    //機台還原預設狀態
+    MachineReset : st_ads_MachineReset;
+    //Empty
+    RareFullBoxPush : st_ads_OutRobtToPlateMove;
+	
+	// Move Allocate robot to needling position
+	AllocationRobotNeedlingMove : st_AllocateRobotNeedlingMove;
+
+//==============自動模式=========================
+
+    //AutoModeUse*-------自動模式圓帶單動
+    AutoMode_AllocateCircleMove : st_AllocateCircleMoveStructure;
+    //AutoModeUse*-------手臂倉儲位置移動
+    AutoMode_RobotWarehouseMove : st_AutoSixAxisWarehouseParameter;
+    //AutoModeUse*-------手臂絕對位置移動
+    AutoMode_RobotAbsMove : st_AutoSixAxisAbsMoveParameter;
+    //AutoModeUse*-------空盒取料移動
+    AutoMode_EmptyBoxMove : st_AutoMode_ClampingBoxesJob;
+    //AutoModeUse*-------圓盤移動
+    AutoMode_TurnTableMOve : st_ads_OneAxisMoveWithPosition;
+    //AutoModeUse--------配針
+    AutoMode_AllocateMove : st_AutoMode_AllocatingJob;
+	 //AutoModeUse--------拔針
+    AutoMode_AllocateMove_Reverse : st_AutoMode_AllocatingJob;
+	//AutoModeUse--------配針batch mode
+	AutoMode_AllocateBatchMode	:ST_AllocationJobBatchMode;
+	//AutoModeUse--------拔針batch mode
+	AutoMode_AllocateBatchMode_Reverse	:ST_AllocationJobBatchMode;
+	//AutoModeSimpleAllocation_Batch
+	AutoMode_SimpleAllocation_Batch		:ST_AllocationJobBatchMode;
+    //AutoMdeUse---------散針放盒
+    AutoMode_RareBoxMove : st_AutoMode_ClampingBoxesJob;
+    //AutoMdeUse---------出貨放盒單動
+    AutoMode_OutBoxMove : st_AutoMode_ClampingToPlate;
+	//AutoMdeUse---------拔針放盒自動模式
+    AutoMode_BoxMoveReverse : st_AutoMode_ClampingBoxesJob;
+    //倉儲分選區移動,移動位置列表需延伸此陣列取得 WarehouseMovePosition :ARRAY[0..3] OF st_OneDirectionCore;
+    AutoMode_WarehouseMove : st_ads_OneAxisMoveWithPosition;
+    //AutoModeUse------手臂區域移動_FeedIn conveyor
+	AutoMode_RobotRegionMove_FeedInConveyor		:ST_AutoMode_RobotRegionMove;
+	//AutoModeUse------手臂區域移動_AllocatedConveyor
+	AutoMode_RobotRegionMove_AllocatedConveyor		:ST_AutoMode_RobotRegionMove;
+	//AutoModeUse------手臂區域移動_Pullout conveyor
+	AutoMode_RobotRegionMove_PullOutConveyor		:ST_AutoMode_RobotRegionMove;
+	//AutoModeUse------手臂區域移動_Buffer area
+	AutoMode_RobotRegionMove_BufferArea		:ST_AutoMode_RobotRegionMove;
+	//AutoModeUse------手臂區域移動_RoundBelt
+	AutoMode_RobotRegionMove_RoundBelt		:ST_AutoMode_RobotRegionMove;
+   //AutoMode MoveConveyorJob------定時移動輸送帶
+    AutoMode_MoveConveyorJob : st_MoveConveyorJob;
+	// Automode Feedin empty box with robot 
+	AutoMode_FeedInEmptyBoxWithRobot : ST_AutoMode_FeedInEmptyBox; // Automode : Feedin empty box with robot from Warehouse and Pullout convenyor
+	// Automode Reload RoundBelt box with robot
+	AutoMode_ReloadRoundBeltBoxWithRobot : ST_AutoMode_ReloadRoundBeltBox; // Automode : Reload RoundBelt box with robot from warehouse
+	//AutoMode UpperFeedInConveyor
+	AutoMode_UpperFeedInConveyor : ST_Auto_UpperFeedInConveyor;
+	//AutoModeUse------倉儲馬達搭配手臂移動
+    AutoMode_WarehouseMotoWithRobotMove : st_AutoSixAxisWarehouseParameter;
+    //SimpleAllocate Autode-----簡易配針
+	AutoMode_SimpleAllocate    : ST_AutoMode_SimpleAllocateHandShake; // AutoMode Simple Allocate
+    AutoMode_PullOutConveyor   : ST_AutoPullOutConveyor; // AutoMode PullOut Conveyor
+    //AutoModeUse----------錯誤通知  Host To PLC
+    AutoMode_ErrorHandle : ST_Alarm;
+    //Alarm report	----------錯誤通知 PLC to Host
+    AlarmAllocation : ARRAY[0..999] OF ST_Alarm_Tmax;
+	//AutoMode Use------ShippingGoodV2		20250304 Min
+	AutoMode_AddBoxes	:ST_AutoAddsBoxes;
+    //=================TwinCat Memory============
+    //TwinCatMemory				:st_TwinCatMemory;
+    //=================全局Home===================
+
+    MachineHome          : st_RegionHome; // Machine all units home command
+    StorageRegionHome    : st_RegionHome;
+    AllocationRegionHome : st_RegionHome;
+    FGARegionHome        : st_RegionHome;
+
+    //===============手自動=======================
+    StorageRegionMode : ST_Mode;
+    AllocationRegion  : ST_Mode;
+    FGARegionMode     : ST_Mode;
+    MachineMode       : ST_Mode;
+	
+    // Operation Pannel Status
+    OpPannel_Status : ST_OpPannelStatus; //PLC -> HMI
+    OpPannel_Ctrl   : ST_OpPannelStatus; // HMI -> PLC
+
+	//20250425 addon
+	//Machine state
+	MachineState : E_MachineState :=E_MachineState.Default;
+	
+	FanucRobot_General               : ST_FanucRobotGeneralCtrl;
+	
+	//AutoModeUse------倉儲小手臂ABS 移動
+	AutoMode_ShippingRobot_Left            : ST_AutoMode_ShippingRobot_MoveAbs;
+	//AutoModeUse------倉儲小手臂ABS 移動
+	AutoMode_ShippingRobot_Right           : ST_AutoMode_ShippingRobot_MoveAbs;
+	//AutoModeUse------倉儲小手臂ABS 移動
+	AutoMode_ShippingRobot_TransmitCVEnd    : ST_AutoMode_ShippingRobot_MoveAbs;
+	//AutoModeUse------同尺寸拍照			
+	AutoMode_SameSizeCVCamera				: ST_AutoMode_TransCVCamera;
+	//AutoModeUse------不同尺寸拍照	
+	AutoMode_DifferentCVCamera				: ST_AutoMode_TransCVCamera;
+		
+	//Shipping FeedOut TransCV with HansLaser handshake Service
+	AutoMode_ShippingLeftSideTransCV			: ST_AutoMode_ShippingLeftSideTransCV;
+	AutoMode_ShippingRightSideTransCV			: ST_AutoMode_ShippingRightSideTransCV;
+	
+	//Reboot Modbus devices
+	RebootModbusDevices			: st_RebootModbusDevices;
+	
+
+
+END_VAR
+]]></Declaration>
+  </GVL>
+</TcPlcObject>

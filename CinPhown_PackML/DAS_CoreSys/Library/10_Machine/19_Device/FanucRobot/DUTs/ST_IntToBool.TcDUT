@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_IntToBool" Id="{55e752fc-67a7-475e-9c81-47554083f232}">
+    <Declaration><![CDATA[TYPE ST_IntToBool :
+UNION
+	nInt : INT:=1;
+	BitList : ST_BoolList;
+END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

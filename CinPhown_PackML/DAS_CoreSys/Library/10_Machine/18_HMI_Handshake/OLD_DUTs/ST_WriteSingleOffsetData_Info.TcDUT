@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_WriteSingleOffsetData_Info" Id="{71172e8f-3342-4f1a-91aa-552360b002a1}">
+    <Declaration><![CDATA[TYPE ST_WriteSingleOffsetData_Info :
+STRUCT
+	WareHouse 	: E_WareHouse; 		// Select the target of warehouse. 
+	Layer 		: E_WareHouseLayer; // Select the target of layer.
+	Slide 		: E_WareHouseSlide; // Select the target of slide.
+	Area		: E_RobotArea; // Select the target of area (Abs move)
+	Address		: INT; // Select the target of Address (Abs move)
+	Clamp		: E_RobotClamp; // 1 :ClampA, 2: ClampB
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_OutRobotCoordinate" Id="{820e9d9a-9065-480e-aaf8-ad491bf41687}">
+    <Declaration><![CDATA[////出料區座標結構
+TYPE
+    ST_OutRobotCoordinate :
+    STRUCT
+        fName  : STRING;
+        index  : LREAL;
+        X      : LREAL;
+        Y      : LREAL;
+        Rotate : LREAL; // 沒作用是否刪除?
+        Clip   : LREAL; // 沒作用是否刪除?
+        Excute : BOOL; // 沒作用是否刪除?
+        Done   : BOOL; // 沒作用是否刪除?
+    END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

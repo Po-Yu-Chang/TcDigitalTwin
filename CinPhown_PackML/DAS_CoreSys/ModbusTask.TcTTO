@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <Task Name="ModbusTask" Id="{8225b8ca-ffbe-4bfa-8993-4cb9d138df54}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>5000</CycleTime>
+    <Priority>21</Priority>
+    <PouCall>
+      <Name>ComModbusRTU</Name>
+    </PouCall>
+    <PouCall>
+      <Name>MAIN2_RS485</Name>
+    </PouCall>
+    <TaskFBGuid>{10c6790e-cc8e-4301-860a-3d85c7625d5a}</TaskFBGuid>
+    <Fb_init>{4cc3e71c-8feb-4a6b-a836-b38243d6b318}</Fb_init>
+    <Fb_exit>{48d72121-2958-44e0-b535-51b9633a8ca4}</Fb_exit>
+    <CycleUpdate>{70d4746e-d3cd-43f2-89de-9949711b6d10}</CycleUpdate>
+    <PostCycleUpdate>{3e6e927f-e7a4-4477-9eae-fe2f07a8df04}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

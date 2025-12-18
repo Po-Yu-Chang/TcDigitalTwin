@@ -1,0 +1,4311 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_FanucRobot_Basic" Id="{0bc73820-43cc-40a7-97c4-2fab14cccb51}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FanucRobot_Basic IMPLEMENTS IBasicElement
+VAR_INPUT
+    Estop  : BOOL; // PLC ->send to Robot E-Stop
+    OpMode : E_FanucRobotOpMode := RSR01; // Select Fanuc robot prog RSR1~RSR3
+    Start  : BOOL;
+    Reset  : BOOL; // Reset Fanuc Robot prog
+    Hold   : BOOL; // PLC - > Robot send hold command
+	ManualCtrl : REFERENCE TO ST_Manual_FanucRobot;
+END_VAR
+
+VAR_OUTPUT
+    qEnable       : BOOL;
+    qFault        : BOOL;
+    E_Stop_Output : BOOL; // Touch pannel's E-Stop has been trig;
+    Halt          : BOOL; // True : Robot in helt state.
+    Error         : BOOL; // True : Robot has error
+    ErrorID       : UDINT; // Error ID output
+	ErrMsg 		  : T_MaxString;	  
+END_VAR
+
+VAR
+    // Slot1
+    _rawIn_UI AT %I*  : ARRAY[0..3] OF BYTE; // UI : Fanuc robot default input rawdate
+    _rawOut_UO AT %Q* : ARRAY[0..3] OF BYTE; // UO : Fanuc robot default output rawdate
+    // Slot2
+    _rawIn_DI AT %I*           : ARRAY[0..31] OF BYTE; // DI : user define input rawdate
+    _rawOut_DO AT %Q*          : ARRAY[0..31] OF BYTE; // DO : user define output rawdate
+    _EIPConnectionState AT %I* : UINT; // EIP connection State (EL6652 to Fanuc Robot)
+    _FanucEIPState AT %I*      : UINT; // EIP module links to FanucRobot state
+    _UI1                       : ST_FanucUI1; // Fanuc Robot default Input
+    _UO1                       : ST_FanucUO1; // Fanuc Robot default Output
+    _DO1                       : ST_Fanuc_WarehouseHandshake; // Fanuc robot program's handshake for clampA warehouse pick / place box
+    _DO2                       : ST_Fanuc_WarehouseHandshake; // Fanuc robot program's handshake for clampB warehouse pick / place box
+    _DO3                       : ST_Fanuc_AbsMove; // Fanuc robot program's handshake for clampA to target area pick / place box
+    _DO4                       : ST_Fanuc_AbsMove; // Fanuc robot program's handshake for clampB to target area pick / place box
+    _DO5                       : ST_Fanuc_GeneralCommand; // Fanuc robot program's handshake for general control
+    _DO6                       : ST_ReadWriteParaCmd; // Fanuc robot Read/Write parameter command 
+    _DO7                       : INT; // Write process X position offset
+    _DO8                       : INT; // Write process Y position offset
+    _DO9                       : INT; // Write process Z position offset
+    _DO10                      : INT; // Write process W position offset
+    _DO11                      : INT; // Write process P position offset
+    _DO12                      : INT; // Write process R position offset
+    _Do13                      : INT; // Write process Area index
+    _Do14                      : INT; // Write process Address index
+    _Do15                      : INT; // Write process Layer index
+    _DO16                      : INT; // Write process Slide index
+    _DO17                      : ST_CCD_ZoneUse; // Set Robot use ccd or not.
+    _DI1                       : ST_Fanuc_Status; // Fanuc robot program's handshake for process status
+    _DI2                       : INT; // Readprocess X position offset
+    _DI3                       : INT; // Read process Y position offset
+    _DI4                       : INT; // Read process Z position offset
+    _DI5                       : INT; // Read process W position offset
+    _DI6                       : INT; // Read process P position offset
+    _DI7                       : INT; // Read process R position offset
+    _DI8                       : INT; // Read process Area index
+    _DI9                       : INT; // Read process Address index
+    _DI10                      : INT; // Read Process Layer index
+    _DI11                      : INT; // Read Process Slide index
+    _DI12                      : ST_ReadWriteParaStatus; // Read/Write process Status
+    _VelocityCommand           : ST_IntToBool; // Robot coordenate velocity
+    // Prog inside
+    eState               : E_MethodStatus_Basic;
+    uiRobotExecutingStep : UINT;
+    uiRobotResettingStep : UINT;
+    _Error               : BOOL;
+    _Abort               : BOOL;
+    TON_Restart_delay    : TON;
+    TON_Reset_delay      : TON;
+    Rtrig_RebootRobot    : R_TRIG;
+    //fbReadSingleOffsetData  : FB_ReadSingleOffsetData;
+    //fbWriteSingleOffsetData : FB_WriteSingleOffsetData;
+    _Status               : T_MaxString;
+    _eOpMode              : E_FanucRobotOpMode;
+    _ModeChanging         : BOOL;
+    _Completed            : BOOL;
+    _ModeChanged          : BOOL;
+    _uiRSR01_Step         : UINT;
+    _uiRSR02_Step         : UINT;
+    _uiRSR03_Step         : UINT;
+    _RetryCount           : INT := 0;
+    Ton_SetProgTimeOut    : TON; // This timer is used to counting the time to switch FanucRobot prog over range.
+    _RSR1_Ready           : BOOL; // Fanuc Robot running in RSR1 prog, allow to Warehouse or AbsMove command.
+    _RSR2_Completed       : BOOL; // Fanuc Robot finished the homing prog.
+    _RSR3_Ready           : BOOL; // Fanuc Robot ready to work.
+    TON_ResetFixDelay     : TON;
+    Ton_RSR_SwitchDelay   : TON; // This timer is used to counting the time to switch rsr prog
+    ErrorCode             : ST_IntToBool; // This value is which read from fanuc robot.
+    Ton_START_SwitchDelay : TON; // This timer is used to counting the time to switch Start signal, Fanuc process need on 0.3s and off
+END_VAR
+
+VAR CONSTANT
+    RetryMaxTimes   : INT  := 3;
+    tSwitchProgTime : TIME := T#1S;
+    tResetFixTime   : TIME := T#0.3S;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Active base units.
+A00_BaseUnit();
+// Active mode controller
+A10_ModeControl();
+// Active state controller
+A20_ErrorHandle();
+
+Update();]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{edf7d6e3-9a68-4529-b8bc-2cf8283228bd}" />
+    <Folder Name="HandShake" Id="{34c6738e-d1c9-4564-af41-94ad237f911b}" />
+    <Folder Name="Method" Id="{bbba280c-21c3-4e7b-8832-222384399108}">
+      <Folder Name="ManualService" Id="{64fcd5b4-b6c0-410a-99fc-7b04ec43bfda}" />
+      <Folder Name="ModeControl" Id="{e0884097-7a47-47a4-8710-d105eba518cc}" />
+      <Folder Name="MoveBoxToFeedInConveyor" Id="{d24354c8-0752-4247-8227-0c4c628ad360}" />
+      <Folder Name="MoveBoxToRoundBelt" Id="{a64cf708-129e-45dc-9c20-6b863e865e55}" />
+      <Folder Name="PulloutConveyor PickupBox" Id="{4f0dc620-233f-4dad-8523-fbe97d073f5f}" />
+      <Folder Name="RobotAbsMove" Id="{a14f3840-2059-4695-b119-5e890098ed13}" />
+      <Folder Name="RobotAction" Id="{25c36e03-c04a-4cbc-8d24-a38043d60a48}">
+        <Folder Name="Reset" Id="{3a33749f-8971-4fa6-9795-0ccd1ed04156}" />
+      </Folder>
+      <Folder Name="Warehouse PickupBox" Id="{ec9118d3-dde0-4393-8178-503775ee23a1}" />
+      <Folder Name="Warehouse PlaceBox" Id="{b7124531-697e-460b-9e24-5f33bf1cd2b0}" />
+    </Folder>
+    <Action Name="A00_BaseUnit" Id="{4b81fef1-c7e2-43cd-8410-921d7e0be76d}" FolderPath="Action\">
+      <Implementation>
+        <ST><![CDATA[Ton_SetProgTimeOut(PT := tSwitchProgTime);
+TON_Restart_delay(PT := T#1S); // Fanuc Robot need IMSTP on over 1s
+TON_Reset_delay(PT := T#1S);
+TON_ResetFixDelay(PT := tResetFixTime);
+Ton_RSR_SwitchDelay(PT := T#0.3S);
+Ton_START_SwitchDelay(PT := T#0.4S); // Fanuc Robot need on 0.3s and then set off
+E_Stop_Output := _DI12.E_Stop;]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A10_ModeControl" Id="{0b521170-cd2b-4ae8-b328-da6a70079750}" FolderPath="Action\">
+      <Implementation>
+        <ST><![CDATA[CASE _eOpMode OF
+	E_FanucRobotOpMode.RSR01:
+		M_ControlRSR01(bCompleted=> _Completed, ModeChanging=> _ModeChanging, ModeChanged=> _ModeChanged);
+	E_FanucRobotOpMode.RSR02:
+		M_ControlRSR02(bCompleted=> _Completed, ModeChanging=> _ModeChanging, ModeChanged=> _ModeChanged);
+END_CASE]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A20_ErrorHandle" Id="{0c94d975-7819-4a36-befd-ccc5ae115868}" FolderPath="Action\">
+      <Implementation>
+        <ST><![CDATA[ErrMsg := _Status;]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A20_StateControl" Id="{81cf4bfc-7225-49dc-b241-9fa6442f63f3}" FolderPath="Action\">
+      <Implementation>
+        <ST><![CDATA[TON_Restart_delay(PT := T#0.5S);
+TON_Reset_delay(PT:=T#0.5S);
+CASE eState OF
+    E_MethodStatus_Basic.STATE_DORMANT:
+        Enable(FALSE);
+        M_Reset(FALSE);
+        uiRobotExecutingStep := 0;
+        uiRobotResettingStep := 0;
+
+		IF _eOpMode = RSR01 OR _eOpMode = RSR02 OR _eOpMode = RSR03 THEN
+			eState := E_MethodStatus_Basic.STATE_EXECUTING;
+		END_IF
+    E_MethodStatus_Basic.STATE_EXECUTING:
+        CASE uiRobotExecutingStep OF
+            0:
+                Enable(iTrigger := TRUE);
+                M_Reset(iTrigger := TRUE);
+				TON_Reset_delay.in := TRUE;
+                IF TON_Reset_delay.Q THEN
+                    uiRobotExecutingStep := 100;
+                END_IF
+            100:
+                M_Reset(iTrigger := FALSE);
+				TON_Reset_delay.IN := FALSE;
+                IF _UO1.UO01_CmdEnabled AND _UO1.UO02_SystemReady THEN
+					_VelocityCommand.nInt := 1;
+                    uiRobotExecutingStep := 200;
+                END_IF
+            200:
+				// Clear Fanuc robot's action
+				GVL_ADS.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute := FALSE;
+				GVL_ADS.AutoMode_RobotAbsMove.HandShake.Execute := FALSE;
+				_DO1.bExecute := FALSE; // Warehouse with robot clampA
+				_DO2.bExecute := FALSE; // Warehouse with robot clampB
+				_DO3.bExecute := FALSE; // AbsMove with robot clampA
+				_DO4.bExecute := FALSE; // AbsMove with robot clampB
+				uiRobotExecutingStep := 250;
+			300:
+				// Switch RSR3 and read all of offset data
+				GVL_ADS.FanucRobot_ReadAllOffsetData.Command.Execute := TRUE;
+				IF GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Done THEN
+					uiRobotExecutingStep := 400;
+				ELSIF GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Error THEN
+					_Error := TRUE;
+					_Status := 'Read All offset data failue';
+				END_IF
+			400:
+                _UI1.UI09_RSR1 := TRUE;
+
+                IF _UO1.UO11_ACK1 THEN
+                    uiRobotExecutingStep := 500;
+                END_IF
+            500:
+                _UI1.UI09_RSR1       := FALSE;
+				_VelocityCommand.nInt := 30;
+                uiRobotExecutingStep := 600;
+            600: // Wait command
+				_DO5.ClampA_Close :=  GVL_ADS.FanucRobot_General.Command.ClampA_Close;
+				_DO5.ClampA_Open := GVL_ADS.FanucRobot_General.Command.ClampA_Open;
+				_DO5.ClampB_Close := GVL_ADS.FanucRobot_General.Command.ClampB_Close;
+				_DO5.ClampB_Open := GVL_ADS.FanucRobot_General.Command.ClampB_Open;
+				_DO6.ByPassClampSensor := GVL_ADS.FanucRobot_General.Command.ByPassClampSensor;
+				GVL_ADS.FanucRobot_General.Status.ClampA_Open := _DI1.ClampA_Open;
+				GVL_ADS.FanucRobot_General.Status.ClampA_Sensor := _DI1.ClampA_Sensor;
+				GVL_ADS.FanucRobot_General.Status.ClampB_Open := _DI1.ClampB_Open ;
+				GVL_ADS.FanucRobot_General.Status.ClampB_Sensor := _DI1.ClampB_Sensor;
+				_VelocityCommand.nInt := GVL_ADS.FanucRobot_General.Command.RobotVelocity;
+        END_CASE
+
+        IF (*qFault OR *)_Error THEN
+            //Soft E-Stop will cause Fault error
+            eState := E_MethodStatus_Basic.STATE_ERROR;
+        ELSIF _Abort THEN
+            eState := E_MethodStatus_Basic.STATE_ABORTING;
+		ELSIF Estop THEN
+			eState := E_MethodStatus_Basic.STATE_ABORTING;
+        END_IF
+    E_MethodStatus_Basic.STATE_DONE:
+        ;
+    E_MethodStatus_Basic.STATE_ABORTING:
+	;
+//        Hold();
+
+        IF _UO1.UO04_PrgPaused THEN
+            eState := E_MethodStatus_Basic.STATE_Aborted;
+        END_IF
+    E_MethodStatus_Basic.STATE_Aborted:
+        IF _UI1.UI05_FaultReset OR GVL.Reset THEN
+            eState := E_MethodStatus_Basic.STATE_RESETTING;
+        END_IF
+    E_MethodStatus_Basic.STATE_ERROR:
+        IF _UI1.UI05_FaultReset THEN
+            eState := E_MethodStatus_Basic.STATE_RESETTING;
+        END_IF
+    E_MethodStatus_Basic.STATE_RESETTING:
+        CASE uiRobotResettingStep OF
+            0:
+                IF NOT _UO1.UO06_Fault THEN
+                    IF NOT _UO1.UO04_PrgPaused THEN
+                        uiRobotResettingStep := 1000;
+                    ELSE
+                        uiRobotResettingStep := 2000;
+                    END_IF
+                ELSE
+                    uiRobotResettingStep := 1000;
+                END_IF
+            1000:
+                M_Reset(TRUE);
+				TON_Reset_delay.in := TRUE;
+				IF TON_Reset_delay.Q THEN
+                	uiRobotResettingStep := 1010;
+				END_IF
+            1010:
+				TON_Reset_delay.IN :=FALSE;
+                M_Reset(FALSE);
+                uiRobotResettingStep := 9000;
+            2000:
+                _UI1.UI02_Hold       := TRUE;
+                TON_Restart_delay.IN := TRUE; // TimeCount start
+
+                IF TON_Restart_delay.Q THEN
+                    uiRobotResettingStep := 2100;
+                END_IF
+            2100:
+                TON_Restart_delay.IN := FALSE;
+                _UI1.UI06_Start      := TRUE;
+                uiRobotResettingStep := 9000;
+            9000:
+                IF NOT qFault THEN
+                    eState := E_MethodStatus_Basic.STATE_DORMANT;
+                END_IF
+        END_CASE
+END_CASE
+Rtrig_RebootRobot(CLK:= GVL.MachineReset.AllReset);
+IF Rtrig_RebootRobot.Q	AND qFault THEN
+	ReBoot();
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Property Name="AbsMoveClampA_Handshake" Id="{9ca10e9c-f9b4-477a-9222-cf75ee96103c}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY AbsMoveClampA_Handshake : ST_Fanuc_AbsMove]]></Declaration>
+      <Get Name="Get" Id="{dafca030-10f3-4113-bdab-2c49cc0cf766}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[AbsMoveClampA_Handshake := _DO3;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{beed5ab5-1543-4456-a5e5-4cd33eb0b47e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Outside -> FB 
+_DO3 := AbsMoveClampA_Handshake;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="AbsMoveClampB_Handshake" Id="{01621633-a99e-4779-9806-a9ff51fe7df8}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY AbsMoveClampB_Handshake : ST_Fanuc_AbsMove]]></Declaration>
+      <Get Name="Get" Id="{d7b1afbb-a801-41bb-a33c-a3d73e09d0c7}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[AbsMoveClampB_Handshake := _DO4;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{d8a60d1c-b211-4de8-820f-240836df59c6}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Outside -> FB 
+_DO4 := AbsMoveClampB_Handshake;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Bzone_AllowWork" Id="{16e5ff50-a1ce-4695-82a6-3ce2c8bd644b}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Bzone_AllowWork : Bool]]></Declaration>
+      <Get Name="Get" Id="{09d09c79-5a55-4833-b850-4f9560c8f04c}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Bzone_AllowWork := THIS^._DO6.Bzone_AllowWork;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{3fb6f540-fcc6-4366-acb4-c2ee02d5d2f7}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ THIS^._DO6.Bzone_AllowWork :=Bzone_AllowWork ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="BZoneInWork" Id="{5a7a15f1-582a-48c6-a383-b0e0a9ef06e2}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY BZoneInWork : Bool]]></Declaration>
+      <Get Name="Get" Id="{4af81b7b-3e01-4f9d-b3e1-094f83017000}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[BZoneInWork := THIS^._DI12.BzoneInWork;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Command" Id="{50b37b0c-06e3-4cd8-b2a3-0609f2429eeb}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Command : ST_FanucUO1]]></Declaration>
+      <Get Name="Get" Id="{07d2c528-3132-463c-8373-acc5f9db2f93}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Command := _UO1;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{4d23544e-fb8f-4290-ac34-d2ff3c636e48}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_UO1 := Command;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Method Name="Enable" Id="{420d2e98-bc4d-426b-97f0-1e30abfa53b6}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD Enable : BOOL
+VAR_INPUT
+iTrigger:BOOL;
+END_VAR
+VAR
+	_RobotEnable:BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_RobotEnable:=iTrigger (*AND NOT Fault()*);
+
+_UI1.UI01_IMSP:=_RobotEnable;
+_UI1.UI02_Hold:=_RobotEnable;
+_UI1.UI03_SFSP:=_RobotEnable;
+_UI1.UI08_Enable:=_RobotEnable;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="EStop" Id="{cc599b02-7c08-4d72-a88e-918e6fea7291}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD EStop
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_UI1.UI03_SFSP:=FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="FanucRobot_MotionStatus" Id="{5fae04d8-9d32-4ddf-b0c6-73ff2f6b150c}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY FanucRobot_MotionStatus : ST_Fanuc_Status]]></Declaration>
+      <Get Name="Get" Id="{9798e90a-130e-48a2-bb3a-44e84ae8232d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[FanucRobot_MotionStatus := _DI1;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Fault" Id="{1ec9f9d0-70ce-406e-976c-dd830579025e}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD Fault : BOOL
+VAR_INPUT
+END_VAR
+VAR_INST
+	bConectionError : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bConectionError := (_EIPConnectionState <>0) OR (_FanucEIPState <> 0);
+Fault:=_UO1.UO06_Fault OR _UO1.UO09_BattAlarm OR _DI1.Error OR bConectionError OR _UO1.UO08_TPEnabled;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetModelState" Id="{2bcecda1-4324-45a4-9752-8bf5021a3e42}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+    xDone : BOOL;
+    xBusy : BOOL;
+    xError : BOOL;
+    xAborted : BOOL;
+    iErrorID : UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xError := Error;
+iErrorID := INT_TO_UDINT(ErrorCode.nInt);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{7f258ab7-2346-482c-b77d-d63e1ac3390f}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD GetName : STRING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := 'Fanuc Robot';]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Hold" Id="{670129a5-8c0d-4eba-9348-066e0143afa8}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD Hold
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_UI1.UI02_Hold:=FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Homed" Id="{365237de-47b6-4ea4-878f-50f0f5a63a15}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Homed : Bool]]></Declaration>
+      <Get Name="Get" Id="{da96b359-cd77-4506-9839-ec5f034ff417}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Homed := _RSR2_Completed OR _UO1.UO07_AtPerch;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="LayerIndex" Id="{1ab5a1ea-8c93-4d1b-97c0-85199c8fc151}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY LayerIndex : INT]]></Declaration>
+      <Set Name="Set" Id="{2665afd8-a9a8-43ea-8679-80dec21612ba}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_Do15 := LayerIndex;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Method Name="M_ActiveRSR01" Id="{2fa09742-52c5-44e7-a65c-0e6b6cea633b}" FolderPath="Method\ModeControl\">
+      <Declaration><![CDATA[METHOD M_ActiveRSR01
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	bCompleted : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eState OF
+    E_MethodStatus_Basic.STATE_DORMANT:
+        Enable(FALSE);
+        M_Reset(FALSE);
+        _uiRSR01_Step        := 0;
+        uiRobotExecutingStep := 0;
+        uiRobotResettingStep := 0;
+        _RSR1_Ready          := FALSE;
+        _RSR2_Completed      := FALSE;
+        _RSR3_Ready          := FALSE;
+        TON_Reset_delay.IN   := FALSE;
+        _RSR1_Ready          := FALSE;
+
+        IF _eOpMode = RSR01 OR _eOpMode = RSR02 OR _eOpMode = RSR03 THEN
+            eState := E_MethodStatus_Basic.STATE_EXECUTING;
+        END_IF
+    E_MethodStatus_Basic.STATE_EXECUTING:
+        CASE uiRobotExecutingStep OF
+            0:
+                Enable(iTrigger := TRUE);
+                TON_Restart_delay.IN := TRUE;
+
+                IF TON_Restart_delay.Q THEN
+                    uiRobotExecutingStep := 10;
+                END_IF
+            10:
+                TON_Restart_delay.IN := FALSE;
+                M_Reset(iTrigger := TRUE);
+                _UI1.UI04_CycleStop  := TRUE;
+                TON_ResetFixDelay.IN := TRUE;
+
+                IF TON_ResetFixDelay.Q THEN
+                    uiRobotExecutingStep := 100;
+                END_IF
+            100:
+                TON_ResetFixDelay.IN := FALSE;
+                TON_Reset_delay.in   := TRUE;
+                M_Reset(iTrigger := FALSE);
+                _UI1.UI04_CycleStop := FALSE;
+
+                IF TON_Reset_delay.Q THEN
+                    IF _UO1.UO01_CmdEnabled AND _UO1.UO02_SystemReady THEN
+                        _Error                := FALSE;
+						Enable(iTrigger := TRUE); // 20250428 Albert
+                        _VelocityCommand.nInt := 1;
+                        uiRobotExecutingStep  := 200;
+                    ELSIF Error THEN
+                        eState := E_MethodStatus_Basic.STATE_ERROR;
+                    END_IF
+                END_IF
+            200:
+                // Clear Fanuc robot's action
+                TON_Reset_delay.IN                                            := FALSE;
+                GVL_ADS.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute := FALSE;
+                GVL_ADS.AutoMode_RobotAbsMove.HandShake.Execute               := FALSE;
+                _DO1.bExecute                                                 := FALSE; // Warehouse with robot clampA
+                _DO2.bExecute                                                 := FALSE; // Warehouse with robot clampB
+                _DO3.bExecute                                                 := FALSE; // AbsMove with robot clampA
+                _DO4.bExecute                                                 := FALSE; // AbsMove with robot clampB
+                uiRobotExecutingStep                                          := 300;
+            300:
+                // Active RSR1
+                _UI1.UI09_RSR1         := TRUE;
+                Ton_SetProgTimeOut.IN  := TRUE; // Switch to RSR1 start.
+                Ton_RSR_SwitchDelay.IN := TRUE;
+
+                IF _UO1.UO11_ACK1 THEN
+                    uiRobotExecutingStep := 400;
+                ELSIF Error OR Ton_SetProgTimeOut.Q THEN
+                    _Error  := TRUE;
+                    _Status := 'RSR1 has error when RSR1 active.';
+                END_IF
+            400:
+                // Close RSR1 command
+                Ton_SetProgTimeOut.IN := FALSE; // Switch to RSR1 close.
+
+                IF Ton_RSR_SwitchDelay.Q THEN
+                    _UI1.UI09_RSR1       := FALSE;
+                    uiRobotExecutingStep := 500;
+                END_IF
+            500:
+                // Allow Robot auto / manual job
+                IF (GVL_ADS.AutoMode_RobotAbsMove.HandShake.Busy OR GVL_ADS.AutoMode_RobotAbsMove.HandShake.Done) AND
+                    (GVL_ADS.AutoMode_WarehouseMotoWithRobotMove.HandShake.Busy OR GVL_ADS.AutoMode_WarehouseMotoWithRobotMove.HandShake.Done) (*AND
+                    (GVL_ADS.ADS_MotoCalibrationData.WDataCore.HandShake.Busy OR GVL_ADS.ADS_MotoCalibrationData.WDataCore.HandShake.Done) AND
+                    (GVL_ADS.ADS_MotoCalibrationData.AbslutCore.HandShake.Busy OR GVL_ADS.ADS_MotoCalibrationData.AbslutCore.HandShake.Done)*)
+                    THEN
+                    bCompleted := FALSE;
+                ELSE
+                    bCompleted := TRUE;
+                END_IF
+				_Status := 'Robot in Executing State';		//edit by min 20250913   
+				M_ManualService();
+                //_VelocityCommand.nInt                           := GVL_ADS.FanucRobot_General.Command.RobotVelocity;
+                _RSR1_Ready                                     := TRUE;
+
+                IF _DI1.Error THEN
+                    _Abort := TRUE;
+                END_IF
+        END_CASE
+
+        IF _Abort THEN
+            eState := E_MethodStatus_Basic.STATE_ABORTING;
+        ELSIF Hold THEN
+            eState := E_MethodStatus_Basic.STATE_Holding;
+		ELSIF _UO1.UO06_Fault THEN
+	        //_Abort := TRUE;
+
+//			_Error  := TRUE;
+//			_Status := 'Robot has fatal alarm';
+//			eState  := E_MethodStatus_Basic.STATE_ERROR;
+        END_IF
+    E_MethodStatus_Basic.STATE_DONE:
+        ;
+    E_MethodStatus_Basic.STATE_ABORTING:
+        eState := E_MethodStatus_Basic.STATE_ERROR;
+    E_MethodStatus_Basic.STATE_Aborted:
+        ;
+    E_MethodStatus_Basic.STATE_ERROR:
+        Enable(iTrigger := FALSE);
+        _RSR1_Ready := FALSE;
+
+        IF reset THEN
+            eState := E_MethodStatus_Basic.STATE_RESETTING;
+        END_IF
+
+        IF NOT Estop AND NOT Error THEN
+            eState := E_MethodStatus_Basic.STATE_RESETTING;
+        END_IF
+    E_MethodStatus_Basic.STATE_RESETTING:
+		CASE uiRobotResettingStep OF
+			0 : 
+				_Error                   := FALSE;
+				_Abort := false;
+				_Status                  := '';
+				M_ResetAllCommand();
+				Ton_START_SwitchDelay.IN := FALSE;
+				TON_Restart_delay.IN := FALSE;
+				uiRobotResettingStep := 10;
+			10:
+				M_Reset(iTrigger :=TRUE);
+				TON_Restart_delay.IN := TRUE;
+				IF TON_Restart_delay.Q THEN
+					M_EnableWith4Input(TRUE	,TRUE,TRUE,FALSE);
+					uiRobotResettingStep := 20;
+				END_IF
+			20:
+				TON_Restart_delay.IN := FALSE;
+				M_Reset(iTrigger :=FALSE);
+        		//Enable(iTrigger := TRUE);
+				IF NOT  _UO1.UO06_Fault THEN
+					M_EnableWith4Input(TRUE	,TRUE,TRUE,FALSE);
+					uiRobotResettingStep := 50;
+				END_IF
+				IF reset THEN
+					uiRobotResettingStep := 0;
+				END_IF
+			30 :
+				M_Reset(iTrigger :=TRUE);
+				uiRobotResettingStep := 40;
+			40:
+				M_Reset(iTrigger :=FALSE);
+				uiRobotResettingStep := 50;
+			50:
+				IF reset THEN
+					uiRobotResettingStep := 0;
+				END_IF
+				IF NOT Error THEN
+					eState := E_MethodStatus_Basic.STATE_DORMANT;
+				END_IF
+		END_CASE
+    E_MethodStatus_Basic.STATE_Holding:
+        _UI1.UI02_Hold := FALSE;
+
+        IF _UO1.UO04_PrgPaused AND NOT _UO1.UO03_PrgRunning THEN
+            Halt    := TRUE;
+            _Status := 'Robot in Halt State';
+            eState  := E_MethodStatus_Basic.STATE_Held;
+        END_IF
+		IF reset THEN
+			eState         := E_MethodStatus_Basic.STATE_ERROR;
+		END_IF
+    E_MethodStatus_Basic.STATE_Held:
+		Ton_START_SwitchDelay.IN := FALSE;
+        IF reset AND NOT Hold THEN
+			//M_Reset(iTrigger:=TRUE);		//edit by min , if need resume robot motion dont set robot UI04 cyclestop
+			_UI1.UI05_FaultReset:=TRUE;
+            Halt := FALSE;
+		ELSE
+			M_Reset(iTrigger :=FALSE);
+        END_IF
+
+        IF NOT Halt AND Start THEN
+            _UI1.UI02_Hold := TRUE;
+            eState         := E_MethodStatus_Basic.STATE_UnHold;
+        END_IF
+    E_MethodStatus_Basic.STATE_UnHold:
+        Ton_START_SwitchDelay.IN := TRUE;
+		 _UI1.UI09_RSR1         := TRUE;
+        _UI1.UI06_Start          := NOT Ton_START_SwitchDelay.Q;
+		
+        IF NOT _UO1.UO04_PrgPaused AND _UO1.UO03_PrgRunning AND NOT _UI1.UI06_Start THEN
+            Ton_START_SwitchDelay.IN := FALSE;
+			 _UI1.UI09_RSR1         := FALSE;
+            eState                   := E_MethodStatus_Basic.STATE_EXECUTING;
+        END_IF
+END_CASE
+
+IF Estop THEN
+   // _Error  := TRUE;
+    _Status := 'EStop has been trigged.';
+	eState  := E_MethodStatus_Basic.STATE_ERROR;
+ELSIF _UO1.UO08_TPEnabled THEN
+    _Error  := TRUE;
+    _Status := 'TP has got contol';
+	eState  := E_MethodStatus_Basic.STATE_ERROR;
+ELSIF _UO1.UO09_BattAlarm THEN
+    _Error  := TRUE;
+    _Status := 'Robot has Battary alarm';
+	eState  := E_MethodStatus_Basic.STATE_ERROR;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ActiveRSR02" Id="{6934ebd0-3c5e-4193-aca9-2ebdb53c715c}" FolderPath="Method\ModeControl\">
+      <Declaration><![CDATA[METHOD M_ActiveRSR02
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	bCompleted : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eState OF
+	E_MethodStatus_Basic.STATE_DORMANT:
+        Enable(FALSE);
+        M_Reset(FALSE);
+        _uiRSR01_Step := 0;
+		uiRobotExecutingStep := 0;
+        uiRobotResettingStep := 0;
+		_RSR1_Ready := FALSE;
+		_RSR2_Completed := FALSE;
+		_RSR3_Ready:=FALSE;
+		TON_Reset_delay.IN := FALSE;
+		IF _eOpMode = RSR01 OR _eOpMode = RSR02 OR _eOpMode = RSR03 THEN
+			eState := E_MethodStatus_Basic.STATE_EXECUTING;
+		END_IF
+	E_MethodStatus_Basic.STATE_EXECUTING:
+		CASE uiRobotExecutingStep OF
+			0:
+                Enable(iTrigger := TRUE);
+				TON_Restart_delay.IN := TRUE;
+				IF TON_Restart_delay.Q THEN
+					uiRobotExecutingStep := 10;
+				END_IF
+			10:
+				TON_Restart_delay.IN := FALSE;
+                M_Reset(iTrigger := TRUE);
+				TON_ResetFixDelay.in := TRUE;
+				_UI1.UI04_CycleStop := TRUE;
+				IF TON_ResetFixDelay.Q THEN
+	                uiRobotExecutingStep := 100;
+				END_IF
+			100:
+				TON_ResetFixDelay.in := FALSE;
+				TON_Reset_delay.in := TRUE;
+                M_Reset(iTrigger := FALSE);
+				_UI1.UI04_CycleStop := FALSE;
+				IF TON_Reset_delay.Q THEN
+					IF _UO1.UO01_CmdEnabled AND _UO1.UO02_SystemReady THEN
+						_VelocityCommand.nInt := 1;
+						uiRobotExecutingStep := 200;
+					ELSIF Error THEN
+						eState := E_MethodStatus_Basic.STATE_ERROR;
+					END_IF
+				END_IF
+			200:
+				// Clear Fanuc robot's action
+				GVL_ADS.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute := FALSE;
+				GVL_ADS.AutoMode_RobotAbsMove.HandShake.Execute := FALSE;
+				_DO1.bExecute := FALSE;
+				_DO2.bExecute := FALSE;
+				_DO3.bExecute := FALSE;
+				_DO4.bExecute := FALSE;
+				uiRobotExecutingStep := 300;
+			300:
+				// Switch RSR02
+				_UI1.UI10_RSR2 := TRUE;
+		
+				IF _UO1.UO12_ACK2 THEN
+					uiRobotExecutingStep := 400;
+				END_IF
+			400:
+				_UI1.UI10_RSR2 := FALSE;
+				IF (_DI1.Done OR _UO1.UO07_AtPerch )  
+				THEN
+					uiRobotExecutingStep := 9900;
+				END_IF
+			9900:
+				eState := E_MethodStatus_Basic.STATE_DONE;
+		END_CASE
+	E_MethodStatus_Basic.STATE_DONE:
+		_RSR2_Completed := TRUE;
+		bCompleted := TRUE;
+	E_MethodStatus_Basic.STATE_ABORTING:
+		;
+	E_MethodStatus_Basic.STATE_Aborted:
+		;
+	E_MethodStatus_Basic.STATE_ERROR:
+		Enable(iTrigger := FALSE);
+		IF reset THEN
+			eState := E_MethodStatus_Basic.STATE_RESETTING;
+		END_IF
+		IF NOT Estop AND NOT Error THEN
+			eState := E_MethodStatus_Basic.STATE_RESETTING;
+		END_IF
+	E_MethodStatus_Basic.STATE_RESETTING:
+		eState := E_MethodStatus_Basic.STATE_DORMANT;
+END_CASE
+IF Estop OR _UO1.UO08_TPEnabled THEN
+	eState := E_MethodStatus_Basic.STATE_ERROR;
+	_Error := TRUE;
+	_Status := 'EStop has been trigged.';
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ActiveRSR03" Id="{00f2b2d9-28d8-42e9-add3-77d902dfe5f0}" FolderPath="Method\ModeControl\">
+      <Declaration><![CDATA[METHOD M_ActiveRSR03
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	bCompleted : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE _uiRSR03_Step OF
+	0:
+		// Stop Prog
+		_RSR1_Ready := FALSE;
+		_RSR2_Completed := FALSE;
+		_RSR3_Ready:=FALSE;
+		_UI1.UI04_CycleStop := TRUE;
+		IF NOT _UO1.UO04_PrgPaused AND NOT _UO1.UO03_PrgRunning THEN
+			_uiRSR03_Step := 100;
+		END_IF
+	100:
+		// Close cycle stop
+		_UI1.UI04_CycleStop := FALSE;
+		// Set current prog - RSR03
+		_UI1.UI11_RSR3 := TRUE;
+		IF _UO1.UO13_ACK3 THEN
+			_uiRSR03_Step := 200;
+		END_IF
+	200:
+		// Clear RSR03 command 
+		_UI1.UI11_RSR3 := FALSE;
+		_uiRSR03_Step := 300;
+	300:
+		// Allow Read / Write offset data
+		IF ( GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Busy  OR GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Done) AND
+			(GVL_ADS.FanucRobot_ReadSingleOffsetData.Status.Busy OR GVL_ADS.FanucRobot_ReadSingleOffsetData.Status.Done) AND
+			(GVL_ADS.FanucRobot_WirteSingleOffsetData.Status.Busy OR GVL_ADS.FanucRobot_WirteSingleOffsetData.Status.Done ) AND
+			(GVL_ADS.FanucRobot_WriteAllOffsetData.Status.Busy OR GVL_ADS.FanucRobot_WriteAllOffsetData.Status.Done) 
+		THEN
+			_RSR3_Ready := FALSE;
+			bCompleted := FALSE;
+		ELSE
+			_RSR3_Ready := FALSE;
+			bCompleted := TRUE;
+		END_IF 
+		
+END_CASE
+
+CASE eState OF
+	E_MethodStatus_Basic.STATE_DORMANT:
+        Enable(FALSE);
+        M_Reset(FALSE);
+        _uiRSR01_Step := 0;
+		uiRobotExecutingStep := 0;
+        uiRobotResettingStep := 0;
+		_RSR1_Ready := FALSE;
+		_RSR2_Completed := FALSE;
+		_RSR3_Ready:=FALSE;
+		TON_Reset_delay.IN := FALSE;
+		IF _eOpMode = RSR01 OR _eOpMode = RSR02 OR _eOpMode = RSR03 THEN
+			eState := E_MethodStatus_Basic.STATE_EXECUTING;
+		END_IF
+	E_MethodStatus_Basic.STATE_EXECUTING:
+		CASE uiRobotExecutingStep OF
+			0:
+                Enable(iTrigger := TRUE);
+				TON_Restart_delay.IN := TRUE;
+				IF TON_Restart_delay.Q THEN
+					uiRobotExecutingStep := 10;
+				END_IF
+			10:
+				TON_Restart_delay.IN := FALSE;
+                M_Reset(iTrigger := TRUE);
+				_UI1.UI04_CycleStop := TRUE;
+				TON_ResetFixDelay.IN := TRUE;
+				IF TON_ResetFixDelay.Q THEN
+                	uiRobotExecutingStep := 100;
+				END_IF
+			100:
+				TON_ResetFixDelay.IN := FALSE;
+				TON_Reset_delay.in := TRUE;
+                M_Reset(iTrigger := FALSE);
+				_UI1.UI04_CycleStop := FALSE;
+				IF TON_Reset_delay.Q THEN
+					IF _UO1.UO01_CmdEnabled AND _UO1.UO02_SystemReady THEN
+						_VelocityCommand.nInt := 1;
+						uiRobotExecutingStep := 200;
+					ELSIF Error THEN
+						eState := E_MethodStatus_Basic.STATE_ERROR;
+					END_IF
+				END_IF
+			200:
+				// Clear Fanuc robot's action
+				TON_Reset_delay.IN := FALSE;
+				GVL_ADS.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute := FALSE;
+				GVL_ADS.AutoMode_RobotAbsMove.HandShake.Execute := FALSE;
+				_DO1.bExecute := FALSE; // Warehouse with robot clampA
+				_DO2.bExecute := FALSE; // Warehouse with robot clampB
+				_DO3.bExecute := FALSE; // AbsMove with robot clampA
+				_DO4.bExecute := FALSE; // AbsMove with robot clampB
+				uiRobotExecutingStep := 300;
+			300:
+				// Active RSR1
+                _UI1.UI11_RSR3 := TRUE;
+                IF _UO1.UO13_ACK3 THEN
+                    uiRobotExecutingStep := 400;
+				ELSIF Error THEN
+					_Error := TRUE;
+					_Status:='RSR3 has error when RSR3 active.';
+                END_IF
+			400:
+				// Allow Read / Write offset data
+				IF ( GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Busy  OR GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Done) AND
+					(GVL_ADS.FanucRobot_ReadSingleOffsetData.Status.Busy OR GVL_ADS.FanucRobot_ReadSingleOffsetData.Status.Done) AND
+					(GVL_ADS.FanucRobot_WirteSingleOffsetData.Status.Busy OR GVL_ADS.FanucRobot_WirteSingleOffsetData.Status.Done ) AND
+					(GVL_ADS.FanucRobot_WriteAllOffsetData.Status.Busy OR GVL_ADS.FanucRobot_WriteAllOffsetData.Status.Done) 
+				THEN
+					_RSR3_Ready := FALSE;
+					bCompleted := FALSE;
+				ELSE
+					_RSR3_Ready := FALSE;
+					bCompleted := TRUE;
+				END_IF 
+		END_CASE
+	E_MethodStatus_Basic.STATE_DONE:
+		;
+	E_MethodStatus_Basic.STATE_ABORTING:
+		;
+	E_MethodStatus_Basic.STATE_Aborted:
+		;
+	E_MethodStatus_Basic.STATE_ERROR:
+		Enable(iTrigger := FALSE);
+		IF Reset THEN
+			eState := E_MethodStatus_Basic.STATE_RESETTING;
+		END_IF
+		IF  Estop AND NOT Error THEN
+			eState := E_MethodStatus_Basic.STATE_RESETTING;
+		END_IF
+	E_MethodStatus_Basic.STATE_RESETTING:
+		eState := E_MethodStatus_Basic.STATE_DORMANT;
+END_CASE
+
+IF Estop OR _UO1.UO08_TPEnabled THEN
+	eState := E_MethodStatus_Basic.STATE_ERROR;
+	_Error := TRUE;
+	_Status := 'EStop has been trigged.';
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ClearState" Id="{c64c69a1-16ce-439b-94a9-5706dddde143}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_ClearState : BOOL;
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+eState := E_MethodStatus_Basic.STATE_DORMANT;
+uiRobotExecutingStep := 0;
+uiRobotResettingStep := 0;
+M_ClearState := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ControlRSR01" Id="{feec3cd3-9615-408b-b7d0-dda2b610dc0c}" FolderPath="Method\ModeControl\">
+      <Declaration><![CDATA[METHOD M_ControlRSR01
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	bCompleted : BOOL;
+	ModeChanging : BOOL;
+	ModeChanged : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ModeChanging := FALSE;
+ModeChanged := TRUE;
+M_ActiveRSR01(bCompleted => bCompleted);
+
+IF OpMode <> _eOpMode (*AND bCompleted*) THEN
+    _uiRSR01_Step := 0;
+    eState := E_MethodStatus_Basic.STATE_DORMANT;
+    _eOpMode := OpMode;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ControlRSR02" Id="{236d38d5-eaf6-48b7-a4ff-3f6420cc4238}" FolderPath="Method\ModeControl\">
+      <Declaration><![CDATA[METHOD M_ControlRSR02
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+    bCompleted : BOOL;
+    ModeChanging : BOOL;
+    ModeChanged : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ModeChanging := FALSE;
+ModeChanged := TRUE;
+M_ActiveRSR02(bCompleted => bCompleted);
+
+IF OpMode <> _eOpMode AND bCompleted THEN
+    _uiRSR02_Step := 0;
+    eState := E_MethodStatus_Basic.STATE_DORMANT;
+    _eOpMode := OpMode;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ControlRSR03" Id="{f2e9a683-bc3f-4f9a-a142-0c18d1cb8f51}" FolderPath="Method\ModeControl\">
+      <Declaration><![CDATA[METHOD M_ControlRSR03
+
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+    bCompleted : BOOL;
+    ModeChanging : BOOL;
+    ModeChanged : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ModeChanging := FALSE;
+ModeChanged := TRUE;
+M_ActiveRSR03(bCompleted => bCompleted);
+
+IF OpMode <> _eOpMode AND bCompleted THEN
+	_uiRSR03_Step := 0;
+	eState := E_MethodStatus_Basic.STATE_DORMANT;
+	_eOpMode := OpMode;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_EnableWith4Input" Id="{e0039895-7a35-4336-9f9e-34c531f7ad0d}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_EnableWith4Input : BOOL
+VAR_INPUT
+	IMSP : BOOL;
+	Hold : BOOL;
+	SFSP : BOOL;
+	Enable : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_UI1.UI01_IMSP:=IMSP;
+_UI1.UI02_Hold:=Hold;
+_UI1.UI03_SFSP:=SFSP;
+_UI1.UI08_Enable:=Enable;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorCode" Id="{bdd07cb0-8ff7-4210-8ba6-32dfc7c5ec79}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_GetErrorCode : Int
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ErrorCode.BitList.Bit0 := _DI1.ErrorID_01;
+ErrorCode.BitList.Bit1 := _DI1.ErrorID_02;
+ErrorCode.BitList.Bit2 := _DI1.ErrorID_03;
+ErrorCode.BitList.Bit3 := _DI1.ErrorID_04;
+ErrorCode.BitList.Bit4 := _DI1.ErrorID_05;
+ErrorCode.BitList.Bit5 := _DI1.ErrorID_06;
+ErrorCode.BitList.Bit6 := _DI1.ErrorID_07;
+ErrorCode.BitList.Bit7 := _DI1.ErrorID_08;		
+//ErrorCode.BitList.Bit8 := _DI1.ErrorID_09;
+//ErrorCode.BitList.Bit9 := _DI1.ErrorID_10;
+M_GetErrorCode := ErrorCode.nInt;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Kawasaki_API" Id="{e443b7b2-4dca-4f98-8435-0a38e11d4476}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_Kawasaki_API
+VAR_INPUT
+	WarehouseClampA_Handshake : UINT;
+	WarehouseClampB_Handshake : UINT;
+	AbsMoveClampA_Handshake : UINT;
+	AbsMoveClampB_Handshake : UINT;
+END_VAR
+VAR_OUTPUT
+	Status : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[MEMMOVE(destAddr:=ADR(_DO1),srcAddr:=ADR(WarehouseClampA_Handshake),n:=2);
+MEMMOVE(destAddr:=ADR(_DO2),srcAddr:=ADR(WarehouseClampB_Handshake),n:=2);
+MEMMOVE(destAddr:=ADR(_DO3),srcAddr:=ADR(AbsMoveClampA_Handshake),n:=2);
+MEMMOVE(destAddr:=ADR(_DO4),srcAddr:=ADR(AbsMoveClampB_Handshake),n:=2);
+IF NOT _UO1.UO08_TPEnabled THEN
+	MEMMOVE(destAddr:=ADR(Status),srcAddr:=ADR(_DI1),n:=2);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ManualService" Id="{3bc9292a-ad30-4959-a2aa-bde115855cd0}" FolderPath="Method\ManualService\">
+      <Declaration><![CDATA[METHOD M_ManualService
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO5.ClampA_Close := ManualCtrl.ClampA_Close;
+_DO5.ClampA_Open := ManualCtrl.ClampA_Open;
+_DO5.ClampB_Close := ManualCtrl.ClampB_Close;
+_DO5.ClampB_Open := ManualCtrl.ClampB_Open;
+_DO6.ByPassClampSensor := ManualCtrl.ByPassClampSensor;
+GVL_ADS.FanucRobot_General.Status.ClampA_Open := _DI1.ClampA_Open;
+GVL_ADS.FanucRobot_General.Status.ClampA_Sensor := _DI1.ClampA_Sensor;
+GVL_ADS.FanucRobot_General.Status.ClampB_Open := _DI1.ClampB_Open;
+GVL_ADS.FanucRobot_General.Status.ClampB_Sensor := _DI1.ClampB_Sensor;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Reset" Id="{acb16e12-1968-4037-ab50-5d2518cf951f}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_Reset : BOOL
+VAR_INPUT
+	iTrigger:BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_UI1.UI05_FaultReset:=iTrigger;
+_UI1.UI04_CycleStop:=iTrigger;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetAbsMoveClampACommand" Id="{5ac9ab50-da9d-4b03-8910-9e395dc45da3}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_ResetAbsMoveClampACommand : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpareData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO3 := SpareData;
+
+M_ResetAbsMoveClampACommand := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetAbsMoveClampBCommand" Id="{779505a1-e0e8-41f4-b118-d278a615c407}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_ResetAbsMoveClampBCommand : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpareData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO4 := SpareData;
+
+M_ResetAbsMoveClampBCommand := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetAbsMoveCommand" Id="{69ddffdb-7ebe-4bc7-bb9f-c57bccbf6080}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_ResetAbsMoveCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear AbsMove ClampA command data
+M_ResetAbsMoveClampACommand();
+// Clear AbsMove ClampB command data
+M_ResetAbsMoveClampBCommand();
+
+M_ResetAbsMoveCommand := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetAllCommand" Id="{b1c3f5cb-91f1-4ed6-8126-e8448e0d7725}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_ResetAllCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear WareHouse command
+M_ResetWareHouseCommand();
+// Clear AbsMove Command
+M_ResetAbsMoveCommand();
+
+M_ResetAllCommand := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetMoveBoxToFeedInConveyor_ClampA" Id="{f310368a-77b5-4326-b5ec-dc54c24761f2}" FolderPath="Method\MoveBoxToFeedInConveyor\">
+      <Declaration><![CDATA[METHOD M_ResetMoveBoxToFeedInConveyor_ClampA : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpaceData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO3 := SpaceData;
+
+M_ResetMoveBoxToFeedInConveyor_ClampA := TRUE; // Mehtod end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetMoveBoxToFeedInConveyor_ClampB" Id="{0ddb3060-cc32-49f7-8dcc-368647713061}" FolderPath="Method\MoveBoxToFeedInConveyor\">
+      <Declaration><![CDATA[METHOD M_ResetMoveBoxToFeedInConveyor_ClampB : BOOL
+VAR_INPUT
+END_VAR
+VAR
+    SpaceData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO4 := SpaceData;
+
+M_ResetMoveBoxToFeedInConveyor_ClampB := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetMoveBoxToFeedInConveyor_ClampBoth" Id="{e3330aea-959a-43b0-98fa-a3163b8408c2}" FolderPath="Method\MoveBoxToFeedInConveyor\">
+      <Declaration><![CDATA[METHOD M_ResetMoveBoxToFeedInConveyor_ClampBoth : BOOL
+VAR_INPUT
+END_VAR
+VAR
+    SpaceData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO3 := SpaceData;
+_DO4 := SpaceData;
+
+M_ResetMoveBoxToFeedInConveyor_ClampBoth := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetMoveBoxToRoundBelt_Both" Id="{9739f52a-0108-4485-b7a6-874698275d56}" FolderPath="Method\MoveBoxToRoundBelt\">
+      <Declaration><![CDATA[METHOD M_ResetMoveBoxToRoundBelt_Both : BOOL
+VAR_INPUT
+END_VAR
+VAR
+    SpaceData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO3 := SpaceData;
+_DO4 := SpaceData;
+
+M_ResetMoveBoxToRoundBelt_Both := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetPullOutConveyorPickUpBox_ClampA" Id="{bdfc00e6-5f62-4afd-b71c-ba6030407c78}" FolderPath="Method\PulloutConveyor PickupBox\">
+      <Declaration><![CDATA[METHOD M_ResetPullOutConveyorPickUpBox_ClampA : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpaceData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO3 := SpaceData;
+
+M_ResetPullOutConveyorPickUpBox_ClampA := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetPullOutConveyorPickUpBox_ClampB" Id="{90a151a5-87a1-4610-8e85-bf17d6945349}" FolderPath="Method\PulloutConveyor PickupBox\">
+      <Declaration><![CDATA[METHOD M_ResetPullOutConveyorPickUpBox_ClampB : BOOL
+VAR_INPUT
+END_VAR
+VAR
+    SpaceData : ST_Fanuc_AbsMove;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO4 := SpaceData;
+
+M_ResetPullOutConveyorPickUpBox_ClampB := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetPullOutConveyorPickUpBox_ClampBoth" Id="{25692626-124b-4f77-96ee-e2b0f093c492}" FolderPath="Method\PulloutConveyor PickupBox\">
+      <Declaration><![CDATA[METHOD M_ResetPullOutConveyorPickUpBox_ClampBoth : BOOL
+VAR_INPUT
+END_VAR
+VAR
+    SpaceData : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO3 := SpaceData;
+_DO4 := SpaceData;
+
+M_ResetPullOutConveyorPickUpBox_ClampBoth := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetRobotAbsMove" Id="{4711bcbd-34f3-430c-b22d-5704971dc7e7}" FolderPath="Method\RobotAbsMove\">
+      <Declaration><![CDATA[METHOD PUBLIC M_ResetRobotAbsMove : BOOL
+VAR_INPUT
+	ResetClampA : BOOL;
+	ResetClampB : BOOL;
+END_VAR
+
+VAR
+	SpaceData : ST_Fanuc_AbsMove;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ResetClampA THEN
+	_DO3 := SpaceData;
+END_IF
+
+IF ResetClampB THEN
+	_DO4 := SpaceData;
+END_IF
+
+M_ResetRobotAbsMove:=True;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetWareHouseClampACommand" Id="{ae8b2728-a591-4e39-9aa5-3d82ff4fec2b}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_ResetWareHouseClampACommand : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpareData : ST_Fanuc_WarehouseHandshake;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO1 := SpareData;
+
+M_ResetWareHouseClampACommand := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetWareHouseClampBCommand" Id="{644c5b63-b179-4fb4-8a65-f145752a7ade}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_ResetWareHouseClampBCommand : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpareData : ST_Fanuc_WarehouseHandshake;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_DO2 := SpareData;
+
+M_ResetWareHouseClampBCommand := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetWareHouseCommand" Id="{2ff0818c-0f30-4019-8bff-66ef399f8a7a}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_ResetWareHouseCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear WareHouse ClampA command data
+M_ResetWareHouseClampACommand();
+// Clear WareHouse ClampB command data
+M_ResetWareHouseClampBCommand();
+
+M_ResetWareHouseCommand := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetWareHousePickUpBox_ClampA" Id="{1aee6a5d-500f-417e-ad1f-3e6964560030}" FolderPath="Method\Warehouse PickupBox\">
+      <Declaration><![CDATA[METHOD M_ResetWareHousePickUpBox_ClampA : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpaceData :ST_Fanuc_WarehouseHandshake;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear command
+_DO1 := SpaceData;
+
+M_ResetWareHousePickUpBox_ClampA := TRUE; // Method End]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetWareHousePickUpBox_ClampB" Id="{0621c310-3aa0-40ff-9376-03064c4d014f}" FolderPath="Method\Warehouse PickupBox\">
+      <Declaration><![CDATA[METHOD M_ResetWareHousePickUpBox_ClampB : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpaceData :ST_Fanuc_WarehouseHandshake;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear command
+_DO2 := SpaceData;
+
+M_ResetWareHousePickUpBox_ClampB := TRUE; // Method End]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetWareHousePickUpBox_ClampBoth" Id="{c63368a1-12c6-48c9-a934-6ac751358c1d}" FolderPath="Method\Warehouse PickupBox\">
+      <Declaration><![CDATA[METHOD M_ResetWareHousePickUpBox_ClampBoth : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	SpaceData :ST_Fanuc_WarehouseHandshake;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear command
+_DO1 := SpaceData;
+_DO2 := SpaceData;
+
+M_ResetWareHousePickUpBox_ClampBoth := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartAbsMoveAction_ClampA" Id="{83bda59b-1a4e-41f9-b576-9b499ab42d2f}" FolderPath="Method\RobotAction\">
+      <Declaration><![CDATA[(* This Method is used to send command data to Fanuc Robot, only clampA is work 
+*)
+METHOD M_StartAbsMoveAction_ClampA : BOOL
+VAR_INPUT
+	TargetArea : E_RobotArea; // Select the zone where robot will going.
+	TargetAddress : E_RobotAddress; // Because the address num in different zone, the number define is different. But also need >= 1, 0 = undefined
+	ClampAction : E_ClampAction; // need to define the command
+	BoxReady : BOOL; // Fanuc robot prog will stop at a safe position just before reaching the target location, until `AllowContinue` is set to true.
+END_VAR
+
+VAR_OUTPUT
+    Error  : BOOL;
+    ErrMsg : T_MaxString;
+END_VAR
+
+VAR_INST
+	_Area : ST_IntToBool;
+	_Address : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area
+_Area.nInt := TargetArea;
+
+CASE TargetArea OF
+    E_RobotArea.RoundBelt..E_RobotArea.PullOutConveyor:
+        _Area.nInt := TargetArea;
+ELSE
+    Error  := TRUE;
+    ErrMsg := 'ClampA target area out of range';
+	RETURN;
+END_CASE
+
+// Set target address
+_Address.nInt := TargetAddress;
+
+CASE TargetAddress OF
+    E_RobotAddress.Address01..E_RobotAddress.Address06:
+        _Address.nInt := TargetAddress;
+ELSE
+    Error  := TRUE;
+    ErrMsg := 'ClampA target address out of range';
+	RETURN;
+END_CASE
+
+// Check ClampA Action is correct
+CASE ClampAction OF
+	E_ClampAction.PickUp:
+		_DO3.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO3.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampA Action is wrong command';
+	RETURN;
+END_CASE
+
+// Send robot target area data
+_DO3.nArea1 := _Area.BitList.Bit0;
+_DO3.nArea2 := _Area.BitList.Bit1;
+_DO3.nArea3 := _Area.BitList.Bit2;
+_DO3.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _Address.BitList.Bit0;
+_DO3.nAddress2 := _Address.BitList.Bit1;
+_DO3.nAddress3 := _Address.BitList.Bit2;
+_DO3.nAddress4 := _Address.BitList.Bit3;
+_DO3.nAddress5 := _Address.BitList.Bit4;
+_DO3.nAddress6 := _Address.BitList.Bit5;
+_DO3.nAddress7 := _Address.BitList.Bit6;
+
+
+_DO3.bExecute := NOT Error;
+
+_DO3.bContinue := BoxReady;
+
+M_StartAbsMoveAction_ClampA := NOT Error; // Method end
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartAbsMoveAction_ClampB" Id="{28b0bbc1-db44-46e5-8f82-74a969153ca1}" FolderPath="Method\RobotAction\">
+      <Declaration><![CDATA[(* This Method is used to send command data to Fanuc Robot, only clampB is work 
+*)
+METHOD M_StartAbsMoveAction_ClampB : BOOL
+VAR_INPUT
+    TargetArea    : E_RobotArea;    // Select the zone where robot will going.
+    TargetAddress : E_RobotAddress; // Because the address num in different zone, the number define is different. But also need >= 1, 0 = undefined
+    ClampAction   : E_ClampAction;  // need to define the command
+    BoxReady      : BOOL;           // Fanuc robot prog will stop at a safe position just before reaching the target location, until `AllowContinue` is set to true.
+END_VAR
+
+VAR_OUTPUT
+    Error  : BOOL;
+    ErrMsg : T_MaxString;
+END_VAR
+
+VAR_INST
+    _Area    : ST_IntToBool;
+    _Address : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area
+_Area.nInt := TargetArea;
+
+// Check ClampB target area is correct
+CASE TargetArea OF
+    E_RobotArea.RoundBelt..E_RobotArea.PullOutConveyor:
+        _Area.nInt := TargetArea;
+ELSE
+    Error  := TRUE;
+    ErrMsg := 'ClampB target area out of range';
+	RETURN;
+END_CASE
+
+// Check ClampB target address is correct
+CASE TargetAddress OF
+	E_RobotAddress.Address01..E_RobotAddress.Address06:
+		_Address.nInt := TargetAddress;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampB target address is out of range';
+	RETURN;
+END_CASE
+
+// Check ClampB Action is correct
+CASE ClampAction OF
+	E_ClampAction.PickUp:
+		_DO4.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO4.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampB Action is wrong command';
+	RETURN;
+END_CASE
+
+// Send robot target area data
+_DO4.nArea1 := _Area.BitList.Bit0;
+_DO4.nArea2 := _Area.BitList.Bit1;
+_DO4.nArea3 := _Area.BitList.Bit2;
+_DO4.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO4.nAddress1 := _Address.BitList.Bit0;
+_DO4.nAddress2 := _Address.BitList.Bit1;
+_DO4.nAddress3 := _Address.BitList.Bit2;
+_DO4.nAddress4 := _Address.BitList.Bit3;
+_DO4.nAddress5 := _Address.BitList.Bit4;
+_DO4.nAddress6 := _Address.BitList.Bit5;
+_DO4.nAddress7 := _Address.BitList.Bit6;
+
+_DO4.bExecute := NOT Error;
+
+_DO4.bContinue := BoxReady;
+
+M_StartAbsMoveAction_ClampB := NOT Error; // Method end
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartAbsMoveAction_ClampBoth" Id="{bf925183-ace6-418c-9cee-8afa2593cf94}" FolderPath="Method\RobotAction\">
+      <Declaration><![CDATA[METHOD M_StartAbsMoveAction_ClampBoth : BOOL
+VAR_INPUT
+    ClampA_TargetArea    : E_RobotArea;
+    ClampA_TargetAddress : E_RobotAddress;
+    ClampA_Action        : E_ClampAction;
+    ClampB_TargetArea    : E_RobotArea;
+    ClampB_TargetAddress : E_RobotAddress;
+    ClampB_Action        : E_ClampAction;
+    BoxReady_1st         : BOOL;
+    BoxReady_2nd         : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    Error  : BOOL;
+    ErrMsg : T_MaxString;
+END_VAR
+
+VAR_INST
+    _ClampA_Area    : ST_IntToBool;
+    _ClampB_Area    : ST_IntToBool;
+    _ClampA_Address : ST_IntToBool;
+    _ClampB_Address : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set Target Area
+_ClampA_Area.nInt := ClampA_TargetArea;
+_ClampB_Area.nInt := ClampB_TargetArea;
+// Check ClampA target area is correct
+CASE ClampA_TargetArea OF
+    E_RobotArea.RoundBelt..E_RobotArea.PullOutConveyor:
+        _ClampA_Area.nInt := ClampA_TargetArea;
+ELSE
+    Error  := TRUE;
+    ErrMsg := 'ClampA target area out of range';
+	RETURN;
+END_CASE
+// Check ClampA target address is correct
+CASE ClampA_TargetAddress OF
+    E_RobotAddress.Address01..E_RobotAddress.Address06:
+        _ClampA_Address.nInt := ClampA_TargetAddress;
+ELSE
+    Error  := TRUE;
+    ErrMsg := 'ClampA target address out of range';
+	RETURN;
+END_CASE
+
+// Check ClampA Action is correct
+CASE ClampA_Action OF
+	E_ClampAction.PickUp:
+		_DO3.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO3.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampA Action is wrong command';
+	RETURN;
+END_CASE
+// Check ClampB target area is correct
+CASE ClampB_TargetArea OF
+    E_RobotArea.RoundBelt..E_RobotArea.PullOutConveyor:
+        _ClampB_Area.nInt := ClampB_TargetArea;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampB target area out of range';
+	RETURN;
+END_CASE
+
+// Check ClampB target address is correct
+CASE ClampB_TargetAddress OF
+	E_RobotAddress.Address01..E_RobotAddress.Address06:
+		_ClampB_Address.nInt := ClampB_TargetAddress;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampB target address is out of range';
+	RETURN;
+END_CASE
+// Check ClampB Action is correct
+CASE ClampB_Action OF
+	E_ClampAction.PickUp:
+		_DO4.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO4.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampB Action is wrong command';
+	RETURN;
+END_CASE
+
+// Send robot target area data
+_DO3.nArea1 := _ClampA_Area.BitList.Bit0;
+_DO3.nArea2 := _ClampA_Area.BitList.Bit1;
+_DO3.nArea3 := _ClampA_Area.BitList.Bit2;
+_DO3.nArea4 := _ClampA_Area.BitList.Bit3;
+
+_DO4.nArea1 := _ClampB_Area.BitList.Bit0;
+_DO4.nArea2 := _ClampB_Area.BitList.Bit1;
+_DO4.nArea3 := _ClampB_Area.BitList.Bit2;
+_DO4.nArea4 := _ClampB_Area.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _ClampA_Address.BitList.Bit0;
+_DO3.nAddress2 := _ClampA_Address.BitList.Bit1;
+_DO3.nAddress3 := _ClampA_Address.BitList.Bit2;
+_DO3.nAddress4 := _ClampA_Address.BitList.Bit3;
+_DO3.nAddress5 := _ClampA_Address.BitList.Bit4;
+_DO3.nAddress6 := _ClampA_Address.BitList.Bit5;
+_DO3.nAddress7 := _ClampA_Address.BitList.Bit6;
+
+_DO4.nAddress1 := _ClampB_Address.BitList.Bit0;
+_DO4.nAddress2 := _ClampB_Address.BitList.Bit1;
+_DO4.nAddress3 := _ClampB_Address.BitList.Bit2;
+_DO4.nAddress4 := _ClampB_Address.BitList.Bit3;
+_DO4.nAddress5 := _ClampB_Address.BitList.Bit4;
+_DO4.nAddress6 := _ClampB_Address.BitList.Bit5;
+_DO4.nAddress7 := _ClampB_Address.BitList.Bit6;
+
+_DO3.bExecute := NOT Error;
+_DO4.bExecute := NOT Error;
+
+_DO3.bContinue := BoxReady_1st;
+_DO4.bContinue := BoxReady_2nd;
+
+M_StartAbsMoveAction_ClampBoth := NOT Error; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartMoveBoxToFeedInConveyor_ClampA" Id="{f4faea24-d129-45d1-b16e-1fd8e64ae554}" FolderPath="Method\MoveBoxToFeedInConveyor\">
+      <Declaration><![CDATA[METHOD M_StartMoveBoxToFeedInConveyor_ClampA : BOOL
+VAR_INPUT
+    ConveyorSlideSelect : E_FeedInEmptyBox_PlaceArea;
+    DiffSizeSlideClear  : BOOL;
+    SameSizeSlideClear  : BOOL;
+END_VAR
+VAR_INST
+    _Area    : ST_IntToBool;
+    _Address : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.TransmitCV;
+IF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+	_Address.nInt := 1;
+ELSIF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+	_Address.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN ;
+END_IF
+// Send robot target area data
+_DO3.nArea1 := _Area.BitList.Bit0;
+_DO3.nArea2 := _Area.BitList.Bit1;
+_DO3.nArea3 := _Area.BitList.Bit2;
+_DO3.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _Address.BitList.Bit0;
+_DO3.nAddress2 := _Address.BitList.Bit1;
+_DO3.nAddress3 := _Address.BitList.Bit2;
+_DO3.nAddress4 := _Address.BitList.Bit3;
+_DO3.nAddress5 := _Address.BitList.Bit4;
+_DO3.nAddress6 := _Address.BitList.Bit5;
+_DO3.nAddress7 := _Address.BitList.Bit6;
+
+_DO3.bGet := FALSE; // Place action
+
+_DO3.bExecute := TRUE;
+IF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+	_DO3.bContinue := DiffSizeSlideClear;
+ELSIF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+	_DO3.bContinue := SameSizeSlideClear;
+END_IF
+M_StartMoveBoxToFeedInConveyor_ClampA := TRUE ; // Method end
+
+
+
+
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartMoveBoxToFeedInConveyor_ClampB" Id="{dd9cd97a-41dc-4621-b8d5-5bf601a0cda5}" FolderPath="Method\MoveBoxToFeedInConveyor\">
+      <Declaration><![CDATA[METHOD M_StartMoveBoxToFeedInConveyor_ClampB : BOOL
+VAR_INPUT
+	ConveyorSlideSelect : E_FeedInEmptyBox_PlaceArea;
+    DiffSizeSlideClear  : BOOL;
+    SameSizeSlideClear  : BOOL;
+END_VAR
+VAR_INST
+	_Area : ST_IntToBool;
+	_Address_ClampB :ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.TransmitCV;
+IF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+	_Address_ClampB.nInt := 1;
+ELSIF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+	_Address_ClampB.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN ;
+END_IF
+// Send robot target area data
+_DO4.nArea1 := _Area.BitList.Bit0;
+_DO4.nArea2 := _Area.BitList.Bit1;
+_DO4.nArea3 := _Area.BitList.Bit2;
+_DO4.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO4.nAddress1 := _Address_ClampB.BitList.Bit0;
+_DO4.nAddress2 := _Address_ClampB.BitList.Bit1;
+_DO4.nAddress3 := _Address_ClampB.BitList.Bit2;
+_DO4.nAddress4 := _Address_ClampB.BitList.Bit3;
+_DO4.nAddress5 := _Address_ClampB.BitList.Bit4;
+_DO4.nAddress6 := _Address_ClampB.BitList.Bit5;
+_DO4.nAddress7 := _Address_ClampB.BitList.Bit6;
+
+_DO4.bGet := FALSE; // Place action
+
+_DO4.bExecute := TRUE;
+IF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+	_DO4.bContinue := DiffSizeSlideClear;
+ELSIF ConveyorSlideSelect = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+	_DO4.bContinue := SameSizeSlideClear;
+END_IF
+M_StartMoveBoxToFeedInConveyor_ClampB := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartMoveBoxToFeedInConveyor_ClampBoth" Id="{1a030784-4b78-4b36-863b-175420c701dc}" FolderPath="Method\MoveBoxToFeedInConveyor\">
+      <Declaration><![CDATA[METHOD M_StartMoveBoxToFeedInConveyor_ClampBoth : BOOL
+VAR_INPUT
+//    ConveyorSlideSelect : E_FeedInEmptyBox_PlaceArea;
+    ClampA_Address      : E_FeedInEmptyBox_PlaceArea;
+    ClampB_Address      : E_FeedInEmptyBox_PlaceArea;
+	SlideClear_1st : BOOL;
+	SlideClear_2nd : BOOL;
+END_VAR
+VAR_INST
+    _Area           : ST_IntToBool;
+    _Address_ClampA : ST_IntToBool;
+    _Address_ClampB : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.TransmitCV;
+// Select ClampA target address
+IF ClampA_Address = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+	_Address_ClampA.nInt := 1;
+ELSIF ClampA_Address = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+	_Address_ClampA.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN ;
+END_IF
+
+// Select ClampB target address
+IF ClampB_Address = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+	_Address_ClampB.nInt := 1;
+ELSIF ClampB_Address = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+	_Address_ClampB.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN;
+END_IF
+
+// Send robot target area data
+_DO3.nArea1 := _Area.BitList.Bit0;
+_DO3.nArea2 := _Area.BitList.Bit1;
+_DO3.nArea3 := _Area.BitList.Bit2;
+_DO3.nArea4 := _Area.BitList.Bit3;
+
+_DO4.nArea1 := _Area.BitList.Bit0;
+_DO4.nArea2 := _Area.BitList.Bit1;
+_DO4.nArea3 := _Area.BitList.Bit2;
+_DO4.nArea4 := _Area.BitList.Bit3;
+
+// Send robot clampA target address data
+_DO3.nAddress1 := _Address_ClampA.BitList.Bit0;
+_DO3.nAddress2 := _Address_ClampA.BitList.Bit1;
+_DO3.nAddress3 := _Address_ClampA.BitList.Bit2;
+_DO3.nAddress4 := _Address_ClampA.BitList.Bit3;
+_DO3.nAddress5 := _Address_ClampA.BitList.Bit4;
+_DO3.nAddress6 := _Address_ClampA.BitList.Bit5;
+_DO3.nAddress7 := _Address_ClampA.BitList.Bit6;
+
+_do4.nAddress1 := _Address_ClampB.BitList.Bit0;
+_do4.nAddress2 := _Address_ClampB.BitList.Bit1;
+_do4.nAddress3 := _Address_ClampB.BitList.Bit2;
+_do4.nAddress4 := _Address_ClampB.BitList.Bit3;
+_do4.nAddress5 := _Address_ClampB.BitList.Bit4;
+_do4.nAddress6 := _Address_ClampB.BitList.Bit5;
+_do4.nAddress7 := _Address_ClampB.BitList.Bit6;
+
+
+_DO3.bGet := FALSE;
+_DO4.bGet := FALSE;
+
+_DO3.bExecute := TRUE;
+_DO4.bExecute := TRUE;
+
+_DO3.bContinue := SlideClear_1st;
+_DO4.bContinue := SlideClear_2nd;
+
+M_StartMoveBoxToFeedInConveyor_ClampBoth := TRUE; // Method end
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartMoveBoxToRoundBelt_Both" Id="{fec4b46a-488d-4cd5-88fa-6538f533023b}" FolderPath="Method\MoveBoxToRoundBelt\">
+      <Declaration><![CDATA[METHOD M_StartMoveBoxToRoundBelt_Both : BOOL
+VAR_INPUT
+	CarrierSelect_ClampA : E_ReloadRoundBelt_PlaceAddress;
+	CarrierSelect_ClampB : E_ReloadRoundBelt_PlaceAddress;
+	A2_Sensor : BOOL;
+	A3_Sensor : BOOL;
+	RoundBeltSafe_1st : BOOL;
+	RoundBeltSafe_2nd : BOOL;
+END_VAR
+VAR_INST
+	_Area1 : ST_IntToBool;
+	_Address1 : ST_IntToBool;
+	CarrierAddress1 :E_ReloadRoundBelt_PlaceAddress;
+	_Area2: ST_IntToBool;
+	_Address2 : ST_IntToBool;
+	CarrierAddress2 :E_ReloadRoundBelt_PlaceAddress;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area1.nInt := E_RobotArea.RoundBelt;
+_Area2.nInt := E_RobotArea.RoundBelt;
+
+IF CarrierSelect_ClampA = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_Address1.nInt := 1;
+ELSIF CarrierSelect_ClampA = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_Address1.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN;
+END_IF
+
+IF CarrierSelect_ClampB = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_Address2.nInt := 1;
+ELSIF CarrierSelect_ClampB = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_Address2.nInt := 2;
+ELSE
+	// Wrong command return
+	RETURN;
+END_IF
+// Send robot target area data
+_DO3.nArea1 := _Area1.BitList.Bit0;
+_DO3.nArea2 := _Area1.BitList.Bit1;
+_DO3.nArea3 := _Area1.BitList.Bit2;
+_DO3.nArea4 := _Area1.BitList.Bit3;
+
+_DO4.nArea1 := _Area2.BitList.Bit0;
+_DO4.nArea2 := _Area2.BitList.Bit1;
+_DO4.nArea3 := _Area2.BitList.Bit2;
+_DO4.nArea4 := _Area2.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _Address1.BitList.Bit0;
+_DO3.nAddress2 := _Address1.BitList.Bit1;
+_DO3.nAddress3 := _Address1.BitList.Bit2;
+_DO3.nAddress4 := _Address1.BitList.Bit3;
+_DO3.nAddress5 := _Address1.BitList.Bit4;
+_DO3.nAddress6 := _Address1.BitList.Bit5;
+_DO3.nAddress7 := _Address1.BitList.Bit6;
+
+_DO4.nAddress1 := _Address2.BitList.Bit0;
+_DO4.nAddress2 := _Address2.BitList.Bit1;
+_DO4.nAddress3 := _Address2.BitList.Bit2;
+_DO4.nAddress4 := _Address2.BitList.Bit3;
+_DO4.nAddress5 := _Address2.BitList.Bit4;
+_DO4.nAddress6 := _Address2.BitList.Bit5;
+_DO4.nAddress7 := _Address2.BitList.Bit6;
+
+_DO3.bGet := FALSE; // ClampA Place action
+_DO4.bGet := FALSE; // ClampB Place action
+
+IF CarrierSelect_ClampA = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_DO3.bContinue := NOT A2_Sensor AND RoundBeltSafe_1st;
+ELSIF 	CarrierSelect_ClampA = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_DO3.bContinue := NOT A3_Sensor AND RoundBeltSafe_1st;
+END_IF
+
+IF CarrierSelect_ClampB = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_DO4.bContinue := NOT A2_Sensor AND RoundBeltSafe_2nd;
+ELSIF CarrierSelect_ClampB = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_DO4.bContinue := NOT A3_Sensor AND RoundBeltSafe_2nd;
+END_IF
+
+_DO3.bExecute := TRUE; // ClampA Place action
+_DO4.bExecute := TRUE; // ClampB Place action
+
+
+M_StartMoveBoxToRoundBelt_Both := TRUE; // Method end
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartMoveBoxToRoundBelt_ClampA" Id="{0ae1b5db-63ea-4009-a855-550bb9386903}" FolderPath="Method\MoveBoxToRoundBelt\">
+      <Declaration><![CDATA[METHOD M_StartMoveBoxToRoundBelt_ClampA : BOOL
+VAR_INPUT
+    CarrierSelect : E_ReloadRoundBelt_PlaceAddress;
+    A2_Sensor     : BOOL;
+    A3_Sensor     : BOOL;
+	RoundBeltSafe : BOOL;
+END_VAR
+VAR_INST
+    _Area          : ST_IntToBool;
+    _Address       : ST_IntToBool;
+    CarrierAddress : E_ReloadRoundBelt_PlaceAddress;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.RoundBelt;
+
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+    _Address.nInt := 1;
+ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+    _Address.nInt := 2;
+ELSE
+    // Wrong command, return
+    RETURN;
+END_IF
+
+// Send robot target area data
+_DO3.nArea1 := _Area.BitList.Bit0;
+_DO3.nArea2 := _Area.BitList.Bit1;
+_DO3.nArea3 := _Area.BitList.Bit2;
+_DO3.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _Address.BitList.Bit0;
+_DO3.nAddress2 := _Address.BitList.Bit1;
+_DO3.nAddress3 := _Address.BitList.Bit2;
+_DO3.nAddress4 := _Address.BitList.Bit3;
+_DO3.nAddress5 := _Address.BitList.Bit4;
+_DO3.nAddress6 := _Address.BitList.Bit5;
+_DO3.nAddress7 := _Address.BitList.Bit6;
+
+_DO3.bGet := FALSE; // Place action
+
+_DO3.bExecute := TRUE;
+
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+    _DO3.bContinue := NOT A2_Sensor AND RoundBeltSafe ; // Carrier A2 did not has box
+ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+    _DO3.bContinue := NOT A3_Sensor AND RoundBeltSafe; // Carrier A3 did not has box
+END_IF
+
+M_StartMoveBoxToRoundBelt_ClampA := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartMoveBoxToRoundBelt_ClampB" Id="{8e7f1f12-40c9-48e7-8a2a-fba58914953a}" FolderPath="Method\MoveBoxToRoundBelt\">
+      <Declaration><![CDATA[METHOD M_StartMoveBoxToRoundBelt_ClampB : BOOL
+VAR_INPUT
+    CarrierSelect : E_ReloadRoundBelt_PlaceAddress;
+    A2_Sensor     : BOOL;
+    A3_Sensor     : BOOL;
+	RoundBeltSafe : BOOL;
+END_VAR
+VAR_INST
+    _Area          : ST_IntToBool;
+    _Address       : ST_IntToBool;
+    CarrierAddress : E_ReloadRoundBelt_PlaceAddress;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.RoundBelt;
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_Address.nInt := 1;
+ELSIF  CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_Address.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN ;
+END_IF
+
+// Send robot target area data
+_DO4.nArea1 := _Area.BitList.Bit0;
+_DO4.nArea2 := _Area.BitList.Bit1;
+_DO4.nArea3 := _Area.BitList.Bit2;
+_DO4.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO4.nAddress1 := _Address.BitList.Bit0;
+_DO4.nAddress2 := _Address.BitList.Bit1;
+_DO4.nAddress3 := _Address.BitList.Bit2;
+_DO4.nAddress4 := _Address.BitList.Bit3;
+_DO4.nAddress5 := _Address.BitList.Bit4;
+_DO4.nAddress6 := _Address.BitList.Bit5;
+_DO4.nAddress7 := _Address.BitList.Bit6;
+
+_DO4.bGet := FALSE; // Place action
+
+_DO4.bExecute := TRUE;
+
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_DO4.bContinue := NOT A2_Sensor AND RoundBeltSafe; // Carrier A2 did not has box
+ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_DO4.bContinue := NOT A3_Sensor AND RoundBeltSafe; // Carrier A3 did not has box
+END_IF
+
+M_StartMoveBoxToRoundBelt_ClampB := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartPullOutConveyorPickUpBox_ClampA" Id="{23452bd7-17a5-4a72-ac00-5639a8263a95}" FolderPath="Method\PulloutConveyor PickupBox\">
+      <Declaration><![CDATA[(* This method is used to setting the Fanuc Robot Action " Pickup box from PulloutConveyor , only clampA"
+*)
+METHOD M_StartPullOutConveyorPickUpBox_ClampA : BOOL
+VAR_INPUT
+	ClampA_Address : E_PullOutConveyorPosition;
+	BoxReady : BOOL; // True : Pullout conveyor box is ready. accroding ClampA target slide is ready or not.
+END_VAR
+VAR_INST
+	_Area : ST_IntToBool;
+    _Address_ClampA : ST_IntToBool;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.PullOutConveyor;
+// Select pullout conveyor slide
+IF ClampA_Address = E_PullOutConveyorPosition.I3_Slide THEN
+	_Address_ClampA.nInt := 1;
+ELSIF ClampA_Address = E_PullOutConveyorPosition.I4_Slide THEN
+	_Address_ClampA.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN ;
+END_IF
+// Send robot target area data
+_DO3.nArea1 := _Area.BitList.Bit0;
+_DO3.nArea2 := _Area.BitList.Bit1;
+_DO3.nArea3 := _Area.BitList.Bit2;
+_DO3.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _Address_ClampA.BitList.Bit0;
+_DO3.nAddress2 := _Address_ClampA.BitList.Bit1;
+_DO3.nAddress3 := _Address_ClampA.BitList.Bit2;
+_DO3.nAddress4 := _Address_ClampA.BitList.Bit3;
+_DO3.nAddress5 := _Address_ClampA.BitList.Bit4;
+_DO3.nAddress6 := _Address_ClampA.BitList.Bit5;
+_DO3.nAddress7 := _Address_ClampA.BitList.Bit6;
+
+_DO3.bGet := TRUE; // Pickup action
+_DO3.bExecute := TRUE;
+
+_DO3.bContinue := BoxReady;
+
+M_StartPullOutConveyorPickUpBox_ClampA := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartPullOutConveyorPickUpBox_ClampB" Id="{71194040-8e7d-409d-99de-bc2f4e31ce79}" FolderPath="Method\PulloutConveyor PickupBox\">
+      <Declaration><![CDATA[(* This method is used to setting the Fanuc Robot Action " Pickup box from PulloutConveyor , only clampB"
+*)
+METHOD M_StartPullOutConveyorPickUpBox_ClampB : BOOL
+VAR_INPUT
+	ClampB_Address :E_PullOutConveyorPosition;
+	BoxReady : BOOL; // True : Pullout conveyor box is ready. accroding ClampA target slide is ready or not.
+END_VAR
+VAR_INST
+	_Area : ST_IntToBool;
+    _Address_ClampB : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.PullOutConveyor;
+// Select pullout conveyor slide
+IF ClampB_Address = E_PullOutConveyorPosition.I3_Slide THEN
+	_Address_ClampB.nInt := 1;
+ELSIF ClampB_Address = E_PullOutConveyorPosition.I4_Slide THEN
+	_Address_ClampB.nInt := 2;
+ELSE
+	// Wrong command, return
+	RETURN ;
+END_IF
+
+// Send robot target area data
+_DO4.nArea1 := _Area.BitList.Bit0;
+_DO4.nArea2 := _Area.BitList.Bit1;
+_DO4.nArea3 := _Area.BitList.Bit2;
+_DO4.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO4.nAddress1 := _Address_ClampB.BitList.Bit0;
+_DO4.nAddress2 := _Address_ClampB.BitList.Bit1;
+_DO4.nAddress3 := _Address_ClampB.BitList.Bit2;
+_DO4.nAddress4 := _Address_ClampB.BitList.Bit3;
+_DO4.nAddress5 := _Address_ClampB.BitList.Bit4;
+_DO4.nAddress6 := _Address_ClampB.BitList.Bit5;
+_DO4.nAddress7 := _Address_ClampB.BitList.Bit6;
+
+_DO4.bGet := TRUE; // Pickup action
+_DO4.bExecute := TRUE;
+
+_DO4.bContinue := BoxReady;
+
+M_StartPullOutConveyorPickUpBox_ClampB := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartPullOutConveyorPickUpBox_ClampBoth" Id="{4403be70-85d6-4b8b-8851-f7e4761ce126}" FolderPath="Method\PulloutConveyor PickupBox\">
+      <Declaration><![CDATA[(* This method is used to setting the Fanuc Robot Action " Pickup box from PulloutConveyor, both clamp"
+*)
+METHOD M_StartPullOutConveyorPickUpBox_ClampBoth : BOOL
+VAR_INPUT
+	ClampA_Address : E_PullOutConveyorPosition;
+	ClampB_Address : E_PullOutConveyorPosition;
+	BoxReady_1 : BOOL; // TRUE : 1st target slide box is ready
+	BoxReady_2 : BOOL; // True : 2nd target slide box is ready
+END_VAR
+VAR_INST
+	_Area : ST_IntToBool;
+    _Address_ClampA : ST_IntToBool;
+    _Address_ClampB : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.PullOutConveyor;
+
+// Select ClampA target address
+IF ClampA_Address = E_PullOutConveyorPosition.I3_Slide THEN
+    _Address_ClampA.nInt := 1;
+ELSIF ClampA_Address = E_PullOutConveyorPosition.I4_Slide THEN
+    _Address_ClampA.nInt := 2;
+ELSE
+    // Wrong command, return
+    RETURN;
+END_IF
+
+// Select ClampB target address
+IF ClampB_Address = E_PullOutConveyorPosition.I3_Slide THEN
+    _Address_ClampB.nInt := 1;
+ELSIF ClampB_Address = E_PullOutConveyorPosition.I4_Slide THEN
+    _Address_ClampB.nInt := 2;
+ELSE
+    // Wrong command, return
+    RETURN;
+END_IF
+
+// Send robot target area data
+_DO3.nArea1 := _Area.BitList.Bit0;
+_DO3.nArea2 := _Area.BitList.Bit1;
+_DO3.nArea3 := _Area.BitList.Bit2;
+_DO3.nArea4 := _Area.BitList.Bit3;
+
+_DO4.nArea1 := _Area.BitList.Bit0;
+_DO4.nArea2 := _Area.BitList.Bit1;
+_DO4.nArea3 := _Area.BitList.Bit2;
+_DO4.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _Address_ClampA.BitList.Bit0;
+_DO3.nAddress2 := _Address_ClampA.BitList.Bit1;
+_DO3.nAddress3 := _Address_ClampA.BitList.Bit2;
+_DO3.nAddress4 := _Address_ClampA.BitList.Bit3;
+_DO3.nAddress5 := _Address_ClampA.BitList.Bit4;
+_DO3.nAddress6 := _Address_ClampA.BitList.Bit5;
+_DO3.nAddress7 := _Address_ClampA.BitList.Bit6;
+
+_DO4.nAddress1 := _Address_ClampB.BitList.Bit0;
+_DO4.nAddress2 := _Address_ClampB.BitList.Bit1;
+_DO4.nAddress3 := _Address_ClampB.BitList.Bit2;
+_DO4.nAddress4 := _Address_ClampB.BitList.Bit3;
+_DO4.nAddress5 := _Address_ClampB.BitList.Bit4;
+_DO4.nAddress6 := _Address_ClampB.BitList.Bit5;
+_DO4.nAddress7 := _Address_ClampB.BitList.Bit6;
+
+_DO3.bGet := TRUE;
+_DO4.bGet := TRUE;
+
+_DO3.bExecute := TRUE;
+_DO4.bExecute := TRUE;
+
+_DO3.bContinue := BoxReady_1;
+_DO4.bContinue := BoxReady_2;
+
+M_StartPullOutConveyorPickUpBox_ClampBoth := true; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartRobotAbsMove" Id="{01d0c76d-ae36-47b6-b30a-de3f787b2fc4}" FolderPath="Method\RobotAbsMove\">
+      <Declaration><![CDATA[METHOD PUBLIC M_StartRobotAbsMove : BOOL
+VAR_INPUT
+	GetBox		: BOOL;
+	UseClampA	: BOOL;
+	UseClampB   : BOOL;
+	Area : E_RobotArea;
+	
+	
+	ClampA_Address	: INT;
+	ClampB_Address	: INT;
+
+	BoxReady_1 : BOOL;
+	BoxReady_2 : BOOL;
+	
+END_VAR
+
+VAR_INST
+	_Area	: ST_IntToBool;
+	_Address_ClampA : ST_IntToBool;
+    _Address_ClampB : ST_IntToBool;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//Set target area
+_Area.nInt :=Area;
+
+IF UseClampA THEN
+	_Address_ClampA.nInt:=ClampA_Address;
+	_DO3.nArea1 := _Area.BitList.Bit0;
+	_DO3.nArea2 := _Area.BitList.Bit1;
+	_DO3.nArea3 := _Area.BitList.Bit2;
+	_DO3.nArea4 := _Area.BitList.Bit3;
+
+	_DO3.nAddress1 := _Address_ClampA.BitList.Bit0;
+	_DO3.nAddress2 := _Address_ClampA.BitList.Bit1;
+	_DO3.nAddress3 := _Address_ClampA.BitList.Bit2;
+	_DO3.nAddress4 := _Address_ClampA.BitList.Bit3;
+	_DO3.nAddress5 := _Address_ClampA.BitList.Bit4;
+	_DO3.nAddress6 := _Address_ClampA.BitList.Bit5;
+	_DO3.nAddress7 := _Address_ClampA.BitList.Bit6;
+	_DO3.bGet := GetBox;
+	_DO3.bExecute := TRUE;
+	_DO3.bContinue := BoxReady_1;	
+END_IF
+
+IF UseClampB THEN
+	_Address_ClampB.nInt:=ClampB_Address;
+	_DO4.nArea1 := _Area.BitList.Bit0;
+	_DO4.nArea2 := _Area.BitList.Bit1;
+	_DO4.nArea3 := _Area.BitList.Bit2;
+	_DO4.nArea4 := _Area.BitList.Bit3;
+	
+	_DO4.nAddress1 := _Address_ClampB.BitList.Bit0;
+	_DO4.nAddress2 := _Address_ClampB.BitList.Bit1;
+	_DO4.nAddress3 := _Address_ClampB.BitList.Bit2;
+	_DO4.nAddress4 := _Address_ClampB.BitList.Bit3;
+	_DO4.nAddress5 := _Address_ClampB.BitList.Bit4;
+	_DO4.nAddress6 := _Address_ClampB.BitList.Bit5;
+	_DO4.nAddress7 := _Address_ClampB.BitList.Bit6;
+	_DO4.bGet := GetBox;
+	_DO4.bExecute := TRUE;
+	_DO4.bContinue := BoxReady_2;	
+END_IF
+
+M_StartRobotAbsMove :=TRUE;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+M_StartRobotAbsMove:=TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWarehouseMoveAction_ClampA" Id="{91ef9d72-a716-486a-be97-f2f650c69e62}" FolderPath="Method\RobotAction\">
+      <Declaration><![CDATA[METHOD M_StartWarehouseMoveAction_ClampA : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	ClampAction :E_ClampAction;
+	BoxReady : BOOL;
+END_VAR
+VAR_OUTPUT
+	Error : BOOL;
+	ErrMsg :T_MaxString;
+END_VAR
+VAR_INST
+	_Layer : ST_IntToBool;
+	_Slide : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target warehouse
+CASE WareHouseSelect OF
+    E_WareHouse.WareHouseA:
+        _DO1.bTargetWareHouseA := TRUE;
+        _DO1.bTargetWareHouseB := FALSE;
+    E_WareHouse.WareHouseB:
+        _DO1.bTargetWareHouseA := FALSE;
+        _DO1.bTargetWareHouseB := TRUE;
+ELSE
+    _DO1.bTargetWareHouseA := FALSE;
+    _DO1.bTargetWareHouseB := FALSE;
+    Error                  := TRUE;
+    ErrMsg                 := 'ClampA target warehouse out of range';
+	RETURN;
+END_CASE
+
+// Set Warehouse coordinates
+_Layer.nInt := info.Layer;
+_Slide.nInt := info.Slide;
+
+// Send Layer data to robot
+_DO1.nLayer1 := _Layer.BitList.Bit0;
+_DO1.nLayer2 := _Layer.BitList.Bit1;
+_DO1.nLayer3 := _Layer.BitList.Bit2;
+_DO1.nLayer4 := _Layer.BitList.Bit3;
+
+// Send Slide data to Robot
+_DO1.nSlide1 := _Slide.BitList.Bit0;
+_DO1.nSlide2 := _Slide.BitList.Bit1;
+_DO1.nSlide3 := _Slide.BitList.Bit2;
+_DO1.nSlide4 := _Slide.BitList.Bit3;
+_DO1.nSlide5 := _Slide.BitList.Bit4;
+
+// Send clamp action to robot
+CASE ClampAction OF
+	E_ClampAction.PickUp:
+		_DO1.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO1.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'Clamp action not defined';
+	RETURN;
+END_CASE
+
+// Send action data to robot
+_DO1.bExecute := NOT Error;
+_DO1.bContinue := BoxReady;
+M_StartWarehouseMoveAction_ClampA := NOT Error; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWarehouseMoveAction_ClampB" Id="{b581a0a0-dce0-4e1d-8e63-3cad9901b7ef}" FolderPath="Method\RobotAction\">
+      <Declaration><![CDATA[METHOD M_StartWarehouseMoveAction_ClampB : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	ClampAction :E_ClampAction;
+	BoxReady : BOOL;
+END_VAR
+VAR_OUTPUT
+	Error : BOOL;
+	ErrMsg :T_MaxString;
+END_VAR
+VAR_INST
+	_Layer : ST_IntToBool;
+	_Slide : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target warehouse
+CASE WareHouseSelect OF
+    E_WareHouse.WareHouseA:
+        _DO2.bTargetWareHouseA := TRUE;
+        _DO2.bTargetWareHouseB := FALSE;
+    E_WareHouse.WareHouseB:
+        _DO2.bTargetWareHouseA := FALSE;
+        _DO2.bTargetWareHouseB := TRUE;
+ELSE
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := FALSE;
+    Error                  := TRUE;
+    ErrMsg                 := 'ClampB target warehouse out of range';
+	RETURN;
+END_CASE
+
+// Set Warehouse coordinates
+_Layer.nInt := info.Layer;
+_Slide.nInt := info.Slide;
+
+// Send Layer data to robot
+_DO2.nLayer1 := _Layer.BitList.Bit0;
+_DO2.nLayer2 := _Layer.BitList.Bit1;
+_DO2.nLayer3 := _Layer.BitList.Bit2;
+_DO2.nLayer4 := _Layer.BitList.Bit3;
+
+// Send Slide data to Robot
+_DO2.nSlide1 := _Slide.BitList.Bit0;
+_DO2.nSlide2 := _Slide.BitList.Bit1;
+_DO2.nSlide3 := _Slide.BitList.Bit2;
+_DO2.nSlide4 := _Slide.BitList.Bit3;
+_DO2.nSlide5 := _Slide.BitList.Bit4;
+
+// Send clamp action to robot
+CASE ClampAction OF
+	E_ClampAction.PickUp:
+		_DO2.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO2.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'Clamp action not defined';
+	RETURN;
+END_CASE
+
+// Send action data to robot
+_DO2.bExecute := NOT Error;
+_DO2.bContinue := BoxReady;
+
+M_StartWarehouseMoveAction_ClampB := NOT Error; // Method End]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWarehouseMoveAction_ClampBoth" Id="{06654b35-a456-42d7-bd29-3dbe1a684483}" FolderPath="Method\RobotAction\">
+      <Declaration><![CDATA[METHOD M_StartWarehouseMoveAction_ClampBoth : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	ClampA_Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	ClampB_Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	ClampAction_A : E_ClampAction;
+	ClampAction_B : E_ClampAction;
+	BoxReady_1st : BOOL; // Box is arrived, ready to pickup
+	BoxReady_2nd : BOOL; // Box is arrived, ready to pickup
+END_VAR
+VAR_OUTPUT
+	Error : BOOL;
+	ErrMsg :T_MaxString;
+END_VAR
+VAR_INST
+	_LayerClampA :ST_IntToBool;
+	_SlideClampA : ST_IntToBool;
+	_LayerClampB : ST_IntToBool;
+	_SLideClampB : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target warehouse
+CASE WareHouseSelect OF
+    E_WareHouse.WareHouseA:
+        _DO1.bTargetWareHouseA := TRUE;
+        _DO1.bTargetWareHouseB := FALSE;
+        _DO2.bTargetWareHouseA := TRUE;
+        _DO2.bTargetWareHouseB := FALSE;
+    E_WareHouse.WareHouseB:
+        _DO1.bTargetWareHouseA := FALSE;
+        _DO1.bTargetWareHouseB := TRUE;
+        _DO2.bTargetWareHouseA := FALSE;
+        _DO2.bTargetWareHouseB := TRUE;
+ELSE
+    _DO1.bTargetWareHouseA := FALSE;
+    _DO1.bTargetWareHouseB := FALSE;
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := FALSE;
+    Error                  := TRUE;
+    ErrMsg                 := 'Clamp target warehouse out of range';
+    RETURN;
+END_CASE
+
+// Assign coordinates 
+_LayerClampA.nInt := ClampA_Info.Layer;
+_SlideClampA.nInt := ClampA_Info.Slide;
+_LayerClampB.nInt := ClampB_Info.Layer;
+_SlideClampB.nInt := ClampB_Info.Slide;
+
+// Send Layer data to Robot
+_DO1.nLayer1 := _LayerClampA.BitList.Bit0;
+_DO1.nLayer2 := _LayerClampA.BitList.Bit1;
+_DO1.nLayer3 := _LayerClampA.BitList.Bit2;
+_DO1.nLayer4 := _LayerClampA.BitList.Bit3;
+_DO2.nLayer1 := _LayerClampB.BitList.Bit0;
+_DO2.nLayer2 := _LayerClampB.BitList.Bit1;
+_DO2.nLayer3 := _LayerClampB.BitList.Bit2;
+_DO2.nLayer4 := _LayerClampB.BitList.Bit3;
+// Send Slide data to Robot
+_DO1.nSlide1 := _SlideClampA.BitList.Bit0;
+_DO1.nSlide2 := _SlideClampA.BitList.Bit1;
+_DO1.nSlide3 := _SlideClampA.BitList.Bit2;
+_DO1.nSlide4 := _SlideClampA.BitList.Bit3;
+_DO1.nSlide5 := _SlideClampA.BitList.Bit4;
+
+_DO2.nSlide1 := _SlideClampB.BitList.Bit0;
+_DO2.nSlide2 := _SlideClampB.BitList.Bit1;
+_DO2.nSlide3 := _SlideClampB.BitList.Bit2;
+_DO2.nSlide4 := _SlideClampB.BitList.Bit3;
+_DO2.nSlide5 := _SlideClampB.BitList.Bit4;
+
+// Set clamp action 
+CASE ClampAction_A OF
+	E_ClampAction.PickUp:
+		_DO1.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO1.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampA action not defined';
+	RETURN;
+END_CASE
+
+// Set clamp action
+CASE ClampAction_B OF
+	E_ClampAction.PickUp:
+		_DO2.bGet := TRUE;
+	E_ClampAction.Place:
+		_DO2.bGet := FALSE;
+ELSE
+	Error := TRUE;
+	ErrMsg := 'ClampB action not defined';
+	RETURN;	
+END_CASE
+
+// set execute
+_DO1.bExecute := NOT Error;
+_DO2.bExecute := NOT Error;
+
+_DO1.bContinue := BoxReady_1st;
+_DO2.bContinue := BoxReady_2nd;
+
+M_StartWarehouseMoveAction_ClampBoth := NOT Error; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWareHousePickUpBox_ClampA" Id="{7964043e-453f-407d-a468-3089c7359289}" FolderPath="Method\Warehouse PickupBox\">
+      <Declaration><![CDATA[METHOD M_StartWareHousePickUpBox_ClampA : Bool
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	BoxReady_1st : BOOL;
+END_VAR
+VAR_INST
+	_Layer : ST_IntToBool;
+	_Slide : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Send target warehouse to robot
+IF WareHouseSelect = E_WareHouse.WareHouseA THEN
+	_DO1.bTargetWareHouseA := TRUE;
+	_DO1.bTargetWareHouseB := FALSE;
+ELSIF WareHouseSelect = E_WareHouse.WareHouseB THEN
+	_DO1.bTargetWareHouseA := FALSE;
+	_DO1.bTargetWareHouseB := TRUE;
+ELSE
+	_DO1.bTargetWareHouseA := FALSE;
+	_DO1.bTargetWareHouseB := FALSE;
+END_IF
+
+// Assign coordinates 
+_Layer.nInt := info.Layer;
+_Slide.nInt := info.Slide;
+
+// Send Layer data to Robot
+_DO1.nLayer1 := _Layer.BitList.Bit0;
+_DO1.nLayer2 := _Layer.BitList.Bit1;
+_DO1.nLayer3 := _Layer.BitList.Bit2;
+_DO1.nLayer4 := _Layer.BitList.Bit3;
+
+// Send Slide data to Robot
+_DO1.nSlide1 := _Slide.BitList.Bit0;
+_DO1.nSlide2 := _Slide.BitList.Bit1;
+_DO1.nSlide3 := _Slide.BitList.Bit2;
+_DO1.nSlide4 := _Slide.BitList.Bit3;
+_DO1.nSlide5 := _Slide.BitList.Bit4;
+
+// Send action data to robot
+_DO1.bGet := TRUE; // PickUp
+// Send execute command 
+_DO1.bExecute := TRUE;
+_DO1.bContinue := BoxReady_1st;
+M_StartWareHousePickUpBox_ClampA := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWareHousePickUpBox_ClampB" Id="{9a90291a-dd06-45ce-b537-8ce007e8507e}" FolderPath="Method\Warehouse PickupBox\">
+      <Declaration><![CDATA[METHOD M_StartWareHousePickUpBox_ClampB : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	BoxReady_2nd : BOOL;
+END_VAR
+VAR_INST
+	_Layer : ST_IntToBool;
+	_Slide : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Send target warehouse to robot
+IF WareHouseSelect = E_WareHouse.WareHouseA THEN
+    _DO2.bTargetWareHouseA := TRUE;
+    _DO2.bTargetWareHouseB := FALSE;
+ELSIF WareHouseSelect = E_WareHouse.WareHouseB THEN
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := TRUE;
+ELSE
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := FALSE;
+END_IF
+
+// Assign coordinates 
+_Layer.nInt := info.Layer;
+_Slide.nInt := info.Slide;
+
+// Send Layer data to Robot
+_DO2.nLayer1 := _Layer.BitList.Bit0;
+_DO2.nLayer2 := _Layer.BitList.Bit1;
+_DO2.nLayer3 := _Layer.BitList.Bit2;
+_DO2.nLayer4 := _Layer.BitList.Bit3;
+
+// Send Slide data to Robot
+_DO2.nSlide1 := _Slide.BitList.Bit0;
+_DO2.nSlide2 := _Slide.BitList.Bit1;
+_DO2.nSlide3 := _Slide.BitList.Bit2;
+_DO2.nSlide4 := _Slide.BitList.Bit3;
+_DO2.nSlide5 := _Slide.BitList.Bit4;
+
+// Send action data to robot
+_DO2.bGet := TRUE; // PickUp
+// Send execute command 
+_DO2.bExecute := TRUE;
+_DO2.bContinue:=BoxReady_2nd;
+M_StartWareHousePickUpBox_ClampB := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWareHousePickUpBox_ClampBoth" Id="{ae936cf7-0ab9-4e56-8dcb-c5f437f20844}" FolderPath="Method\Warehouse PickupBox\">
+      <Declaration><![CDATA[METHOD M_StartWareHousePickUpBox_ClampBoth : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	ClampA_Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	ClampB_Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	BoxReady_1st : BOOL; // Box is arrived, ready to pickup
+	BoxReady_2nd : BOOL; // Box is arrived, ready to pickup
+END_VAR
+VAR_OUTPUT
+	Error : BOOL;
+	ErrMsg :T_MaxString;
+END_VAR
+VAR_INST
+	_LayerClampA : ST_IntToBool;
+	_SlideClampA : ST_IntToBool;
+	_LayerClampB : ST_IntToBool;
+	_SlideClampB : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target warehouse
+CASE WareHouseSelect OF
+    E_WareHouse.WareHouseA:
+        _DO1.bTargetWareHouseA := TRUE;
+        _DO1.bTargetWareHouseB := FALSE;
+        _DO2.bTargetWareHouseA := TRUE;
+        _DO2.bTargetWareHouseB := FALSE;
+    E_WareHouse.WareHouseB:
+        _DO1.bTargetWareHouseA := FALSE;
+        _DO1.bTargetWareHouseB := TRUE;
+        _DO2.bTargetWareHouseA := FALSE;
+        _DO2.bTargetWareHouseB := TRUE;
+ELSE
+    _DO1.bTargetWareHouseA := FALSE;
+    _DO1.bTargetWareHouseB := FALSE;
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := FALSE;
+    Error                  := TRUE;
+    ErrMsg                 := 'Clamp target warehouse out of range';
+    RETURN;
+END_CASE
+
+// Assign coordinates 
+_LayerClampA.nInt := ClampA_Info.Layer;
+_SlideClampA.nInt := ClampA_Info.Slide;
+_LayerClampB.nInt := ClampB_Info.Layer;
+_SlideClampB.nInt := ClampB_Info.Slide;
+
+// Send Layer data to Robot
+_DO1.nLayer1 := _LayerClampA.BitList.Bit0;
+_DO1.nLayer2 := _LayerClampA.BitList.Bit1;
+_DO1.nLayer3 := _LayerClampA.BitList.Bit2;
+_DO1.nLayer4 := _LayerClampA.BitList.Bit3;
+
+_DO2.nLayer1 := _LayerClampB.BitList.Bit0;
+_DO2.nLayer2 := _LayerClampB.BitList.Bit1;
+_DO2.nLayer3 := _LayerClampB.BitList.Bit2;
+_DO2.nLayer4 := _LayerClampB.BitList.Bit3;
+// Send Slide data to Robot
+_DO1.nSlide1 := _SlideClampA.BitList.Bit0;
+_DO1.nSlide2 := _SlideClampA.BitList.Bit1;
+_DO1.nSlide3 := _SlideClampA.BitList.Bit2;
+_DO1.nSlide4 := _SlideClampA.BitList.Bit3;
+_DO1.nSlide5 := _SlideClampA.BitList.Bit4;
+
+_DO2.nSlide1 := _SlideClampB.BitList.Bit0;
+_DO2.nSlide2 := _SlideClampB.BitList.Bit1;
+_DO2.nSlide3 := _SlideClampB.BitList.Bit2;
+_DO2.nSlide4 := _SlideClampB.BitList.Bit3;
+_DO2.nSlide5 := _SlideClampB.BitList.Bit4;
+
+// Send action data to robot
+_DO1.bGet := TRUE; // ClampA PickUp
+_DO2.bGet := TRUE; // ClampB PickUp
+// Send execute command 
+_DO1.bExecute := NOT Error;
+_DO2.bExecute := NOT Error;
+
+_DO1.bContinue := BoxReady_1st;
+_DO2.bContinue := BoxReady_2nd;
+
+M_StartWareHousePickUpBox_ClampBoth := NOT Error; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWareHousePlaceBox_ClampA" Id="{baa9108a-3c22-4cda-9bec-c249bd206fa1}" FolderPath="Method\Warehouse PlaceBox\">
+      <Declaration><![CDATA[METHOD M_StartWareHousePlaceBox_ClampA : Bool
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	BoxReady_1st : BOOL;
+END_VAR
+VAR_INST
+	_Layer : ST_IntToBool;
+	_Slide : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Send target warehouse to robot
+IF WareHouseSelect = E_WareHouse.WareHouseA THEN
+	_DO1.bTargetWareHouseA := TRUE;
+	_DO1.bTargetWareHouseB := FALSE;
+ELSIF WareHouseSelect = E_WareHouse.WareHouseB THEN
+	_DO1.bTargetWareHouseA := FALSE;
+	_DO1.bTargetWareHouseB := TRUE;
+ELSE
+	_DO1.bTargetWareHouseA := FALSE;
+	_DO1.bTargetWareHouseB := FALSE;
+END_IF
+
+// Assign coordinates 
+_Layer.nInt := info.Layer;
+_Slide.nInt := info.Slide;
+
+// Send Layer data to Robot
+_DO1.nLayer1 := _Layer.BitList.Bit0;
+_DO1.nLayer2 := _Layer.BitList.Bit1;
+_DO1.nLayer3 := _Layer.BitList.Bit2;
+_DO1.nLayer4 := _Layer.BitList.Bit3;
+
+// Send Slide data to Robot
+_DO1.nSlide1 := _Slide.BitList.Bit0;
+_DO1.nSlide2 := _Slide.BitList.Bit1;
+_DO1.nSlide3 := _Slide.BitList.Bit2;
+_DO1.nSlide4 := _Slide.BitList.Bit3;
+_DO1.nSlide5 := _Slide.BitList.Bit4;
+
+// Send action data to robot
+_DO1.bGet := FALSE; // PickUp
+// Send execute command 
+_DO1.bExecute := TRUE;
+_DO1.bContinue := BoxReady_1st;
+M_StartWareHousePlaceBox_ClampA := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWareHousePlaceBox_ClampB" Id="{8754649d-8eac-451c-b973-ec7827ac7ee2}" FolderPath="Method\Warehouse PlaceBox\">
+      <Declaration><![CDATA[METHOD M_StartWareHousePlaceBox_ClampB : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	BoxReady_2nd : BOOL;
+END_VAR
+VAR_INST
+	_Layer : ST_IntToBool;
+	_Slide : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Send target warehouse to robot
+IF WareHouseSelect = E_WareHouse.WareHouseA THEN
+    _DO2.bTargetWareHouseA := TRUE;
+    _DO2.bTargetWareHouseB := FALSE;
+ELSIF WareHouseSelect = E_WareHouse.WareHouseB THEN
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := TRUE;
+ELSE
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := FALSE;
+END_IF
+
+// Assign coordinates 
+_Layer.nInt := info.Layer;
+_Slide.nInt := info.Slide;
+
+// Send Layer data to Robot
+_DO2.nLayer1 := _Layer.BitList.Bit0;
+_DO2.nLayer2 := _Layer.BitList.Bit1;
+_DO2.nLayer3 := _Layer.BitList.Bit2;
+_DO2.nLayer4 := _Layer.BitList.Bit3;
+
+// Send Slide data to Robot
+_DO2.nSlide1 := _Slide.BitList.Bit0;
+_DO2.nSlide2 := _Slide.BitList.Bit1;
+_DO2.nSlide3 := _Slide.BitList.Bit2;
+_DO2.nSlide4 := _Slide.BitList.Bit3;
+_DO2.nSlide5 := _Slide.BitList.Bit4;
+
+// Send action data to robot
+_DO2.bGet := FALSE; // PickUp
+// Send execute command 
+_DO2.bExecute := TRUE;
+_DO2.bContinue:=BoxReady_2nd;
+M_StartWareHousePlaceBox_ClampB := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartWareHousePlaceUpBox_ClampBoth" Id="{bf4557e7-a91e-4323-9a0d-00cc49ca1fba}" FolderPath="Method\Warehouse PlaceBox\">
+      <Declaration><![CDATA[METHOD M_StartWareHousePlaceUpBox_ClampBoth : BOOL
+VAR_INPUT
+	WareHouseSelect : E_WareHouse;
+	ClampA_Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	ClampB_Info : ST_WareHouseCoordinates; // Input Warehouse with robot move parameter for pickup box;
+	BoxReady_1st : BOOL; // Box is arrived, ready to pickup
+	BoxReady_2nd : BOOL; // Box is arrived, ready to pickup
+END_VAR
+VAR_OUTPUT
+	Error : BOOL;
+	ErrMsg :T_MaxString;
+END_VAR
+VAR_INST
+	_LayerClampA : ST_IntToBool;
+	_SlideClampA : ST_IntToBool;
+	_LayerClampB : ST_IntToBool;
+	_SlideClampB : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target warehouse
+CASE WareHouseSelect OF
+    E_WareHouse.WareHouseA:
+        _DO1.bTargetWareHouseA := TRUE;
+        _DO1.bTargetWareHouseB := FALSE;
+        _DO2.bTargetWareHouseA := TRUE;
+        _DO2.bTargetWareHouseB := FALSE;
+    E_WareHouse.WareHouseB:
+        _DO1.bTargetWareHouseA := FALSE;
+        _DO1.bTargetWareHouseB := TRUE;
+        _DO2.bTargetWareHouseA := FALSE;
+        _DO2.bTargetWareHouseB := TRUE;
+ELSE
+    _DO1.bTargetWareHouseA := FALSE;
+    _DO1.bTargetWareHouseB := FALSE;
+    _DO2.bTargetWareHouseA := FALSE;
+    _DO2.bTargetWareHouseB := FALSE;
+    Error                  := TRUE;
+    ErrMsg                 := 'Clamp target warehouse out of range';
+    RETURN;
+END_CASE
+
+// Assign coordinates 
+_LayerClampA.nInt := ClampA_Info.Layer;
+_SlideClampA.nInt := ClampA_Info.Slide;
+_LayerClampB.nInt := ClampB_Info.Layer;
+_SlideClampB.nInt := ClampB_Info.Slide;
+
+// Send Layer data to Robot
+_DO1.nLayer1 := _LayerClampA.BitList.Bit0;
+_DO1.nLayer2 := _LayerClampA.BitList.Bit1;
+_DO1.nLayer3 := _LayerClampA.BitList.Bit2;
+_DO1.nLayer4 := _LayerClampA.BitList.Bit3;
+
+_DO2.nLayer1 := _LayerClampB.BitList.Bit0;
+_DO2.nLayer2 := _LayerClampB.BitList.Bit1;
+_DO2.nLayer3 := _LayerClampB.BitList.Bit2;
+_DO2.nLayer4 := _LayerClampB.BitList.Bit3;
+// Send Slide data to Robot
+_DO1.nSlide1 := _SlideClampA.BitList.Bit0;
+_DO1.nSlide2 := _SlideClampA.BitList.Bit1;
+_DO1.nSlide3 := _SlideClampA.BitList.Bit2;
+_DO1.nSlide4 := _SlideClampA.BitList.Bit3;
+_DO1.nSlide5 := _SlideClampA.BitList.Bit4;
+
+_DO2.nSlide1 := _SlideClampB.BitList.Bit0;
+_DO2.nSlide2 := _SlideClampB.BitList.Bit1;
+_DO2.nSlide3 := _SlideClampB.BitList.Bit2;
+_DO2.nSlide4 := _SlideClampB.BitList.Bit3;
+_DO2.nSlide5 := _SlideClampB.BitList.Bit4;
+
+// Send action data to robot
+_DO1.bGet := FALSE; // ClampA PickUp
+_DO2.bGet := FALSE; // ClampB PickUp
+// Send execute command 
+_DO1.bExecute := NOT Error;
+_DO2.bExecute := NOT Error;
+
+_DO1.bContinue := BoxReady_1st;
+_DO2.bContinue := BoxReady_2nd;
+
+M_StartWareHousePlaceUpBox_ClampBoth := NOT Error; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SwitchRSR3" Id="{642ed4c3-893a-4a19-8622-fb11f05ce680}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_SwitchRSR3 : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Read_OffsetP" Id="{6c82c916-f8de-4199-a168-3b123d2255e5}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Read_OffsetP : INT]]></Declaration>
+      <Get Name="Get" Id="{ebf951ac-1eff-45ea-b072-acff8ed9684d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Read_OffsetP := _DI6;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Read_OffsetR" Id="{495d65ab-ee48-4c7a-b14a-74fa531cf81a}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Read_OffsetR : INT]]></Declaration>
+      <Get Name="Get" Id="{32876a3b-42a2-4490-b9d2-2861d4b242f3}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Read_OffsetR := _DI7;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Read_OffsetW" Id="{c48a6332-9f6e-4ca8-8bdd-3d43f2c595a8}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Read_OffsetW : INT]]></Declaration>
+      <Get Name="Get" Id="{7fbde413-3c85-432a-aa65-77b2b21fccf6}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Read_OffsetW := _DI5;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Read_OffsetX" Id="{3fa75ad4-7620-4e22-a5f2-20d397608dc9}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Read_OffsetX : INT]]></Declaration>
+      <Get Name="Get" Id="{dd728aae-c532-417b-a4e7-e01f8a051f9f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Read_OffsetX := _DI2;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Read_OffsetY" Id="{db288281-118d-4b8c-93ff-dda102d67711}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Read_OffsetY : INT]]></Declaration>
+      <Get Name="Get" Id="{8cabd7d8-c80e-42a6-aafd-8f67622022b5}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Read_OffsetY := _DI3;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Read_OffsetZ" Id="{ae99ddaf-e55a-4667-845f-be985d1ac667}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Read_OffsetZ : INT]]></Declaration>
+      <Get Name="Get" Id="{8d355c78-d4b7-48b3-8dda-9c564f86ea70}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Read_OffsetZ := _DI4;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ReadDataCommand" Id="{26667675-c994-46e6-b607-575fc2fd9263}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY ReadDataCommand : BOOL;]]></Declaration>
+      <Set Name="Set" Id="{903d9917-bfe1-43c9-938a-a06eaefbd230}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO6.ReadPara_Execute := BOOL_TO_BIT(ReadDataCommand);]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ReadWrite_Address" Id="{6781dbe8-7440-47f4-8ad4-6cb582e6c9e0}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY ReadWrite_Address : Int]]></Declaration>
+      <Set Name="Set" Id="{48fc2298-67f5-4f26-982e-888572ee3c7d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_Do14 := ReadWrite_Address;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ReadWrite_Area" Id="{59b7a0f8-d77f-43c1-9805-3b7c68892e6d}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY ReadWrite_Area : E_RobotArea]]></Declaration>
+      <Set Name="Set" Id="{9c99f2c9-bbe5-4e4f-b75a-72ce481f0101}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_Do13 := ReadWrite_Area;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ReadWrite_ClampA" Id="{a085549c-dbda-4f0e-b4c6-349ff7de3a8b}" FolderPath="HandShake\">
+      <Declaration><![CDATA[(* This variable is used to define read/write offset data clamp A
+*)
+PROPERTY ReadWrite_ClampA : BOOL]]></Declaration>
+      <Set Name="Set" Id="{022a17fb-311e-4194-9386-c1c26a8ae04e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO6.ClampA :=  BOOL_TO_BIT(ReadWrite_ClampA );
+]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ReadWrite_ClampB" Id="{ca4a3f5e-ab8f-4d1d-b5aa-d7bade883a30}" FolderPath="HandShake\">
+      <Declaration><![CDATA[(* This variable is used to define read/write offset data clamp B
+*)
+PROPERTY ReadWrite_ClampB : BOOL]]></Declaration>
+      <Set Name="Set" Id="{6b9a9969-361d-4912-9d8d-afda188eb79e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO6.ClampB :=BOOL_TO_BIT( ReadWrite_ClampB);]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ReadWrite_WareHouseA" Id="{3444376c-951d-4c84-aece-9c879bf06583}" FolderPath="HandShake\">
+      <Declaration><![CDATA[(* This variable is used to define read/write offset data warehouse A
+*)
+PROPERTY ReadWrite_WareHouseA : BOOL]]></Declaration>
+      <Set Name="Set" Id="{9a96d751-4031-4a87-964a-96692f692dea}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO6.WareHouseA := BOOL_TO_BIT(ReadWrite_WareHouseA);]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ReadWrite_WareHouseB" Id="{88a6669f-0a91-4074-ae24-2e700d01b656}" FolderPath="HandShake\">
+      <Declaration><![CDATA[(* This variable is used to define read/write offset data warehouse B
+*)
+PROPERTY ReadWrite_WareHouseB : BOOL]]></Declaration>
+      <Set Name="Set" Id="{40cc9460-638a-418f-aed5-c2317f34e49d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO6.WarehouseB := BOOL_TO_BIT(ReadWrite_WareHouseB);]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ReadyOperation" Id="{f2cbe881-11d1-4795-a61b-68eebe54f4d0}" FolderPath="HandShake\">
+      <Declaration><![CDATA[(*Fanuc robot ready to work for command (Warehouse、AbsMove)*)
+PROPERTY ReadyOperation : Bool]]></Declaration>
+      <Get Name="Get" Id="{c68c5366-afde-4388-9495-87d2437bbdbb}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ReadyOperation := _RSR1_Ready;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ReadySetParameter" Id="{f862e2fe-bbe2-4dd0-80b9-e483656787e2}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY ReadySetParameter : Bool]]></Declaration>
+      <Get Name="Get" Id="{55d56927-8aa5-4a63-a523-2dc6f74efd7b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ReadySetParameter := _RSR3_Ready;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="ReBoot" Id="{61006970-ebad-4c36-b02e-4450798c45a5}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD ReBoot
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eState := E_MethodStatus_Basic.STATE_DORMANT;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="SlideIndex" Id="{cdad00d4-ce8e-4829-ab69-2733e792eedb}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY SlideIndex : INT]]></Declaration>
+      <Set Name="Set" Id="{523e9471-ef2a-4f0f-b5f3-80bb6e2d6f44}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO16 := SlideIndex;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Status" Id="{30f44a75-f2be-4442-ab33-b15efe72f134}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Status : ST_FanucUI1]]></Declaration>
+      <Get Name="Get" Id="{02d59f4e-80a6-45d8-8537-253a29f29757}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Status := _UI1;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Update" Id="{facd66d4-4e7a-4ba3-b8ac-c5dd4a0db5b3}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD Update : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Robot -> PLC 4 byte 外圍設備Output(Fanuc Robot的外圍)
+MEMMOVE(
+destAddr:=ADR(_UO1)
+,srcAddr:=ADR(_rawIn_UI[0])
+,n:=4
+);
+
+// PLC -> Robot 外圍設備Input(Fanuc Robot的外圍)
+MEMMOVE(
+destAddr:=ADR(_rawOut_UO[0])
+,srcAddr:=ADR(_UI1)
+,n:=4
+);
+// PLC -> Robot Digital Output 2byte(send the command to Fanuc Robot), Warehouse Robot move ClampA
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[0])
+,srcAddr:=ADR(_DO1)
+,n:=2 
+);
+// PLC -> Robot Digital Output 2byte(send the command to Fanuc Robot), Warehouse Robot move ClampB
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[2])
+,srcAddr:=ADR(_DO2)
+,n:=2 
+);
+// PLC -> Robot Digital Output 2byte(send the command to Fanuc Robot), ABS Robot move ClampA
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[4])
+,srcAddr:=ADR(_DO3)
+,n:=2 
+);
+// PLC -> Robot Digital Output 2byte(send the command to Fanuc Robot), ABS Robot move ClampA
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[6])
+,srcAddr:=ADR(_DO4)
+,n:=2 
+);
+// PLC -> Robot Digital output 2byte(send the command to Fanuc Robot), General Command
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[8])
+,srcAddr:=ADR(_DO5)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[10])
+,srcAddr:=ADR(_DO6)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[12])
+,srcAddr:=ADR(_DO7)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[14])
+,srcAddr:=ADR(_DO8)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[16])
+,srcAddr:=ADR(_DO9)
+,n:=2 
+);
+
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[18])
+,srcAddr:=ADR(_DO10)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[20])
+,srcAddr:=ADR(_DO11)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[22])
+,srcAddr:=ADR(_DO12)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[24])
+,srcAddr:=ADR(_DO13)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[26])
+,srcAddr:=ADR(_DO14)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[28])
+,srcAddr:=ADR(_DO15)
+,n:=2 
+);
+MEMMOVE(
+destAddr:=ADR(_rawOut_DO[30])
+,srcAddr:=ADR(_DO16)
+,n:=2 
+);
+
+
+// Robot -> PLC Digital Input 3byte(Send Robot Status to PLC), All service
+MEMMOVE(
+destAddr:=ADR(_DI1)
+,srcAddr:=ADR(_rawIn_DI[0])
+,n:=3
+);
+
+MEMMOVE(
+destAddr:=ADR(_DI2)
+,srcAddr:=ADR(_rawIn_DI[3])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI3)
+,srcAddr:=ADR(_rawIn_DI[5])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI4)
+,srcAddr:=ADR(_rawIn_DI[7])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI5)
+,srcAddr:=ADR(_rawIn_DI[9])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI6)
+,srcAddr:=ADR(_rawIn_DI[11])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI7)
+,srcAddr:=ADR(_rawIn_DI[13])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI8)
+,srcAddr:=ADR(_rawIn_DI[15])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI9)
+,srcAddr:=ADR(_rawIn_DI[17])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI10)
+,srcAddr:=ADR(_rawIn_DI[19])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI11)
+,srcAddr:=ADR(_rawIn_DI[21])
+,n:=2
+);
+MEMMOVE(
+destAddr:=ADR(_DI12)
+,srcAddr:=ADR(_rawIn_DI[23])
+,n:=2
+);
+
+// Robot Status com
+qEnable:=_UO1.UO01_CmdEnabled AND _UO1.UO02_SystemReady;
+Error:=Fault();
+
+// Velocity Command transfer
+_DO5.VelocityBit0 := _VelocityCommand.BitList.Bit0;
+_DO5.VelocityBit1 := _VelocityCommand.BitList.Bit1;
+_DO5.VelocityBit2 := _VelocityCommand.BitList.Bit2;
+_DO5.VelocityBit3 := _VelocityCommand.BitList.Bit3;
+_DO5.VelocityBit4 := _VelocityCommand.BitList.Bit4;
+_DO5.VelocityBit5 := _VelocityCommand.BitList.Bit5;
+_DO5.VelocityBit6 := _VelocityCommand.BitList.Bit6;
+_DO5.VelocityBit7 := _VelocityCommand.BitList.Bit7;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="VelocityCommand" Id="{7f269991-6c0e-4f8f-b3f2-36310ea13def}" FolderPath="HandShake\">
+      <Declaration><![CDATA[{attribute 'monitoring' := 'variable'}
+PROPERTY VelocityCommand : Int]]></Declaration>
+      <Get Name="Get" Id="{76f6ec90-e16d-44df-b3cb-9e172193fc2e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[VelocityCommand :=_VelocityCommand.nInt;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{530cd5e8-f734-4f34-879a-bc7d5d6777e3}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_VelocityCommand.nInt :=VelocityCommand;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="WareHouseClampA_Handshake" Id="{7acafaef-a775-4007-b1e5-393c1d083743}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY WareHouseClampA_Handshake : ST_Fanuc_WarehouseHandshake]]></Declaration>
+      <Get Name="Get" Id="{002d8976-1cf0-4f76-a464-af8311239785}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[WareHouseClampA_Handshake := _DO1;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{0d4ae280-df5d-43ef-9392-cdf1f87ada74}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Outside -> FB 
+_DO1 := WareHouseClampA_Handshake;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="WareHouseClampB_Handshake" Id="{5bf83a4f-9b49-4f34-b7d8-59b3cd60328c}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY WareHouseClampB_Handshake : ST_Fanuc_WarehouseHandshake]]></Declaration>
+      <Get Name="Get" Id="{3c28d588-97c1-488a-ac97-e5160dcd453d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[WareHouseClampB_Handshake := _DO2;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{39fecafd-4db6-40fa-b3ab-b2ed6d8841e9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Outside -> FB 
+_DO2 := WareHouseClampB_Handshake;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Write_OffsetP" Id="{8354ecc8-c8e5-45fb-8cca-6d52ea33bf64}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Write_OffsetP : INT]]></Declaration>
+      <Set Name="Set" Id="{9a42a582-1639-4bc4-9f2d-6f292ace5219}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DI11 := Write_OffsetP;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Write_OffsetR" Id="{28c5ca91-e008-49f9-a3da-18a12db8ea95}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Write_OffsetR : INT]]></Declaration>
+      <Set Name="Set" Id="{8c8ca735-3026-4eb4-9710-a21e6b5cef2f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO12 := Write_OffsetR;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Write_OffsetW" Id="{31abdb60-537d-4bcc-8f23-4db3f432d1b6}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Write_OffsetW : INT]]></Declaration>
+      <Set Name="Set" Id="{fb4e307f-d70b-4cea-bd7b-d7e3561f647b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO10 := Write_OffsetW;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Write_OffsetX" Id="{06dc96ab-b65c-4509-83a2-b193442eb6af}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Write_OffsetX : INT]]></Declaration>
+      <Set Name="Set" Id="{8ab374f2-4e6b-4ff9-ab20-aa480e8297bf}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO7 := Write_OffsetX;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Write_OffsetY" Id="{37542f7d-390b-4ea4-9fd3-d5ea18fdfa54}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Write_OffsetY : INT]]></Declaration>
+      <Set Name="Set" Id="{db3fc99d-277a-45ff-ab92-af2aecca591a}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO8 := Write_OffsetY;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Write_OffsetZ" Id="{420722f9-d69b-43d4-8f9c-e0b3f4626273}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY Write_OffsetZ : INT]]></Declaration>
+      <Set Name="Set" Id="{f424e169-7188-4a29-bcdb-49bff48bfe37}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO9 := Write_OffsetZ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="WriteDataCommand" Id="{fecce743-2553-4ed7-af40-316767ad0df6}" FolderPath="HandShake\">
+      <Declaration><![CDATA[PROPERTY WriteDataCommand : bool;]]></Declaration>
+      <Set Name="Set" Id="{bfb1ee87-70cc-488f-b6d8-bf0a1a472085}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_DO6.WritePara_Execute := WriteDataCommand;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <LineIds Name="FB_FanucRobot_Basic">
+      <LineId Id="205" Count="1" />
+      <LineId Id="210" Count="1" />
+      <LineId Id="207" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="305" Count="0" />
+      <LineId Id="304" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.A00_BaseUnit">
+      <LineId Id="156" Count="5" />
+      <LineId Id="94" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.A10_ModeControl">
+      <LineId Id="1" Count="1" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.A20_ErrorHandle">
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.A20_StateControl">
+      <LineId Id="589" Count="7" />
+      <LineId Id="731" Count="0" />
+      <LineId Id="597" Count="0" />
+      <LineId Id="732" Count="1" />
+      <LineId Id="601" Count="2" />
+      <LineId Id="737" Count="5" />
+      <LineId Id="610" Count="7" />
+      <LineId Id="721" Count="0" />
+      <LineId Id="699" Count="1" />
+      <LineId Id="702" Count="3" />
+      <LineId Id="701" Count="0" />
+      <LineId Id="722" Count="3" />
+      <LineId Id="730" Count="0" />
+      <LineId Id="726" Count="0" />
+      <LineId Id="728" Count="1" />
+      <LineId Id="727" Count="0" />
+      <LineId Id="698" Count="0" />
+      <LineId Id="618" Count="9" />
+      <LineId Id="709" Count="3" />
+      <LineId Id="718" Count="0" />
+      <LineId Id="713" Count="4" />
+      <LineId Id="629" Count="4" />
+      <LineId Id="695" Count="1" />
+      <LineId Id="634" Count="5" />
+      <LineId Id="743" Count="0" />
+      <LineId Id="640" Count="49" />
+      <LineId Id="694" Count="0" />
+      <LineId Id="691" Count="2" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.AbsMoveClampA_Handshake.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.AbsMoveClampA_Handshake.Set">
+      <LineId Id="5" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.AbsMoveClampB_Handshake.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.AbsMoveClampB_Handshake.Set">
+      <LineId Id="5" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Bzone_AllowWork.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Bzone_AllowWork.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.BZoneInWork.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Command.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Command.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Enable">
+      <LineId Id="11" Count="2" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.EStop">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.FanucRobot_MotionStatus.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Fault">
+      <LineId Id="9" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.GetModelState">
+      <LineId Id="14" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.GetName">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Hold">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Homed.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.LayerIndex.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ActiveRSR01">
+      <LineId Id="704" Count="90" />
+      <LineId Id="952" Count="0" />
+      <LineId Id="795" Count="0" />
+      <LineId Id="805" Count="12" />
+      <LineId Id="928" Count="1" />
+      <LineId Id="818" Count="74" />
+      <LineId Id="935" Count="0" />
+      <LineId Id="893" Count="0" />
+      <LineId Id="936" Count="0" />
+      <LineId Id="946" Count="0" />
+      <LineId Id="894" Count="0" />
+      <LineId Id="937" Count="1" />
+      <LineId Id="895" Count="7" />
+      <LineId Id="939" Count="0" />
+      <LineId Id="903" Count="3" />
+      <LineId Id="940" Count="0" />
+      <LineId Id="907" Count="15" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ActiveRSR02">
+      <LineId Id="75" Count="1" />
+      <LineId Id="98" Count="11" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="113" Count="8" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="125" Count="11" />
+      <LineId Id="138" Count="8" />
+      <LineId Id="148" Count="6" />
+      <LineId Id="156" Count="1" />
+      <LineId Id="159" Count="3" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="167" Count="1" />
+      <LineId Id="82" Count="4" />
+      <LineId Id="89" Count="6" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="170" Count="3" />
+      <LineId Id="169" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ActiveRSR03">
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="45" Count="1" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="11" Count="5" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="20" Count="13" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="57" Count="2" />
+      <LineId Id="68" Count="11" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="84" Count="9" />
+      <LineId Id="154" Count="1" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="96" Count="10" />
+      <LineId Id="108" Count="12" />
+      <LineId Id="122" Count="5" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="129" Count="11" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="141" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="143" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="145" Count="6" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="52" Count="4" />
+      <LineId Id="51" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ClearState">
+      <LineId Id="8" Count="0" />
+      <LineId Id="5" Count="2" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ControlRSR01">
+      <LineId Id="57" Count="7" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ControlRSR02">
+      <LineId Id="46" Count="8" />
+      <LineId Id="29" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ControlRSR03">
+      <LineId Id="10" Count="3" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_EnableWith4Input">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_GetErrorCode">
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="8" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_Kawasaki_API">
+      <LineId Id="5" Count="0" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ManualService">
+      <LineId Id="15" Count="8" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_Reset">
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetAbsMoveClampACommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetAbsMoveClampBCommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetAbsMoveCommand">
+      <LineId Id="10" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetAllCommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="7" Count="1" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetMoveBoxToFeedInConveyor_ClampA">
+      <LineId Id="13" Count="1" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetMoveBoxToFeedInConveyor_ClampB">
+      <LineId Id="10" Count="1" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetMoveBoxToFeedInConveyor_ClampBoth">
+      <LineId Id="11" Count="2" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetMoveBoxToRoundBelt_Both">
+      <LineId Id="8" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetPullOutConveyorPickUpBox_ClampA">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetPullOutConveyorPickUpBox_ClampB">
+      <LineId Id="10" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetPullOutConveyorPickUpBox_ClampBoth">
+      <LineId Id="6" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetRobotAbsMove">
+      <LineId Id="12" Count="6" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetWareHouseClampACommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetWareHouseClampBCommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetWareHouseCommand">
+      <LineId Id="5" Count="3" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetWareHousePickUpBox_ClampA">
+      <LineId Id="12" Count="0" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetWareHousePickUpBox_ClampB">
+      <LineId Id="14" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_ResetWareHousePickUpBox_ClampBoth">
+      <LineId Id="11" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartAbsMoveAction_ClampA">
+      <LineId Id="5" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="98" Count="7" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="106" Count="7" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="114" Count="10" />
+      <LineId Id="20" Count="4" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="26" Count="7" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="46" Count="5" />
+      <LineId Id="45" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartAbsMoveAction_ClampB">
+      <LineId Id="98" Count="2" />
+      <LineId Id="151" Count="8" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="160" Count="7" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="168" Count="10" />
+      <LineId Id="119" Count="20" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartAbsMoveAction_ClampBoth">
+      <LineId Id="109" Count="9" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="119" Count="7" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="154" Count="1" />
+      <LineId Id="157" Count="5" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="140" Count="4" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="134" Count="0" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="130" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="147" Count="3" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="164" Count="8" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="177" Count="28" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="208" Count="2" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="82" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartMoveBoxToFeedInConveyor_ClampA">
+      <LineId Id="55" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="27" Count="3" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="35" Count="5" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="69" Count="2" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="44" Count="6" />
+      <LineId Id="43" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartMoveBoxToFeedInConveyor_ClampB">
+      <LineId Id="11" Count="5" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="23" Count="17" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartMoveBoxToFeedInConveyor_ClampBoth">
+      <LineId Id="13" Count="1" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="15" Count="7" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="60" Count="1" />
+      <LineId Id="63" Count="4" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="29" Count="3" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="24" Count="3" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="71" Count="6" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="80" Count="7" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="100" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="92" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartMoveBoxToRoundBelt_Both">
+      <LineId Id="5" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="38" Count="1" />
+      <LineId Id="41" Count="2" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="51" Count="9" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="63" Count="6" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="71" Count="6" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="89" Count="1" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="92" Count="5" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="116" Count="1" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="84" Count="4" />
+      <LineId Id="83" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartMoveBoxToRoundBelt_ClampA">
+      <LineId Id="65" Count="36" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartMoveBoxToRoundBelt_ClampB">
+      <LineId Id="18" Count="35" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartPullOutConveyorPickUpBox_ClampA">
+      <LineId Id="21" Count="1" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="23" Count="11" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="35" Count="8" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="48" Count="1" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartPullOutConveyorPickUpBox_ClampB">
+      <LineId Id="23" Count="10" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="35" Count="13" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartPullOutConveyorPickUpBox_ClampBoth">
+      <LineId Id="20" Count="11" />
+      <LineId Id="46" Count="9" />
+      <LineId Id="59" Count="10" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="81" Count="7" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="99" Count="6" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="126" Count="1" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartRobotAbsMove">
+      <LineId Id="61" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="75" Count="2" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="83" Count="6" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="69" Count="2" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="64" Count="1" />
+      <LineId Id="79" Count="2" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="92" Count="5" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="98" Count="2" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="40" Count="20" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWarehouseMoveAction_ClampA">
+      <LineId Id="30" Count="12" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="45" Count="1" />
+      <LineId Id="48" Count="11" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="67" Count="3" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="75" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWarehouseMoveAction_ClampB">
+      <LineId Id="20" Count="13" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="34" Count="32" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWarehouseMoveAction_ClampBoth">
+      <LineId Id="45" Count="20" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="67" Count="4" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="76" Count="20" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="99" Count="2" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="104" Count="3" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="115" Count="3" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="125" Count="4" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWareHousePickUpBox_ClampA">
+      <LineId Id="64" Count="25" />
+      <LineId Id="91" Count="7" />
+      <LineId Id="54" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWareHousePickUpBox_ClampB">
+      <LineId Id="49" Count="25" />
+      <LineId Id="76" Count="7" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWareHousePickUpBox_ClampBoth">
+      <LineId Id="316" Count="20" />
+      <LineId Id="243" Count="11" />
+      <LineId Id="337" Count="0" />
+      <LineId Id="255" Count="7" />
+      <LineId Id="264" Count="1" />
+      <LineId Id="296" Count="0" />
+      <LineId Id="266" Count="2" />
+      <LineId Id="270" Count="12" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWareHousePlaceBox_ClampA">
+      <LineId Id="64" Count="25" />
+      <LineId Id="91" Count="7" />
+      <LineId Id="54" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWareHousePlaceBox_ClampB">
+      <LineId Id="102" Count="33" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_StartWareHousePlaceUpBox_ClampBoth">
+      <LineId Id="316" Count="20" />
+      <LineId Id="243" Count="11" />
+      <LineId Id="337" Count="0" />
+      <LineId Id="255" Count="7" />
+      <LineId Id="264" Count="1" />
+      <LineId Id="296" Count="0" />
+      <LineId Id="266" Count="2" />
+      <LineId Id="270" Count="12" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.M_SwitchRSR3">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Read_OffsetP.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Read_OffsetR.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Read_OffsetW.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Read_OffsetX.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Read_OffsetY.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Read_OffsetZ.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadDataCommand.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadWrite_Address.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadWrite_Area.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadWrite_ClampA.Set">
+      <LineId Id="2" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadWrite_ClampB.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadWrite_WareHouseA.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadWrite_WareHouseB.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadyOperation.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReadySetParameter.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.ReBoot">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.SlideIndex.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Status.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Update">
+      <LineId Id="78" Count="0" />
+      <LineId Id="6" Count="11" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="26" Count="4" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="60" Count="4" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="65" Count="4" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="70" Count="4" />
+      <LineId Id="84" Count="1" />
+      <LineId Id="87" Count="3" />
+      <LineId Id="115" Count="19" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="135" Count="18" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="154" Count="3" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="158" Count="3" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="217" Count="3" />
+      <LineId Id="113" Count="1" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="47" Count="5" />
+      <LineId Id="163" Count="50" />
+      <LineId Id="221" Count="3" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="18" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="96" Count="8" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.VelocityCommand.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.VelocityCommand.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.WareHouseClampA_Handshake.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.WareHouseClampA_Handshake.Set">
+      <LineId Id="5" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.WareHouseClampB_Handshake.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.WareHouseClampB_Handshake.Set">
+      <LineId Id="5" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Write_OffsetP.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Write_OffsetR.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Write_OffsetW.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Write_OffsetX.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Write_OffsetY.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.Write_OffsetZ.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic.WriteDataCommand.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

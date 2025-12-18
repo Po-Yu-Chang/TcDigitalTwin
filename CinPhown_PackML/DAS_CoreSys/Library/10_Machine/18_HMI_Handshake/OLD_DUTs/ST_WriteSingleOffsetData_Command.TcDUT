@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_WriteSingleOffsetData_Command" Id="{475a8ce7-d1f9-4834-a98e-861f708ecfda}">
+    <Declaration><![CDATA[TYPE ST_WriteSingleOffsetData_Command EXTENDS ST_CommandBasic :
+STRUCT
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

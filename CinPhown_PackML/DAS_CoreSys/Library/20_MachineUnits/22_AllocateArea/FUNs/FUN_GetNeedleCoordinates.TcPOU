@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FUN_GetNeedleCoordinates" Id="{720f16c8-389f-48fc-88b7-eee45b9714be}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_GetNeedleCoordinates : BOOL
+VAR_INPUT
+	uiLocation		: UINT	; // 0 : From RoundBelt , 1 :From Turn table
+	uiBox			: UINT ; // 0 or 1 
+	uiClip			: INT ; // 0~3
+	uiNeedleLocation : INT ; // 0~49
+END_VAR
+
+VAR_OUTPUT
+	NeedleCoordinate		: st_Coordinate;
+END_VAR
+
+VAR
+	BasePos 			: st_Coordinate;
+	NeedlePosition		: st_Coordinate		;
+	NeedleColumns : INT;
+    NeedliRows    : INT;
+	bDataCheck			 : BOOL;
+	bGetPositionDone	:BOOL;
+	PositionTable		:ST_PositionTable;
+	i : INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (uiLocation =0 OR uiLocation = 1 ) AND (uiBox =0 OR uiBox =1) AND (uiClip>=0 AND uiClip <=3) AND (uiNeedleLocation >=0 AND uiNeedleLocation <=49) THEN
+		bDataCheck := TRUE;
+	ELSE
+		bDataCheck := FALSE;
+		FUN_GetNeedleCoordinates:=FALSE;
+END_IF //Check data is valid
+
+IF bDataCheck THEN
+	
+	CASE uiLocation OF	
+		
+	0:
+	FOR i:=1 TO 200 BY 1 DO
+ 		IF 		DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Clip =UINT_TO_INT(uiClip) 
+			AND DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Index= uiBox +1
+			AND DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Zone ='Q' THEN
+				PositionTable := DAS_CoreSys.MachineControl.CurrentData.PositionTable[i];
+				EXIT;
+		END_IF
+		bGetPositionDone:=FALSE;
+	END_FOR
+	BasePos.X  :=  PositionTable.X_Pos;
+	BasePos.Y   :=  PositionTable.Y_Pos;
+
+	NeedleColumns := DINT_TO_INT(TRUNC(uiNeedleLocation / 10.0));
+	NeedliRows    := LREAL_TO_INT(uiNeedleLocation MOD 10);
+
+	NeedlePosition.Y := BasePos.Y + (DAS_CoreSys.MachineControl.CurrentData.Mechanical.Allocate_box_leftandRight_Distance * NeedleColumns);
+	NeedlePosition.X := BasePos.X - (DAS_CoreSys.MachineControl.CurrentData.Mechanical.Allocate_box_UpandDown_Distance * NeedliRows);
+	NeedleCoordinate:=NeedlePosition;
+	bGetPositionDone:=TRUE;
+	
+1:
+	
+	FOR i:=1 TO 200 BY 1 DO
+ 		IF 		DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Clip = UINT_TO_INT(uiClip) 
+			AND DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Index= uiBox +1
+			AND DAS_CoreSys.MachineControl.CurrentData.PositionTable[i].Zone ='T' THEN
+				PositionTable := DAS_CoreSys.MachineControl.CurrentData.PositionTable[i];
+				EXIT;
+		END_IF
+		bGetPositionDone:=FALSE;
+	END_FOR
+	BasePos.X  :=  PositionTable.X_Pos;
+	BasePos.Y   :=  PositionTable.Y_Pos;
+
+	NeedleColumns := DINT_TO_INT(TRUNC(uiNeedleLocation / 10.0));
+	NeedliRows    := LREAL_TO_INT(uiNeedleLocation MOD 10);
+
+	NeedlePosition.Y := BasePos.Y + (DAS_CoreSys.MachineControl.CurrentData.Mechanical.Allocate_box_leftandRight_Distance * NeedleColumns);
+	NeedlePosition.X := BasePos.X - (DAS_CoreSys.MachineControl.CurrentData.Mechanical.Allocate_box_UpandDown_Distance * NeedliRows);
+	NeedleCoordinate:=NeedlePosition;
+	bGetPositionDone:=TRUE;
+	
+	
+	ELSE
+		bGetPositionDone:=FALSE;	//Should not happen
+ END_CASE
+END_IF
+
+FUN_GetNeedleCoordinates:=bGetPositionDone;]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_GetNeedleCoordinates">
+      <LineId Id="27" Count="4" />
+      <LineId Id="33" Count="3" />
+      <LineId Id="56" Count="2" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="180" Count="0" />
+      <LineId Id="182" Count="2" />
+      <LineId Id="181" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="48" Count="6" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="59" Count="1" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="185" Count="9" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="80" Count="4" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="62" Count="3" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="87" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

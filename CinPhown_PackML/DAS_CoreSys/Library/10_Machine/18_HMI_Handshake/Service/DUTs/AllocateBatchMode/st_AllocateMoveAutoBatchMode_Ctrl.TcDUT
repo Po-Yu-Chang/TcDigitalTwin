@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AllocateMoveAutoBatchMode_Ctrl" Id="{c62c90db-1e95-45f9-90e6-9550c4148a55}">
+    <Declaration><![CDATA[ TYPE st_AllocateMoveAutoBatchMode_Ctrl :
+STRUCT
+	bExecute			: BOOL; // Start Automode Turn Table process
+	bReset				: BOOL; // Reset Automode Turn Table process
+	bAbort				: BOOL; // Abort Automode Turn Table Process
+	bOccupied			: BOOL;	
+	bPause				: BOOL;
+	bSimpleAllocation	: BOOL;
+	AutoMode_AllocateMoveBatch 			:	 ST_AllocationJobBatchMode ;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

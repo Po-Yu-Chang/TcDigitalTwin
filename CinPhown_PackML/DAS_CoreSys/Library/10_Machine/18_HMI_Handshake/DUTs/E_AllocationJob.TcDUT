@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_AllocationJob" Id="{c18e1c59-7861-44f4-ba89-b9721babd6f2}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_AllocationJob :
+(	PreDataProcess:=-1,
+	Idle:=0,	
+	Initial ,	
+	CheckRotateBeltStation,
+	MovingRotateBeltStation,
+	MovedRotateBeltStation,
+	CheckRotateBeltStation_SimpleAllocatePlacing,
+	MovingRotateBeltStation_SimpleAllocatePlacing,
+	MovedRotateBeltStation_SimpleAllocatePlacing,
+	CheckBoxReadyOnAllocatePosOfRoundBelt,
+	CheckBoxReadyOnRoundBelt_SimpleAllocateMode,
+	MoveToTargetPos,
+	MovingToTargetPos,
+	CylinderDownPick,
+	ClipColse,	
+	CylinderUpPick,
+	MoveToPlacingPos,
+	MovingToPlacingPos,
+	CylinderDownPlace,
+	ClipOpen,		
+	CylinderUpPlace,
+	CheckNeedlePlaced,
+	Defult,
+	Finish,
+	Error,
+	CheckNeedlePick,
+	CheckNeedlePlace,
+	IfNextPTP_Picking,
+	IfNextPTP_Placing,
+	CheckBoxesOnTurnTableReady	
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_TableMoveService" Id="{216b6263-a529-4395-9074-a8b3d707c82d}">
+    <Declaration><![CDATA[TYPE
+    ST_TableMoveService :
+    STRUCT
+        Ctrl   : ST_TableMoveCtrl;
+        Status : ST_TableMoveStatus;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

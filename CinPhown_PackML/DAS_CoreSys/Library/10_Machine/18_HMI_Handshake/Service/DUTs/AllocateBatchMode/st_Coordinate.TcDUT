@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_Coordinate" Id="{1283cf99-c00c-47df-afbe-db5e86931933}">
+    <Declaration><![CDATA[TYPE st_Coordinate :
+STRUCT
+	X  : LREAL;
+	Y  : LREAL;
+	Rotate: LREAL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

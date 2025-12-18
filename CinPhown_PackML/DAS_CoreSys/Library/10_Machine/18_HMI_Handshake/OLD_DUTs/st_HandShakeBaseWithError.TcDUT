@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_HandShakeBaseWithError" Id="{4794a220-5feb-46aa-88a5-6ff74d1db48e}">
+    <Declaration><![CDATA[TYPE st_HandShakeBaseWithError:
+STRUCT
+	stHandShakeBase		:	st_HandshakeBase;
+	bError				:	BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_RobotAbsMove_Status" Id="{bb206199-6858-4b9f-bfb8-1d8c147fcbf6}">
+    <Declaration><![CDATA[TYPE st_RobotAbsMove_Status :
+STRUCT
+	bBusy	: BOOL;
+	bDone	: BOOL;
+	bError	: BOOL;
+	iErrorID : UDINT;
+	Status : STRING;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

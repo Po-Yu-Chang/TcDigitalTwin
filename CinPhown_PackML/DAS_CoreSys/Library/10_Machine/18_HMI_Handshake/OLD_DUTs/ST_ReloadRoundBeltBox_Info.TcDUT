@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ReloadRoundBeltBox_Info" Id="{04cb5601-7feb-4028-86db-94240b503ab8}">
+    <Declaration><![CDATA[TYPE
+    ST_ReloadRoundBeltBox_Info :
+    STRUCT
+        ClampA_Setting : ST_ClampSetting_ReloadRoundBelt; // Set clampA action.
+        ClampB_Setting : ST_ClampSetting_ReloadRoundBelt; // Set clampB action.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

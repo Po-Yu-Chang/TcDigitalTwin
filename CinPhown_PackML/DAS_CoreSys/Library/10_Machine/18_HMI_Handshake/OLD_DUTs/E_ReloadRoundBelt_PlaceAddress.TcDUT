@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_ReloadRoundBelt_PlaceAddress" Id="{aec72dee-ae65-4bea-bb7d-98f2801bcb5d}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_ReloadRoundBelt_PlaceAddress :
+(
+	Undefined := 0,
+	A1,
+	A2,
+	A3,
+	A4
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

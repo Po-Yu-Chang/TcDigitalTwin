@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AutoMode_ClampingToPlate" Id="{8e78dcb1-7d64-4cfd-9d11-d108bbae2923}">
+    <Declaration><![CDATA[TYPE st_AutoMode_ClampingToPlate :
+STRUCT
+	ClampingInfo			: st_ClampingBoxesInfo;
+	ClipAFrom				: INT; //0: 配好輸送帶。1: 同尺吋輸送帶
+	ClipBFrom				: INT; //0: 配好輸送帶。1: 同尺吋輸送帶
+	HandShake				: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

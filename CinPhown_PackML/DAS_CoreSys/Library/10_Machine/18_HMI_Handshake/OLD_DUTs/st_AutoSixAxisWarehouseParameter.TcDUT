@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AutoSixAxisWarehouseParameter" Id="{97391b76-4cc6-411e-ae0a-ddf22383a4b9}">
+    <Declaration><![CDATA[TYPE st_AutoSixAxisWarehouseParameter :
+STRUCT
+	Warehouse_A	:	BOOL; //58ON = TRUE, 59ON = FALSE
+	Warehouse_B	:	BOOL; //74ON = TRUE, 75ON = FALSE
+	Layer_A 	: 	LREAL;
+	Layer_B 	:	LREAL;
+	Slide_A 	:	LREAL;
+	Slide_B 	:	LREAL;	
+	Get_A		:	BOOL;
+	Get_B		:	BOOL;
+	AClampMoveDone	: BOOL;
+	BClampMoveDone	: BOOL;
+	(*Excute		:	BOOL;
+	Done  		:	BOOL;
+	Busy  		:	BOOL;
+	Occupied 	:	BOOL;
+	Error		:	BOOL;
+	Reset		:	BOOL;*)
+	HandShake				: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

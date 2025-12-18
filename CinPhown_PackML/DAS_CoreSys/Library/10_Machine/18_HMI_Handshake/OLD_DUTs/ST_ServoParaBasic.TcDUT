@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ServoParaBasic" Id="{5d3f92ff-3a84-4c44-bdbd-ec49f331e10c}">
+    <Declaration><![CDATA[TYPE ST_ServoParaBasic :
+    STRUCT
+        ManualMode     :ST_ManualServoPara;
+        AutoMode       :ST_AutoServoPara;
+        OneProcessMode :ST_OneProcessServoPara;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

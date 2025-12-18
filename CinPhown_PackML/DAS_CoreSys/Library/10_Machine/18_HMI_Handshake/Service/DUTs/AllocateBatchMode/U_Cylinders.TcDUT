@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="U_Cylinders" Id="{f3304c61-839b-4b10-a7d8-8467631cd845}">
+    <Declaration><![CDATA[TYPE
+    U_Cylinders :
+    UNION
+        Cylinders   : REFERENCE TO ARRAY[0..3] OF FB_Cylinder;
+        stCylinders : ST_Cylinders;
+    END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

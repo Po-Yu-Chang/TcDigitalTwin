@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_MotorList" Id="{57776a69-0edf-4a6a-b523-25744deefc1e}">
+    <Declaration><![CDATA[TYPE
+    ST_MotorList :
+    STRUCT
+        WareHouseCV_01          : FB_Motor;
+        WareHouseCV_02          : FB_Motor;
+        WareHouseCV_03          : FB_Motor;
+        WareHouseCV_04          : FB_Motor;
+        WareHouseCV_05          : FB_Motor;
+        WareHouseCV_06          : FB_Motor;
+        WareHouseCV_07          : FB_Motor;
+        WareHouseCV_08          : FB_Motor;
+        WareHouseCV_09          : FB_Motor;
+        WareHouseCV_10          : FB_Motor;
+        WareHouseCV_11          : FB_Motor;
+        WareHouseCV_12          : FB_Motor;
+        WareHouseCV_13          : FB_Motor;
+        WareHouseCV_14          : FB_Motor;
+        WareHouseCV_15          : FB_Motor;
+        WareHouseCV_16          : FB_Motor;
+        WareHouseCV_17          : FB_Motor;
+        WareHouseCV_18          : FB_Motor;
+        WareHouseCV_19          : FB_Motor;
+        WareHouseCV_20          : FB_Motor;
+        UpCV                    : FB_Motor;
+        LowCV                   : FB_Motor;
+        PullOutCV_A             : FB_Motor;
+        PullOutCV_B             : FB_Motor;
+        TransmitSameSideCV      : FB_Motor;
+        TransmitDifferentSideCV : FB_Motor;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

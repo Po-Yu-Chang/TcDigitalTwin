@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_SignalGen" Id="{dffc4aff-4f2e-4955-b90c-6312d830022b}" SpecialFunc="None">
+    <Declaration><![CDATA[// This function block allocates 50% of the time to ON and 50% of the time to OFF based on the input time. 
+// For example, if the input is 1 second, it generates a signal of 0.5 seconds ON, followed by 0.5 seconds OFF.
+FUNCTION_BLOCK FB_SignalGen
+VAR_INPUT
+	PT : TIME;
+END_VAR
+
+VAR_OUTPUT
+	Q : BOOL;
+END_VAR
+
+VAR
+	tn : DWORD;
+	tx : DWORD;
+	init : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[tx := TIME_TO_DWORD(TIME());
+IF NOT init THEN
+	init := TRUE;
+	tn := tx;
+	Q := TRUE;
+ELSIF tx - tn >= SHR(TIME_TO_DWORD(PT), 1) THEN
+	Q := NOT Q;
+	tn := tn + SHR(TIME_TO_DWORD(pt), 1);
+END_IF;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_SignalGen">
+      <LineId Id="54" Count="7" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

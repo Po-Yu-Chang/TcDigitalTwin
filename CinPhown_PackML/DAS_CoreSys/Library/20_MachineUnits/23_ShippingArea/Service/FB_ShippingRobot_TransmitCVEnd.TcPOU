@@ -1,0 +1,679 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ShippingRobot_TransmitCVEnd" Id="{fedcd88b-970b-4a7d-b037-5aa95a950ab2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingRobot_TransmitCVEnd EXTENDS FB_RobotRegionMove_BufferArea
+VAR_INPUT
+	INPUT       : REFERENCE TO ST_InputTable;
+	Motor    	: REFERENCE TO UNI_MotorList;
+	bCompleteRequest	: BOOL;
+	fbSHippingHomingBusy	: BOOL;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	//Area : E_RobotArea := E_RobotArea.TransmitCV_End;
+	SensorToBeCheck :BIT;
+	ConveyorMotor	: REFERENCE TO FB_Motor ;
+	tonBoxArriveDelay 	: TON;
+	BuzzBlink	:BLINK;
+	LightBlink	:BLINK;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
+Area := E_RobotArea.TransmitCV_End;]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{21364083-2d92-416a-80c8-a7cc2d7ca0c3}" />
+    <Folder Name="State" Id="{c7e06c0e-923a-4e77-98d0-9e5417e1d98c}" />
+    <Action Name="A00_BasicUnits" Id="{f0db144e-7b3d-4176-8c7f-3994b1cc26c1}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT:=T#90S);
+tonBoxArriveDelay(PT:=T#1S);
+
+ErrorID:=2250;]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{240b56ab-1b96-4a5a-b98a-10e5129a314d}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
+VAR_INPUT
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Check command paremeter is correct
+
+IF fbShippingHomingBusy THEN
+	THIS^.Get := info.Get;		//check Shipping Homing use
+ELSE
+	THIS^.Get :=TRUE; // For this service , robot only pick box from conveyor
+END_IF
+
+UseA := TRUE; // Only clip A avaliable
+UseB := FALSE; // No clipB 	
+		
+	
+	
+CASE 	LREAL_TO_INT(Info.A_Position) OF	
+	
+1: // Pick box from Samesize conveyor
+	SensorToBeCheck :=INPUT.bSameSizeCV_BoxNearShippingSensor;
+	ConveyorMotor	REF= Motor.List.TransmitSameSideCV;
+2: // Pick box from diffSize conveyor
+	SensorToBeCheck :=INPUT.bDifferentSizeCV_BoxNearShippingSensor;
+	ConveyorMotor	REF= Motor.List.TransmitDifferentSideCV;
+ELSE
+	strStatus:='Wrong command ,Position A Not allow';
+			M_CheckCommand:=FALSE;
+			RETURN;	
+END_CASE
+		
+
+IF Get THEN
+	IF NOT Robot._DI1.ClampA_Open THEN
+		strStatus := 'Get command , clamp have box ';
+		M_CheckCommand := FALSE;
+		RETURN;
+	END_IF
+ELSE
+	IF Robot._DI1.ClampA_Open THEN 
+		strStatus := 'Place command , clamp not have box ';
+		M_CheckCommand := FALSE;
+		RETURN;
+	END_IF
+END_IF
+
+
+M_CheckCommand:=TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{feb4c12d-6096-4df9-9ea6-42bc817d0bdf}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{d19ae71b-a660-4035-b07d-38254434ae3c}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetHomingFeedOut" Id="{34f43422-576b-4de4-8241-5cd41f4d77c3}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_ResetHomingFeedOut : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Execute := FALSE;
+info.UseA := FALSE;
+info.UseB := FALSE;
+
+M_ResetHomingFeedOut := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SensorUpdate" Id="{7985f3a6-cddb-455a-9407-cdd763fb3b6d}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_SensorUpdate : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE 	LREAL_TO_INT(Info.A_Position) OF	
+	
+1: // Pick box from Samesize conveyor
+	SensorToBeCheck :=INPUT.bSameSizeCV_BoxNearShippingSensor;
+	
+2: // Pick box from diffSize conveyor
+	SensorToBeCheck :=INPUT.bDifferentSizeCV_BoxNearShippingSensor;
+
+	
+	END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartHomingFeedOut" Id="{e66dd0ad-3423-4078-857b-c2b8581189a2}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_StartHomingFeedOut : BOOL
+VAR_INPUT
+	UseA	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Place SameSize conveyor homing only place
+Info.Get := FALSE;
+
+Info.UseA 		:= UseA;
+info.A_Position := 1;
+
+Execute := TRUE;
+
+M_StartHomingFeedOut := TRUE;
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{e224f6c0-ba35-408f-8aff-e485b2f0eb70}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy    := FALSE;
+Aborted := TRUE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF
+
+IF Execute AND Reset THEN
+	uiExecutingStep :=uiResumeStep;
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{e6994fc1-8f54-4043-9c9e-86b922c6561c}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		uiAbortingStep:=9999;
+		ConveyorMotor.M_MotorStop();
+		IF strStatus = PreviousStrStatus THEN
+			_UniqueErrorCode :=PreviousErrorCode;
+		END_IF
+		_Abort :=FALSE;
+	9999:	_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{82bc2f29-ce42-4587-b8c5-9185304bdf46}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{ffb8143f-6f15-4e6d-926f-82b55f1a8ff7}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+
+tonTimeOut.IN:=FALSE;
+tonBoxArriveDelay.IN :=FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
+PreviousStrStatus			 :='';
+PreviousErrorCode			 :='';
+_UniqueErrorCode	:='0';
+
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{7181ba65-12ef-4843-8a8a-79aee97e1b94}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   :=TRUE;
+Busy	:=FALSE;
+Status := strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
+ConveyorMotor.M_MotorStop();
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{c59458da-0c79-4ab9-a518-7e9090814cb2}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+    ActionMode       : E_ReloadRoundBoxAction;
+	BoxReady_1st : BOOL;
+	BoxReady_2nd : BOOL;
+    CarrierReady_1st : BOOL;
+    CarrierReady_2nd : BOOL;
+    uiBothStep : UINT;
+    uiSingleClampStep : UINT;
+	Address_A : INT;
+	Address_B : INT;
+	bMoveConveyorForward	: BOOL;
+	bMoveConveyorBackward	: BOOL;
+	
+END_VAR
+VAR
+	WareHouse: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set Busy active edit by johnson
+Busy := TRUE;
+M_SensorUpdate();
+
+IF THIS^.Stop THEN // Pending the timeout when Stop signal occur
+	tonTimeout.IN :=FALSE;
+END_IF
+
+IF bMoveConveyorForward THEN
+	IF NOT ConveyorMotor.InBackWard THEN
+		ConveyorMotor.M_MoveForward();
+	END_IF
+END_IF
+
+IF bMoveConveyorBackward THEN
+	IF NOT ConveyorMotor.InForWard THEN
+		ConveyorMotor.M_MoveBackward();
+	END_IF
+	
+END_IF
+// Service Process
+CASE uiExecutingStep OF
+	0:
+			// Clear variable
+			bMoveConveyorForward := FALSE;
+			ActionMode       := E_ReloadRoundBoxAction.Undefined;
+			CarrierReady_1st := FALSE;
+			CarrierReady_2nd := FALSE;
+			uiBothStep := 0;
+			uiSingleClampStep :=0;
+			BoxReady_1st := 0;
+			BoxReady_2nd := 0;
+			tonTimeOut.IN:=FALSE;
+			// Check command
+			IF M_CheckCommand() THEN
+				uiExecutingStep := 10;
+			ELSE
+				_Error:=TRUE;
+			END_IF
+    10:
+			// Start process, check units first
+			IF M_CheckUnitsReady() THEN
+				uiExecutingStep := 20;
+			END_IF
+    20:
+			// CHeck units not busy state
+			IF M_CheckUnitsNotBusy() THEN
+				uiExecutingStep := 50;
+			END_IF
+	50:
+			IF Get THEN
+				uiExecutingStep := 100;
+			ELSIF NOT Get  THEN
+				uiExecutingStep := 500;
+			ELSE
+				strStatus := 'Wrong command';
+				_Error 	  := TRUE;
+			END_IF
+   
+	100: //Move conveyor 
+			bMoveConveyorForward:=TRUE;
+			ConveyorMotor.M_MoveForward();			
+			uiExecutingStep := 1000;	
+
+	500:
+			bMoveConveyorBackward := TRUE;
+			IF ConveyorMotor.InBackWard AND NOT SensorToBeCheck THEN
+				uiExecutingStep := 1000;
+			END_IF
+	
+	1000:   
+			// Read   coordinate
+ 			 Address_A := LREAL_TO_INT(Info.A_Position);
+			 Address_B := LREAL_TO_INT(Info.B_Position);
+			 
+			IF UseA AND NOT UseB THEN
+				//Only clampA
+				uiExecutingStep := 10000;
+			END_IF
+       
+    10000: // Only ClampA 
+			IF NOT Robot._DI1.Done THEN            
+					IF Get THEN
+						tonBoxArriveDelay.IN := SensorToBeCheck;      	
+					ELSIF fbSHippingHomingBusy AND NOT Get THEN
+						BoxReady_1st:=TRUE;				// Only ShippingHoming FeedOut Use
+					END_IF	 
+					  // Robot Abs move
+					 Robot.M_StartRobotAbsMove(GetBox:=Get,
+												UseClampA:=UseA,
+												UseClampB:=UseB,
+												Area:=Area,
+												ClampA_Address:=Address_A,
+												ClampB_Address:=Address_B,
+												BoxReady_1:=tonBoxArriveDelay.Q OR BoxReady_1st,
+												BoxReady_2:=BoxReady_2nd);	  
+			
+			ELSE
+				tonTimeOut.IN:=FALSE;
+				tonBoxArriveDelay.IN :=FALSE;
+				uiExecutingStep := 10080;
+			END_IF
+				tonTimeOut.IN:=TRUE;
+				IF tonTimeOut.Q=TRUE THEN
+					tonTimeOut.IN:=FALSE;			
+					strStatus :='wait Box Arrived TransCV time out';
+					_Error:=TRUE;
+				END_IF	
+    10080:
+			Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
+			tonTimeOut.IN:=TRUE;
+			IF NOT Robot._DI1.Done THEN
+				tonTimeOut.IN:=FALSE;
+				uiExecutingStep := 90000; 
+			END_IF
+			IF tonTimeOut.Q=TRUE THEN
+				strStatus :='Reset Robot timeout';
+				_Error:=TRUE;
+			END_IF	
+    
+   90000:
+			bMoveConveyorForward  := FALSE;
+			bMoveConveyorBackward := FALSE;
+			ConveyorMotor.M_MotorStop();
+			IF ConveyorMotor.InStopped THEN
+				uiExecutingStep := 99000;
+			END_IF
+		
+    99000: // process done
+                Status    := 'Process completed';
+        		_Executed := TRUE;
+END_CASE
+
+IF _Executed THEN
+    eState := STATE_DONE;
+ELSIF _Error THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+    eState := STATE_ERROR;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+IF _Abort OR Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eSTATE:=STATE_ABORTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{8e08ac32-e43a-4e13-b9d6-476f338b994f}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=FALSE;
+Done :=FALSE;
+Busy := FALSE;
+
+
+CASE uiResettingStep OF
+	
+	0:
+		tonTimeOut.IN:=FALSE;
+		//Robot.M_ResetAllCommand();
+		ConveyorMotor.M_MotorStop();
+		Robot.M_ResetRobotAbsMove(TRUE,TRUE);
+		
+		uiResettingStep:=9999;
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd">
+      <LineId Id="11" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_CheckCommand">
+      <LineId Id="24" Count="0" />
+      <LineId Id="339" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="335" Count="0" />
+      <LineId Id="337" Count="1" />
+      <LineId Id="336" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="283" Count="0" />
+      <LineId Id="291" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="292" Count="1" />
+      <LineId Id="296" Count="0" />
+      <LineId Id="304" Count="0" />
+      <LineId Id="298" Count="0" />
+      <LineId Id="297" Count="0" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="305" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="302" Count="1" />
+      <LineId Id="301" Count="0" />
+      <LineId Id="294" Count="0" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="312" Count="0" />
+      <LineId Id="316" Count="0" />
+      <LineId Id="320" Count="2" />
+      <LineId Id="319" Count="0" />
+      <LineId Id="329" Count="0" />
+      <LineId Id="323" Count="1" />
+      <LineId Id="327" Count="1" />
+      <LineId Id="325" Count="1" />
+      <LineId Id="314" Count="0" />
+      <LineId Id="318" Count="0" />
+      <LineId Id="317" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="109" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_ResetHomingFeedOut">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_SensorUpdate">
+      <LineId Id="6" Count="6" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="13" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_StartHomingFeedOut">
+      <LineId Id="6" Count="3" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="22" Count="6" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_ABORTED">
+      <LineId Id="14" Count="10" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_ABORTING">
+      <LineId Id="12" Count="2" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="15" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_DONE">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_DORMANT">
+      <LineId Id="6" Count="0" />
+      <LineId Id="23" Count="8" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="15" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_ERROR">
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_EXECUTING">
+      <LineId Id="6" Count="1" />
+      <LineId Id="1086" Count="1" />
+      <LineId Id="963" Count="1" />
+      <LineId Id="962" Count="0" />
+      <LineId Id="1144" Count="0" />
+      <LineId Id="1143" Count="0" />
+      <LineId Id="1166" Count="0" />
+      <LineId Id="1145" Count="0" />
+      <LineId Id="1167" Count="0" />
+      <LineId Id="1146" Count="0" />
+      <LineId Id="1206" Count="0" />
+      <LineId Id="1205" Count="0" />
+      <LineId Id="1210" Count="2" />
+      <LineId Id="1207" Count="1" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="1142" Count="0" />
+      <LineId Id="48" Count="3" />
+      <LineId Id="722" Count="0" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="873" Count="0" />
+      <LineId Id="55" Count="2" />
+      <LineId Id="561" Count="1" />
+      <LineId Id="58" Count="10" />
+      <LineId Id="1192" Count="2" />
+      <LineId Id="1196" Count="4" />
+      <LineId Id="1195" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="1050" Count="0" />
+      <LineId Id="1147" Count="0" />
+      <LineId Id="1051" Count="0" />
+      <LineId Id="1054" Count="0" />
+      <LineId Id="1203" Count="0" />
+      <LineId Id="1201" Count="0" />
+      <LineId Id="1204" Count="0" />
+      <LineId Id="1213" Count="2" />
+      <LineId Id="1069" Count="0" />
+      <LineId Id="707" Count="0" />
+      <LineId Id="710" Count="0" />
+      <LineId Id="731" Count="0" />
+      <LineId Id="734" Count="1" />
+      <LineId Id="563" Count="1" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="565" Count="0" />
+      <LineId Id="91" Count="2" />
+      <LineId Id="1188" Count="0" />
+      <LineId Id="574" Count="0" />
+      <LineId Id="1189" Count="0" />
+      <LineId Id="1191" Count="0" />
+      <LineId Id="1190" Count="0" />
+      <LineId Id="614" Count="1" />
+      <LineId Id="758" Count="1" />
+      <LineId Id="617" Count="0" />
+      <LineId Id="761" Count="3" />
+      <LineId Id="111" Count="1" />
+      <LineId Id="985" Count="0" />
+      <LineId Id="1104" Count="0" />
+      <LineId Id="113" Count="1" />
+      <LineId Id="984" Count="0" />
+      <LineId Id="981" Count="0" />
+      <LineId Id="986" Count="0" />
+      <LineId Id="982" Count="1" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="115" Count="3" />
+      <LineId Id="887" Count="0" />
+      <LineId Id="119" Count="1" />
+      <LineId Id="884" Count="2" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="554" Count="0" />
+      <LineId Id="1148" Count="0" />
+      <LineId Id="1216" Count="0" />
+      <LineId Id="1121" Count="3" />
+      <LineId Id="1187" Count="0" />
+      <LineId Id="555" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="1032" Count="0" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="1014" Count="0" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="1015" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="26" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_RESETTING">
+      <LineId Id="11" Count="7" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="21" Count="5" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,360 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_TableMove" Id="{c6321f9c-a819-4092-805a-8ebfed49ae76}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TableMove EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute    : BOOL;
+    xAbort      : BOOL;
+    xReset      : BOOL;
+    Index       : INT; // PositionTable array index
+    CurrentData : REFERENCE TO ST_SetupPara; // Componets setup parameter
+    TimeOut     : LREAL := 30; // Unit : s
+END_VAR
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : T_MaxString;
+END_VAR
+VAR
+    // State Machine
+    StateBehaviour  : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+	
+	Cylinder : UNI_CylinderList;
+	Reset_Rtrig : R_TRIG;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+StateBehaviour(xExecute := xExecute,
+               xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+               udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+               xDone => xDone,
+               xBusy => xBusy,
+               xError => xError,
+               xAborted => xAborted);
+
+//Error Msg
+iErrorID := StateBehaviour._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);
+
+//Reset
+Reset_Rtrig(CLK:= xReset);
+IF Reset_Rtrig.Q THEN
+	StateBehaviour.ResetModel(xCommit:=xReset);
+END_IF]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{0c18fa31-5d8a-40bf-becb-a46d72315312}" />
+    <Folder Name="Private" Id="{81459bde-1cf4-44ce-81f3-901676100ecd}" />
+    <Method Name="CleanupAction" Id="{409eef24-b589-4db9-a3d2-7baea41e80a8}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{a919b52b-4d06-4080-8c34-7f10087d1504}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR_INST
+	AllowAllocateRobotMove : BOOL;
+	AllowOutRobotMove : BOOL;
+	AllowRoundBeltMove : BOOL;
+	AllowTurnTable :BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[///safe check
+
+xComplete := FALSE;
+IF CurrentPosition.Robot = 1  THEN
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Acc := CurrentData.Axes.OutRobot_X.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Dec := CurrentData.Axes.OutRobot_X.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Jerk := CurrentData.Axes.OutRobot_X.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Velocity := CurrentData.Axes.OutRobot_X.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := CurrentPosition.X_Pos;
+
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Acc := CurrentData.Axes.OutRobot_X.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Dec := CurrentData.Axes.OutRobot_X.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Jerk := CurrentData.Axes.OutRobot_X.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Velocity := CurrentData.Axes.OutRobot_X.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := CurrentPosition.Y_Pos;
+	IF arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone AND 
+		arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone THEN
+		xComplete := TRUE;
+	END_IF
+
+ELSIF CurrentPosition.Robot = 0  THEN
+	arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPosition.X_Pos;
+
+	arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPosition.Y_Pos;
+	IF arAxisStatus_gb[AxisNo.Allocate_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_X].Admin.CmdDone AND 
+		arAxisStatus_gb[AxisNo.Allocate_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.Allocate_Y].Admin.CmdDone THEN
+		xComplete := TRUE;
+	END_IF
+
+ELSIF CurrentPosition.Robot = 2  THEN
+	arAxisCtrl_gb[AxisNo.RoundBelt].PosMode.Acc := CurrentData.Axes.RoundBelt.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.RoundBelt].PosMode.Dec := CurrentData.Axes.RoundBelt.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.RoundBelt].PosMode.Jerk := CurrentData.Axes.RoundBelt.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.RoundBelt].PosMode.Velocity := CurrentData.Axes.RoundBelt.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.RoundBelt].PosMode.Position := CurrentPosition.X_Pos;
+	IF arAxisStatus_gb[AxisNo.RoundBelt].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.RoundBelt].Admin.CmdDone  THEN
+		xComplete := TRUE;
+	END_IF
+
+ELSIF CurrentPosition.Robot = 3 THEN
+	arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Acc := CurrentData.Axes.TurnTable.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Dec := CurrentData.Axes.TurnTable.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Jerk := CurrentData.Axes.TurnTable.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Velocity := CurrentData.Axes.TurnTable.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Position := CurrentPosition.X_Pos;
+	IF arAxisStatus_gb[AxisNo.TurnTable].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.TurnTable].Admin.CmdDone  THEN
+		xComplete := TRUE;
+	END_IF
+
+ELSIF CurrentPosition.Robot = 4 THEN
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Acc := CurrentData.Axes.RackMotor.HalfAuto.Acceleration;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Dec := CurrentData.Axes.RackMotor.HalfAuto.Deceleration;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Jerk := CurrentData.Axes.RackMotor.HalfAuto.Jerk;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Velocity := CurrentData.Axes.RackMotor.HalfAuto.Velocity;
+	arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Position := CurrentPosition.X_Pos;
+	IF arAxisStatus_gb[AxisNo.RackMotor].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.RackMotor].Admin.CmdDone  THEN
+		xComplete := TRUE;
+	END_IF
+
+END_IF
+
+IF arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error THEN
+	iErrorID := 5; // Axis OutRobot_X has error
+END_IF
+IF arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error THEN
+	iErrorID := 6; // Axis OutRobotY has error
+END_IF
+IF arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error THEN
+	iErrorID := 7; // Axis Allocate_X has error
+END_IF
+IF arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error THEN
+	iErrorID := 8; // Axis Allocate_Y has error
+END_IF
+IF arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error THEN
+	iErrorID := 9; // Axis RoundBelt has error
+END_IF
+IF arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error THEN
+	iErrorID := 10; // Axis TurnTable has error
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{7f447a00-90ab-4cd4-aea8-5c028f5abc6a}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{ec30bbfa-3a03-44ae-8d85-6563eb3934d7}" FolderPath="Private\">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+    0:
+        M_GetErrorMsg := 'No Error';
+    1:
+        M_GetErrorMsg := 'Action time out';
+    2:
+        M_GetErrorMsg := 'Position Data invalid';
+    3:
+        M_GetErrorMsg := 'Index invalid';
+    4:
+		M_GetErrorMsg := 'Axis is not ready';
+    5:
+        M_GetErrorMsg := 'Axis OutRobot X has Error';
+    6:
+        M_GetErrorMsg := 'Axis OutRobot Y has Error';
+	7:
+		M_GetErrorMsg := 'Axis Allocate_X has error';
+	8:
+		M_GetErrorMsg := 'Axis Allocate_Y has error';
+	9:
+		M_GetErrorMsg := 'Axis RoundBelt has error';
+	10:
+		M_GetErrorMsg := 'Axis TurnTable has error';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{9d9a43f2-7dda-4785-a022-7ab8540e1b63}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{408c5737-d35d-40f1-8d2b-2780dfcff42b}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Index >= 1 AND Index <= 200 THEN
+CurrentPosition := CurrentData.PositionTable[Index];
+ELSE
+	iErrorID := 3; // Index invalid
+	RETURN;
+END_IF
+//0 : Allocate , 1: OutRobot, 2: RoundBelt , 3: TurnTable, 4: RackMotor
+IF CurrentPosition.Robot = 1  THEN		
+	IF arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.NotMoving AND  
+		NOT arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error AND 
+		arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.NotMoving AND
+		NOT arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error
+		THEN
+		xComplete := TRUE;
+	ELSE
+		iErrorID := 4; // Axis not ready
+	END_IF
+ELSIF CurrentPosition.Robot = 0  THEN
+	IF arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.NotMoving AND  
+		NOT arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error AND 
+		arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.NotMoving AND
+		NOT arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error
+		THEN
+		xComplete := TRUE;
+	ELSE
+		iErrorID := 4; // Axis not ready
+	END_IF
+ELSIF CurrentPosition.Robot = 2  THEN
+	IF arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving AND  
+		NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error THEN
+		xComplete := TRUE;
+	ELSE
+		iErrorID := 4; // Axis not ready
+	END_IF
+ELSIF CurrentPosition.Robot = 3  THEN
+	IF arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving AND  
+		NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error THEN 
+		xComplete := TRUE;
+	ELSE
+		iErrorID := 4; // Axis not ready
+	END_IF
+ELSIF CurrentPosition.Robot = 4  THEN
+	IF arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.NotMoving AND  
+		NOT arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Error THEN 
+		xComplete := TRUE;
+	ELSE
+		iErrorID := 4; // Axis not ready
+	END_IF
+ELSE
+	iErrorID := 2; // Position Data invalid
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_TableMove">
+      <LineId Id="62" Count="6" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="88" Count="1" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="134" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_TableMove.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TableMove.CyclicAction">
+      <LineId Id="154" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="61" Count="11" />
+      <LineId Id="221" Count="3" />
+      <LineId Id="220" Count="0" />
+      <LineId Id="73" Count="11" />
+      <LineId Id="226" Count="3" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="85" Count="5" />
+      <LineId Id="231" Count="2" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="91" Count="5" />
+      <LineId Id="235" Count="2" />
+      <LineId Id="234" Count="0" />
+      <LineId Id="184" Count="4" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="239" Count="2" />
+      <LineId Id="238" Count="0" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="119" Count="16" />
+      <LineId Id="58" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TableMove.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TableMove.M_GetErrorMsg">
+      <LineId Id="32" Count="9" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="43" Count="2" />
+      <LineId Id="48" Count="1" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TableMove.ResetAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_TableMove.StartAction">
+      <LineId Id="46" Count="40" />
+      <LineId Id="94" Count="5" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="87" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

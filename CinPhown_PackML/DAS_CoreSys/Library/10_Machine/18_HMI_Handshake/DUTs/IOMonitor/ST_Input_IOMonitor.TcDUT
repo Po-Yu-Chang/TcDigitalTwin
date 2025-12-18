@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Input_IOMonitor" Id="{5f04e189-b4c7-4635-b102-93b703d6f764}">
+    <Declaration><![CDATA[TYPE
+    ST_Input_IOMonitor :
+    STRUCT
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_EbusInputModule" Id="{579698ba-1c9d-4920-a22c-8556ce91c120}">
+    <Declaration><![CDATA[TYPE
+    ST_EbusInputModule :
+    STRUCT
+        EL1889_01 : ST_EbusDI16;
+        EL1889_02 : ST_EbusDI16;
+        EL1889_03 : ST_EbusDI16;
+        EL1889_04 : ST_EbusDI16;
+        EL1889_05 : ST_EbusDI16;
+        EL1889_06 : ST_EbusDI16;
+        EL1889_07 : ST_EbusDI16;
+        EL1889_08 : ST_EbusDI16;
+        EL1889_09 : ST_EbusDI16;
+        EL1889_10 : ST_EbusDI16;
+        EL1889_11 : ST_EbusDI16;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,390 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_AllocateRobotNeedlingMove" Id="{0c7498d5-c1e2-4999-ae98-a13a68d3d614}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateRobotNeedlingMove EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute      : BOOL;
+    xAbort        : BOOL;
+    TimeOut  : LREAL := 30; // Unit : s
+	MovingInfo	: ST_AllocateRobotNeedlingMoveInfo;
+END_VAR
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : T_MaxString;
+END_VAR
+VAR
+    StateBehavior   : CBML.ETrigATo;
+    uiCyclicStep    : UINT := 0;
+    uiIndexLoop     : UINT;
+	Coordinate		:st_Coordinate;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehavior;
+StateBehavior(xExecute := xExecute,
+              xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,			  
+              xAborted => xAborted);			  
+
+			  
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);
+
+//Error Msg
+iErrorID := StateBehavior._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{f2abfd59-5f6d-4076-bcd0-a7a82c0dd92f}" />
+    <Method Name="CleanupAction" Id="{00a7a5af-0e2b-42d9-87c4-12eebb3a4f46}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[uiCyclicStep := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{370ca2a2-ffe2-4b71-b033-d8c6b7c21783}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR_INST
+	
+END_VAR
+
+VAR
+		bAxesCheck 		: BOOL;
+	
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+	IF arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error OR
+		arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error THEN
+		iErrorID :=3;
+	END_IF
+
+CASE uiCyclicStep OF
+    0:
+		
+			uiCyclicStep:=100;
+		
+		
+	100:
+			arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position:=Coordinate.X;
+			arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position:=Coordinate.Y;	
+		
+			IF arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Moving OR
+			   arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Moving OR
+			   arAxisStatus_gb[AxisNo.Allocate_X].Admin._OpModeAck=E_AXIS_MODE.ModePosAbs OR
+			   arAxisStatus_gb[AxisNo.Allocate_y].Admin._OpModeAck=E_AXIS_MODE.ModePosAbs THEN
+			   uiCyclicStep:=200;
+			END_IF
+			
+	200:
+			bAxesCheck := TRUE;
+
+		bAxesCheck := bAxesCheck AND	 arAxisStatus_gb[AxisNo.Allocate_x].Admin.CmdDone ;
+		bAxesCheck := bAxesCheck AND	 arAxisStatus_gb[AxisNo.Allocate_y].Admin.CmdDone ;	
+	
+		IF bAxesCheck THEN
+			 uiCyclicStep:=600;
+		END_IF
+	600:
+		
+		xComplete := TRUE;
+END_CASE
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{9bf73a84-c586-4ead-be57-22e43bb0f5e5}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckCommand" Id="{8be02945-2678-4ca2-b5e7-c2e375ba11b4}">
+      <Declaration><![CDATA[METHOD PRIVATE M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+	iErrorID	 : INT :=0 ;
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF MovingInfo.Box<0 OR MovingInfo.Box >1 OR MovingInfo.Clip<0 OR MovingInfo.Clip>3 OR MovingInfo.NeedleLocation<0 OR MovingInfo.NeedleLocation>49 THEN
+	iErrorID :=2;
+	M_CheckCommand := FALSE;
+	RETURN;
+END_IF
+
+IF MovingInfo.Area = 'T' THEN
+		
+	FUN_GetNeedleCoordinates(uiLocation :=1 ,
+							 uiBox:=MovingInfo.Box,
+							 uiClip:=MovingInfo.Clip,
+							 uiNeedleLocation:=MovingInfo.NeedleLocation,
+							 NeedleCoordinate=>Coordinate);
+	IF MovingInfo.Box = 1 AND (MovingInfo.Clip = 2 OR MovingInfo.Clip = 3) THEN
+		M_CheckCommand := FALSE;
+		iErrorID :=2;
+		RETURN;
+	END_IF
+	IF MovingInfo.Box = 2 AND (MovingInfo.Clip = 0 OR MovingInfo.Clip = 1) THEN
+		M_CheckCommand :=FALSE;
+		iErrorID :=2;
+		RETURN;
+	END_IF
+	
+ELSIF 	
+
+	MovingInfo.Area = 'Q' THEN
+	FUN_GetNeedleCoordinates(uiLocation :=0 ,
+							 uiBox:=MovingInfo.Box,
+							 uiClip:=MovingInfo.Clip,
+							 uiNeedleLocation:=MovingInfo.NeedleLocation,
+							 NeedleCoordinate=>Coordinate);
+	
+
+ELSE
+	iErrorID :=2;
+	M_CheckCommand := FALSE;
+	RETURN;
+END_IF
+
+M_CheckCommand:=TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{7be2b996-2077-43c1-a6ff-9f7683e73c66}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	0:
+		M_GetErrorMsg := 'No Error';
+	1:
+		M_GetErrorMsg := 'Action time out';
+	2:
+		M_GetErrorMsg := 'Wrong command';
+	3:
+		M_GetErrorMsg := 'Servo axis error';
+//	4:
+//		M_GetErrorMsg := 'Axis roundbelt not ready has Error';
+//	5:
+//		M_GetErrorMsg := 'Cylinder not ready has Error';
+//	6:
+//		M_GetErrorMsg := 'Axis RoundBelt has Error';
+//	7:
+//		M_GetErrorMsg := 'ChargeZone_Plug has Error';
+//	8:
+//		M_GetErrorMsg := 'TransmitCVZone_Plug has Error';
+//	9:
+//		M_GetErrorMsg := 'WorkZone_Plug has Error';
+//	10:
+//		M_GetErrorMsg := 'WorkZone_Press has Error';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetAxes" Id="{fefae755-86fa-4863-b4ab-f1ab888f4d16}">
+      <Declaration><![CDATA[METHOD PRIVATE M_ResetAxes : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bAxesCheck :BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[		bAxesCheck :=TRUE;
+		IF arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error THEN
+			arAxisCtrl_gb[AxisNo.Allocate_X].Admin.ClearError:=TRUE;			
+			ELSE
+			arAxisCtrl_gb[AxisNo.Allocate_X].Admin.ClearError:=FALSE;	
+		END_IF
+		IF arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error THEN
+			arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.ClearError:=TRUE;			
+			ELSE
+			arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.ClearError:=FALSE;	
+		END_IF
+		bAxesCheck := bAxesCheck AND NOT arAxisCtrl_gb[AxisNo.Allocate_X].Admin.ClearError ;
+		bAxesCheck := bAxesCheck AND NOT arAxisCtrl_gb[AxisNo.Allocate_X].Admin.ClearError ;
+		
+		M_ResetAxes := bAxesCheck;
+	
+		]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{90f4d3fa-84d9-441d-858a-cbb8670d3c01}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[uiCyclicStep := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{2655a673-413f-4160-b67d-8a355b574926}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+uiCyclicStep := 0;
+
+IF M_CheckCommand(iErrorID=>iErrorID) AND M_ResetAxes() THEN
+	xComplete := TRUE;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_AllocateRobotNeedlingMove">
+      <LineId Id="64" Count="6" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="168" Count="1" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="162" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.CyclicAction">
+      <LineId Id="140" Count="0" />
+      <LineId Id="448" Count="0" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="449" Count="0" />
+      <LineId Id="451" Count="0" />
+      <LineId Id="450" Count="0" />
+      <LineId Id="446" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="274" Count="0" />
+      <LineId Id="421" Count="1" />
+      <LineId Id="424" Count="3" />
+      <LineId Id="453" Count="0" />
+      <LineId Id="428" Count="0" />
+      <LineId Id="430" Count="1" />
+      <LineId Id="433" Count="2" />
+      <LineId Id="432" Count="0" />
+      <LineId Id="436" Count="2" />
+      <LineId Id="452" Count="0" />
+      <LineId Id="439" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="441" Count="0" />
+      <LineId Id="443" Count="2" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="319" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="106" Count="1" />
+      <LineId Id="32" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.M_CheckCommand">
+      <LineId Id="31" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="23" Count="3" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="27" Count="3" />
+      <LineId Id="10" Count="2" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.M_GetErrorMsg">
+      <LineId Id="5" Count="1" />
+      <LineId Id="12" Count="8" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.M_ResetAxes">
+      <LineId Id="8" Count="12" />
+      <LineId Id="22" Count="1" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.ResetAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_AllocateRobotNeedlingMove.StartAction">
+      <LineId Id="50" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="60" Count="1" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

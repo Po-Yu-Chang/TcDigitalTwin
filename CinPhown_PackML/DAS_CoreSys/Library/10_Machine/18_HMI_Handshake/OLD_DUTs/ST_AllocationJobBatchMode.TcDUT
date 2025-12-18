@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AllocationJobBatchMode" Id="{71cd595f-cf56-4349-988f-15807d3c1656}">
+    <Declaration><![CDATA[TYPE ST_AllocationJobBatchMode :
+STRUCT
+	AllocationInfo		: ARRAY[0..49] OF ST_AllocationJobBatchModeInfo; //Max 50 allocation jobs once
+	HandShake			: st_HandshakeBase;
+	NrOfAllocationJob	: UINT; // How many jobs this batch , Max :50
+	Pause				: BOOL;
+	WorkedID			:  ARRAY[0..49] OF INT;	 // feedback which job was done , start in -1 means not finishing any job yet
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

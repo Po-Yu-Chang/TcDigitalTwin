@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_CylinderMonitor" Id="{4d780b7a-197c-47a5-8233-646e1e334248}">
+    <Declaration><![CDATA[TYPE
+    ST_CylinderMonitor :
+    STRUCT
+        InFrontPosition : BOOL;
+        InRearPosition  : BOOL;
+        Error           : BOOL;
+        ErrMsg          : T_MaxString;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

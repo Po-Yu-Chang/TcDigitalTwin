@@ -1,0 +1,425 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_RoundBeltService" Id="{8d75a2c3-8079-477f-bebf-e767c6ddb006}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RoundBeltService EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute      : BOOL;
+    xAbort        : BOOL;
+    TargetStation : INT;
+
+    Cylinder : REFERENCE TO UNI_CylinderList;
+    TimeOut  : LREAL := 90; // Unit : s
+END_VAR
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : STRING;
+	AxisRoundMoveRequest	: BOOL;
+END_VAR
+VAR
+    StateBehavior   : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+    CurrentData     : ARRAY[1..21] OF ST_PositionTable;
+    uiCyclicStep    : UINT := 0;
+    uiIndexLoop     : UINT;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+	iVar	: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehavior;
+StateBehavior(xExecute := xExecute,
+              xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);
+
+//Make sure that C# turns off execute to shut down the service
+fbExecuteEdgeDetect(xInput :=xExecute);
+
+//Error Msg
+iErrorID := StateBehavior._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+
+			  
+A00_ReadPositionData();
+]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{fb0ea1b7-3a55-401e-86f0-87cb968c2200}" />
+    <Folder Name="Method" Id="{a0cfead5-6aa1-458a-ab09-c8acb926f7c8}" />
+    <Action Name="A00_ReadPositionData" Id="{46cf0817-36b9-476c-9d1f-17310f877691}">
+      <Implementation>
+        <ST><![CDATA[FOR uiIndexLoop := 1 TO 20 DO
+    CurrentData[uiIndexLoop] := FUN_GetPositionTableData(PositionName := 'B', Index := UINT_TO_LREAL(uiIndexLoop), Clip := E_ClipNo.A);
+END_FOR
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="CleanupAction" Id="{f6764331-1beb-4321-b18a-78b6014e8ed7}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[uiCyclicStep := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{38f757a4-591e-49e8-b669-104182a2b01f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+CASE uiCyclicStep OF
+	
+    0:
+		//Check if current station is same as target
+		IF ABS(CurrentPosition.X_Pos -  arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.NcToPlc.ModuloSetPos) < 0.2 THEN
+			uiCyclicStep := 200;
+			ELSE
+			uiCyclicStep := 50;	
+		END_IF
+	50:
+		// Retract all cylinders
+        Cylinder.List.fbRoundBelt_ChargeZone_Plug.M_Retract();
+        Cylinder.List.fbRoundBelt_TransmitCVZone_Plug.M_Retract();
+        Cylinder.List.fbRoundBelt_WorkZone_Plug.M_Retract();
+        Cylinder.List.fbRoundBelt_WorkZone_Press.M_Retract();
+
+        IF Cylinder.List.fbRoundBelt_ChargeZone_Plug.InRearPosition AND
+            Cylinder.List.fbRoundBelt_TransmitCVZone_Plug.InRearPosition AND
+            Cylinder.List.fbRoundBelt_WorkZone_Plug.InRearPosition AND
+            Cylinder.List.fbRoundBelt_WorkZone_Press.InRearPosition THEN
+            uiCyclicStep := 100;
+        END_IF
+    100: 
+	    // Move round belt to target station
+        arAxisCtrl_gb[AxisNo.RoundBelt].PosMode.Position := CurrentPosition.X_Pos;
+		IF arAxisCtrl_gb[AxisNo.RoundBelt].PosMode.Position = CurrentPosition.X_Pos THEN
+			uiCyclicStep := 125;
+		END_IF
+	125:
+			AxisRoundMoveRequest := TRUE;
+		 IF  arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Moving THEN
+				uiCyclicStep := 150;
+		 END_IF
+		
+	150:
+        IF arAxisStatus_gb[AxisNo.RoundBelt].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.RoundBelt].Admin.CmdDone AND
+			(arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.InTargetPosition OR arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Operational)
+		THEN
+			AxisRoundMoveRequest := FALSE;
+            uiCyclicStep := 170;
+        END_IF
+		
+	170:	// judge odd or even station
+
+		IF iVar = 0 THEN
+			uiCyclicStep := 400;
+		ELSIF iVar = 1 THEN
+			uiCyclicStep := 200;
+		END_IF
+		
+	200:
+        Cylinder.List.fbRoundBelt_ChargeZone_Plug.M_Extend();
+        //Cylinder.List.fbRoundBelt_TransmitCVZone_Plug.M_Extend();
+        Cylinder.List.fbRoundBelt_WorkZone_Plug.M_Extend();
+   
+        IF Cylinder.List.fbRoundBelt_ChargeZone_Plug.InFrontPosition AND
+            //Cylinder.List.fbRoundBelt_TransmitCVZone_Plug.InFrontPosition AND
+            Cylinder.List.fbRoundBelt_WorkZone_Plug.InFrontPosition THEN
+            uiCyclicStep := 300;
+        END_IF
+		
+	300:
+		Cylinder.List.fbRoundBelt_WorkZone_Press.M_Extend();
+		IF  Cylinder.List.fbRoundBelt_WorkZone_Press.InFrontPosition THEN
+            //xComplete := TRUE;
+			uiCyclicStep := 400;
+        END_IF
+	400:
+			xComplete := TRUE;
+			
+			
+END_CASE
+
+IF arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error THEN
+    iErrorID := 6; // Axis RoundBelt has error
+END_IF
+
+IF Cylinder.List.fbRoundBelt_ChargeZone_Plug.xError THEN
+    iErrorID := 7;
+END_IF
+
+IF Cylinder.List.fbRoundBelt_TransmitCVZone_Plug.xError THEN
+    iErrorID := 8;
+END_IF
+
+IF Cylinder.List.fbRoundBelt_WorkZone_Plug.xError THEN
+    iErrorID := 9;
+END_IF
+
+IF Cylinder.List.fbRoundBelt_WorkZone_Press.xError THEN
+    iErrorID := 10;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{944903a6-001d-4068-a074-95b113e1f2ad}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{1c95d7a3-dea2-43b7-8a85-ed4b935be22b}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	0:
+		M_GetErrorMsg := 'No Error';
+	1:
+		M_GetErrorMsg := 'Action time out';
+	2:
+		M_GetErrorMsg := 'Position Data invalid';
+	3:
+		M_GetErrorMsg := 'Index invalid';
+	4:
+		M_GetErrorMsg := 'Axis roundbelt not ready has Error';
+	5:
+		M_GetErrorMsg := 'Cylinder not ready has Error';
+	6:
+		M_GetErrorMsg := 'Axis RoundBelt has Error';
+	7:
+		M_GetErrorMsg := 'ChargeZone_Plug has Error';
+	8:
+		M_GetErrorMsg := 'TransmitCVZone_Plug has Error';
+	9:
+		M_GetErrorMsg := 'WorkZone_Plug has Error';
+	10:
+		M_GetErrorMsg := 'WorkZone_Press has Error';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StationModify" Id="{683ae689-c123-494d-8de1-cd4513cc4278}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_StationModify : BOOL
+VAR_INPUT
+	TargetStation : INT;
+END_VAR
+
+VAR_OUTPUT
+	ModifiedTargetStation : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ModifiedTargetStation := (TargetStation/2)+1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{acc22fc0-fafd-4f44-88d5-9cf0a6abebc3}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{bc4c5ba3-0601-41d1-a02e-4666588ee580}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR
+
+VAR
+	ModifiedTargetPos : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+M_StationModify(TargetStation,ModifiedTargetStation =>ModifiedTargetPos);
+
+//verify C# Station command
+iVar := TargetStation MOD 2 ;
+
+IF TargetStation >= 1 AND TargetStation <= 40 THEN
+    CurrentPosition := CurrentData[ModifiedTargetPos];
+ELSE
+    iErrorID := 3; // Target Station invalid.
+    RETURN;
+END_IF
+uiCyclicStep := 0;
+
+IF arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving AND
+    NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error THEN
+    xComplete := TRUE;
+ELSE
+    iErrorID := 4; // Axis not ready
+END_IF
+
+IF iVar = 0 THEN
+	CurrentPosition.X_Pos := CurrentPosition.X_Pos + 65;
+	xComplete := TRUE;
+END_IF
+IF iVar = 1 THEN
+	CurrentPosition.X_Pos := CurrentPosition.X_Pos  ;
+	xComplete := TRUE;
+END_IF
+
+
+//IF Cylinder.List.fbRoundBelt_ChargeZone_Plug.xBusy AND Cylinder.List.fbRoundBelt_TransmitCVZone_Plug.xBusy AND 
+//	Cylinder.List.fbRoundBelt_WorkZone_Plug.xBusy AND Cylinder.List.fbRoundBelt_WorkZone_Press.xBusy AND NOT 
+//	Cylinder.List.fbRoundBelt_ChargeZone_Plug.xError AND NOT Cylinder.List.fbRoundBelt_TransmitCVZone_Plug.xError
+//	AND NOT Cylinder.List.fbRoundBelt_WorkZone_Plug.xError AND NOT Cylinder.List.fbRoundBelt_WorkZone_Press.xError THEN
+//	iErrorID := 5; // Cylinder not ready
+//END_IF
+//xComplete := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RoundBeltService">
+      <LineId Id="64" Count="6" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="148" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="118" Count="2" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="92" Count="1" />
+      <LineId Id="115" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.A00_ReadPositionData">
+      <LineId Id="6" Count="2" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.CleanupAction">
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.CyclicAction">
+      <LineId Id="140" Count="0" />
+      <LineId Id="264" Count="1" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="175" Count="1" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="89" Count="11" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="279" Count="0" />
+      <LineId Id="278" Count="0" />
+      <LineId Id="274" Count="2" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="202" Count="1" />
+      <LineId Id="102" Count="1" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="104" Count="1" />
+      <LineId Id="215" Count="1" />
+      <LineId Id="218" Count="2" />
+      <LineId Id="222" Count="0" />
+      <LineId Id="229" Count="0" />
+      <LineId Id="221" Count="0" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="182" Count="3" />
+      <LineId Id="187" Count="1" />
+      <LineId Id="180" Count="1" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="226" Count="0" />
+      <LineId Id="152" Count="1" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="225" Count="0" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="224" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="227" Count="1" />
+      <LineId Id="106" Count="20" />
+      <LineId Id="32" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.ExitAction">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.M_GetErrorMsg">
+      <LineId Id="5" Count="1" />
+      <LineId Id="12" Count="8" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.M_StationModify">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.ResetAction">
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RoundBeltService.StartAction">
+      <LineId Id="50" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="19" Count="5" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="25" Count="6" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="87" Count="1" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="89" Count="2" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="36" Count="2" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

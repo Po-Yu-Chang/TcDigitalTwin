@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_OutRobot" Id="{c9cdedaf-ec2c-498e-9d7f-c3f6a8940b0a}">
+    <Declaration><![CDATA[TYPE
+    ST_Manual_OutRobot :
+    STRUCT
+        AsideVert  : ST_SignleValve; // OutRobot AsideVert cylinder controll
+        BsideVert  : ST_SignleValve; // OutRobot BsideVert cylinder controll
+        AsideClamp : ST_SignleValve; // OutRobot AsideClamp cylinder controll
+        BsideClamp : ST_SignleValve; // OutRobot BsideClamp cylinder controll
+        AxisX      : ST_Manual_Axis; // OutRobot AxisX controll
+        AxisY      : ST_Manual_Axis; // OutRobot AxisY controll
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

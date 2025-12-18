@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FUN_CheckAxisAllowMove" Id="{15bac2cc-ac94-42e2-9a47-6dc97cb5b38e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_CheckAxisAllowMove : bool
+VAR_INPUT
+	AxisNo :AxisNo;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF arAxisCtrl_gb[THIS^.AxisNo].Admin.Axis.Status.NotMoving AND NOT arAxisCtrl_gb[THIS^.AxisNo].Admin.Axis.Status.Error THEN
+	FUN_CheckAxisAllowMove := TRUE;
+ELSE
+	FUN_CheckAxisAllowMove := FALSE;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_CheckAxisAllowMove">
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

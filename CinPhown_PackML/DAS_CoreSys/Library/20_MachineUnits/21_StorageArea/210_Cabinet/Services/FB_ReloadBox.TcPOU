@@ -1,0 +1,285 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ReloadBox" Id="{f59d902b-7714-4097-ae67-c44da09a592b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ReloadBox EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+	Motors : REFERENCE TO UNI_MotorList ;// The motors with warehouse conveyor
+	WarehouseStatus : REFERENCE TO ST_WheelhouseInput; // The warehouse motor and sensor status
+	ArrivedDelayTime : TIME;
+	WarehouseSelect :E_WareHouse;
+	WarehouseCoordinates : ST_WareHouseCoordinates;
+	TimeOut : TIME; // Set the time if the process stop
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	Ton_ArriveDelay : TON; // When box arrived the front sensor, delay some time.
+	Ton_BoxMoveForward : TON;// When the conveyor send the box forward, but not useful.
+	uiMotorIndex: INT;
+	CurrentTargetSensorStatus : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+A10_StateControl();]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{bad44b66-d5fa-4077-b278-4b3da0162a6c}" />
+    <Folder Name="State" Id="{8fe948bf-3b47-48a3-b201-ca00302af121}" />
+    <Action Name="A00_BasicUnits" Id="{390ec983-aa24-486f-8134-9cd55e43a12a}" FolderPath="Action\">
+      <Implementation>
+        <ST><![CDATA[// Timer
+Ton_ArriveDelay(PT:= ArrivedDelayTime);
+Ton_BoxMoveForward(PT:= TimeOut);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckSlideSensor" Id="{70138399-3992-492e-bd6c-01ef14ebd575}">
+      <Declaration><![CDATA[(* Check Warehouse front sensor status
+*)
+METHOD M_CheckSlideSensor
+VAR_INPUT
+    WarehouseSelect      : E_WareHouse;
+    WarehouseCoordinates : ST_WareHouseCoordinates;
+END_VAR
+VAR_OUTPUT
+	SensorStatus : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF WarehouseSelect = E_WareHouse.WareHouseA THEN
+    SensorStatus := WarehouseStatus.WheelhouseA.arLayer[WarehouseCoordinates.Layer].Line[WarehouseCoordinates.Slide];
+ELSIF WarehouseSelect = E_WareHouse.WareHouseB THEN
+    SensorStatus := WarehouseStatus.WheelhouseB.arLayer[WarehouseCoordinates.Layer].Line[WarehouseCoordinates.Slide];
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{37383346-1b4b-4f35-a719-a3610ba3d4d9}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{8a25003a-6339-4442-9b75-b0fbd8f59833}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{41186c43-2ddc-4030-b892-daa440c4f975}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := _Executed;
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{ba541d28-8b6f-4226-bd0e-da4f2d3a9876}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+Ton_ArriveDelay.IN := FALSE;
+Ton_BoxMoveForward.IN := FALSE;
+uiExecutingStep := 0;
+CurrentTargetSensorStatus := FALSE;
+// Wait Execute command
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{6ae786a7-2806-4758-a968-35ba406ca314}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR uiMotorIndex := 1 TO 20 DO
+	Motors.arMotor[uiMotorIndex].M_MotorStop();// 
+END_FOR
+
+IF NOT Execute THEN
+	estate := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{de6e20c6-da0e-4e62-ac44-1c64e641526a}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	TargetLayer : INT;
+	TargetSlide :E_WareHouseSlide;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set FB state is busy
+Busy := TRUE;
+
+// Process
+CASE uiExecutingStep OF
+    0: // Command analize
+		 Ton_ArriveDelay.IN := FALSE;
+		 TargetLayer := WarehouseCoordinates.Layer+(WarehouseSelect-1)*10; //Warehouse A = 1 , B = 2
+		 TargetSlide := WarehouseCoordinates.Slide;
+		uiExecutingStep := 10;
+	10:
+		 Ton_BoxMoveForward.IN := TRUE;
+        Motors.arMotor[TargetLayer].M_MoveForward();// .M_MoveForward();//('Reload box : conveyor move forward');
+		IF NOT Motors.arMotor[TargetLayer].InStopped THEN// .InStopped;// THEN
+			Ton_BoxMoveForward.IN := FALSE;
+			uiExecutingStep := 100;
+		END_IF
+		IF  Ton_BoxMoveForward.Q THEN
+		  _Error := TRUE;
+           Status := 'Move motor timeout';
+		END_IF
+    100: // Wait box arrived
+        Ton_BoxMoveForward.IN := TRUE;
+		M_CheckSlideSensor(WarehouseSelect := WarehouseSelect, WarehouseCoordinates := WarehouseCoordinates,SensorStatus=>CurrentTargetSensorStatus);
+        Ton_ArriveDelay.IN:=CurrentTargetSensorStatus;
+
+		IF Ton_ArriveDelay.Q THEN
+            uiExecutingStep := 200;
+//        ELSIF Ton_BoxMoveForward.Q THEN
+//            _Error := TRUE;
+//            Status := 'Box was not been arrived,time out';
+        END_IF
+    200:
+        Ton_ArriveDelay.IN := FALSE;
+
+        //IF Ton_ArriveDelay.Q THEN
+            uiExecutingStep := 300;
+       // END_IF
+    300:
+        Motors.arMotor[TargetLayer].M_MotorStop();// .M_MotorStop();//('Reload box : conveyor move forward');
+        uiExecutingStep := 9900;
+    9900:
+        // Command completed
+        _Executed := TRUE;
+END_CASE
+
+IF _Executed THEN
+    eState := STATE_DONE;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+ELSIF _Error THEN
+    eState := STATE_ERROR;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{a11ea46b-7adc-4c17-8bff-f4a1b59a49ed}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+VAR 
+	uiMotorIndex : UINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Done := _Executed;
+		Ton_BoxMoveForward.IN := FALSE;
+		Ton_ArriveDelay.IN := FALSE;
+FOR uiMotorIndex := 1 TO 20 DO 
+	Motors.arMotor[uiMotorIndex].M_MotorStop();
+END_FOR		
+		
+IF NOT Execute THEN
+	eState := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ReloadBox">
+      <LineId Id="9" Count="0" />
+      <LineId Id="22" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.A00_BasicUnits">
+      <LineId Id="2" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_CheckSlideSensor">
+      <LineId Id="48" Count="3" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_STATE_ABORTED">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_STATE_DONE">
+      <LineId Id="11" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_STATE_DORMANT">
+      <LineId Id="9" Count="10" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="27" Count="1" />
+      <LineId Id="20" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_STATE_ERROR">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_STATE_EXECUTING">
+      <LineId Id="76" Count="1" />
+      <LineId Id="87" Count="3" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="160" Count="1" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="148" Count="0" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="150" Count="0" />
+      <LineId Id="92" Count="3" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="96" Count="25" />
+      <LineId Id="68" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ReloadBox.M_STATE_RESETTING">
+      <LineId Id="14" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

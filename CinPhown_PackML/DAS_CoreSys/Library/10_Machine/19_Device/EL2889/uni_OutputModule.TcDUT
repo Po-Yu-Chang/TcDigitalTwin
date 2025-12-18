@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="uni_OutputModule" Id="{d19e5ab1-2dc0-439b-8a05-ff522865b723}">
+    <Declaration><![CDATA[TYPE
+    uni_OutputModule :
+    UNION
+        stEbusDO : ST_EbusOutputModule;       // Output table defined based on module allocation.
+        stDO     : ST_OutputTable;            // Output table defined based on variable names.
+        stDIList : ST_OutputTable_Mitsubishi; // Output table defined based on Mitsubishi PLC convention.
+    END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

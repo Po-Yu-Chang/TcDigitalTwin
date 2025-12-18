@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_AutoMode_AllocatingJob" Id="{3ebb10b4-3304-4eb6-bd10-de167b90f09f}">
+    <Declaration><![CDATA[TYPE st_AutoMode_AllocatingJob :
+STRUCT
+	PickingNeedleInfo			: Array[0..3] OF st_AllocatingNeedleInfo;	//取針資料
+	PlacingNeedleInfo			: ARRAY[0..3] OF st_AllocatingNeedleInfo;	//放針資料
+	FastMode					: BOOL;
+	SyncMode					: BOOL;
+	HandShake					: st_HandshakeBase;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

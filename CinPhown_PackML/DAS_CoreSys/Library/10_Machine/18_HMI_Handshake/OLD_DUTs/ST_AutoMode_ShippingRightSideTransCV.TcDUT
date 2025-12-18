@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_ShippingRightSideTransCV" Id="{b7a70c5b-46c0-4333-ac1e-71329549887d}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_ShippingRightSideTransCV :
+STRUCT
+	Command : ST_CommandBasic;
+	Status	: ST_StatusBasic;
+	ShippingTransCVRequest_RightSide : BOOL;		//C# to PLC
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

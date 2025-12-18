@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="st_ServiceTimeoutSetting" Id="{ad74b4da-50fd-4d29-9164-8e6fcbaad3ff}">
+    <Declaration><![CDATA[TYPE st_ServiceTimeoutSetting :
+STRUCT
+	tRobotMovementTimeout	 : INT := 60000; // Time in ms
+	tOutRobotPendingForConveyorTimeout : INT := 50000;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

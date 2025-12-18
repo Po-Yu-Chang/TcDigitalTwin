@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_UnitMode" Id="{7147c906-2cea-4a39-b11e-f2358d85c526}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE E_UnitMode :
+(
+        Undefined   := 0, // Mode not defined.
+        Auto        := 1, // Mode Auto, production...
+        Mantainance := 2, // Mode Mantainance, repair or test...etc
+        Manual      := 3, // Mode Manual, user manual control
+        Homing      := 4 // Mode Homing, unit's home
+)DINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

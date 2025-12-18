@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FanucRobotReadAllOffssetDate" Id="{2f2c14b6-0a16-43e2-9faf-1f0fcfc24255}">
+    <Declaration><![CDATA[TYPE ST_FanucRobotReadAllOffssetDate :
+STRUCT
+	Command	: ST_ReadAllOffsetDataCommand; // Read all offset data command struct.
+	Status 	: ST_ReadAllOffsetDateStatus; // Read all offset data status struct.
+//	Info	: ST_ReadAllOffsetDataInfo; //Read all offset dara info struct.
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

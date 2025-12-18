@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SimpleAllocateInfo" Id="{89c8387e-5f13-4a64-809a-747557c8e144}">
+    <Declaration><![CDATA[TYPE ST_SimpleAllocateInfo :
+    STRUCT
+        PickBox     :E_SimpleAllocateTable; // Specify the index of the box to pick up.
+        PlaceBox    :E_SimpleAllocateTable; // Specify the index of the box to place.
+        PickIndex_X :E_HoleIndex_X; // Specify the starting column index to pick up the drill pin.
+        PickIndex_Y :E_HoleIndex_Y; // Specify the starting row index to pick up the drill pin.
+        PickAmount  :INT;
+		TableHolePos	: ARRAY[1..4] OF LREAL; // Simple Allocate Axis has 4 hole, set the 4 hole position
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

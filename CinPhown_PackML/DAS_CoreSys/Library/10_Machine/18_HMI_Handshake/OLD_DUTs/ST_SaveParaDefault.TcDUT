@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SaveParaDefault" Id="{4047bc96-d2ea-4a9d-9e99-69adbbeac6b6}">
+    <Declaration><![CDATA[TYPE
+    ST_SaveParaDefault :
+    STRUCT
+        Command : ST_CommandBasic;
+        Status  : ST_StatusBasic;
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

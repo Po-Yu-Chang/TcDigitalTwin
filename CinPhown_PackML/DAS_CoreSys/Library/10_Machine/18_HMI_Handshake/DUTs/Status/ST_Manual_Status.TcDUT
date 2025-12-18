@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_Manual_Status" Id="{ca0a52bb-e72f-4ffc-9c0d-86f56b5e1940}">
+    <Declaration><![CDATA[TYPE ST_Manual_Status :
+STRUCT
+	Cylinders : ST_CylinderStatus;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

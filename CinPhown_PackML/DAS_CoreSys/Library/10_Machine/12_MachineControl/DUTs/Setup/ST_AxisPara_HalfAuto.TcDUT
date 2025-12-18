@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AxisPara_HalfAuto" Id="{26611fc2-76fc-410d-be95-863dd68354fe}">
+    <Declaration><![CDATA[TYPE
+    ST_AxisPara_HalfAuto :
+    STRUCT
+        Velocity     : LREAL := 10; // The velocity command used during AxisMove in HalfAuto within DAS_CoreSys.
+        Acceleration : LREAL := 100; // The Acceleration command used during AxisMove in HalfAuto within DAS_CoreSys.
+        Deceleration : LREAL := 100; // The Deceleration command used during AxisMove in HalfAuto within DAS_CoreSys.
+        Jerk         : LREAL := 1000; // The Jerk command used during AxisMove in HalfAuto within DAS_CoreSys.
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

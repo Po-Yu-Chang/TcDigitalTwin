@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_PositionOffsetData" Id="{23d55309-98ce-482b-afaf-781d01680c52}">
+    <Declaration><![CDATA[TYPE ST_PositionOffsetData :
+	STRUCT
+		Offset_X : REAL; // Fanuc robot X offset distance.
+		Offset_Y : REAL; // Fanuc robot Y offset distance.
+		Offset_Z : REAL; // Fanuc robot Z offset distance.
+		Offset_W : REAL; // Fanuc robot W offset distance.
+		Offset_P : REAL; // Fanuc robot P offset distance.
+		Offset_R : REAL; // Fanuc robot R offset distance.
+	END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

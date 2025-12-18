@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_RS485Controller" Id="{8599d56b-dd2e-4dab-9b8b-b7ca2db6bf53}">
+    <Declaration><![CDATA[TYPE ST_RS485Controller :
+STRUCT
+	stSliderStatusALL:ST_RS485_SliderStatusALL;
+	stLayerStatus:ST_RS485_LayerStatus;
+	stHeartbeat:ST_RS485_Heartbeat;	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,1698 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_UpperFeedInConveyor" Id="{b0a556d7-089b-4e5b-aece-2c8080fbc489}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_UpperFeedInConveyor EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+	
+	_fbDiameterMovement : REFERENCE TO FB_DiameterMovement;
+	
+	Cylinder 	: REFERENCE TO UNI_CylinderList;
+	Motor	 	: REFERENCE TO UNI_MotorList;
+	Input 	 	: REFERENCE TO ST_InputTable;
+	OutPut	 	: REFERENCE TO ST_OutputTable;
+	
+	Info		: ST_Auto_UpperFeedInConveyorInfo;
+	
+	AddingBox	: BOOL;
+
+//    Execute    :BOOL;   // True : This prog will start.
+//    Abort      :BOOL;   // True : This prog will be abort.
+//    Reset      :BOOL;   // True : This prog will be reset.
+//    ObjectName :STRING; // Set this fb name(About it's action)
+END_VAR
+
+VAR_OUTPUT
+//	Status		: ST_StatusBasic;
+	FeedBack    : ST_Auto_UpperFeedInConveyorFeedback;	
+	_bForceUpperCV_Use	: BOOL;	
+//    Busy    :BOOL;        // True : This prog is running.
+//    Done    :BOOL;        // True : Command has been executed.
+//    Aborted :BOOL;        // True : This prog is aborted.
+//    Error   :BOOL;        // True : This prog has an error.
+//    ErrorID :UINT;       // Output ErrorID
+//    Status  :T_MaxString; // Output this prog status by string(255bytes)
+END_VAR
+
+VAR
+//    eState :E_MethodStatus_Basic;
+//	uiExecutingStep : UDINT; // This var is used to been controll STATE_EXECUTING process.
+//	uiResettingStep : UDINT;
+//	uiAbortingStep : UDINT;
+//	_Executed :BOOL; // Executing process completed.
+//	_Error : BOOL; // FB has an error.
+//	_ResetCompleted : BOOL; // FB resetting completed.
+//	_AbortCompleted : BOOL; // FB aborting completed.
+	_Abort		: BOOL;
+	strStatus	: T_MaxString;
+	uiResumeStep : UINT;
+	iMoveConveyor	:INT;// 1 = MoveForward , -1 = Move reverse , 0 or other = Stop
+	tonUpperConveyorTimeOut			:TON;
+	tonUpperConveyorDelay			:TON;
+	tonUpperTimeOut					:TON;
+	tonUpperTimeOutFive 			:TON;
+	tonWaitSecondBoxArriveTimeout 	:TON;
+	tonFeedAirBlowtime 				:TON;
+	tonReverseConveyorDelay			:TON;
+	TON_CheckHaveBox				:TON ;
+	NoFirstBoxDiameter : BOOL;
+	SecondBox	:BOOL;
+	bSecondBoxInCameraPos :BOOL;
+	uiFirstBoxDiameterStep :UINT :=0;
+	uiSecondBoxAirBlowStep :UINT :=0;
+	_UniqueErrorCode :STRING;
+	
+	
+	//record time for C# photo
+	tRecordTimer 		: ARRAY [1..100] OF TIME;
+	tRecordFirstTimer	: ARRAY [1..100] OF TIME;
+	tRecordSecondTimer	: ARRAY [1..100] OF TIME;
+	TON_RecordTimer 	: TON;
+	TON_RecordFirstTimer		: TON ;
+	TON_RecordSecondTimer		: TON;
+	TSaveTime					: TIME;
+	TSaveFirstTime				: TIME;
+	TSaveSecondTime				: TIME;
+	iArrayNumber 				: INT :=1;
+	iResetNumber				: INT;
+	bResetRecordInfo			: BOOL;
+	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();
+
+]]></ST>
+    </Implementation>
+    <Folder Name="STATE" Id="{336cf81a-2c47-4070-b1e8-3558b4c1b362}" />
+    <Action Name="A00_BasicUnits" Id="{163a9f76-8838-42a7-b540-e0044259cf51}">
+      <Implementation>
+        <ST><![CDATA[tonUpperConveyorTimeOut(PT:=T#20S);
+tonUpperConveyorDelay();
+tonUpperTimeOut(PT:=T#5.0S);
+tonUpperTimeOutfive(PT:=T#60S);
+tonWaitSecondBoxArriveTimeout(PT:=T#20S);
+tonFeedAirBlowtime(PT:=info.FeedAirblowTime);
+tonReverseConveyorDelay(PT:=T#6S);
+TON_CheckHaveBox(PT :=T#35S);
+ErrorID :=2710;
+
+
+
+TON_RecordTimer (PT:=T#1D);
+TON_RecordFirstTimer (PT := T#1D);
+TON_RecordSecondTimer (PT := T#1D);
+
+// only for record the photo time use
+IF bResetRecordInfo THEN
+	FOR iResetNumber :=1 TO 100 DO
+		tRecordTimer[iResetNumber] :=T#0S;
+		tRecordFirstTimer[iResetNumber] :=T#0S;
+		tRecordSecondTimer[iResetNumber] :=T#0S;
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GetModelState" Id="{9b42938f-350f-451a-8071-11871af4efb1}">
+      <Declaration><![CDATA[METHOD GetModelState
+VAR_OUTPUT
+    xDone    :BOOL;
+    xBusy    :BOOL;
+    xError   :BOOL;
+    xAborted :BOOL;
+    iErrorID :UDINT;
+	UniqueErrorCode : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xDone    := Done;
+xBusy    := Busy;
+xError   := Error;
+xAborted := Abort;
+iErrorID := ErrorID;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetName" Id="{7be0ee6f-608b-4144-ab7b-2a2f1f70d1f5}">
+      <Declaration><![CDATA[METHOD GetName : STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetName := ObjectName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{918c5246-ceda-4178-a0a7-4351a059cea2}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR	:= TRUE;
+Busy	:= FALSE;
+Aborted	:= TRUE;
+_Abort	:= FALSE;
+UniqueErrorCode	:=_UniqueErrorCode;
+SUPER^.Status	:= strStatus;
+uiAbortingStep	:= 0;
+_AbortCompleted := FALSE;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+	
+ELSIF Execute AND Reset THEN
+
+		CASE uiExecutingStep OF
+			
+			460:	//Box1 done step abort
+				uiExecutingStep :=450;
+				strStatus :='Check FirstBoxCamaraDone info retry';
+			
+				
+		END_CASE
+	
+	error 	:= FALSE;	
+	Aborted := FALSE;
+	eSTATE	:= STATE_EXECUTING;
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{26e98244-888a-4eba-ab5f-389cbf7bce1d}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy :=FALSE;
+CASE uiAbortingStep OF
+	0:
+		tonUpperConveyorTimeOut.IN 	:=FALSE;
+		tonUpperConveyorDelay.IN	:=FALSE;
+		tonUpperTimeOut.IN 			:=FALSE;
+		tonUpperTimeOutfive.IN		:=FALSE;
+		TON_CheckHaveBox.IN 		:=FALSE;
+		uiAbortingStep :=100;
+	100:
+		Motor.List.UpCV.M_MotorStop();
+		OutPut.bCamara_Blow :=FALSE;
+		IF Motor.List.UpCV.InStopped THEN
+			uiAbortingStep :=9999;
+		END_IF
+	9999:	
+		_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{d1a4719c-7158-4715-ba72-a8c583af65bb}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done:=TRUE;
+_fbDiameterMovement.Execute := FALSE;
+_fbDiameterMovement.bContinue:=FALSE;
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{3459b760-fe7c-4c55-8059-b4d0eae28804}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy    := FALSE;
+Done    := FALSE;
+Aborted := FALSE;
+Error   := FALSE;
+FeedBack.InterventionRequest :=FALSE;
+strStatus :='No Error';
+uiExecutingStep :=0;
+uiResettingStep	:=0;
+NoFirstBoxDiameter:= SecondBox:=FALSE;
+tonUpperConveyorTimeOut.IN := FALSE;
+tonUpperConveyorDelay.IN :=FALSE;
+tonUpperTimeOut.IN :=FALSE;
+tonUpperTimeOutFive.IN :=FALSE;
+tonWaitSecondBoxArriveTimeout.IN :=FALSE;
+TON_CheckHaveBox.IN :=false;
+tonFeedAirBlowtime.IN :=false;
+bSecondBoxInCameraPos := FALSE;
+_bForceUpperCV_Use := false;
+_Abort := _Executed := _Error:= _ResetCompleted:=_AbortCompleted:=FALSE;
+iMoveConveyor := 0;
+uiFirstBoxDiameterStep  :=0;
+uiSecondBoxAirBlowStep	:=0;
+_UniqueErrorCode :='0';
+IF Execute THEN
+	eSTATE:=STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{00c69e48-07db-457b-8693-e90831a0e139}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR :=TRUE;
+Busy :=FALSE;
+UniqueErrorCode:=_UniqueErrorCode;
+SUPER^.Status := strStatus;
+_fbDiameterMovement.Execute := FALSE;
+
+
+Motor.List.UpCV.M_MotorStop(); 
+OutPut.bCamara_Blow :=FALSE;
+
+IF NOT Execute THEN	
+eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{f86b848f-6f5f-4ca8-b816-5ea6b75940a7}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+
+VAR_INST
+	
+	
+END_VAR
+VAR
+	END_I: INT;
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy :=TRUE;
+
+//Conveyor motor control
+CASE iMoveConveyor OF
+	1:
+	Motor.list.UpCV.M_MoveForward();
+	Cylinder.List.fbUpCV_CamaraPress4.M_Retract(); //Feedin working , open the end to allow box feedin
+	//OutPut.bCamara_Blow :=TRUE;
+	-1:
+	Motor.list.UpCV.M_MoveBackward();
+	Cylinder.List.fbUpCV_CamaraPress4.M_Retract(); //Feedin working , open the end to allow box feedin
+ELSE		
+	Motor.list.UpCV.M_MotorStop();
+	Cylinder.List.fbUpCV_CamaraPress4.M_Extend();// End feedin , block the conveyor in case no one push boxes in working area
+	//OutPut.bCamara_Blow :=FALSE;		change use airflow to take photo before
+END_CASE
+
+
+
+CASE uiExecutingStep OF
+	
+0 : // StandBy
+	TON_RecordTimer.IN := TRUE;
+	iMoveConveyor:=0;
+	tonUpperConveyorTimeOut.IN:=FALSE;
+	tonUpperConveyorDelay.IN :=FALSE;
+	tonUpperConveyorDelay.PT:=T#200MS;
+	IF Info.NrOfBox=1 THEN
+		SecondBox:=FALSE;
+	ELSIF Info.NrOfBox=2 THEN
+		SecondBox:=TRUE;	
+	ELSE
+	_Error := TRUE;
+	  strStatus := 'Data not correct';		
+	END_IF
+	uiExecutingStep :=10;
+
+10: //Prepare cylinders
+	IF Cylinder.List.fbUpCV_FeedInPress1.xError THEN
+		Cylinder.List.fbUpCV_FeedInPress1.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_FeedInPress2.xError THEN
+		Cylinder.List.fbUpCV_FeedInPress1.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_DiameterPress.xError THEN
+		Cylinder.List.fbUpCV_DiameterPress.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_CamaraPress1.xError THEN
+		Cylinder.List.fbUpCV_CamaraPress1.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_CamaraPress2.xError THEN
+		Cylinder.List.fbUpCV_CamaraPress2.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_CamaraPress4.xError THEN
+		Cylinder.List.fbUpCV_CamaraPress4.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_Block1.xError THEN
+		Cylinder.List.fbUpCV_Block1.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_Block2.xError THEN
+		Cylinder.List.fbUpCV_Block2.M_Reset();
+	END_IF
+	IF Cylinder.List.fbUpCV_Block3.xError THEN
+		Cylinder.List.fbUpCV_Block3.M_Reset();
+	END_IF
+	IF Motor.List.UpCV.xError THEN
+		Motor.List.UpCV.M_Reset();
+	END_IF
+	
+	uiExecutingStep :=20;
+	
+20: //Prepare cylinders
+	tonUpperTimeOut.IN :=TRUE;
+	Cylinder.List.fbUpCV_FeedInPress1.M_Retract();		(* Cylinder.List.fbUpCV_FeedInPress1.M_Retract();*)	
+	Cylinder.List.fbUpCV_FeedInPress2.M_Retract();		(*Cylinder.List.fbUpCV_FeedInPress2.M_Retract();*)
+	Cylinder.List.fbUpCV_DiameterPress.M_Retract();		(*Cylinder.List.fbUpCV_DiameterPress.M_Retract();*)
+	Cylinder.List.fbUpCV_CamaraPress1.M_Retract();		(*Cylinder.List.fbUpCV_CamaraPress1.M_Retract();*)		
+	//Cylinder.List.fbUpCV_CamaraPress2.M_Retract();	(*Cylinder.List.fbUpCV_CamaraPress2.M_Retract();*)
+	Cylinder.List.fbUpCV_CamaraPress4.M_Retract();		(*Cylinder.List.fbUpCV_CamaraPress4.M_Retract();*)	
+	Cylinder.List.fbUpCV_Block1.M_Retract();			(*Cylinder.List.fbUpCV_Block1.M_Retract();*)
+	Cylinder.List.fbUpCV_Block2.M_Retract();			(*Cylinder.List.fbUpCV_Block2.M_Retract();*)
+	Cylinder.List.fbUpCV_Block3.M_Retract();			(*Cylinder.List.fbUpCV_Block3.M_Retract();*)
+
+	//edit by Min 20250326
+	IF Cylinder.List.fbUpCV_FeedInPress1.InRearPosition AND		
+		Cylinder.List.fbUpCV_FeedInPress2.InRearPosition AND
+		Cylinder.List.fbUpCV_DiameterPress.InRearPosition AND
+		Cylinder.List.fbUpCV_CamaraPress1.InRearPosition AND
+		Cylinder.List.fbUpCV_CamaraPress4.InRearPosition AND
+		Cylinder.List.fbUpCV_Block1.InRearPosition AND
+		Cylinder.List.fbUpCV_Block2.InRearPosition AND
+		Cylinder.List.fbUpCV_Block3.InRearPosition THEN
+		
+		tonUpperTimeOut.IN :=FALSE;
+		uiExecutingStep :=100;	
+	END_IF
+	IF tonUpperTimeOut.Q THEN
+		_Abort :=TRUE;
+		strStatus :='Prepare Cylinder clear command timeout';
+	END_IF
+	
+100:// Check No Box 
+	IF Input.bUpCV_Block1Detect_Sensor OR 
+	  Input.bUpCV_Block2Detect_Sensor OR
+	  Input.bUpCV_BoxArrived_Sensor OR
+	  Input.bUpCV_Block3Detect_Sensor THEN
+	 	 IF NOT AddingBox THEN
+		 _bForceUpperCV_Use := TRUE;		//force UpperCV for Backward CV use
+	 	 uiExecutingStep :=110; //Try reverse conveyor 
+			ELSE 
+			  _Abort := TRUE;
+		 	 strStatus := 'Conveyor not ready , please remove boxes in front';
+		  END_IF
+	 ELSE
+ 		uiExecutingStep :=200; 
+	 END_IF
+110:
+		iMoveConveyor:= -1;
+		Cylinder.List.fbUpCV_CamaraPress2.M_Retract();
+		tonReverseConveyorDelay.IN :=TRUE;
+		uiExecutingStep :=120;
+
+120:
+		//tonFeedAirBlowtime.IN :=TRUE;
+		IF tonReverseConveyorDelay.Q THEN
+			iMoveConveyor :=0;
+			uiExecutingStep :=130; 
+		END_IF
+130:
+		tonReverseConveyorDelay.IN :=FALSE;
+		IF Input.bUpCV_Block1Detect_Sensor OR 
+		  Input.bUpCV_Block2Detect_Sensor OR
+		  Input.bUpCV_BoxArrived_Sensor OR
+	 	 Input.bUpCV_Block3Detect_Sensor THEN 
+			  _Abort := TRUE;
+		 	 strStatus := 'Conveyor not ready , please remove boxes in front';
+		 ELSE
+			uiExecutingStep :=140; 	 
+		 END_IF		
+140:
+   		IF Motor.list.UpCV.InStopped THEN
+			uiExecutingStep :=200;
+		END_IF
+200: // motor start and camera block up 
+	_bForceUpperCV_Use := FALSE;		//release UpperCV force use 
+	tonUpperConveyorTimeOut.IN:=TRUE;
+	iMoveConveyor:=1;
+	Cylinder.List.fbUpCV_CamaraPress2.M_Retract();
+	Cylinder.List.fbUpCV_Block3.M_Extend();
+	IF Cylinder.List.fbUpCV_Block3.InFrontPosition AND
+		Cylinder.List.fbUpCV_CamaraPress2.InRearPosition THEN
+		tonUpperConveyorTimeOut.IN:=FALSE;
+		uiExecutingStep :=300;
+	END_IF
+	IF tonUpperConveyorTimeOut.Q THEN
+	  _Error := TRUE;
+	  strStatus := 'Cylinder.List.fbUpCV_Block3 timeout';
+	END_IF
+		  
+	  
+300://Dtect camera sensor and wait first box arrive in camera position
+	TON_CheckHaveBox.IN :=TRUE;
+	tonUpperConveyorDelay.IN:=Input.bUpCV_Block3Detect_Sensor; //Delay a moment to make sure box move till end of block 	
+	IF tonUpperConveyorDelay.Q THEN
+			TON_CheckHaveBox.IN :=FALSE;
+			Cylinder.List.fbUpCV_CamaraPress1.M_Extend(); //Press box 
+			tonUpperConveyorDelay.IN := FALSE;
+			uiExecutingStep :=400;			
+	END_IF
+	IF TON_CheckHaveBox.Q THEN	//if behind not have box feedback box = 0
+		uiExecutingStep := 2700;
+	END_IF
+	
+400:// Check pressing job done for first box in camera position	
+	tonUpperTimeOut.IN :=TRUE;
+	IF Cylinder.List.fbUpCV_CamaraPress1.InFrontPosition THEN
+		tonUpperTimeOut.IN := FALSE;
+		Cylinder.List.fbUpCV_CamaraPress2.M_Extend();
+		uiExecutingStep :=450;		
+	END_IF
+	IF tonUpperTimeOut.Q THEN
+		_Abort := TRUE;
+		strStatus := 'Cylinder.List.fbUpCV_CamaraPress1.M_MoveForward timeout';
+	END_IF
+
+450:// send first box camera signal
+	
+	tonFeedAirBlowtime.IN :=TRUE;
+	OutPut.bCamara_Blow :=TRUE;
+	IF tonFeedAirBlowtime.Q THEN
+		tonFeedAirBlowtime.IN:=FALSE;
+		OutPut.bCamara_Blow :=FALSE;
+		FeedBack.FirstBoxCamera :=TRUE;
+		TON_RecordFirstTimer.IN :=TRUE;
+		uiExecutingStep :=460;
+	END_IF
+	
+
+460: // Wait first box camera done
+	// todo : timeout
+	tonUpperTimeOutFive.IN :=TRUE;		//T#5S
+	IF Info.FirstBoxCameraDone THEN
+		tonUpperTimeOutFive.IN :=FALSE;
+		FeedBack.FirstBoxCamera :=FALSE;
+		uiExecutingStep :=500;
+	END_IF	
+	IF tonUpperTimeOutFive.Q THEN
+		_Abort :=TRUE;
+		strStatus := 'C# FirstBoxCameraDone timeout';
+	END_IF
+	
+500://Let first box move forward
+	TSaveFirstTime 	:= TON_RecordFirstTimer.ET;
+	TON_RecordFirstTimer .IN :=FALSE;
+	Cylinder.List.fbUpCV_CamaraPress1.M_Retract(); // release press
+	Cylinder.List.fbUpCV_Block3.M_Retract();//release blocker todo : add description
+	uiExecutingStep :=550;
+	
+550://check cylinder inrearposition		edit by Min 20250326
+	tonUpperTimeOut.IN :=TRUE;
+	IF Cylinder.List.fbUpCV_CamaraPress1.InRearPosition AND		
+		Cylinder.List.fbUpCV_Block3.InRearPosition THEN
+		
+		uiExecutingStep :=600;
+	END_IF
+	IF tonUpperTimeOut.Q THEN
+		_Abort := TRUE;
+		strStatus := 'Cylinder.List.fbUpCV_CamaraPress1 or Cylinder.List.fbUpCV_Block3 InRearPosition timeout';
+	END_IF
+	
+600://Check if diameter camera needed
+	tonUpperTimeOut.IN :=FALSE;
+	tonUpperTimeOutFive.IN :=TRUE;
+	IF Info.FirstBoxCameraDiameterRequest THEN
+		tonUpperTimeOutFive.IN :=FALSE;
+		uiExecutingStep :=700;
+		ELSE
+			IF SecondBox THEN
+				tonUpperTimeOutFive.IN :=FALSE;
+				NoFirstBoxDiameter:=TRUE;
+				uiExecutingStep :=610;//Only if box 1 no need to measure diameter
+			ELSE
+				tonUpperTimeOutFive.IN :=FALSE;
+				uiExecutingStep :=2400;	
+			END_IF
+	END_IF
+	IF tonUpperTimeOutFive.Q THEN
+		_Abort := TRUE;
+		strStatus :='C# FirstBoxCameraDiameterRequest timeout';
+	END_IF
+	
+610: //Check Box 1 leave read code camera position
+	tonUpperTimeOut.IN :=TRUE;
+	tonUpperConveyorDelay.IN := NOT Input.bUpCV_Block3Detect_Sensor;
+	IF tonUpperConveyorDelay.Q THEN
+		tonUpperConveyorDelay.IN :=FALSE;
+		uiExecutingStep :=620;
+	END_IF
+	IF tonUpperTimeOut.Q  THEN
+		_Abort :=TRUE;
+		strStatus :='Input.bUpCV_Block3Detect_Sensor first box leave timeout';
+	END_IF
+	
+620: // Leave Box 2				//timeout and Check InRearPositonEdit by Min 20250326	
+		tonUpperTimeOut.IN :=FALSE;	
+		IF SecondBox THEN			
+			Cylinder.List.fbUpCV_CamaraPress2.M_Retract(); //Release press box
+			Cylinder.List.fbUpCV_Block3.M_Extend(); //release blocker
+			IF Cylinder.List.fbUpCV_CamaraPress2.InRearPosition AND Cylinder.List.fbUpCV_Block3.InFrontPosition THEN
+				uiExecutingStep :=1100;
+			END_IF
+		END_IF
+		
+700: //Rise diameter blocker
+	tonUpperTimeOut.IN :=TRUE;
+	Cylinder.List.fbUpCV_Block2.M_Extend();
+	IF Cylinder.List.fbUpCV_Block2.InFrontPosition THEN
+		tonUpperTimeOut.IN :=FALSE;
+		uiExecutingStep :=800;
+	END_IF
+	IF tonUpperTimeOut.Q THEN
+		_Abort :=TRUE;
+		strStatus :='Cylinder.List.fbUpCV_Block2 MoveForward timeout';
+	END_IF
+800: // wait first box ready on diameter position
+	tonUpperTimeOut.IN :=TRUE;
+	tonUpperConveyorDelay.IN:=Input.bUpCV_Block2Detect_Sensor;
+	IF tonUpperConveyorDelay.Q THEN
+		tonUpperTimeOut.IN :=FALSE;
+		tonUpperConveyorDelay.IN:=FALSE;
+		Cylinder.List.fbUpCV_DiameterPress.M_Extend();
+		
+		IF SecondBox THEN	
+			tonUpperTimeOut.IN :=FALSE;		
+			Cylinder.List.fbUpCV_CamaraPress2.M_Retract();
+			Cylinder.List.fbUpCV_Block3.M_Extend();
+		END_IF
+		uiExecutingStep :=1000;
+	END_IF
+	IF tonUpperTimeOut.Q THEN
+		_Abort :=TRUE;
+		strStatus :='Box not at Input.bUpCV_Block2Detect_Sensor ';
+	END_IF
+	
+1000: // Wait diameter blocker ready
+	tonUpperTimeOut.IN :=TRUE;
+	IF 	Cylinder.List.fbUpCV_DiameterPress.InFrontPosition THEN
+		tonUpperTimeOut.IN :=FALSE;
+		uiExecutingStep :=1100;
+	END_IF
+	IF tonUpperTimeOut.Q THEN
+		_Abort :=TRUE;
+		strStatus :='Cylinder.List.fbUpCV_DiameterPress MoveForward timeout';
+	END_IF
+
+1100: // Pick needle to diameter camera
+
+		
+		CASE uiFirstBoxDiameterStep OF
+			
+		0:
+			IF NOT NoFirstBoxDiameter THEN
+	  			_fbDiameterMovement.Execute := TRUE;
+				uiFirstBoxDiameterStep:=100;
+			ELSE
+				uiFirstBoxDiameterStep:=9000;	
+	  		END_IF
+		
+		100:
+			IF _fbDiameterMovement.Busy THEN
+				uiFirstBoxDiameterStep:=200;
+			END_IF	
+			
+		200:
+			tonUpperTimeOutFive.IN :=TRUE;
+			 IF _fbDiameterMovement.PickDone THEN
+				  tonUpperTimeOutFive.IN :=FALSE;
+				  FeedBack.FirstBoxCameraDiameter:=TRUE;		  
+			  END_IF
+			 IF Info.FirstBoxCameraDiameterDone THEN
+				tonUpperTimeOutFive.IN:=FALSE;
+				 FeedBack.FirstBoxCameraDiameter:=FALSE;
+			 	_fbDiameterMovement.bContinue:=TRUE;
+			 	uiFirstBoxDiameterStep:=300;
+			  END_IF
+			 IF tonUpperTimeOutFive.Q THEN
+				 _Error :=TRUE;
+				 strStatus :='box1 diameter timeout';
+			 END_IF
+		300:
+			 IF _fbDiameterMovement.Done THEN
+				  uiFirstBoxDiameterStep:=9000;		  
+			  END_IF	  
+		
+		9000:
+				_fbDiameterMovement.bContinue:=FALSE;
+				_fbDiameterMovement.Execute:=FALSE;
+				Cylinder.List.fbUpCV_DiameterPress.M_Retract();
+				Cylinder.List.fbUpCV_Block2.M_Retract();
+				// first box leave	  
+				
+				IF bSecondBoxInCameraPos AND 
+					Cylinder.List.fbUpCV_DiameterPress.InRearPosition AND
+					Cylinder.List.fbUpCV_Block2.InRearPosition THEN
+					
+					uiExecutingStep :=1200;
+				END_IF
+		END_CASE
+						
+		
+	  		IF SecondBox THEN
+				tonWaitSecondBoxArriveTimeout.IN :=TRUE;
+	  			tonUpperConveyorDelay.IN := Input.bUpCV_Block3Detect_Sensor;
+ 				IF tonUpperConveyorDelay.Q THEN								
+					tonUpperConveyorDelay.IN:=FALSE;
+					tonWaitSecondBoxArriveTimeout.IN :=FALSE;
+					Cylinder.List.fbUpCV_CamaraPress2.M_Extend();
+					Cylinder.List.fbUpCV_CamaraPress1.M_Extend();
+//					bSecondBoxInCameraPos :=TRUE;
+				END_IF	
+	 		 ELSE
+				 bSecondBoxInCameraPos:=TRUE;
+	 		 END_IF
+			 
+		CASE uiSecondBoxAirBlowStep OF
+			 0:
+			 	IF 	Cylinder.List.fbUpCV_CamaraPress1.InFrontPosition AND 
+					Cylinder.List.fbUpCV_CamaraPress2.InFrontPosition THEN
+						uiSecondBoxAirBlowStep :=10;
+				END_IF
+			10:
+				OutPut.bCamara_Blow :=TRUE;		//take photo need airflow before
+				tonFeedAirBlowtime.IN :=TRUE;
+					IF tonFeedAirBlowtime.Q THEN		
+						tonFeedAirBlowtime.IN :=FALSE;
+						OutPut.bCamara_Blow :=FALSE;
+						FeedBack.SecondBoxCamera:=TRUE;
+						TON_RecordSecondTimer.IN :=TRUE;
+						uiSecondBoxAirBlowStep :=20;
+					END_IF
+			20:
+				IF Info.SecondBoxCameraDone THEN
+					uiSecondBoxAirBlowStep :=30;
+					TSaveSecondTime := TON_RecordSecondTimer.ET;
+				END_IF
+			30:	
+					
+					
+					TON_RecordSecondTimer.IN :=FALSE;
+					bSecondBoxInCameraPos:=TRUE;	
+			
+		END_CASE
+		
+//			IF Cylinder.List.fbUpCV_CamaraPress1.InFrontPosition AND 
+//				Cylinder.List.fbUpCV_CamaraPress2.InFrontPosition THEN
+//				OutPut.bCamara_Blow :=TRUE;		//take photo need airflow before
+//				tonFeedAirBlowtime.IN :=TRUE;
+//					IF tonFeedAirBlowtime.Q THEN		
+//						tonFeedAirBlowtime.IN :=FALSE;
+//						OutPut.bCamara_Blow :=FALSE;
+//						FeedBack.SecondBoxCamera:=TRUE;	
+//							IF Info.SecondBoxCameraDone THEN
+//								bSecondBoxInCameraPos:=TRUE;	
+//							END_IF	
+//					END_IF
+//			END_IF
+	  
+	  IF tonUpperConveyorTimeOut.Q THEN
+			_Error :=TRUE;
+			strStatus:='First box diameter timeout';		
+		  
+	  END_IF
+		IF tonWaitSecondBoxArriveTimeout.Q THEN
+			IF Input.bUpCV_ReLoadDetect_Sensor THEN
+				_Error :=TRUE;
+				strStatus:='Second box feedin to read code camera pos timeout';		
+			ELSE
+				tonUpperConveyorTimeOut.IN :=FALSE;
+				SecondBox :=FALSE;
+			END_IF	 
+		END_IF
+
+1200: 	// If first box leave diameter sensor , let second box go
+		tonUpperTimeOut.IN :=TRUE;
+		tonUpperConveyorDelay.PT:=T#600MS;		
+		tonUpperConveyorDelay.IN := NOT Input.bUpCV_Block2Detect_Sensor;
+		
+		IF tonUpperConveyorDelay.Q THEN
+			tonUpperConveyorDelay.IN :=FALSE;
+			tonUpperTimeOut.IN :=FALSE;
+			IF SecondBox AND INfo.SecondBoxCameraDiameterRequest THEN
+				tonUpperTimeOut.IN :=FALSE;
+				Cylinder.List.fbUpCV_Block2.M_Extend();
+				Cylinder.List.fbUpCV_CamaraPress1.M_Retract();
+				Cylinder.List.fbUpCV_Block3.M_Retract();
+				uiExecutingStep :=1700;
+			ELSE
+				tonUpperTimeOut.IN :=FALSE;
+				Cylinder.List.fbUpCV_CamaraPress1.M_Retract();
+				Cylinder.List.fbUpCV_Block3.M_Retract();
+				uiExecutingStep :=2400;	
+			END_IF
+
+		END_IF
+		IF tonUpperTimeOut.Q THEN
+			_Abort :=TRUE;
+			strStatus :='First box still at Input.bUpCV_Block2Detect_Sensor';
+		END_IF
+
+1700: //Second box diameter request
+		tonUpperTimeOut.IN :=TRUE;
+		tonUpperConveyorDelay.IN :=Input.bUpCV_Block2Detect_Sensor;
+		IF tonUpperConveyorDelay.Q THEN
+			tonUpperTimeOut.IN :=FALSE;
+			tonUpperConveyorDelay.IN :=FALSE;
+			Cylinder.List.fbUpCV_DiameterPress.M_Extend();
+			uiExecutingStep :=1800;
+		END_IF
+		IF tonUpperTimeOut.Q THEN
+			_Abort :=TRUE;
+			strStatus :='Input.bUpCV_Block2Detect_Sensor not have box';
+		END_IF
+1800: //wait second box in diameter position
+		tonUpperTimeOut.IN :=TRUE;
+		IF Cylinder.List.fbUpCV_DiameterPress.InFrontPosition THEN
+			tonUpperTimeOut.IN :=FALSE;
+			uiExecutingStep :=1900;
+		END_IF
+		IF tonUpperTimeOut.Q THEN
+			_Abort :=TRUE;
+			strStatus :='Cylinder.List.fbUpCV_DiameterPress MoveForward timeout';
+			
+		END_IF
+		
+1900:
+		tonUpperTimeOutFive.IN :=TRUE;
+		_fbDiameterMovement.Execute :=TRUE	;	
+		IF _fbDiameterMovement.PickDone THEN
+			tonUpperTimeOutFive.IN :=FALSE;
+			FeedBack.SecondBoxCameraDiameter:=TRUE;
+			uiExecutingStep :=2000;
+		END_IF
+		IF tonUpperTimeOutFive.Q THEN
+			_Abort :=TRUE;
+			strStatus :='C# DiameterMovement Pickdone timeout';
+		END_IF
+2000:	//check Second Box CamaraDone
+		tonUpperTimeOutFive.IN :=TRUE;
+		IF info.SecondBoxCameraDiameterDone THEN
+			tonUpperTimeOutFive.IN :=FALSE;
+			FeedBack.SecondBoxCameraDiameter:=FALSE;
+			_fbDiameterMovement.bContinue:=TRUE;
+			uiExecutingStep :=2100;
+		END_IF
+		IF tonUpperTimeOutFive.Q THEN
+			_Abort :=TRUE;
+			strStatus :='C# SecondBoxCameraDiameterDone timeout';
+		END_IF		
+2100:	
+		tonUpperTimeOutFive.IN :=TRUE;
+		IF _fbDiameterMovement.Done THEN
+			tonUpperTimeOutFive.IN :=FALSE;
+			_fbDiameterMovement.Execute:=FALSE;
+			uiExecutingStep :=2150;
+		END_IF
+		IF tonUpperTimeOutFive.Q THEN
+			_Abort :=TRUE;
+			strStatus :='_fbDiameterMovement Done timeout';
+		END_IF
+2150:
+		IF  Input.bUpCV_BoxArrived_Sensor  AND 
+			NOT Input.bUpCV_Block1Detect_Sensor  THEN
+			uiExecutingStep :=2200;
+		END_IF
+2200:	// release box 2 from diameter camera pos
+		tonUpperTimeOut.IN :=TRUE;
+		tonUpperConveyorDelay.PT:=T#100MS;
+		tonUpperConveyorDelay.IN := NOT Input.bUpCV_Block1Detect_Sensor ;
+		IF tonUpperConveyorDelay.Q THEN	
+			tonUpperConveyorDelay.IN := FALSE;
+			Cylinder.List.fbUpCV_Block1.M_Extend();
+			Cylinder.List.fbUpCV_DiameterPress.M_Retract();		
+			Cylinder.List.fbUpCV_Block2.M_Retract();
+			uiExecutingStep :=2300;
+		END_IF
+		IF tonUpperTimeOut.Q THEN
+			_Error :=TRUE;
+			strStatus := 'There is a box on Input.bUpCV_Block1Detect_Sensor '; 
+		END_IF
+		
+		
+2300:
+		tonUpperTimeOut.IN :=TRUE;
+		IF 	Cylinder.List.fbUpCV_DiameterPress.InRearPosition AND
+			Cylinder.List.fbUpCV_Block1.InFrontPosition AND
+			Cylinder.List.fbUpCV_Block2.InRearPosition THEN
+			tonUpperTimeOut.IN :=FALSE;
+			uiExecutingStep :=2500;
+		END_IF	
+		IF tonUpperTimeOut.Q THEN
+			_Error :=TRUE;
+			strStatus :='BlockBox1 MoveForward or BlockBox2 MoveBackward or DiameterMeasurementPressBox MoveBackward timeout';
+		END_IF
+2400:	//Check Box1 in FeedInBox1Detecting and Box2 leave BlockBox2Detecting
+		
+		tonUpperConveyorDelay.PT:=T#100MS;
+		tonUpperConveyorDelay.IN := Input.bUpCV_BoxArrived_Sensor ;
+		
+		IF  tonUpperConveyorDelay.Q AND NOT Input.bUpCV_Block1Detect_Sensor  THEN
+			tonUpperConveyorDelay.IN:=FALSE;
+			Cylinder.List.fbUpCV_CamaraPress1.M_Retract();
+			Cylinder.List.fbUpCV_Block3.M_Retract();
+			Cylinder.List.fbUpCV_Block1.M_Extend();
+			uiExecutingStep :=2500;
+		END_IF
+		
+2500:	// Check Box1 in FeedInBox1Sensor and Box2 in BlockBox1Sensor
+		tonUpperTimeOutFive.IN :=TRUE;
+		tonUpperConveyorDelay.PT:=T#300MS;
+		tonUpperConveyorDelay.IN := Input.bUpCV_BoxArrived_Sensor  AND 
+		(Input.bUpCV_Block1Detect_Sensor  OR NOT SecondBox);
+		
+		IF tonUpperConveyorDelay.Q THEN
+			tonUpperTimeOutFive.IN :=FALSE;
+			tonUpperConveyorDelay.IN :=FALSE;
+			Cylinder.List.fbUpCV_FeedInPress1.M_Extend();
+			IF SecondBox THEN
+				Cylinder.List.fbUpCV_FeedInPress2.M_Extend();
+			END_IF
+			uiExecutingStep :=2600;
+		END_IF
+		IF tonUpperTimeOutFive.Q THEN
+			_Error :=TRUE;
+			strStatus :='FeedInBox1Detecting not have a box';
+		END_IF
+2600:
+		tonUpperConveyorDelay.PT:=T#500MS;
+		tonUpperTimeOut.IN := TRUE;
+		tonUpperConveyorDelay.IN :=  Cylinder.List.fbUpCV_FeedInPress1.InFrontPosition AND
+		 (Cylinder.List.fbUpCV_FeedInPress2.InFrontPosition OR NOT SecondBox);		
+//		IF tonUpperConveyorDelay.IN THEN
+//			iMoveConveyor:=0;
+//			//Motor.list.UpCV.M_StopMotor();
+//		END_IF
+		IF tonUpperConveyorDelay.Q THEN
+			iMoveConveyor:=0;
+			tonUpperTimeOut.IN :=FALSE;
+			tonUpperConveyorDelay.IN :=FALSE;
+			 Cylinder.List.fbUpCV_FeedInPress1.M_Retract();
+			IF SecondBox THEN
+				Cylinder.List.fbUpCV_FeedInPress2.M_Retract();
+			END_IF
+			uiExecutingStep :=2700;
+		END_IF	
+		IF tonUpperTimeOut.Q THEN
+			_Error :=TRUE;
+			strStatus :=' Cylinder.List.fbUpCV_FeedInPress1 or Cylinder.List.fbUpCV_FeedInPress2 MoveForward timeout';
+		END_IF
+2700:
+		tonUpperTimeOut.IN :=TRUE;
+		IF TON_CheckHaveBox.IN THEN	// conveyor behind not have box feedback 0
+			FeedBack.ActualNrOfBox:=0;
+		ELSIF SecondBox THEN
+			FeedBack.ActualNrOfBox:=2;
+			ELSE
+			FeedBack.ActualNrOfBox:=1;	
+		END_IF
+		//Cylinder.List.fbUpCV_Block1.M_Retract();
+		//Cylinder.List.fbUpCV_CamaraPress2.M_Retract();
+		IF NOT input.bUpCV_ReLoadDetect_Sensor  THEN
+			FeedBack.InterventionRequest :=TRUE;
+		END_IF
+		IF// Cylinder.List.fbUpCV_Block1.InRearPosition AND
+			 Cylinder.List.fbUpCV_FeedInPress1.InRearPosition AND
+			Cylinder.List.fbUpCV_FeedInPress2.InRearPosition THEN
+			//Cylinder.List.fbUpCV_CamaraPress2.InRearPosition THEN
+			tonUpperTimeOut.IN :=FALSE;
+			uiExecutingStep := 2800;
+		END_IF	
+		IF tonUpperTimeOut.Q THEN 
+			_Error :=TRUE;
+			strStatus :='FeedInPressBox1Cylinder or FeedInPressBox2Cylinder or ReadCodePressBox2Cylinder MoveBackward timeout';
+		END_IF
+		
+2800:	//TO check the camera photo speed recoeding time
+	TSaveTime 		:= TON_RecordTimer.ET;
+	tRecordTimer[iArrayNumber] 			:=TSaveTime;
+	tRecordFirstTimer[iArrayNumber] 	:=TSaveFirstTime;
+	tRecordSecondTimer[iArrayNumber] 	:=TSaveSecondTime;
+	uiExecutingStep := 2900;
+2900:
+	iArrayNumber := iArrayNumber+1;
+	TON_RecordTimer.IN := FALSE;
+	IF iArrayNumber >= 101 THEN
+		bResetRecordInfo 	:=TRUE;
+		iArrayNumber 		:=1;
+	END_IF
+	uiExecutingStep := 9999;
+9999:
+	bResetRecordInfo :=FALSE;
+	TON_CheckHaveBox.IN :=FALSE;
+	_Executed := TRUE;
+				
+END_CASE
+	
+	
+IF NOT Execute THEN
+	eState:=STATE_RESETTING;
+END_IF
+IF _Error THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eState:=STATE_ERROR;
+END_IF
+IF _Abort OR Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eSTATE:=STATE_ABORTING;
+END_IF
+IF _Executed THEN
+	eSTATE:=STATE_Done;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{3adabedc-2b68-41f5-a609-d400b8b936b3}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=_Error;
+Done :=_Executed;
+
+tonUpperTimeOut.IN:=TRUE;
+Motor.List.UpCV.M_MotorStop();
+
+IF tonUpperTimeOut.Q OR NOT _Error THEN
+	CASE uiResettingStep OF
+		0: 
+			IF _Error THEN
+				Cylinder.List.fbUpCV_Block1.M_Retract();
+			END_IF
+			Cylinder.List.fbUpCV_FeedInPress1 .M_Retract();	
+			Cylinder.List.fbUpCV_FeedInPress2.M_Retract();
+			Cylinder.List.fbUpCV_DiameterPress.M_Retract();
+			Cylinder.List.fbUpCV_CamaraPress1.M_Retract();	
+			//UpperReadCodePressBox2Cylinder.M_Retract();	
+			Cylinder.List.fbUpCV_Block2.M_Retract();	
+			Cylinder.List.fbUpCV_Block3.M_Retract();	
+			Cylinder.List.fbUpCV_CamaraPress4.M_Retract();
+			OutPut.bCamara_Blow :=FALSE;
+			_fbDiameterMovement.Execute := FALSE;
+			_fbDiameterMovement.bContinue:=FALSE;
+			FeedBack.InterventionRequest :=FALSE;
+			FeedBack.FirstBoxCamera :=FALSE;
+			FeedBack.FirstBoxCameraDiameter :=FALSE;
+			FeedBack.SecondBoxCamera :=FALSE;
+			FeedBack.SecondBoxCameraDiameter :=FALSE;
+
+		
+			uiResettingStep:=9999;
+		
+		9999:
+			_ResetCompleted:=TRUE;
+	END_CASE
+END_IF
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_UpperFeedInConveyor">
+      <LineId Id="23" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.A00_BasicUnits">
+      <LineId Id="2" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="1" />
+      <LineId Id="7" Count="3" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="18" Count="6" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.GetModelState">
+      <LineId Id="17" Count="3" />
+      <LineId Id="16" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.GetName">
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.M_STATE_ABORTED">
+      <LineId Id="9" Count="0" />
+      <LineId Id="144" Count="2" />
+      <LineId Id="150" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="80" Count="3" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="154" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.M_STATE_ABORTING">
+      <LineId Id="42" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="32" Count="2" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="22" Count="2" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="25" Count="2" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.M_STATE_DONE">
+      <LineId Id="9" Count="1" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.M_STATE_DORMANT">
+      <LineId Id="43" Count="2" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.M_STATE_ERROR">
+      <LineId Id="9" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="32" Count="2" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.M_STATE_EXECUTING">
+      <LineId Id="44" Count="0" />
+      <LineId Id="477" Count="0" />
+      <LineId Id="457" Count="0" />
+      <LineId Id="1037" Count="0" />
+      <LineId Id="456" Count="0" />
+      <LineId Id="460" Count="0" />
+      <LineId Id="479" Count="0" />
+      <LineId Id="822" Count="0" />
+      <LineId Id="1038" Count="2" />
+      <LineId Id="458" Count="0" />
+      <LineId Id="462" Count="0" />
+      <LineId Id="480" Count="0" />
+      <LineId Id="823" Count="0" />
+      <LineId Id="459" Count="0" />
+      <LineId Id="1199" Count="0" />
+      <LineId Id="859" Count="0" />
+      <LineId Id="866" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="1178" Count="0" />
+      <LineId Id="464" Count="0" />
+      <LineId Id="72" Count="1" />
+      <LineId Id="398" Count="0" />
+      <LineId Id="144" Count="1" />
+      <LineId Id="147" Count="4" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="509" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="510" Count="2" />
+      <LineId Id="514" Count="1" />
+      <LineId Id="513" Count="0" />
+      <LineId Id="517" Count="1" />
+      <LineId Id="516" Count="0" />
+      <LineId Id="520" Count="1" />
+      <LineId Id="519" Count="0" />
+      <LineId Id="523" Count="1" />
+      <LineId Id="522" Count="0" />
+      <LineId Id="526" Count="1" />
+      <LineId Id="525" Count="0" />
+      <LineId Id="529" Count="1" />
+      <LineId Id="528" Count="0" />
+      <LineId Id="532" Count="1" />
+      <LineId Id="531" Count="0" />
+      <LineId Id="535" Count="1" />
+      <LineId Id="534" Count="0" />
+      <LineId Id="538" Count="1" />
+      <LineId Id="537" Count="0" />
+      <LineId Id="1112" Count="0" />
+      <LineId Id="508" Count="0" />
+      <LineId Id="540" Count="1" />
+      <LineId Id="724" Count="0" />
+      <LineId Id="1109" Count="0" />
+      <LineId Id="1099" Count="0" />
+      <LineId Id="1111" Count="0" />
+      <LineId Id="1110" Count="0" />
+      <LineId Id="1100" Count="0" />
+      <LineId Id="1103" Count="0" />
+      <LineId Id="1106" Count="2" />
+      <LineId Id="552" Count="0" />
+      <LineId Id="545" Count="0" />
+      <LineId Id="713" Count="1" />
+      <LineId Id="716" Count="0" />
+      <LineId Id="721" Count="0" />
+      <LineId Id="723" Count="0" />
+      <LineId Id="718" Count="2" />
+      <LineId Id="730" Count="0" />
+      <LineId Id="725" Count="0" />
+      <LineId Id="717" Count="0" />
+      <LineId Id="715" Count="0" />
+      <LineId Id="726" Count="1" />
+      <LineId Id="729" Count="0" />
+      <LineId Id="728" Count="0" />
+      <LineId Id="553" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="360" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="1231" Count="1" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="1036" Count="0" />
+      <LineId Id="60" Count="4" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="1041" Count="0" />
+      <LineId Id="1087" Count="0" />
+      <LineId Id="1042" Count="0" />
+      <LineId Id="1049" Count="0" />
+      <LineId Id="1263" Count="0" />
+      <LineId Id="1043" Count="0" />
+      <LineId Id="1045" Count="1" />
+      <LineId Id="1071" Count="0" />
+      <LineId Id="1047" Count="1" />
+      <LineId Id="1044" Count="0" />
+      <LineId Id="1127" Count="0" />
+      <LineId Id="1052" Count="2" />
+      <LineId Id="1050" Count="0" />
+      <LineId Id="1056" Count="3" />
+      <LineId Id="1055" Count="0" />
+      <LineId Id="1051" Count="0" />
+      <LineId Id="1073" Count="2" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="1233" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="463" Count="0" />
+      <LineId Id="832" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="834" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="82" Count="1" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="1139" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="1140" Count="0" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="1141" Count="2" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="568" Count="0" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="573" Count="0" />
+      <LineId Id="499" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="324" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="569" Count="0" />
+      <LineId Id="571" Count="0" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="1165" Count="0" />
+      <LineId Id="968" Count="2" />
+      <LineId Id="972" Count="1" />
+      <LineId Id="789" Count="0" />
+      <LineId Id="1179" Count="0" />
+      <LineId Id="765" Count="0" />
+      <LineId Id="971" Count="0" />
+      <LineId Id="1192" Count="0" />
+      <LineId Id="114" Count="1" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="572" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="602" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="119" Count="2" />
+      <LineId Id="574" Count="0" />
+      <LineId Id="576" Count="0" />
+      <LineId Id="575" Count="0" />
+      <LineId Id="1225" Count="0" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="1197" Count="0" />
+      <LineId Id="1181" Count="0" />
+      <LineId Id="124" Count="2" />
+      <LineId Id="596" Count="0" />
+      <LineId Id="591" Count="0" />
+      <LineId Id="597" Count="0" />
+      <LineId Id="592" Count="1" />
+      <LineId Id="739" Count="0" />
+      <LineId Id="595" Count="0" />
+      <LineId Id="594" Count="0" />
+      <LineId Id="598" Count="1" />
+      <LineId Id="601" Count="0" />
+      <LineId Id="600" Count="0" />
+      <LineId Id="127" Count="1" />
+      <LineId Id="1125" Count="0" />
+      <LineId Id="577" Count="0" />
+      <LineId Id="130" Count="0" />
+      <LineId Id="578" Count="0" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="134" Count="0" />
+      <LineId Id="332" Count="0" />
+      <LineId Id="579" Count="0" />
+      <LineId Id="344" Count="0" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="334" Count="0" />
+      <LineId Id="580" Count="0" />
+      <LineId Id="335" Count="0" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="333" Count="0" />
+      <LineId Id="581" Count="1" />
+      <LineId Id="584" Count="0" />
+      <LineId Id="583" Count="0" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="369" Count="0" />
+      <LineId Id="585" Count="0" />
+      <LineId Id="371" Count="1" />
+      <LineId Id="377" Count="0" />
+      <LineId Id="373" Count="1" />
+      <LineId Id="587" Count="1" />
+      <LineId Id="590" Count="0" />
+      <LineId Id="589" Count="0" />
+      <LineId Id="370" Count="0" />
+      <LineId Id="375" Count="0" />
+      <LineId Id="1126" Count="0" />
+      <LineId Id="378" Count="2" />
+      <LineId Id="603" Count="2" />
+      <LineId Id="376" Count="0" />
+      <LineId Id="381" Count="0" />
+      <LineId Id="136" Count="0" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="138" Count="1" />
+      <LineId Id="614" Count="0" />
+      <LineId Id="152" Count="2" />
+      <LineId Id="615" Count="0" />
+      <LineId Id="617" Count="0" />
+      <LineId Id="616" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="624" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="156" Count="0" />
+      <LineId Id="625" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="630" Count="0" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="626" Count="1" />
+      <LineId Id="629" Count="0" />
+      <LineId Id="628" Count="0" />
+      <LineId Id="167" Count="1" />
+      <LineId Id="618" Count="0" />
+      <LineId Id="169" Count="0" />
+      <LineId Id="619" Count="0" />
+      <LineId Id="170" Count="1" />
+      <LineId Id="620" Count="1" />
+      <LineId Id="623" Count="0" />
+      <LineId Id="622" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="933" Count="0" />
+      <LineId Id="871" Count="0" />
+      <LineId Id="870" Count="0" />
+      <LineId Id="872" Count="0" />
+      <LineId Id="874" Count="0" />
+      <LineId Id="877" Count="1" />
+      <LineId Id="881" Count="0" />
+      <LineId Id="879" Count="1" />
+      <LineId Id="876" Count="0" />
+      <LineId Id="875" Count="0" />
+      <LineId Id="882" Count="0" />
+      <LineId Id="884" Count="1" />
+      <LineId Id="883" Count="0" />
+      <LineId Id="886" Count="1" />
+      <LineId Id="962" Count="0" />
+      <LineId Id="890" Count="0" />
+      <LineId Id="963" Count="0" />
+      <LineId Id="891" Count="0" />
+      <LineId Id="889" Count="0" />
+      <LineId Id="894" Count="4" />
+      <LineId Id="892" Count="0" />
+      <LineId Id="964" Count="1" />
+      <LineId Id="967" Count="0" />
+      <LineId Id="966" Count="0" />
+      <LineId Id="899" Count="0" />
+      <LineId Id="901" Count="1" />
+      <LineId Id="900" Count="0" />
+      <LineId Id="888" Count="0" />
+      <LineId Id="903" Count="0" />
+      <LineId Id="906" Count="2" />
+      <LineId Id="905" Count="0" />
+      <LineId Id="904" Count="0" />
+      <LineId Id="921" Count="1" />
+      <LineId Id="1008" Count="2" />
+      <LineId Id="923" Count="1" />
+      <LineId Id="873" Count="0" />
+      <LineId Id="909" Count="0" />
+      <LineId Id="438" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="869" Count="0" />
+      <LineId Id="187" Count="1" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="868" Count="0" />
+      <LineId Id="327" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="920" Count="0" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="994" Count="0" />
+      <LineId Id="975" Count="1" />
+      <LineId Id="978" Count="2" />
+      <LineId Id="996" Count="0" />
+      <LineId Id="981" Count="0" />
+      <LineId Id="983" Count="4" />
+      <LineId Id="982" Count="0" />
+      <LineId Id="1186" Count="0" />
+      <LineId Id="989" Count="0" />
+      <LineId Id="988" Count="0" />
+      <LineId Id="990" Count="0" />
+      <LineId Id="992" Count="0" />
+      <LineId Id="1187" Count="0" />
+      <LineId Id="993" Count="0" />
+      <LineId Id="991" Count="0" />
+      <LineId Id="1182" Count="0" />
+      <LineId Id="1194" Count="1" />
+      <LineId Id="1185" Count="0" />
+      <LineId Id="1184" Count="0" />
+      <LineId Id="1183" Count="0" />
+      <LineId Id="977" Count="0" />
+      <LineId Id="995" Count="0" />
+      <LineId Id="925" Count="1" />
+      <LineId Id="959" Count="1" />
+      <LineId Id="958" Count="0" />
+      <LineId Id="961" Count="0" />
+      <LineId Id="974" Count="0" />
+      <LineId Id="929" Count="0" />
+      <LineId Id="931" Count="0" />
+      <LineId Id="930" Count="0" />
+      <LineId Id="932" Count="0" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="439" Count="2" />
+      <LineId Id="449" Count="0" />
+      <LineId Id="445" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="910" Count="7" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="946" Count="0" />
+      <LineId Id="781" Count="0" />
+      <LineId Id="753" Count="0" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="234" Count="2" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="1022" Count="0" />
+      <LineId Id="238" Count="0" />
+      <LineId Id="426" Count="1" />
+      <LineId Id="245" Count="1" />
+      <LineId Id="1023" Count="0" />
+      <LineId Id="1319" Count="1" />
+      <LineId Id="247" Count="0" />
+      <LineId Id="243" Count="1" />
+      <LineId Id="237" Count="0" />
+      <LineId Id="748" Count="1" />
+      <LineId Id="752" Count="0" />
+      <LineId Id="750" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="650" Count="0" />
+      <LineId Id="248" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="651" Count="0" />
+      <LineId Id="394" Count="0" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="251" Count="0" />
+      <LineId Id="250" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="652" Count="0" />
+      <LineId Id="654" Count="0" />
+      <LineId Id="653" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="655" Count="0" />
+      <LineId Id="252" Count="0" />
+      <LineId Id="656" Count="0" />
+      <LineId Id="253" Count="2" />
+      <LineId Id="657" Count="0" />
+      <LineId Id="660" Count="0" />
+      <LineId Id="659" Count="0" />
+      <LineId Id="658" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="256" Count="0" />
+      <LineId Id="661" Count="0" />
+      <LineId Id="259" Count="0" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="662" Count="0" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="262" Count="0" />
+      <LineId Id="261" Count="0" />
+      <LineId Id="263" Count="0" />
+      <LineId Id="663" Count="0" />
+      <LineId Id="665" Count="0" />
+      <LineId Id="664" Count="0" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="666" Count="0" />
+      <LineId Id="264" Count="0" />
+      <LineId Id="667" Count="0" />
+      <LineId Id="331" Count="0" />
+      <LineId Id="266" Count="1" />
+      <LineId Id="265" Count="0" />
+      <LineId Id="668" Count="1" />
+      <LineId Id="671" Count="0" />
+      <LineId Id="670" Count="0" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="672" Count="0" />
+      <LineId Id="272" Count="0" />
+      <LineId Id="673" Count="0" />
+      <LineId Id="273" Count="0" />
+      <LineId Id="275" Count="0" />
+      <LineId Id="274" Count="0" />
+      <LineId Id="674" Count="1" />
+      <LineId Id="677" Count="0" />
+      <LineId Id="676" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="409" Count="1" />
+      <LineId Id="412" Count="0" />
+      <LineId Id="411" Count="0" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="678" Count="0" />
+      <LineId Id="414" Count="2" />
+      <LineId Id="843" Count="0" />
+      <LineId Id="418" Count="0" />
+      <LineId Id="421" Count="1" />
+      <LineId Id="419" Count="0" />
+      <LineId Id="413" Count="0" />
+      <LineId Id="679" Count="1" />
+      <LineId Id="682" Count="0" />
+      <LineId Id="681" Count="0" />
+      <LineId Id="277" Count="2" />
+      <LineId Id="684" Count="0" />
+      <LineId Id="280" Count="0" />
+      <LineId Id="683" Count="0" />
+      <LineId Id="281" Count="0" />
+      <LineId Id="685" Count="0" />
+      <LineId Id="283" Count="0" />
+      <LineId Id="282" Count="0" />
+      <LineId Id="686" Count="1" />
+      <LineId Id="689" Count="0" />
+      <LineId Id="688" Count="0" />
+      <LineId Id="405" Count="0" />
+      <LineId Id="431" Count="1" />
+      <LineId Id="430" Count="0" />
+      <LineId Id="429" Count="0" />
+      <LineId Id="423" Count="0" />
+      <LineId Id="435" Count="0" />
+      <LineId Id="424" Count="0" />
+      <LineId Id="428" Count="0" />
+      <LineId Id="433" Count="0" />
+      <LineId Id="695" Count="0" />
+      <LineId Id="425" Count="0" />
+      <LineId Id="289" Count="1" />
+      <LineId Id="696" Count="0" />
+      <LineId Id="399" Count="0" />
+      <LineId Id="292" Count="0" />
+      <LineId Id="294" Count="2" />
+      <LineId Id="697" Count="0" />
+      <LineId Id="301" Count="0" />
+      <LineId Id="1113" Count="0" />
+      <LineId Id="395" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="396" Count="0" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="298" Count="0" />
+      <LineId Id="293" Count="0" />
+      <LineId Id="698" Count="0" />
+      <LineId Id="700" Count="0" />
+      <LineId Id="699" Count="0" />
+      <LineId Id="302" Count="0" />
+      <LineId Id="1307" Count="0" />
+      <LineId Id="701" Count="0" />
+      <LineId Id="303" Count="0" />
+      <LineId Id="393" Count="0" />
+      <LineId Id="304" Count="0" />
+      <LineId Id="465" Count="0" />
+      <LineId Id="313" Count="1" />
+      <LineId Id="312" Count="0" />
+      <LineId Id="1306" Count="0" />
+      <LineId Id="702" Count="0" />
+      <LineId Id="305" Count="1" />
+      <LineId Id="340" Count="0" />
+      <LineId Id="307" Count="0" />
+      <LineId Id="341" Count="0" />
+      <LineId Id="308" Count="0" />
+      <LineId Id="291" Count="0" />
+      <LineId Id="309" Count="0" />
+      <LineId Id="703" Count="0" />
+      <LineId Id="705" Count="0" />
+      <LineId Id="704" Count="0" />
+      <LineId Id="310" Count="0" />
+      <LineId Id="1147" Count="6" />
+      <LineId Id="453" Count="0" />
+      <LineId Id="315" Count="1" />
+      <LineId Id="466" Count="2" />
+      <LineId Id="317" Count="2" />
+      <LineId Id="328" Count="0" />
+      <LineId Id="707" Count="0" />
+      <LineId Id="321" Count="0" />
+      <LineId Id="320" Count="0" />
+      <LineId Id="708" Count="0" />
+      <LineId Id="711" Count="1" />
+      <LineId Id="710" Count="0" />
+      <LineId Id="1212" Count="0" />
+      <LineId Id="1144" Count="0" />
+      <LineId Id="1294" Count="0" />
+      <LineId Id="1170" Count="0" />
+      <LineId Id="1176" Count="1" />
+      <LineId Id="1213" Count="0" />
+      <LineId Id="1168" Count="1" />
+      <LineId Id="1171" Count="0" />
+      <LineId Id="1277" Count="1" />
+      <LineId Id="1281" Count="0" />
+      <LineId Id="1279" Count="0" />
+      <LineId Id="1146" Count="0" />
+      <LineId Id="1275" Count="0" />
+      <LineId Id="1280" Count="0" />
+      <LineId Id="1282" Count="0" />
+      <LineId Id="1276" Count="0" />
+      <LineId Id="311" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="1173" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="1076" Count="0" />
+      <LineId Id="39" Count="2" />
+      <LineId Id="1077" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="349" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.M_STATE_RESETTING">
+      <LineId Id="88" Count="1" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="84" Count="1" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="48" Count="1" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="53" Count="1" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="68" Count="1" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="34" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

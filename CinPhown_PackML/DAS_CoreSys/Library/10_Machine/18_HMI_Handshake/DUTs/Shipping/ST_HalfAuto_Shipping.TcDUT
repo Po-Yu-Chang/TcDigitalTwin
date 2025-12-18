@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_HalfAuto_Shipping" Id="{adf58bf4-0fbf-40cc-bbb1-b013f60b3445}">
+    <Declaration><![CDATA[TYPE
+    ST_HalfAuto_Shipping :
+    STRUCT
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
