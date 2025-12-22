@@ -506,19 +506,28 @@ CASE uiExecutingStep OF
     12000: // Only ClampA pickup box from pullout conveyor
 		bTimeOutIN :=TRUE;	
         IF NOT Robot._di1.Done THEN
-            DAS_CoreSys.MachineControl.fbStorageArea.M_ActivePulloutConveyorInternCtrl();
+			DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
 
             IF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
-                DAS_CoreSys.MachineControl.fbStorageArea.M_StartSlideB_FeedIn();
+				DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
+																					 
             ELSIF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
-                DAS_CoreSys.MachineControl.fbStorageArea.M_StartSlideA_FeedIn();
+				DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
             ELSE
                 Status := 'Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
-
+			
+			IF DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Done THEN
+					BoxReady_1st     := TRUE;
+			END_IF
+			
             Robot.M_StartPullOutConveyorPickUpBox_ClampA(ClampA_Address := Info.ClampA_Setting.PullOutConveyorSetting,
-                                                         BoxReady       := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+                                                         BoxReady       := BoxReady_1st);
         ELSE
             IF Robot.M_ResetPullOutConveyorPickUpBox_ClampA() THEN
                 DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlideA_FeedIn();
@@ -600,19 +609,27 @@ CASE uiExecutingStep OF
     22000: // Only ClampB pickup box from PullOut conveyor
 		bTimeOutIN :=TRUE;	
         IF NOT Robot._di1.Done THEN
-            DAS_CoreSys.MachineControl.fbStorageArea.M_ActivePulloutConveyorInternCtrl();
+            DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
 
             IF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
-                DAS_CoreSys.MachineControl.fbStorageArea.M_StartSlideB_FeedIn();
+                DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
             ELSIF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
-                DAS_CoreSys.MachineControl.fbStorageArea.M_StartSlideA_FeedIn();
+                DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
             ELSE
                 Status := 'Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
-
+			
+			IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done THEN
+				BoxReady_2nd := TRUE;
+			END_IF
+			
             Robot.M_StartPullOutConveyorPickUpBox_ClampB(ClampB_Address := Info.ClampB_Setting.PullOutConveyorSetting,
-                                                         BoxReady       := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+                                                         BoxReady       := BoxReady_2nd);
         ELSE
             IF Robot.M_ResetPullOutConveyorPickUpBox_ClampB() THEN
                 DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlideA_FeedIn();
@@ -969,40 +986,33 @@ CASE uiExecutingStep OF
 		END_IF
 		
     35000: // ClampA pickup from WarehouseB, ClampB pickup from PulloutConveyor
-		bTimeOutIN :=TRUE;	
-        IF NOT Robot._di1.Done THEN
-        DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		bTimeOutIN :=TRUE;		
+		IF NOT Robot._DI1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
 
-            IF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
-                        DAS_CoreSys.MachineControl.fballocatearea
-                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
-                                                         CV_BackwardTIme := T#0S,
-                                                         CV_ForwardTime := T#0S);
-            ELSIF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
-                        DAS_CoreSys.MachineControl.fballocatearea
-                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
-                                                         CV_BackwardTIme := T#0S,
-                                                         CV_ForwardTime := T#0S);
-            ELSE
-                Status := 'Not define PulloutConveyor Slide';
-                _Error := TRUE;
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st := TRUE;
+				_AClampDoingWork := TRUE;
             END_IF
 
-            Robot.M_StartPullOutConveyorPickUpBox_ClampA(ClampA_Address := Info.ClampA_Setting.PullOutConveyorSetting,
-                                                         BoxReady       := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+			// robot doing Clamp done
+				IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+					AClampMoveDone := TRUE;
+				END_IF									   
         ELSE
-            IF Robot.M_ResetPullOutConveyorPickUpBox_ClampA() THEN
-            DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
-				bTimeOutIN:=FALSE;
-                uiExecutingStep := 35100; // only place clampA
-            END_IF
-        END_IF;
-				
-		IF tonTimeOut.Q THEN
-			bTimeOutIN:=FALSE;
-			_Error :=TRUE;
-			strStatus :='Pick Box timeout';
+		  tonTimeOut.IN:=FALSE;
+		  uiExecutingStep := 35100; // ClampA pickup finished, ClampB start 
 		END_IF
+		  tonTimeOut.IN :=TRUE;   
+		IF tonTimeOut.Q THEN
+		  tonTimeOut.IN:=FALSE;
+		  _Error :=TRUE;
+		  strStatus :='Pick Box timeout';
+    	END_IF
 		
     35100:
 		bTimeOutIN :=TRUE;	
@@ -1836,7 +1846,20 @@ END_CASE]]></ST>
       <LineId Id="11049" Count="0" />
       <LineId Id="9701" Count="15" />
       <LineId Id="10936" Count="0" />
-      <LineId Id="9717" Count="29" />
+      <LineId Id="9717" Count="0" />
+      <LineId Id="11150" Count="0" />
+      <LineId Id="9719" Count="1" />
+      <LineId Id="11152" Count="0" />
+      <LineId Id="11154" Count="0" />
+      <LineId Id="11151" Count="0" />
+      <LineId Id="11164" Count="0" />
+      <LineId Id="9722" Count="0" />
+      <LineId Id="11156" Count="1" />
+      <LineId Id="11155" Count="0" />
+      <LineId Id="9724" Count="4" />
+      <LineId Id="11160" Count="1" />
+      <LineId Id="11158" Count="1" />
+      <LineId Id="9729" Count="17" />
       <LineId Id="10937" Count="0" />
       <LineId Id="9747" Count="5" />
       <LineId Id="11058" Count="0" />
@@ -1852,7 +1875,14 @@ END_CASE]]></ST>
       <LineId Id="11060" Count="0" />
       <LineId Id="9783" Count="14" />
       <LineId Id="10939" Count="0" />
-      <LineId Id="9798" Count="30" />
+      <LineId Id="9798" Count="3" />
+      <LineId Id="11165" Count="1" />
+      <LineId Id="9802" Count="1" />
+      <LineId Id="11167" Count="1" />
+      <LineId Id="9804" Count="4" />
+      <LineId Id="11172" Count="3" />
+      <LineId Id="11171" Count="0" />
+      <LineId Id="9810" Count="18" />
       <LineId Id="9830" Count="5" />
       <LineId Id="11064" Count="0" />
       <LineId Id="9836" Count="19" />
@@ -1922,15 +1952,11 @@ END_CASE]]></ST>
       <LineId Id="11106" Count="0" />
       <LineId Id="10088" Count="13" />
       <LineId Id="10947" Count="0" />
-      <LineId Id="10102" Count="0" />
-      <LineId Id="10673" Count="0" />
-      <LineId Id="10104" Count="1" />
-      <LineId Id="10674" Count="3" />
-      <LineId Id="10107" Count="0" />
-      <LineId Id="10678" Count="3" />
-      <LineId Id="10109" Count="8" />
-      <LineId Id="10682" Count="0" />
-      <LineId Id="10119" Count="11" />
+      <LineId Id="11229" Count="0" />
+      <LineId Id="11205" Count="23" />
+      <LineId Id="11178" Count="0" />
+      <LineId Id="11176" Count="0" />
+      <LineId Id="10130" Count="0" />
       <LineId Id="10948" Count="0" />
       <LineId Id="10131" Count="0" />
       <LineId Id="10687" Count="0" />
