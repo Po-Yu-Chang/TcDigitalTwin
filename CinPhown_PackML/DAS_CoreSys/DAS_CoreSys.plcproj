@@ -885,6 +885,7 @@
     </Compile>
     <Compile Include="Library\10_Machine\19_Device\FanucRobot\FB_FanucRobot_Basic.TcPOU">
       <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
     <Compile Include="Library\10_Machine\19_Device\FanucRobot\FB_FanucRobot_Basic_V2.TcPOU">
       <SubType>Code</SubType>
@@ -953,6 +954,30 @@
     <Compile Include="Library\20_MachineUnits\21_StorageArea\FB_StorageArea.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_FeedInEmptyBoxWithRobot.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_FeedInEmptyBoxWithRobot_V2.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_ReloadRoundBeltBoxWithRobot.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_RobotAbsMove.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_RobotRegionMove_FeedInConveyor.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_WareHouseWithRobotMove.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_AddBoxes_v2.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -965,49 +990,10 @@
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_DiameterMovement.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_FeedInEmptyBoxWithRobot.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_FeedInEmptyBoxWithRobot_V2.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_FeedInEmptyBoxWithRobot_V3.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_LowerFeedInConveyor.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RebootModbusDevice.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_ReloadRoundBeltBoxWithRobot.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_ReloadRoundBeltBoxWithRobot_V2.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotAbsMove.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotAbsMove_V2.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_AllocatedConveyor.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_BufferArea.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_FeedInConveyor.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_FeedInConveyor_V2.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_PullOutConveyor.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_RobotRegionMove_RoundBelt.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_StorageHoming.TcPOU">
@@ -1016,10 +1002,31 @@
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_UpperFeedInConveyor.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_WareHouseWithRobotMove.TcPOU">
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_FeedInEmptyBoxWithRobot_V3.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service\FB_WareHouseWithRobotMove_V3.TcPOU">
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_ReloadRoundBeltBoxWithRobot_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotAbsMove_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotRegionMove_AllocatedConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotRegionMove_BufferArea.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotRegionMove_FeedInConveyor_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotRegionMove_PullOutConveyor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotRegionMove_RoundBelt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_WareHouseWithRobotMove_V3.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\Enums\E_RoundBeltControlAccess.TcDUT">
@@ -1325,6 +1332,8 @@
     <Folder Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\DUTs" />
     <Folder Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\Services" />
     <Folder Include="Library\20_MachineUnits\21_StorageArea\Duts" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea\Service_Robot" />
+    <Folder Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service" />
     <Folder Include="Library\20_MachineUnits\21_StorageArea\Service" />
     <Folder Include="Library\20_MachineUnits\22_AllocateArea" />
     <Folder Include="Library\20_MachineUnits\22_AllocateArea\Duts" />
@@ -1666,15 +1675,6 @@
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </SubObject>
     <SubObject Include="FB_FanucRobot_Basic_V2.M_ControlRSR03">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_FeedInEmptyBoxWithRobot.M_ReloadBox">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_FeedInEmptyBoxWithRobot_V2.M_ReloadBox">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_FeedInEmptyBoxWithRobot_V3.M_ReloadBox">
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </SubObject>
   </ItemGroup>
