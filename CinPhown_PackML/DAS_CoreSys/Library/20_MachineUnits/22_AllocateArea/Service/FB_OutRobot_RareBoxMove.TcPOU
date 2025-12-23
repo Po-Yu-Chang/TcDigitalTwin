@@ -116,7 +116,7 @@ IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos
 	ELSE
 		bSyncPlace:=FALSE;	
 END_IF
-IF PickingPos[0].X_Pos =PickingPos[1].X_Pos AND PickingPos[0].Y_Pos = PickingPos[1].Y_Pos AND UseA AND UseB THEN
+IF (PickingPos[0].X_Pos = PickingPos[1].X_Pos) AND (PickingPos[0].Y_Pos = PickingPos[1].Y_Pos) AND UseA AND UseB THEN
 		bSyncPick:=TRUE;
 	ELSE
 		bSyncPick:=FALSE;	
