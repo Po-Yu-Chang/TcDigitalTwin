@@ -8,6 +8,7 @@ VAR_INPUT
     FanucRobot 	: REFERENCE TO FB_FanucRobot_Basic_V2;
 	Homed 		: REFERENCE TO BOOL;
 	input		: REFERENCE TO ST_InputTable;
+	Output		: REFERENCE TO ST_OutputTable;
 	Service		: REFERENCE TO ST_ShippingService;
 	Motor		: REFERENCE TO UNI_MotorList;
 END_VAR
@@ -27,6 +28,10 @@ VAR
 	fbExecuteEdgeDetect  :FB_EdgeDetect;
 	_fbShippingRobot_TransmitCVEnd	: FB_ShippingRobot_TransmitCVEnd;
 	TON_RobotRSR01_Delay	: TON;
+	
+	//Reboot RobotPower
+	TON_RebootPowerDelay	: TON;
+	TON_ConnectionTimeout	: TON;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -57,6 +62,9 @@ ResetRobotDelay(PT:=T#300MS);
 TON_RobotFeedOutCommand(PT:= T#5S);		//Robot FeedOut Command TimeOut
 TON_RobotTimeOut(PT := T#60S);			//Robot FeedOut Service Done Time
 TON_RobotRSR01_Delay(PT :=T#3S);
+TON_RebootPowerDelay(PT :=T#1S);
+TON_ConnectionTimeout(PT :=T#30S);
+
 
 _fbShippingRobot_TransmitCVEnd(
 	Execute:= , 
@@ -109,10 +117,43 @@ END_VAR]]></Declaration>
         <ST><![CDATA[xComplete := FALSE;
 CASE uiShippingHomingStep OF
 	
-	0:
+	0:		//init
 			TON_RobotFeedOutCommand.IN  := FALSE;
 			TON_RobotTimeOut.IN 		:= FALSE;
 			FanucRobotCheckTon.IN 		:= TRUE;
+			uiShippingHomingStep 	    := 10;
+			
+	10:		// 檢查機械手臂 錯誤狀態
+			IF FanucRobot._Status = 'Robot Disconnect' THEN
+				Output.bShipping_FanucRobotPower := TRUE;
+				uiShippingHomingStep := 20;
+			ELSIF fanucrobot.Error THEN
+				uiShippingHomingStep := 50;
+			ELSE
+				uiShippingHomingStep := 500;
+			END_IF
+			
+	20:		// 逾時一秒 重新啟動小手臂電源
+			TON_RebootPowerDelay.IN :=TRUE;
+			IF TON_RebootPowerDelay.Q THEN
+				Output.bShipping_FanucRobotPower := FALSE;
+				uiShippingHomingStep := 30;
+			END_IF
+			
+	30:		
+			TON_RebootPowerDelay.IN  := FALSE;
+			TON_ConnectionTimeout.IN := TRUE;
+			IF TON_ConnectionTimeout.Q THEN
+				// 超時 30 秒，連線失敗
+				TON_ConnectionTimeout.IN := FALSE;
+				iErrorID := 30;
+			ELSIF FanucRobot._Status <> 'Robot Disconnect' THEN
+				// 已重新連線，繼續檢查錯誤
+				TON_ConnectionTimeout.IN := FALSE;
+				uiShippingHomingStep := 50;
+			END_IF
+	
+	50:
 			IF FanucRobot.Error THEN
 				RobotResetCMD := TRUE;
 				ResetRobotDelay.IN:=TRUE;
@@ -229,6 +270,9 @@ END_VAR]]></Declaration>
 		M_GetErrorMsg := 'Shipping FanucRobot FeedOut to SameSizeConveyor Done Timeout';
 	20:
 		M_GetErrorMsg := 'Occupid , AutoMode_ShippingRobot_TransmitCVEnd in Executing ';
+	30:
+		M_GetErrorMsg := 'Reboot ShippingArea FanucRobot Connect TimeOut';
+
 END_CASE]]></ST>
       </Implementation>
     </Method>
@@ -241,6 +285,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[FanucRobotCheckTon.IN := FALSE;
 TON_RobotRSR01_Delay.IN	:= FALSE;
+TON_RebootPowerDelay.IN := FALSE;
 _fbShippingRobot_TransmitCVEnd.M_ResetHomingFeedOut();]]></ST>
       </Implementation>
     </Method>
@@ -257,6 +302,7 @@ ResetRobotDelay.IN 			:= FALSE;
 TON_RobotFeedOutCommand.IN 	:= FALSE;
 TON_RobotTimeOut.IN 		:= FALSE;
 TON_RobotRSR01_Delay.IN		:= FALSE;
+TON_RebootPowerDelay.IN		:= FALSE;
 uiShippingHomingStep := 0;
 _fbShippingRobot_TransmitCVEnd.M_ResetHomingFeedOut();
 
@@ -289,6 +335,8 @@ END_IF
       <LineId Id="3" Count="0" />
       <LineId Id="23" Count="0" />
       <LineId Id="22" Count="0" />
+      <LineId Id="27" Count="1" />
+      <LineId Id="26" Count="0" />
       <LineId Id="4" Count="16" />
       <LineId Id="2" Count="0" />
       <LineId Id="25" Count="0" />
@@ -302,7 +350,29 @@ END_IF
       <LineId Id="138" Count="0" />
       <LineId Id="37" Count="0" />
       <LineId Id="136" Count="1" />
-      <LineId Id="39" Count="2" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="198" Count="0" />
+      <LineId Id="161" Count="1" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="172" Count="1" />
+      <LineId Id="181" Count="1" />
+      <LineId Id="168" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="184" Count="2" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="190" Count="7" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="40" Count="1" />
       <LineId Id="81" Count="2" />
       <LineId Id="42" Count="0" />
       <LineId Id="73" Count="0" />
@@ -353,11 +423,15 @@ END_IF
       <LineId Id="56" Count="2" />
       <LineId Id="55" Count="0" />
       <LineId Id="59" Count="1" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="69" Count="0" />
       <LineId Id="7" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingHoming.ResetAction">
       <LineId Id="6" Count="0" />
       <LineId Id="16" Count="0" />
+      <LineId Id="21" Count="0" />
       <LineId Id="11" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingHoming.StartAction">
@@ -365,6 +439,7 @@ END_IF
       <LineId Id="9" Count="0" />
       <LineId Id="14" Count="2" />
       <LineId Id="29" Count="0" />
+      <LineId Id="34" Count="0" />
       <LineId Id="8" Count="0" />
       <LineId Id="17" Count="0" />
       <LineId Id="19" Count="0" />

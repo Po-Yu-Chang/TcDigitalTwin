@@ -122,6 +122,7 @@ fbShippingHoming(
 	RobotResetCMD=> RobotResetCMD,
 	Service := Service,
 	input := INPUT,
+	Output := OUTPUT,
 	Motor := Motor);
 	
 fbShippingLeftSideTransCV(
@@ -342,7 +343,9 @@ END_VAR
       <LineId Id="48" Count="0" />
       <LineId Id="50" Count="10" />
       <LineId Id="49" Count="0" />
-      <LineId Id="109" Count="2" />
+      <LineId Id="109" Count="1" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="111" Count="0" />
       <LineId Id="69" Count="0" />
       <LineId Id="71" Count="15" />
       <LineId Id="70" Count="0" />
