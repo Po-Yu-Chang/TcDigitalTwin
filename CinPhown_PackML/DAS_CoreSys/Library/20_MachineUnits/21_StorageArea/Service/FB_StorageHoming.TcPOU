@@ -31,6 +31,13 @@ VAR
 	TON_RobotTimeOut		: TON;
 	fbExecuteEdgeDetect :FB_EdgeDetect;
 	_fbRobotRegionMove_FeedInConveyor :  FB_RobotRegionMove_FeedInConveyor_V2;
+	
+		// EIP 斷線恢復用計時器
+	tonPowerCycle			: TON;		// 電源 TRUE 維持 5 秒
+	tonPowerCycleTimeout	: TON;		// 電源循環超時 15 秒
+
+	// 啟動延時 - 等待心跳偵測完成 (冷啟動用)
+	tonStartupDelay			: TON;		// 啟動延時 5 秒
 
 END_VAR
 ]]></Declaration>
@@ -61,6 +68,9 @@ FanucRobotCheckTon(PT:=T#120S);
 ResetRobotDelay(PT:=T#300MS);
 TON_RobotFeedOutCommand(PT:= T#5S);
 TON_RobotTimeOut(PT := T#60S);
+tonPowerCycle(PT := T#5S);			// 電源維持 TRUE 5 秒
+tonPowerCycleTimeout(PT := T#30S);	// 電源 FALSE 後等待重連 30 秒
+tonStartupDelay(PT := T#5S);		// 啟動延時 5 秒 (等待心跳偵測)
 
 
 _fbRobotRegionMove_FeedInConveyor(
@@ -136,40 +146,84 @@ CASE uiStorageHomingStep OF
 			uiStorageHomingStep := 300;
 	300:
 		IF M_CheckStorageMotorInStop() THEN
-			uiStorageHomingStep := 400;
+			uiStorageHomingStep := 390;
 		ELSE
 			MotorCheckTon.IN := TRUE;
 			IF MotorCheckTon.Q THEN
 				iErrorID := 3;
 			END_IF
 		END_IF
-	400:
+	// ============================================================================
+	// Step 390: 啟動延時 - 等待心跳偵測完成
+	// - 冷啟動時，心跳偵測需要 5 秒 (10 × 0.5s) 才能判定連線狀態
+	// - 必須等心跳偵測完成後，才能正確判斷機器人是否已連線
+	// ============================================================================
+	390:
 		MotorCheckTon.IN := FALSE;
 		FanucRobotCheckTon.IN := TRUE;
-		IF FanucRobot.Error THEN
-			RobotResetCMD := TRUE;		
-			ResetRobotDelay.IN:=TRUE;
+		RobotResetCMD := FALSE;
+		tonStartupDelay.IN := TRUE;
+
+		// 等待 5 秒讓心跳偵測完成
+		IF tonStartupDelay.Q THEN
+			tonStartupDelay.IN := FALSE;
+			uiStorageHomingStep := 390;
+		END_IF
+
+	// ============================================================================
+	// Step 400: 檢查機器人連線狀態
+	// - 心跳偵測已完成，現在可以正確判斷連線狀態
+	// ============================================================================
+	400:
+		// 先檢查斷線狀態 (Heartbeat 偵測)
+		IF FanucRobot._Status = 'Robot Disconnect' THEN
+			// EIP 斷線，執行電源循環恢復
+			uiStorageHomingStep := 440;
+		ELSIF FanucRobot.Error THEN
+			// 一般錯誤，執行正常重置
+			RobotResetCMD := TRUE;
+			ResetRobotDelay.IN := TRUE;
 		ELSE
 			uiStorageHomingStep := 500;
 		END_IF
 		IF ResetRobotDelay.Q THEN
-			ResetRobotDelay.IN:=FALSE;
+			ResetRobotDelay.IN := FALSE;
 			uiStorageHomingStep := 500;
-		END_IF	
-		
-		
-	500:
-		RobotResetCMD := FALSE;	
-		RackMotorHomeRequest := TRUE;		// RackMotor homing edit min
-		FanucRobot.OpMode := E_FanucRobotOpMode.RSR02;
-//		IF FanucRobot._DI12.RSR2_Active THEN
-//			FanucRobot.Bzone_AllowWork := TRUE;
-//		END_IF
-		IF FanucRobot.Error THEN
-			RobotResetCMD := TRUE;		
 		END_IF
+
+	440:	// EIP 斷線恢復: 電源 TRUE
+		RobotResetCMD := FALSE;
+		ResetRobotDelay.IN := FALSE;
+		OutPut.bStorage_FanucRobotPower := TRUE;		// 強制電源 TRUE
+		tonPowerCycle.IN := TRUE;						// 開始 5 秒計時
+		tonPowerCycleTimeout.IN := FALSE;				// 還不開始重連計時
+		uiStorageHomingStep := 450;
+
+	450:	// EIP 斷線恢復: 等待 5 秒
+		IF tonPowerCycle.Q THEN
+			// 5 秒到，電源 FALSE，開始計時等待重連
+			tonPowerCycle.IN := FALSE;
+			OutPut.bStorage_FanucRobotPower := FALSE;
+			tonPowerCycleTimeout.IN := TRUE;			// 現在開始 30 秒重連計時
+			uiStorageHomingStep := 460;
+		END_IF
+
+	460:	// EIP 斷線恢復: 等待重新連線 (30秒超時)
+		IF tonPowerCycleTimeout.Q THEN
+			// 超時 30 秒，報錯
+			iErrorID := 22;
+		ELSIF FanucRobot._Status <> 'Robot Disconnect' THEN
+			// 已重新連線，繼續執行 RSR02
+			tonPowerCycleTimeout.IN := FALSE;
+			uiStorageHomingStep := 500;
+		END_IF
+
+	500:
+		RobotResetCMD := FALSE;
+		RackMotorHomeRequest := TRUE;		//RackMotor Homing	edit by min 20250716
+		FanucRobot.OpMode := E_FanucRobotOpMode.RSR02;
+		// RSR02 執行中不檢查錯誤，讓 RSR02 完成後再檢查
 		IF FanucRobot._RSR2_Completed THEN
-			//FanucRobot.Bzone_AllowWork := FALSE;
 			uiStorageHomingStep := 600;
 		END_IF
 	600:
@@ -178,6 +232,10 @@ CASE uiStorageHomingStep OF
 			arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Homed
 		THEN
 			uiStorageHomingStep := 1000;
+		END_IF
+			// RSR02 完成後，檢查是否還有錯誤
+		IF FanucRobot.Error THEN
+			iErrorID := 21;		// RSR02 完成但錯誤仍存在
 		END_IF
 	1000:	
 			IF FanucRobot.OpMode = E_FanucRobotOpMode.RSR01 AND NOT FanucRobot._DI1.Done AND FanucRobot._DI12.RSR1_Active THEN
@@ -447,8 +505,14 @@ CylinderCheckTon.IN := FALSE;
 MotorCheckTon.IN := FALSE;
 FanucRobotCheckTon.IN := FALSE;
 RackMotorHomeRequest := FALSE;
-FanucRobot.Bzone_AllowWork := false;
-_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();]]></ST>
+
+_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+
+TON_RobotFeedOutCommand.IN  := FALSE;
+TON_RobotTimeOut.IN			:= FALSE;
+tonPowerCycle.IN			:= FALSE;
+tonPowerCycleTimeout.IN		:= FALSE;
+tonStartupDelay.IN			:= FALSE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="StartAction" Id="{3256a334-377b-41c1-81b0-1036cc95d21d}" FolderPath="Action\">
@@ -467,9 +531,14 @@ END_VAR]]></Declaration>
 RackMotorHomeRequest := false;
 ResetRobotDelay.IN := FALSE;
 uiStorageHomingStep := 0;
+
 _fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+
 TON_RobotFeedOutCommand.IN  := FALSE;
 TON_RobotTimeOut.IN			:= FALSE;
+tonPowerCycle.IN			:= FALSE;
+tonPowerCycleTimeout.IN		:= FALSE;
+tonStartupDelay.IN			:= FALSE;
 
 IF service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Execute OR
 	service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Busy OR 
@@ -497,6 +566,8 @@ END_IF]]></ST>
     <LineIds Name="FB_StorageHoming.A00_BasicUnits">
       <LineId Id="2" Count="3" />
       <LineId Id="7" Count="1" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="27" Count="0" />
       <LineId Id="26" Count="0" />
       <LineId Id="9" Count="16" />
       <LineId Id="1" Count="0" />
@@ -507,13 +578,16 @@ END_IF]]></ST>
     <LineIds Name="FB_StorageHoming.CyclicAction">
       <LineId Id="311" Count="2" />
       <LineId Id="499" Count="1" />
-      <LineId Id="314" Count="46" />
-      <LineId Id="485" Count="2" />
-      <LineId Id="361" Count="3" />
-      <LineId Id="488" Count="0" />
-      <LineId Id="365" Count="4" />
+      <LineId Id="314" Count="27" />
+      <LineId Id="511" Count="63" />
+      <LineId Id="576" Count="5" />
+      <LineId Id="587" Count="0" />
+      <LineId Id="589" Count="2" />
+      <LineId Id="368" Count="1" />
       <LineId Id="473" Count="1" />
       <LineId Id="370" Count="1" />
+      <LineId Id="606" Count="2" />
+      <LineId Id="605" Count="0" />
       <LineId Id="383" Count="89" />
       <LineId Id="381" Count="1" />
       <LineId Id="68" Count="0" />
@@ -551,17 +625,22 @@ END_IF]]></ST>
       <LineId Id="13" Count="1" />
       <LineId Id="12" Count="0" />
       <LineId Id="19" Count="0" />
-      <LineId Id="25" Count="0" />
+      <LineId Id="37" Count="0" />
       <LineId Id="24" Count="0" />
+      <LineId Id="32" Count="4" />
+      <LineId Id="30" Count="0" />
     </LineIds>
     <LineIds Name="FB_StorageHoming.StartAction">
       <LineId Id="15" Count="0" />
       <LineId Id="60" Count="0" />
       <LineId Id="50" Count="0" />
       <LineId Id="40" Count="0" />
+      <LineId Id="107" Count="0" />
       <LineId Id="27" Count="0" />
+      <LineId Id="106" Count="0" />
       <LineId Id="89" Count="0" />
       <LineId Id="91" Count="0" />
+      <LineId Id="103" Count="2" />
       <LineId Id="93" Count="0" />
       <LineId Id="70" Count="9" />
       <LineId Id="30" Count="0" />

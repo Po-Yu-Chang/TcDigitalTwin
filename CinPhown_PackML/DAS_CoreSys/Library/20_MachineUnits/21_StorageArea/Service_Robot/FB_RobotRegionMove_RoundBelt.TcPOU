@@ -258,21 +258,23 @@ CASE uiExecutingStep OF
 			 Address_B := LREAL_TO_INT(Info.B_Position);
 			 uiExecutingStep := 1100; 		
 			 
-	1100:	
-			// Check clamp userage	 
+	1100:
+			// Check clamp userage
 			IF UseA AND NOT UseB THEN
 				//Only clampA
-			A1Used := FALSE;
-			A2Used := FALSE;
-			uiExecutingStep := 10000;
+				A1Used := FALSE;
+				A2Used := FALSE;
+				uiExecutingStep := 10000;
 			ELSIF NOT UseA AND UseB THEN
-				//Only ClampB 
-			A1Used := FALSE;
-			A2Used := FALSE;
-			uiExecutingStep := 20000;
+				//Only ClampB
+				A1Used := FALSE;
+				A2Used := FALSE;
+				uiExecutingStep := 20000;
 			ELSIF UseA AND UseB THEN
 				//Both Clamps
-				uiExecutingStep := 30000;		
+				A1Used := TRUE;
+				A2Used := TRUE;
+				uiExecutingStep := 30000;
 			END_IF
        
     10000: // Only ClampA 
@@ -287,7 +289,7 @@ CASE uiExecutingStep OF
 		
 		CASE uiSingleClampStep OF
 		0:
-			CASE Address_A OF				
+			CASE Address_A OF						
 						1: A1Used := TRUE;
 						2: A2Used := TRUE;
 			END_CASE
@@ -440,12 +442,12 @@ CASE uiExecutingStep OF
        
 		
     20080:
-       Robot.M_ResetRobotAbsMove(UseA,UseB);; // Clear command 
-
-        IF NOT Robot._DI1.Done THEN
-            uiExecutingStep := 99000; 
-        END_IF
+       Robot.M_ResetRobotAbsMove(UseA,UseB);; // Clear command
 		tonTimeOut.IN:=TRUE;
+        IF NOT Robot._DI1.Done THEN
+			tonTimeOut.IN:=FALSE;
+            uiExecutingStep := 99000;
+        END_IF
 		IF tonTimeOut.Q=TRUE THEN
 			strStatus :='Reset Robot timeout';
 			_Error:=TRUE;
@@ -551,7 +553,7 @@ CASE uiExecutingStep OF
 				END_IF				
 				IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 					_Error:=TRUE	;
-					strStatus :='No still on A2';
+					strStatus :='Box still on A2';
 				END_IF	
 			ELSE		//Place job , check no box 
 				IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
@@ -715,10 +717,8 @@ END_IF]]></ST>
       <LineId Id="945" Count="1" />
       <LineId Id="950" Count="0" />
       <LineId Id="563" Count="1" />
-      <LineId Id="1385" Count="1" />
       <LineId Id="570" Count="0" />
       <LineId Id="566" Count="1" />
-      <LineId Id="1387" Count="1" />
       <LineId Id="571" Count="0" />
       <LineId Id="568" Count="1" />
       <LineId Id="572" Count="0" />
