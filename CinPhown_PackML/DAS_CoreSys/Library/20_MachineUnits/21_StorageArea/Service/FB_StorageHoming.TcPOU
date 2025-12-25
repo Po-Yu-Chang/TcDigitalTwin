@@ -167,7 +167,7 @@ CASE uiStorageHomingStep OF
 		// 等待 5 秒讓心跳偵測完成
 		IF tonStartupDelay.Q THEN
 			tonStartupDelay.IN := FALSE;
-			uiStorageHomingStep := 390;
+			uiStorageHomingStep := 400;
 		END_IF
 
 	// ============================================================================
