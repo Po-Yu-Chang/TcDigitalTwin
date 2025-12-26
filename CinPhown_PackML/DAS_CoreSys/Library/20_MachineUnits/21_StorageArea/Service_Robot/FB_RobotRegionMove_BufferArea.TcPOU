@@ -34,6 +34,11 @@ A00_BasicUnits();]]></ST>
     </Implementation>
     <Folder Name="Method" Id="{8c8868d7-0097-4403-9c44-eebf62295eba}" />
     <Folder Name="State" Id="{d387bd16-6c2f-4235-8036-17b925fb6f8b}" />
+    <Action Name="A00_BasicUnits" Id="{bc17db3f-ea88-423f-8ee1-be99b3415897}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT :=T#60S);]]></ST>
+      </Implementation>
+    </Action>
     <Method Name="M_CheckCommand" Id="{fa8748bd-e370-4888-a902-cb916f4ae882}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
 VAR_INPUT
@@ -108,11 +113,14 @@ Busy    := FALSE;
 Aborted := TRUE;
 Status := strStatus;
 UniqueErrorCode:=_UniqueErrorCode;
+uiAbortingStep := 0;
 IF NOT Execute THEN
 	eSTATE:=STATE_RESETTING;
 END_IF
 
 IF Execute AND Reset THEN
+	error := FALSE;
+	Aborted := FALSE;
 	uiExecutingStep :=uiResumeStep;
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
@@ -128,12 +136,14 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
 	0 :
-		uiAbortingStep:=9999;
-		IF strStatus = PreviousStrStatus THEN
-			_UniqueErrorCode :=PreviousErrorCode;
-		END_IF
-		_Abort :=FALSE;
-	9999:	_AbortCompleted:=TRUE;
+			_Abort :=FALSE;
+			uiAbortingStep:=9999;
+			tonTimeOut.IN := FALSE;
+			IF strStatus = PreviousStrStatus THEN
+				_UniqueErrorCode :=PreviousErrorCode;
+			END_IF
+	9999:	
+			_AbortCompleted:=TRUE;
 END_CASE
 
 IF _AbortCompleted THEN	
@@ -173,9 +183,10 @@ _Executed       := FALSE;
 
 tonTimeOut.IN:=FALSE;
 strStatus :='No Error';
-uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
-PreviousStrStatus			 :='';
-PreviousErrorCode			 :='';
+uiExecutingStep :=uiResettingStep :=uiResumeStep := 0;
+uiAbortingStep   := 0;
+PreviousStrStatus	:='';
+PreviousErrorCode	:='';
 _UniqueErrorCode	:='0';
 
 // Wait Execute command
@@ -292,6 +303,12 @@ CASE uiExecutingStep OF
 				strStatus :='Reset Robot timeout';
 				_Error:=TRUE;
 			END_IF	
+			IF Robot.Error THEN
+				tonTimeOut.IN:=FALSE;
+				uiResumeStep := 10000;
+				strStatus := 'FB_RobotRegionMove_BuuferArea : ClampA Robot Error';
+				_Abort := TRUE;
+			END_IF
     10080:
         Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
 		tonTimeOut.IN:=TRUE;
@@ -305,38 +322,44 @@ CASE uiExecutingStep OF
 		END_IF	
     
    20000: // Only ClampB
-        IF NOT Robot._DI1.Done THEN           		
-				BoxReady_2nd:=TRUE;				          		 
-				  // Robot Abs move
-           		 Robot.M_StartRobotAbsMove( GetBox:=Get,
-											UseClampA:=UseA,
-											UseClampB:=UseB,
-											Area:=Area,
-											ClampA_Address:=Address_A,
-											ClampB_Address:=Address_B,
-											BoxReady_1:=BoxReady_1st,
-											BoxReady_2:=BoxReady_2nd);	
-        ELSE
-			tonTimeOut.IN:=FALSE;
-            uiExecutingStep := 20080;
-        END_IF
-		tonTimeOut.IN:=TRUE;
+			IF NOT Robot._DI1.Done THEN           		
+					BoxReady_2nd:=TRUE;				          		 
+					  // Robot Abs move
+					 Robot.M_StartRobotAbsMove( GetBox:=Get,
+												UseClampA:=UseA,
+												UseClampB:=UseB,
+												Area:=Area,
+												ClampA_Address:=Address_A,
+												ClampB_Address:=Address_B,
+												BoxReady_1:=BoxReady_1st,
+												BoxReady_2:=BoxReady_2nd);	
+			ELSE
+				tonTimeOut.IN:=FALSE;
+				uiExecutingStep := 20080;
+			END_IF
+				tonTimeOut.IN:=TRUE;
 			IF tonTimeOut.Q=TRUE THEN
 				tonTimeOut.IN:=FALSE;			
 				strStatus :='Reset Robot timeout';
 				_Error:=TRUE;
 			END_IF	
+			IF Robot.Error THEN
+				tonTimeOut.IN:=FALSE;
+				uiResumeStep := 20000;
+				strStatus := 'FB_RobotRegionMove_BuuferArea : Use ClampB Robot Error';
+				_Abort := TRUE;
+			END_IF
     20080:
-       Robot.M_ResetRobotAbsMove(UseA,UseB);; // Clear command 
-
-        IF NOT Robot._DI1.Done THEN
-            uiExecutingStep := 99000; 
-        END_IF
-		tonTimeOut.IN:=TRUE;
-		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Reset Robot timeout';
-			_Error:=TRUE;
-		END_IF	
+			   Robot.M_ResetRobotAbsMove(UseA,UseB);; // Clear command 
+		
+				IF NOT Robot._DI1.Done THEN
+					uiExecutingStep := 99000; 
+				END_IF
+				tonTimeOut.IN:=TRUE;
+				IF tonTimeOut.Q=TRUE THEN
+					strStatus :='Reset Robot timeout';
+					_Error:=TRUE;
+				END_IF	
     30000: // Both Clamps
         		
 		
@@ -382,11 +405,18 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN:=FALSE;
             uiExecutingStep := 30080;
         END_IF
-		IF tonTimeOut.Q=TRUE THEN
-				tonTimeOut.IN:=FALSE;			
-				strStatus :='Reset Robot timeout';
-				_Error:=TRUE;
-			END_IF	
+		IF tonTimeOut.Q  THEN
+			tonTimeOut.IN:=FALSE;			
+			strStatus :='Reset Robot timeout';
+			_Error:=TRUE;
+		END_IF	
+		IF Robot.Error THEN
+			uiResumeStep     := 30000;
+			_Abort := TRUE;
+			strStatus :='FB_RobotRegionMove_BuuferArea : Use bothClamp robot Error';
+		END_IF
+		
+		
     30080: // Check robot command is clear
         
         Robot.M_ResetRobotAbsMove(UseA,UseB);
@@ -451,6 +481,9 @@ END_IF]]></ST>
       <LineId Id="9" Count="0" />
       <LineId Id="22" Count="0" />
     </LineIds>
+    <LineIds Name="FB_RobotRegionMove_BufferArea.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+    </LineIds>
     <LineIds Name="FB_RobotRegionMove_BufferArea.M_CheckCommand">
       <LineId Id="24" Count="0" />
       <LineId Id="110" Count="0" />
@@ -476,16 +509,25 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_BufferArea.M_STATE_ABORTED">
-      <LineId Id="14" Count="10" />
+      <LineId Id="14" Count="4" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="19" Count="4" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="24" Count="0" />
       <LineId Id="29" Count="1" />
       <LineId Id="25" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_BufferArea.M_STATE_ABORTING">
-      <LineId Id="12" Count="2" />
-      <LineId Id="25" Count="1" />
-      <LineId Id="24" Count="0" />
-      <LineId Id="15" Count="5" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="17" Count="3" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_BufferArea.M_STATE_DONE">
@@ -499,6 +541,7 @@ END_IF]]></ST>
       <LineId Id="38" Count="0" />
       <LineId Id="32" Count="0" />
       <LineId Id="19" Count="0" />
+      <LineId Id="49" Count="0" />
       <LineId Id="43" Count="0" />
       <LineId Id="34" Count="0" />
       <LineId Id="33" Count="0" />
@@ -554,6 +597,11 @@ END_IF]]></ST>
       <LineId Id="986" Count="0" />
       <LineId Id="982" Count="1" />
       <LineId Id="613" Count="0" />
+      <LineId Id="1049" Count="0" />
+      <LineId Id="1052" Count="0" />
+      <LineId Id="1057" Count="0" />
+      <LineId Id="1054" Count="1" />
+      <LineId Id="1053" Count="0" />
       <LineId Id="115" Count="3" />
       <LineId Id="887" Count="0" />
       <LineId Id="119" Count="1" />
@@ -567,7 +615,10 @@ END_IF]]></ST>
       <LineId Id="992" Count="0" />
       <LineId Id="654" Count="1" />
       <LineId Id="987" Count="4" />
-      <LineId Id="656" Count="5" />
+      <LineId Id="656" Count="0" />
+      <LineId Id="1059" Count="4" />
+      <LineId Id="1058" Count="0" />
+      <LineId Id="657" Count="4" />
       <LineId Id="205" Count="0" />
       <LineId Id="899" Count="3" />
       <LineId Id="662" Count="0" />
@@ -594,6 +645,9 @@ END_IF]]></ST>
       <LineId Id="253" Count="1" />
       <LineId Id="993" Count="3" />
       <LineId Id="705" Count="0" />
+      <LineId Id="1067" Count="0" />
+      <LineId Id="1069" Count="2" />
+      <LineId Id="1064" Count="2" />
       <LineId Id="255" Count="4" />
       <LineId Id="927" Count="0" />
       <LineId Id="260" Count="1" />
