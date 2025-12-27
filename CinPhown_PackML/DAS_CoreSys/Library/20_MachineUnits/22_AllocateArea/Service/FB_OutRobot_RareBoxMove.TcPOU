@@ -49,6 +49,11 @@ VAR
 	UseA	: BOOL;
 	UseB	: BOOL;
 	bMotorMoveForward : BOOL;	
+		
+	// check position
+	bSamePosX	: BOOL;
+	bSamePosY	: BOOL;
+	lrEpsPos 	: LREAL := 0.001;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -109,20 +114,6 @@ END_VAR
       <Implementation>
         <ST><![CDATA[//For rare box move , Boxes must place on same position , therefor only work with TargetPosition of ClipA
 
-
-
-IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos[1].Y_Pos AND UseA AND UseB THEN
-		bSyncPlace:=TRUE;
-	ELSE
-		bSyncPlace:=FALSE;	
-END_IF
-IF (PickingPos[0].X_Pos = PickingPos[1].X_Pos) AND (PickingPos[0].Y_Pos = PickingPos[1].Y_Pos) AND UseA AND UseB THEN
-		bSyncPick:=TRUE;
-	ELSE
-		bSyncPick:=FALSE;	
-END_IF
-
-
 IF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 5 THEN	
 	ConveyorMotor REF= Motor.List.TransmitDifferentSideCV;
 ELSIF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 6 THEN
@@ -169,6 +160,21 @@ IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibB THEN
 		RETURN;
 	END_CASE
 END_IF
+
+IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos[1].Y_Pos AND UseA AND UseB THEN
+		bSyncPlace:=TRUE;
+	ELSE
+		bSyncPlace:=FALSE;	
+END_IF
+
+bSamePosX := ABS(PickingPos[0].X_Pos - PickingPos[1].X_Pos) < lrEpsPos;
+bSamePosY := ABS(PickingPos[0].Y_Pos - PickingPos[1].Y_Pos) < lrEpsPos;
+IF bSamePosX AND bSamePosY AND UseA AND UseB THEN
+		bSyncPick:=TRUE;
+	ELSE
+		bSyncPick:=FALSE;	
+END_IF
+
 M_GetWorkingConditions :=TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -319,6 +325,8 @@ UseB :=FALSE;
 bMotorMoveForward := FALSE;
 _Abort :=FALSE;
 _Error := FALSE;
+bSamePosX := FALSE;
+bSamePosY := FALSE;
 
 IF Execute THEN
 	eSTATE:=STATE_EXECUTING;
@@ -725,16 +733,7 @@ END_IF]]></ST>
       <LineId Id="13" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_RareBoxMove.M_GetWorkingConditions">
-      <LineId Id="35" Count="1" />
-      <LineId Id="11" Count="0" />
-      <LineId Id="15" Count="0" />
-      <LineId Id="14" Count="0" />
-      <LineId Id="16" Count="0" />
-      <LineId Id="18" Count="1" />
-      <LineId Id="17" Count="0" />
-      <LineId Id="25" Count="3" />
-      <LineId Id="24" Count="0" />
-      <LineId Id="34" Count="0" />
+      <LineId Id="35" Count="0" />
       <LineId Id="37" Count="0" />
       <LineId Id="65" Count="0" />
       <LineId Id="67" Count="1" />
@@ -746,6 +745,11 @@ END_IF]]></ST>
       <LineId Id="95" Count="0" />
       <LineId Id="104" Count="29" />
       <LineId Id="94" Count="0" />
+      <LineId Id="138" Count="5" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="144" Count="5" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="150" Count="0" />
       <LineId Id="93" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_RareBoxMove.M_RecoveryAllObjects">
@@ -819,6 +823,7 @@ END_IF]]></ST>
       <LineId Id="45" Count="0" />
       <LineId Id="51" Count="0" />
       <LineId Id="50" Count="0" />
+      <LineId Id="55" Count="1" />
       <LineId Id="46" Count="0" />
       <LineId Id="14" Count="1" />
       <LineId Id="5" Count="0" />

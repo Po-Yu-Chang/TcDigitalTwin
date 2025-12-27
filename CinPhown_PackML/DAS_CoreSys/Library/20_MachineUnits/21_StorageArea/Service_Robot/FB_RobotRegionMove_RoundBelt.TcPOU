@@ -106,11 +106,15 @@ Busy    := FALSE;
 Aborted := TRUE;
 Status := strStatus;
 UniqueErrorCode:=_UniqueErrorCode;
+uiAbortingStep := 0;
+
+//============= State Control==================
 IF NOT Execute THEN
 	eSTATE:=STATE_RESETTING;
 END_IF
-
 IF Execute AND Reset THEN
+	Error := FALSE;
+	Aborted := FALSE;
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
 	uiExecutingStep :=uiResumeStep;
@@ -346,12 +350,17 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN:=FALSE;
             uiExecutingStep := 10080;
         END_IF
-		tonTimeOut.IN:=TRUE;
+			tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
 			tonTimeOut.IN:=FALSE;
 			strStatus :='Reset Robot timeout';
 			_Error:=TRUE;
 		END_IF	
+		IF robot.Error THEN
+			uiResumeStep := 10000;
+			_Abort := TRUE;
+			strStatus := 'FB_RobotRegionMove_RoundBlet : Use ClampA Command Robot Error';
+		END_IF
     10080:
         Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
 		tonTimeOut.IN:=TRUE;
@@ -437,7 +446,12 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN:=FALSE;
 			strStatus :='Reset Robot timeout';
 			_Error:=TRUE;
-		END_IF				          		 
+		END_IF
+		IF robot.Error THEN
+			uiResumeStep := 20000;
+			_Abort := TRUE;
+			strStatus := 'FB_RobotRegionMove_RoundBlet : Use ClampB Command Robot Error';
+		END_IF		          		 
 			
        
 		
@@ -529,6 +543,11 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN:=FALSE;
 			strStatus :='Reset Robot timeout';
 			_Error:=TRUE;
+		END_IF
+		IF robot.Error THEN
+			uiResumeStep := 30000;
+			_Abort := TRUE;
+			strStatus := 'FB_RobotRegionMove_RoundBlet : Use BothClamp Command Robot Error';
 		END_IF	
 		
     30080: // Check robot command is clear
@@ -650,7 +669,13 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_ABORTED">
-      <LineId Id="14" Count="9" />
+      <LineId Id="14" Count="4" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="19" Count="2" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="34" Count="1" />
       <LineId Id="29" Count="1" />
       <LineId Id="24" Count="1" />
       <LineId Id="5" Count="0" />
@@ -768,7 +793,11 @@ END_IF]]></ST>
       <LineId Id="613" Count="0" />
       <LineId Id="115" Count="3" />
       <LineId Id="887" Count="0" />
-      <LineId Id="119" Count="1" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="1381" Count="0" />
+      <LineId Id="1386" Count="1" />
+      <LineId Id="1382" Count="1" />
+      <LineId Id="120" Count="0" />
       <LineId Id="884" Count="2" />
       <LineId Id="172" Count="0" />
       <LineId Id="179" Count="0" />
@@ -783,7 +812,10 @@ END_IF]]></ST>
       <LineId Id="1325" Count="4" />
       <LineId Id="1324" Count="0" />
       <LineId Id="652" Count="0" />
-      <LineId Id="655" Count="6" />
+      <LineId Id="655" Count="4" />
+      <LineId Id="1389" Count="3" />
+      <LineId Id="1388" Count="0" />
+      <LineId Id="660" Count="1" />
       <LineId Id="205" Count="0" />
       <LineId Id="899" Count="3" />
       <LineId Id="662" Count="0" />
@@ -826,6 +858,8 @@ END_IF]]></ST>
       <LineId Id="1339" Count="0" />
       <LineId Id="705" Count="0" />
       <LineId Id="255" Count="4" />
+      <LineId Id="1394" Count="3" />
+      <LineId Id="1393" Count="0" />
       <LineId Id="927" Count="0" />
       <LineId Id="260" Count="1" />
       <LineId Id="923" Count="3" />
@@ -846,6 +880,8 @@ END_IF]]></ST>
       <LineId Id="1364" Count="0" />
       <LineId Id="28" Count="0" />
       <LineId Id="26" Count="0" />
+      <LineId Id="366" Count="4" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_RESETTING">
       <LineId Id="11" Count="7" />
