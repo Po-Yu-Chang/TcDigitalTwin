@@ -461,13 +461,13 @@ bMoveConveyorBackrward:=FALSE;
 		strStatus :='Clip pick close timeout';
 	END_IF
 	
-1400: // Clip Up Pick	  
+1400: // Clip Up Pick
 	bCylinderCheck := TRUE;
 	Cylinders[iWorkingIndex].M_Retract();
-	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	bCylinderCheck := Cylinders[iWorkingIndex].InRearPosition AND bCylinderCheck;
 	IF bSyncPick THEN
 		Cylinders[1].M_Retract();
-		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
+		bCylinderCheck := Cylinders[1].InRearPosition AND bCylinderCheck;
 	END_IF	
 	 
 	IF bCylinderCheck THEN
@@ -562,10 +562,10 @@ bMoveConveyorBackrward:=FALSE;
 2300: // Clip open Place
 	bCylinderCheck := TRUE;
 	Clips[iWorkingIndex].M_Retract();
-	bCylinderCheck := Clips[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	bCylinderCheck := Clips[iWorkingIndex].InRearPosition AND bCylinderCheck;
 	IF bSyncPlace THEN
 		Clips[1].M_Retract();
-		bCylinderCheck := Clips[1].InFrontPosition AND bCylinderCheck;
+		bCylinderCheck := Clips[1].InRearPosition AND bCylinderCheck;
 	END_IF	
 	 
 	IF bCylinderCheck THEN
@@ -582,10 +582,10 @@ bMoveConveyorBackrward:=FALSE;
 2400: // Clip up Placing
 	bCylinderCheck := TRUE;
 	Cylinders[iWorkingIndex].M_Retract();
-	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
+	bCylinderCheck := Cylinders[iWorkingIndex].InRearPosition AND bCylinderCheck;
 	IF bSyncPlace THEN
 		Cylinders[1].M_Retract();
-		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
+		bCylinderCheck := Cylinders[1].InRearPosition AND bCylinderCheck;
 	END_IF	
 	 
 	IF bCylinderCheck THEN
