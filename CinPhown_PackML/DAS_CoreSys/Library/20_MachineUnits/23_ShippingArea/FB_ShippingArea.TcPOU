@@ -18,6 +18,10 @@ VAR_OUTPUT
 END_VAR
 VAR
 	abort	: BOOL;
+
+	// 連動暫停 - 任一 Service 錯誤時暫停所有其他 Service
+	_bAnyServiceError : BOOL;
+
 	//Machine Service
 	fbShippingHoming 				: FB_ShippingHoming;
 	
@@ -47,9 +51,19 @@ END_IF
     <Folder Name="States" Id="{f81533be-596c-4ef2-b789-36286d227524}" />
     <Action Name="A00_Service" Id="{d3e5687a-8989-4023-9d99-a9d8ba12dedd}">
       <Implementation>
-        <ST><![CDATA[fbShippingRobot_TransmitCVEnd(
-	Execute:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Execute, 
-	Abort:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Abort OR THIS^.Abort, 
+        <ST><![CDATA[// ============================================================================
+// 連動暫停邏輯 - 任一 Service 錯誤時，暫停所有其他 Service
+// ============================================================================
+_bAnyServiceError :=
+	Service.AutoMode_ShippingRobot_TransmitCVEnd.Status.Error OR
+	Service.AutoMode_ShippingRobot_Left.Status.Error OR
+	Service.AutoMode_ShippingRobot_Right.Status.Error OR
+	Service.AutoMode_ShippingTransCV_LeftSide.Status.Error OR
+	Service.AutoMode_ShippingTransCV_RightSide.Status.Error;
+
+fbShippingRobot_TransmitCVEnd(
+	Execute:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Execute,
+	Abort:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
 	Reset:= Reset, 
 	ObjectName:= 'Shipping Fanuc Robot TransmitCVEnd', 
 	INPUT:=INPUT,
@@ -67,9 +81,9 @@ END_IF
 	fbSHippingHomingBusy := fbShippingHoming.xBusy);
 	
 fbShippingRobot_Left(
-	Execute:= service.AutoMode_ShippingRobot_Left.Command.Execute, 
-	Abort:= Service.AutoMode_ShippingRobot_Left.Command.Abort OR THIS^.Abort, 
-	Reset:= Reset, 
+	Execute:= service.AutoMode_ShippingRobot_Left.Command.Execute,
+	Abort:= Service.AutoMode_ShippingRobot_Left.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
 	ObjectName:= 'Shipping Fanuc Robot Left', 
 	Busy=> Service.AutoMode_ShippingRobot_Left.Status.Busy, 
 	Done=> Service.AutoMode_ShippingRobot_Left.Status.Done, 
@@ -88,9 +102,9 @@ fbShippingRobot_Left(
 	Input := INPUT);
 	
 fbShippingRobot_Right(
-	Execute:= Service.AutoMode_ShippingRobot_Right.Command.Execute, 
-	Abort:= Service.AutoMode_ShippingRobot_Right.Command.Abort OR THIS^.Abort, 
-	Reset:= Reset, 
+	Execute:= Service.AutoMode_ShippingRobot_Right.Command.Execute,
+	Abort:= Service.AutoMode_ShippingRobot_Right.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
 	ObjectName:= 'Shipping Fanuc Robot Right', 
 	Busy=> Service.AutoMode_ShippingRobot_Right.Status.Busy, 
 	Done=> Service.AutoMode_ShippingRobot_Right.Status.Done, 
@@ -109,11 +123,11 @@ fbShippingRobot_Right(
 	Input := INPUT);
 	
 fbShippingHoming(
-	xDone=> , 
-	xBusy=> , 
-	xError=> , 
-	xExecute:= , 
-	xAbort:= , 
+	xDone=> ,
+	xBusy=> ,
+	xError=> ,
+	xExecute:= ,
+	xAbort:= _bAnyServiceError,
 	FanucRobot:= FanucRobot, 
 	Homed:= Homed, 
 	xAborted=> , 
@@ -126,12 +140,12 @@ fbShippingHoming(
 	Motor := Motor);
 	
 fbShippingLeftSideTransCV(
-	xDone=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Done, 
-	xBusy=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Busy, 
-	xError=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Error, 
-	xExecute:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Execute, 
-	xAbort:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Abort OR THIS^.abort, 
-	xReset:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Reset, 
+	xDone=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Done,
+	xBusy=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Busy,
+	xError=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Error,
+	xExecute:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Execute,
+	xAbort:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Abort OR THIS^.abort OR _bAnyServiceError,
+	xReset:= Service.AutoMode_ShippingTransCV_LeftSide.Command.Reset,
 	Cylinder:= , 
 	TimeOut:= , 
 	Input:= input, 
@@ -144,12 +158,12 @@ fbShippingLeftSideTransCV(
 	ErrorMsg=> Service.AutoMode_ShippingTransCV_LeftSide.Status.Status);
 	
 fbShippingRightSideTransCV(
-	xDone=> Service.AutoMode_ShippingTransCV_RightSide.Status.Done, 
-	xBusy=> Service.AutoMode_ShippingTransCV_RightSide.Status.Busy, 
-	xError=> Service.AutoMode_ShippingTransCV_RightSide.Status.Error, 
-	xExecute:= Service.AutoMode_ShippingTransCV_RightSide.Command.Execute, 
-	xAbort:= Service.AutoMode_ShippingTransCV_RightSide.Command.Abort OR THIS^.abort, 
-	xReset:= Service.AutoMode_ShippingTransCV_RightSide.Command.Reset, 
+	xDone=> Service.AutoMode_ShippingTransCV_RightSide.Status.Done,
+	xBusy=> Service.AutoMode_ShippingTransCV_RightSide.Status.Busy,
+	xError=> Service.AutoMode_ShippingTransCV_RightSide.Status.Error,
+	xExecute:= Service.AutoMode_ShippingTransCV_RightSide.Command.Execute,
+	xAbort:= Service.AutoMode_ShippingTransCV_RightSide.Command.Abort OR THIS^.abort OR _bAnyServiceError,
+	xReset:= Service.AutoMode_ShippingTransCV_RightSide.Command.Reset,
 	Cylinder:= , 
 	TimeOut:= , 
 	Input:= input, 

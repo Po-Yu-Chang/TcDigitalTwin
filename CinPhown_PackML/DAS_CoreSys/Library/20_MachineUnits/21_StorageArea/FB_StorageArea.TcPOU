@@ -24,6 +24,9 @@ END_VAR
 VAR
 	Abort	:BOOL;
 
+	// 連動暫停 - 任一 Service 錯誤時暫停所有其他 Service
+	_bAnyServiceError : BOOL;
+
     // Service
     //fbFeedInEmptyBoxWithRobot           : FB_FeedInEmptyBoxWithRobot;
 	fbFeedInEmptyBoxWithRobot           : FB_FeedInEmptyBoxWithRobot_V3;			//Edited by Gamin in 2025//11/24
@@ -101,8 +104,25 @@ END_IF
     <Folder Name="States" Id="{abddb7b6-b720-4a90-aad0-d105938714bc}" />
     <Action Name="A00_Service" Id="{9871972c-85f2-401c-9ce4-b684f3a8155a}">
       <Implementation>
-        <ST><![CDATA[fbFeedInEmptyBoxWithRobot(Execute    := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Execute,
-                          Abort      := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Abort OR THIS^.Abort,
+        <ST><![CDATA[// ============================================================================
+// 連動暫停邏輯 - 任一 Service 錯誤時，暫停所有其他 Service
+// ============================================================================
+_bAnyServiceError :=
+	service.AutoMode_FeedInEmptyBoxWithRobot.Status.Error OR
+	service.AutoMode_RobotRegionMove_BufferArea.Status.Error OR
+	service.AutoMode_UpperFeedInConveyor.Status.Error OR
+	service.AutoMode_AddBoxes.Status.Error OR
+	service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Error OR
+	service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Error OR
+	service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Error OR
+	service.AutoMode_RobotAbsMove.HandShake.Error OR
+	service.AutoMode_RobotRegionMove_RoundBelt.Status.Error OR
+	service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Error OR
+	service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Error OR
+	AutoPullout_Status.Error;
+
+fbFeedInEmptyBoxWithRobot(Execute    := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Execute,
+                          Abort      := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
                           Reset      := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Reset,
                           ObjectName := 'FeedInEmptyBox with robot',
                           Busy       => service.AutoMode_FeedInEmptyBoxWithRobot.Status.Busy,
@@ -123,7 +143,7 @@ END_IF
 						  BClampMoveDone=>service.AutoMode_FeedInEmptyBoxWithRobot.BClampMoveDone);
 
 fbRobotRegionMove_BufferArea(Execute	:= Service.AutoMode_RobotRegionMove_BufferArea.Command.Execute,
-                             Abort 		:= Service.AutoMode_RobotRegionMove_BufferArea.Command.Abort OR THIS^.Abort,
+                             Abort 		:= Service.AutoMode_RobotRegionMove_BufferArea.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
                              Reset 		:= Service.AutoMode_RobotRegionMove_BufferArea.Command.Reset,
                              ObjectName	:= 'RobotRegionMove_BufferArea',
                              Busy    => Service.AutoMode_RobotRegionMove_BufferArea.Status.Busy,
@@ -138,7 +158,7 @@ fbRobotRegionMove_BufferArea(Execute	:= Service.AutoMode_RobotRegionMove_BufferA
                              Stop 	:= bStopMem);
 
 fbPullOutConveyorAction(Execute          := (*AutoPullout_Ctrl.Execute*) ,
-                        Abort            := AutoPullout_Ctrl.Abort OR THIS^.Abort,
+                        Abort            := AutoPullout_Ctrl.Abort OR THIS^.Abort OR _bAnyServiceError,
                         Reset            := AutoPullout_Ctrl.Reset,
                         ObjectName       := 'fbPullOutConveyorAction',
                         Busy             => AutoPullout_Status.Busy,
@@ -160,7 +180,7 @@ fbPullOutConveyorAction(Execute          := (*AutoPullout_Ctrl.Execute*) ,
                         PullOutInfo      := AutoPullout_Info);
 
 fbUpperFeedInConveyor(Execute             := Service.AutoMode_UpperFeedInConveyor.Command.Execute,
-                      Abort               := Service.AutoMode_UpperFeedInConveyor.Command.Abort OR THIS^.Abort,
+                      Abort               := Service.AutoMode_UpperFeedInConveyor.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
                       Reset               := Service.AutoMode_UpperFeedInConveyor.Command.Reset,
                       ObjectName          := 'Storage_UpperFeedInConveyor',
                       Busy                => Service.AutoMode_UpperFeedInConveyor.Status.Busy,
@@ -181,7 +201,7 @@ fbUpperFeedInConveyor(Execute             := Service.AutoMode_UpperFeedInConveyo
 					  _bForceUpperCV_Use   =>	);
 
 _fbDaimeterMovement(Execute         :=,
-                    Abort           :=,
+                    Abort           := _bAnyServiceError,
                     Reset           :=,
                     ObjectName      :=,
                     Busy            =>,
@@ -199,7 +219,7 @@ fbWarehouse(Motors           := Motor,
             WheelhouseSensor := WheelhouseSensor);
 
 fbAddBoxes(Execute                   := Service.AutoMode_AddBoxes.Command.Execute,
-           Abort                     := Service.AutoMode_AddBoxes.Command.Abort OR THIS^.Abort,
+           Abort                     := Service.AutoMode_AddBoxes.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
            Reset                     := Service.AutoMode_AddBoxes.Command.Reset,
            ObjectName                := 'Storage_AddBoxes',
            Busy                      => Service.AutoMode_AddBoxes.Status.Busy,
@@ -221,7 +241,7 @@ fbAddBoxes(Execute                   := Service.AutoMode_AddBoxes.Command.Execut
 			_bForceUpperCV_Use 		:= fbUpperFeedInConveyor._bForceUpperCV_Use);
 
 fbBoxSupplyCtrl(Execute           := TRUE,
-                Abort             :=THIS^.Abort,
+                Abort             :=THIS^.Abort OR _bAnyServiceError,
                 Reset             :=reset,
                 ObjectName        :=,
                 Busy              =>,
@@ -244,7 +264,7 @@ fbBoxSupplyCtrl(Execute           := TRUE,
 				fbstorageHome := fbStorageHoming);
 
 fbRobotRegionMove_FeedInConveyor(Execute 	:= Service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Execute,
-                                 Abort 		:= Service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Abort OR THIS^.Abort,
+                                 Abort 		:= Service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
                                  Reset      := Service.AutoMode_RobotRegionMove_FeedInConveyor.Command.Reset,
                                  ObjectName := 'Storage Robot FeedIn CV',
                                  Busy       => Service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Busy,
@@ -264,7 +284,7 @@ fbRobotRegionMove_FeedInConveyor(Execute 	:= Service.AutoMode_RobotRegionMove_Fe
 									);
 
 fbRobotRegionMove_AllocatedConveyor(Execute 	:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Execute,
-                                    Abort 		:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Abort OR THIS^.Abort,
+                                    Abort 		:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
                                     Reset  		:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Reset,
                                     ObjectName 	:= ' Storage Robot Transmit CV',
                                     Busy       	=> Service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Busy,
@@ -285,7 +305,7 @@ fbRobotRegionMove_AllocatedConveyor(Execute 	:= Service.AutoMode_RobotRegionMove
 
 
 fbRobotRegionMove_PullOutConveyor(Execute 	:=Service.AutoMode_RobotRegionMove_PullOutConveyor.Command.Execute,
-                                  Abort 	:=Service.AutoMode_RobotRegionMove_PullOutConveyor.Command.Abort OR THIS^.Abort,
+                                  Abort 	:=Service.AutoMode_RobotRegionMove_PullOutConveyor.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
                                   Reset     := Service.AutoMode_RobotRegionMove_PullOutConveyor.Command.Reset,
                                   ObjectName:= 'Storage Robot PulloutCV',
                                   Busy      => Service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Busy,
@@ -301,7 +321,7 @@ fbRobotRegionMove_PullOutConveyor(Execute 	:=Service.AutoMode_RobotRegionMove_Pu
                                   Stop :=bStopMem);
 
 fbRobotAbsMove(Execute         := Service.AutoMode_RobotAbsMove.HandShake.Execute,
-               Abort           := THIS^.Abort,
+               Abort           := THIS^.Abort OR _bAnyServiceError,
                Reset           := Service.AutoMode_RobotAbsMove.HandShake.Reset,
                ObjectName      := 'Storage robot abs move',
                Busy            => Service.AutoMode_RobotAbsMove.HandShake.Busy,
@@ -322,7 +342,7 @@ fbRobotAbsMove(Execute         := Service.AutoMode_RobotAbsMove.HandShake.Execut
 				BClampMoveDone=>Service.AutoMode_RobotAbsMove.BClampMoveDone);
 
 fbRobotRegionMove_RoundBelt(Execute := Service.AutoMode_RobotRegionMove_RoundBelt.Command.Execute,
-                            Abort   := THIS^.Abort,
+                            Abort   := THIS^.Abort OR _bAnyServiceError,
                             Reset   := Service.AutoMode_RobotRegionMove_RoundBelt.Command.Reset,
                             ObjectName:= 'Storage robot  RegionMove roundbelt',
                             Busy    => Service.AutoMode_RobotRegionMove_RoundBelt.Status.Busy,
@@ -339,7 +359,7 @@ fbRobotRegionMove_RoundBelt(Execute := Service.AutoMode_RobotRegionMove_RoundBel
                             Stop 		:=bStopMem);
 
 fbReloadRoundBeltBoxWithRobot(Execute	:= Service.AutoMode_ReloadRoundBeltBoxWithRobot.Command.Execute,
-                              Abort 	:= THIS^.Abort,
+                              Abort 	:= THIS^.Abort OR _bAnyServiceError,
                               Reset 	:= Service.AutoMode_ReloadRoundBeltBoxWithRobot.Command.Reset,
                               ObjectName:= 'Storage robot reload roundbelt',
                               Busy    => Service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Busy,
@@ -376,9 +396,9 @@ END_IF
         bDone     => Service.AutoMode_RobotWarehouseMove.HandShake.Done,
         bError    => Service.AutoMode_RobotWarehouseMove.HandShake.Error);*)
 fbWareHouseWithRobotMove(
-	Execute:= Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute, 
-	Abort:= THIS^.Abort, 
-	Reset:= Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Reset, 
+	Execute:= Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute,
+	Abort:= THIS^.Abort OR _bAnyServiceError,
+	Reset:= Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Reset,
 	ObjectName:= 'storage Robot Warehouse move', 
 	Busy=> Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Busy, 
 	Done=> Service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Done, 
@@ -396,11 +416,11 @@ fbWareHouseWithRobotMove(
 	WarehouseStatus := WheelhouseSensor.List);
 	
 fbStorageHoming(
-	xDone=> , 
-	xBusy=> , 
-	xError=> , 
-	xExecute:= , 
-	xAbort:= THIS^.Abort, 
+	xDone=> ,
+	xBusy=> ,
+	xError=> ,
+	xExecute:= ,
+	xAbort:= THIS^.Abort OR _bAnyServiceError,
 	Cylinder:= Cylinder, 
 	Motor:= Motor, 
 	FanucRobot:= FanucRobot,

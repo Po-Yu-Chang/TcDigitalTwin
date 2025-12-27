@@ -18,7 +18,10 @@ VAR_OUTPUT
 	Homed : BOOL;
 END_VAR
 VAR
-	Abort	: BOOL;	
+	Abort	: BOOL;
+
+	// 連動暫停 - 任一 Service 錯誤時暫停所有其他 Service
+	_bAnyServiceError : BOOL;
 
     InitDone          : BOOL;
     Clip              : U_Cylinders;
@@ -156,13 +159,30 @@ END_IF
     <Folder Name="States" Id="{6161fa1b-6034-481c-91b9-269a6c38d9dd}" />
     <Action Name="A00_Service" Id="{6dc1d4e2-0273-4f7f-b3c5-02c7bf6844c0}">
       <Implementation>
-        <ST><![CDATA[fbAllocateHome(
-	xDone=> , 
-	xBusy=> , 
-	xError=> , 
-	xExecute:= , 
-	xAbort:= THIS^.Abort,
-	Homed := Homed, 
+        <ST><![CDATA[// ============================================================================
+// 連動暫停邏輯 - 任一 Service 錯誤時，暫停所有其他 Service
+// ============================================================================
+_bAnyServiceError :=
+	_RoundBeltMoveJob.HandShake.Error OR
+	_TurnTableMove.HandShake.Error OR
+	AutoAllocateJobBatch_Status.bError OR
+	AutoAllocateJobBatch_Reverse_Status.bError OR
+	Service.AutoMode_EmptyBoxMove.HandShake.Error OR
+	Service.AutoMode_RareBoxMove.HandShake.Error OR
+	Service.AutoMode_BoxMoveReverse.HandShake.Error OR
+	Service.AutoMode_DifferentCVCamera.Status.Error OR
+	fbOutRobot_TurnTableToRoundBel_Status.Error OR
+	Service.AutoMode_SameSizeCVCamera.Status.Error OR
+	_AutoPullout_Status.Error OR
+	Service.AllocateRobotNeedlingMove.Status.Error;
+
+fbAllocateHome(
+	xDone=> ,
+	xBusy=> ,
+	xError=> ,
+	xExecute:= ,
+	xAbort:= THIS^.Abort OR _bAnyServiceError,
+	Homed := Homed,
 	Cylinder:= Cylinder, 
 	Motor:= Motor, 
 	CurrentData:= CurrentData, 
@@ -174,12 +194,12 @@ END_IF
 	//Service.AllocateRegionHome.Homed:= bHomed;
 
 RoundBeltControl(
-	xDone=> _RoundBeltMoveJob.HandShake.Done, 
-	xBusy=> _RoundBeltMoveJob.HandShake.Busy, 
-	xError=> _RoundBeltMoveJob.HandShake.Error, 
-	xExecute:= _RoundBeltMoveJob.HandShake.Execute, 
-	xAbort:= THIS^.Abort, 
-	TargetStation:= LREAL_TO_INT( _RoundBeltMoveJob.Position), 
+	xDone=> _RoundBeltMoveJob.HandShake.Done,
+	xBusy=> _RoundBeltMoveJob.HandShake.Busy,
+	xError=> _RoundBeltMoveJob.HandShake.Error,
+	xExecute:= _RoundBeltMoveJob.HandShake.Execute,
+	xAbort:= THIS^.Abort OR _bAnyServiceError,
+	TargetStation:= LREAL_TO_INT( _RoundBeltMoveJob.Position),
 	Cylinder:= Cylinder, 
 	TimeOut:= , 
 	xAborted=> , 
@@ -188,12 +208,12 @@ RoundBeltControl(
 	AxisRoundMoveRequest => );
 	
 TurnTableControl(
-	xDone=> _TurnTableMove.HandShake.Done, 
-	xBusy=> _TurnTableMove.HandShake.Busy, 
-	xError=> _TurnTableMove.HandShake.Error, 
-	xExecute:= _TurnTableMove.HandShake.Execute, 
-	xAbort:= THIS^.Abort, 
-	iTurnTableTarget:= LREAL_TO_INT(_TurnTableMove.Position), 
+	xDone=> _TurnTableMove.HandShake.Done,
+	xBusy=> _TurnTableMove.HandShake.Busy,
+	xError=> _TurnTableMove.HandShake.Error,
+	xExecute:= _TurnTableMove.HandShake.Execute,
+	xAbort:= THIS^.Abort OR _bAnyServiceError,
+	iTurnTableTarget:= LREAL_TO_INT(_TurnTableMove.Position),
 	Cylinder:= Cylinder, 
 	TimeOut:= , 
 	xAborted=> , 
@@ -201,18 +221,17 @@ TurnTableControl(
 	ErrorMsg=> );
 	
 fb_AllocateBatchMode(
-	Execute:= AutoAllocateJobBatch_Ctrl.bExecute, 
-	Abort:= THIS^.Abort, 
-	Reset:= Reset, 
-	ObjectName:= 'Allocate One process', 
-	Busy=> AutoAllocateJobBatch_Status.bBusy, 
-	Done=> AutoAllocateJobBatch_Status.bDone, 
-	Aborted=> , 
-	Error=> AutoAllocateJobBatch_Status.bError, 
-	ErrorID=>AutoAllocateJobBatch_Status.ErrorID , 
-	Status=>AutoAllocateJobBatch_Status.Status , 
+	Execute:= AutoAllocateJobBatch_Ctrl.bExecute,
+	Abort:= THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
+	ObjectName:= 'Allocate One process',
+	Busy=> AutoAllocateJobBatch_Status.bBusy,
+	Done=> AutoAllocateJobBatch_Status.bDone,
+	Aborted=> ,
+	Error=> AutoAllocateJobBatch_Status.bError,
+	ErrorID=>AutoAllocateJobBatch_Status.ErrorID ,
+	Status=>AutoAllocateJobBatch_Status.Status ,
 	UniqueErrorCode=> , 
-	Pause:=bStopMem , 
 	SimpleAllocateMode:= AutoAllocateJobBatch_Ctrl.bSimpleAllocation, 
 	bOccupied:=AutoAllocateJobBatch_Ctrl.bOccupied, 
 	Clips:= Clip.Cylinders, 
@@ -236,18 +255,17 @@ fb_AllocateBatchMode(
 		 Service.AutoMode_AllocateBatchMode.WorkedID:= AutoAllocateJobBatch_Status.iIndex;
 	END_IF
 fb_AllocateBatchMode_Reverse(
-	Execute:=AutoAllocateJobBatch_Reverse_Ctrl.bExecute , 
-	Abort:= THIS^.Abort, 
-	Reset:= Reset, 
-	ObjectName:= 'Allocate batch reverse', 
-	Busy=> AutoAllocateJobBatch_Reverse_Status.bBusy, 
-	Done=> AutoAllocateJobBatch_Reverse_Status.bDone, 
-	Aborted=> AutoAllocateJobBatch_Reverse_Status.bAborted, 
-	Error=> AutoAllocateJobBatch_Reverse_Status.bError, 
-	ErrorID=> AutoAllocateJobBatch_Reverse_Status.ErrorID, 
-	Status=> AutoAllocateJobBatch_Reverse_Status.Status, 
-	UniqueErrorCode=> , 
-	Pause:= bStopMem,  
+	Execute:=AutoAllocateJobBatch_Reverse_Ctrl.bExecute ,
+	Abort:= THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
+	ObjectName:= 'Allocate batch reverse',
+	Busy=> AutoAllocateJobBatch_Reverse_Status.bBusy,
+	Done=> AutoAllocateJobBatch_Reverse_Status.bDone,
+	Aborted=> AutoAllocateJobBatch_Reverse_Status.bAborted,
+	Error=> AutoAllocateJobBatch_Reverse_Status.bError,
+	ErrorID=> AutoAllocateJobBatch_Reverse_Status.ErrorID,
+	Status=> AutoAllocateJobBatch_Reverse_Status.Status,
+	UniqueErrorCode=> ,  
 	bOccupied:= AutoAllocateJobBatch_Reverse_Ctrl.bOccupied, 
 	Clips:= Clip.Cylinders, 
 	cylinders:= Cylinders.Cylinders, 
@@ -266,9 +284,9 @@ fb_AllocateBatchMode_Reverse(
 
 	
 fbOutRobot_EmptyBoxMove(
-	Execute:= Service.AutoMode_EmptyBoxMove.HandShake.Execute, 
-	Abort:= THIS^.Abort, 
-	Reset:= Reset , 
+	Execute:= Service.AutoMode_EmptyBoxMove.HandShake.Execute,
+	Abort:= THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset ,
 	ObjectName:= 'fbOutRobot_EmptyBoxMove', 
 	Busy=> Service.AutoMode_EmptyBoxMove.HandShake.Busy, 
 	Done=> Service.AutoMode_EmptyBoxMove.HandShake.Done, 
@@ -285,9 +303,9 @@ fbOutRobot_EmptyBoxMove(
 	AutoMode_OutRobotMoveMove:=Service.AutoMode_EmptyBoxMove );
 
 fbOutRobot_RareBoxMove(
-	Execute:= Service.AutoMode_RareBoxMove.HandShake.Execute , 
-	Abort:= THIS^.Abort, 
-	Reset:= Reset, 
+	Execute:= Service.AutoMode_RareBoxMove.HandShake.Execute ,
+	Abort:= THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
 	ObjectName:= 'fbOutRobot_RareBoxMove', 
 	Busy=> Service.AutoMode_RareBoxMove.HandShake.Busy, 
 	Done=> Service.AutoMode_RareBoxMove.HandShake.Done, 
@@ -304,9 +322,9 @@ fbOutRobot_RareBoxMove(
 	AutoMode_OutRobotMoveMove:= Service.AutoMode_RareBoxMove);
 
 fbOutRobot_BoxMoveReverse(
-	Execute:= Service.AutoMode_BoxMoveReverse.HandShake.Execute, 
-	Abort:= THIS^.Abort, 
-	Reset:= Reset, 
+	Execute:= Service.AutoMode_BoxMoveReverse.HandShake.Execute,
+	Abort:= THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
 	ObjectName:='fbOutRobot_BoxMoveReverse', 
 	Busy=> Service.AutoMode_BoxMoveReverse.HandShake.Busy, 
 	Done=> Service.AutoMode_BoxMoveReverse.HandShake.Done, 
@@ -323,12 +341,12 @@ fbOutRobot_BoxMoveReverse(
 	AutoMode_OutRobotMoveMove:= Service.AutoMode_BoxMoveReverse);	
 	
 fbDifferentCVCamera(
-	xDone=> Service.AutoMode_DifferentCVCamera.Status.Done, 
-	xBusy=> Service.AutoMode_DifferentCVCamera.Status.Busy, 
-	xError=> Service.AutoMode_DifferentCVCamera.Status.Error, 
-	xExecute:= Service.AutoMode_DifferentCVCamera.Command.Execute, 
-	xAbort:= Service.AutoMode_DifferentCVCamera.Command.Abort OR THIS^.Abort, 
-	xReset:= Reset, 
+	xDone=> Service.AutoMode_DifferentCVCamera.Status.Done,
+	xBusy=> Service.AutoMode_DifferentCVCamera.Status.Busy,
+	xError=> Service.AutoMode_DifferentCVCamera.Status.Error,
+	xExecute:= Service.AutoMode_DifferentCVCamera.Command.Execute,
+	xAbort:= Service.AutoMode_DifferentCVCamera.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+	xReset:= Reset,
 	Cylinder:= Cylinder, 
 	TimeOut:= , 
 	Input:= INPUT, 
@@ -341,9 +359,9 @@ fbDifferentCVCamera(
 	UseBoxCamera=> Service.AutoMode_DifferentCVCamera.UseBoxCamera);
 
 fbOutRobot_TurnTableToRoundBelt(
-	Execute:= fbOutRobot_TurnTableToRoundBel_Ctrl.Execute, 
-	Abort:= fbOutRobot_TurnTableToRoundBel_Ctrl.Abort OR THIS^.Abort, 
-	Reset:= Reset, 
+	Execute:= fbOutRobot_TurnTableToRoundBel_Ctrl.Execute,
+	Abort:= fbOutRobot_TurnTableToRoundBel_Ctrl.Abort OR THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
 	ObjectName:= 'fbOutRobot_TurnTableToRoundBelt', 
 	Busy=> fbOutRobot_TurnTableToRoundBel_Status.Busy, 
 	Done=> fbOutRobot_TurnTableToRoundBel_Status.Done, 
@@ -359,11 +377,11 @@ fbOutRobot_TurnTableToRoundBelt(
 	
 	fbSameSizeCVCamera(
 		xReset := Reset,
-		xDone=> Service.AutoMode_SameSizeCVCamera.Status.Done, 
-		xBusy=> Service.AutoMode_SameSizeCVCamera.Status.Busy, 
-		xError=> Service.AutoMode_SameSizeCVCamera.Status.Error, 
-		xExecute:= Service.AutoMode_SameSizeCVCamera.Command.Execute, 
-		xAbort:= Service.AutoMode_SameSizeCVCamera.Command.Abort OR THIS^.Abort, 
+		xDone=> Service.AutoMode_SameSizeCVCamera.Status.Done,
+		xBusy=> Service.AutoMode_SameSizeCVCamera.Status.Busy,
+		xError=> Service.AutoMode_SameSizeCVCamera.Status.Error,
+		xExecute:= Service.AutoMode_SameSizeCVCamera.Command.Execute,
+		xAbort:= Service.AutoMode_SameSizeCVCamera.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
 		Cylinder:= Cylinder, 
 		TimeOut:= , 
 		Input:= INPUT, 
@@ -378,9 +396,9 @@ fbOutRobot_TurnTableToRoundBelt(
 	
 	
 fbPulloutCV(
-	Execute:= _AutoPullout_Ctrl.Execute, 
-	Abort:= _AutoPullout_Ctrl.Abort OR THIS^.Abort, 
-	Reset:= Reset, 
+	Execute:= _AutoPullout_Ctrl.Execute,
+	Abort:= _AutoPullout_Ctrl.Abort OR THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset,
 	ObjectName:= ' Pullout conveyor ', 
 	Busy=> _AutoPullout_Status.Busy, 
 	Done=> _AutoPullout_Status.Done, 
@@ -412,10 +430,10 @@ fbPulloutCV_BTNCtrl(
 	
 fbAllocateRobotNeedlingMove(
 	xDone=>  Service.AllocateRobotNeedlingMove.Status.Done,
-	xBusy=> Service.AllocateRobotNeedlingMove.Status.Busy, 
-	xError=> Service.AllocateRobotNeedlingMove.Status.Error, 
-	xExecute:= Service.AllocateRobotNeedlingMove.Command.Execute, 
-	xAbort:= Service.AllocateRobotNeedlingMove.Command.Abort OR THIS^.Abort, 
+	xBusy=> Service.AllocateRobotNeedlingMove.Status.Busy,
+	xError=> Service.AllocateRobotNeedlingMove.Status.Error,
+	xExecute:= Service.AllocateRobotNeedlingMove.Command.Execute,
+	xAbort:= Service.AllocateRobotNeedlingMove.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
 	TimeOut:= , 
 	MovingInfo:= Service.AllocateRobotNeedlingMove.MovingInfo, 
 	xAborted=> , 
