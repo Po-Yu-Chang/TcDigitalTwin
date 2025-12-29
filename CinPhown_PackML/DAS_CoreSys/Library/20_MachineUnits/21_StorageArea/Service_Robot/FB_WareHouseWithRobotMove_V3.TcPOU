@@ -641,7 +641,7 @@ CASE uiExecutingStep OF
 														  BoxReady_2nd    := BoxReady_2nd);
 													  
 				bRobotTimeoutIN :=TRUE;
-				IF Robot.Error THEN
+				IF Robot.Error OR tonRobotTimeout.Q THEN
 					_Abort := TRUE;
 					uiAbortingStep := 0;
 					IF NOT BoxReady_1st THEN
@@ -749,7 +749,7 @@ CASE uiExecutingStep OF
 												  
 				bRobotTimeoutIN :=TRUE;
 			(*=====Edited by Jidien Kachu in 2025/09/25=====*)
-				IF Robot.Error THEN
+				IF Robot.Error OR tonRobotTimeout.Q THEN
 					_Abort := TRUE;
 					uiAbortingStep := 0;
 					IF NOT BoxReady_1st THEN
