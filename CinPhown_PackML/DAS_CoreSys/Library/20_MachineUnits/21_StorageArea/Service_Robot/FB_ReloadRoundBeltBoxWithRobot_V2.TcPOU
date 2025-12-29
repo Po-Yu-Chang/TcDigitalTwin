@@ -27,11 +27,13 @@ VAR
     PreviousErrorCode : STRING;
     A2_Sensor         : BOOL;
     A3_Sensor         : BOOL;
-	
+
 	// Clamp work
 	_AClampDoingWork	: BOOL;
 	_BClampDoingWork	: BOOL;
 
+	// ========== Resume 續做機制 ==========
+	uiResumeStep	: UDINT := 0;	// 錯誤發生時記錄的步驟，供續做使用
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -141,10 +143,20 @@ END_VAR
       <Implementation>
         <ST><![CDATA[Busy    := FALSE;
 Aborted := TRUE;
-UniqueErrorCode:=_UniqueErrorCode;
-Status :=strStatus;
-IF Reset AND NOT Abort THEN
-    eState := STATE_RESETTING;
+UniqueErrorCode := _UniqueErrorCode;
+Status := strStatus;
+
+// ============================================================
+// Resume 機制：保持 Execute 並按 Reset 可從錯誤點繼續
+// ============================================================
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND Reset THEN
+	// Resume 模式：從儲存的步驟繼續執行
+	uiExecutingStep := uiResumeStep;
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	eState := STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -196,15 +208,17 @@ _Error          := FALSE;
 _Executed       := FALSE;
 uiExecutingStep := 0;
 uiResettingStep := 0;
-tonTimeOut.IN:=FALSE;
-tonFeedBoxTimeout.IN:=FALSE;
-PreviousStrStatus			 :='';
-PreviousErrorCode			 :='';
-_UniqueErrorCode :='0';
-AClampMoveDone	:= FALSE;
-BClampMoveDone	:= FALSE;
-_AClampDoingWork	:= FALSE;
-_BClampDoingWork	:= FALSE;
+uiResumeStep    := 0;	// 清除 Resume 步驟
+tonTimeOut.IN := FALSE;
+tonFeedBoxTimeout.IN := FALSE;
+PreviousStrStatus := '';
+PreviousErrorCode := '';
+_UniqueErrorCode := '0';
+AClampMoveDone := FALSE;
+BClampMoveDone := FALSE;
+_AClampDoingWork := FALSE;
+_BClampDoingWork := FALSE;
+
 // Wait Execute command
 IF Execute THEN
     eState := STATE_EXECUTING;
@@ -328,7 +342,8 @@ CASE uiExecutingStep OF
         END_IF
 		tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 10000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
@@ -370,7 +385,8 @@ CASE uiExecutingStep OF
         END_IF
 		tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 11000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
@@ -412,7 +428,8 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 20000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
@@ -454,7 +471,8 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 21000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
@@ -529,7 +547,8 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 30000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
@@ -566,11 +585,12 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 31000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
-		
+
     31080:
         Robot.M_ResetAllCommand(); // Clear command and go to place box
 		WareHouse.M_ResetReloadBox();
@@ -602,7 +622,8 @@ CASE uiExecutingStep OF
         END_IF
 				tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 31100;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
@@ -638,11 +659,12 @@ CASE uiExecutingStep OF
         END_IF
 				tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 32000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
-		
+
     32080:
         Robot.M_ResetAllCommand(); // Clear command and go to place box
 		WareHouse.M_ResetReloadBox();
@@ -674,11 +696,12 @@ CASE uiExecutingStep OF
         END_IF
 				tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 32100;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
-		
+
     32180:
         Robot.M_ResetAllCommand(); // Clear command and go to place box
 		WareHouse.M_ResetReloadBox();
@@ -751,11 +774,12 @@ CASE uiExecutingStep OF
 		
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 33000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Pick Box timeout';
 		END_IF
-		
+
     33080:
         WareHouse.M_ResetReloadBox();
         Robot.M_ResetAllCommand();
@@ -803,11 +827,12 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 61010;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Place Box timeout';
 		END_IF
-		
+
     61080:
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
         DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
@@ -857,11 +882,12 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 71010;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Place Box timeout';
 		END_IF
-		
+
     71080:
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
         DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
@@ -973,7 +999,8 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN :=TRUE;
 		IF tonTimeOut.Q THEN
-			_Error :=TRUE;
+			uiResumeStep := 81000;
+			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Place Box timeout';
 		END_IF

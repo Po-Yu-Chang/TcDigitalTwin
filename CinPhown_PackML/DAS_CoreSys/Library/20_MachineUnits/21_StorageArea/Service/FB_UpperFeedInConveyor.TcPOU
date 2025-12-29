@@ -12,8 +12,9 @@ VAR_INPUT
 	OutPut	 	: REFERENCE TO ST_OutputTable;
 	
 	Info		: ST_Auto_UpperFeedInConveyorInfo;
-	
+
 	AddingBox	: BOOL;
+	Pause		: BOOL;	// True: 暫停機台動作和計時器
 
 //    Execute    :BOOL;   // True : This prog will start.
 //    Abort      :BOOL;   // True : This prog will be abort.
@@ -23,8 +24,9 @@ END_VAR
 
 VAR_OUTPUT
 //	Status		: ST_StatusBasic;
-	FeedBack    : ST_Auto_UpperFeedInConveyorFeedback;	
-	_bForceUpperCV_Use	: BOOL;	
+	FeedBack    : ST_Auto_UpperFeedInConveyorFeedback;
+	_bForceUpperCV_Use	: BOOL;
+	Paused		: BOOL;	// True: 目前處於暫停狀態	
 //    Busy    :BOOL;        // True : This prog is running.
 //    Done    :BOOL;        // True : Command has been executed.
 //    Aborted :BOOL;        // True : This prog is aborted.
@@ -75,41 +77,277 @@ VAR
 	iArrayNumber 				: INT :=1;
 	iResetNumber				: INT;
 	bResetRecordInfo			: BOOL;
-	
-	
+
+	// ===== 暫停功能相關變數 =====
+	_bPaused					: BOOL;
+	_bPauseEdge					: BOOL;	// 邊緣檢測
+
+	// 記住計時器原本 IN 狀態
+	bWasActive_UpperConveyorTimeOut			: BOOL;
+	bWasActive_UpperConveyorDelay			: BOOL;
+	bWasActive_UpperTimeOut					: BOOL;
+	bWasActive_UpperTimeOutFive				: BOOL;
+	bWasActive_WaitSecondBoxArriveTimeout	: BOOL;
+	bWasActive_FeedAirBlowtime				: BOOL;
+	bWasActive_ReverseConveyorDelay			: BOOL;
+	bWasActive_CheckHaveBox					: BOOL;
+
+	// 記住馬達/輸出狀態
+	iSaved_MoveConveyor		: INT;
+	bSaved_CamaraBlow		: BOOL;
+
+	// 計時器剩餘時間 (恢復後使用)
+	tRemaining_UpperConveyorTimeOut			: TIME;
+	tRemaining_UpperConveyorDelay			: TIME;
+	tRemaining_UpperTimeOut					: TIME;
+	tRemaining_UpperTimeOutFive				: TIME;
+	tRemaining_WaitSecondBoxArriveTimeout	: TIME;
+	tRemaining_FeedAirBlowtime				: TIME;
+	tRemaining_ReverseConveyorDelay			: TIME;
+	tRemaining_CheckHaveBox					: TIME;
+
+	// 標記是否需要使用調整後的 PT
+	bUseAdjustedPT_UpperConveyorTimeOut			: BOOL;
+	bUseAdjustedPT_UpperConveyorDelay			: BOOL;
+	bUseAdjustedPT_UpperTimeOut					: BOOL;
+	bUseAdjustedPT_UpperTimeOutFive				: BOOL;
+	bUseAdjustedPT_WaitSecondBoxArriveTimeout	: BOOL;
+	bUseAdjustedPT_FeedAirBlowtime				: BOOL;
+	bUseAdjustedPT_ReverseConveyorDelay			: BOOL;
+	bUseAdjustedPT_CheckHaveBox					: BOOL;
+
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[A00_BasicUnits();
-SUPER^.A10_StateControl();
+A01_PauseControl();	// 暫停控制
+
+// 暫停時不執行狀態機
+IF NOT _bPaused THEN
+	SUPER^.A10_StateControl();
+END_IF
 
 ]]></ST>
     </Implementation>
     <Folder Name="STATE" Id="{336cf81a-2c47-4070-b1e8-3558b4c1b362}" />
+    <Action Name="A01_PauseControl" Id="{a01c0001-0001-0001-0001-000000000001}">
+      <Implementation>
+        <ST><![CDATA[// A01_PauseControl - 暫停控制邏輯
+
+Paused := _bPaused;
+
+// 只在執行狀態處理暫停
+IF eState <> STATE_EXECUTING THEN
+	_bPaused := FALSE;
+	RETURN;
+END_IF
+
+// ===== 進入暫停 (上升邊緣) =====
+IF Pause AND NOT _bPauseEdge THEN
+	_bPauseEdge := TRUE;
+
+	IF NOT _bPaused THEN
+		_bPaused := TRUE;
+
+		// 保存計時器活動狀態和剩餘時間
+		bWasActive_UpperConveyorTimeOut := tonUpperConveyorTimeOut.IN;
+		tRemaining_UpperConveyorTimeOut := T#20S - tonUpperConveyorTimeOut.ET;
+
+		bWasActive_UpperConveyorDelay := tonUpperConveyorDelay.IN;
+		tRemaining_UpperConveyorDelay := tonUpperConveyorDelay.PT - tonUpperConveyorDelay.ET;
+
+		bWasActive_UpperTimeOut := tonUpperTimeOut.IN;
+		tRemaining_UpperTimeOut := T#5S - tonUpperTimeOut.ET;
+
+		bWasActive_UpperTimeOutFive := tonUpperTimeOutFive.IN;
+		tRemaining_UpperTimeOutFive := T#60S - tonUpperTimeOutFive.ET;
+
+		bWasActive_WaitSecondBoxArriveTimeout := tonWaitSecondBoxArriveTimeout.IN;
+		tRemaining_WaitSecondBoxArriveTimeout := T#20S - tonWaitSecondBoxArriveTimeout.ET;
+
+		bWasActive_FeedAirBlowtime := tonFeedAirBlowtime.IN;
+		tRemaining_FeedAirBlowtime := Info.FeedAirblowTime - tonFeedAirBlowtime.ET;
+
+		bWasActive_ReverseConveyorDelay := tonReverseConveyorDelay.IN;
+		tRemaining_ReverseConveyorDelay := T#6S - tonReverseConveyorDelay.ET;
+
+		bWasActive_CheckHaveBox := TON_CheckHaveBox.IN;
+		tRemaining_CheckHaveBox := T#35S - TON_CheckHaveBox.ET;
+
+		// 保存馬達狀態
+		iSaved_MoveConveyor := iMoveConveyor;
+		bSaved_CamaraBlow := OutPut.bCamara_Blow;
+
+		// 停止所有計時器
+		tonUpperConveyorTimeOut.IN := FALSE;
+		tonUpperConveyorDelay.IN := FALSE;
+		tonUpperTimeOut.IN := FALSE;
+		tonUpperTimeOutFive.IN := FALSE;
+		tonWaitSecondBoxArriveTimeout.IN := FALSE;
+		tonFeedAirBlowtime.IN := FALSE;
+		tonReverseConveyorDelay.IN := FALSE;
+		TON_CheckHaveBox.IN := FALSE;
+
+		// 停止馬達
+		iMoveConveyor := 0;
+		Motor.list.UpCV.M_MotorStop();
+
+		// 停止輸出
+		OutPut.bCamara_Blow := FALSE;
+	END_IF
+END_IF
+
+// ===== 離開暫停 (下降邊緣) =====
+IF NOT Pause AND _bPauseEdge THEN
+	_bPauseEdge := FALSE;
+
+	IF _bPaused THEN
+		_bPaused := FALSE;
+
+		// 恢復馬達狀態
+		iMoveConveyor := iSaved_MoveConveyor;
+		OutPut.bCamara_Blow := bSaved_CamaraBlow;
+
+		// 設置標志：需要使用調整後的 PT
+		IF bWasActive_UpperConveyorTimeOut THEN
+			bUseAdjustedPT_UpperConveyorTimeOut := TRUE;
+			tonUpperConveyorTimeOut.IN := TRUE;
+		END_IF
+
+		IF bWasActive_UpperConveyorDelay THEN
+			bUseAdjustedPT_UpperConveyorDelay := TRUE;
+			tonUpperConveyorDelay.IN := TRUE;
+		END_IF
+
+		IF bWasActive_UpperTimeOut THEN
+			bUseAdjustedPT_UpperTimeOut := TRUE;
+			tonUpperTimeOut.IN := TRUE;
+		END_IF
+
+		IF bWasActive_UpperTimeOutFive THEN
+			bUseAdjustedPT_UpperTimeOutFive := TRUE;
+			tonUpperTimeOutFive.IN := TRUE;
+		END_IF
+
+		IF bWasActive_WaitSecondBoxArriveTimeout THEN
+			bUseAdjustedPT_WaitSecondBoxArriveTimeout := TRUE;
+			tonWaitSecondBoxArriveTimeout.IN := TRUE;
+		END_IF
+
+		IF bWasActive_FeedAirBlowtime THEN
+			bUseAdjustedPT_FeedAirBlowtime := TRUE;
+			tonFeedAirBlowtime.IN := TRUE;
+		END_IF
+
+		IF bWasActive_ReverseConveyorDelay THEN
+			bUseAdjustedPT_ReverseConveyorDelay := TRUE;
+			tonReverseConveyorDelay.IN := TRUE;
+		END_IF
+
+		IF bWasActive_CheckHaveBox THEN
+			bUseAdjustedPT_CheckHaveBox := TRUE;
+			TON_CheckHaveBox.IN := TRUE;
+		END_IF
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Action>
     <Action Name="A00_BasicUnits" Id="{163a9f76-8838-42a7-b540-e0044259cf51}">
       <Implementation>
-        <ST><![CDATA[tonUpperConveyorTimeOut(PT:=T#20S);
-tonUpperConveyorDelay();
-tonUpperTimeOut(PT:=T#5.0S);
-tonUpperTimeOutfive(PT:=T#60S);
-tonWaitSecondBoxArriveTimeout(PT:=T#20S);
-tonFeedAirBlowtime(PT:=info.FeedAirblowTime);
-tonReverseConveyorDelay(PT:=T#6S);
-TON_CheckHaveBox(PT :=T#35S);
-ErrorID :=2710;
+        <ST><![CDATA[// 計時器調用 - 根據暫停恢復標志決定 PT 值
+// 當計時器 IN=FALSE 時，清除標志並恢復原始 PT
 
+// tonUpperConveyorTimeOut
+IF bUseAdjustedPT_UpperConveyorTimeOut THEN
+	tonUpperConveyorTimeOut(PT := tRemaining_UpperConveyorTimeOut);
+	IF NOT tonUpperConveyorTimeOut.IN THEN
+		bUseAdjustedPT_UpperConveyorTimeOut := FALSE;
+	END_IF
+ELSE
+	tonUpperConveyorTimeOut(PT := T#20S);
+END_IF
 
+// tonUpperConveyorDelay (PT 由外部設定)
+IF bUseAdjustedPT_UpperConveyorDelay THEN
+	tonUpperConveyorDelay(PT := tRemaining_UpperConveyorDelay);
+	IF NOT tonUpperConveyorDelay.IN THEN
+		bUseAdjustedPT_UpperConveyorDelay := FALSE;
+	END_IF
+ELSE
+	tonUpperConveyorDelay();
+END_IF
 
-TON_RecordTimer (PT:=T#1D);
-TON_RecordFirstTimer (PT := T#1D);
-TON_RecordSecondTimer (PT := T#1D);
+// tonUpperTimeOut
+IF bUseAdjustedPT_UpperTimeOut THEN
+	tonUpperTimeOut(PT := tRemaining_UpperTimeOut);
+	IF NOT tonUpperTimeOut.IN THEN
+		bUseAdjustedPT_UpperTimeOut := FALSE;
+	END_IF
+ELSE
+	tonUpperTimeOut(PT := T#5S);
+END_IF
 
-// only for record the photo time use
+// tonUpperTimeOutFive
+IF bUseAdjustedPT_UpperTimeOutFive THEN
+	tonUpperTimeOutFive(PT := tRemaining_UpperTimeOutFive);
+	IF NOT tonUpperTimeOutFive.IN THEN
+		bUseAdjustedPT_UpperTimeOutFive := FALSE;
+	END_IF
+ELSE
+	tonUpperTimeOutFive(PT := T#60S);
+END_IF
+
+// tonWaitSecondBoxArriveTimeout
+IF bUseAdjustedPT_WaitSecondBoxArriveTimeout THEN
+	tonWaitSecondBoxArriveTimeout(PT := tRemaining_WaitSecondBoxArriveTimeout);
+	IF NOT tonWaitSecondBoxArriveTimeout.IN THEN
+		bUseAdjustedPT_WaitSecondBoxArriveTimeout := FALSE;
+	END_IF
+ELSE
+	tonWaitSecondBoxArriveTimeout(PT := T#20S);
+END_IF
+
+// tonFeedAirBlowtime
+IF bUseAdjustedPT_FeedAirBlowtime THEN
+	tonFeedAirBlowtime(PT := tRemaining_FeedAirBlowtime);
+	IF NOT tonFeedAirBlowtime.IN THEN
+		bUseAdjustedPT_FeedAirBlowtime := FALSE;
+	END_IF
+ELSE
+	tonFeedAirBlowtime(PT := Info.FeedAirblowTime);
+END_IF
+
+// tonReverseConveyorDelay
+IF bUseAdjustedPT_ReverseConveyorDelay THEN
+	tonReverseConveyorDelay(PT := tRemaining_ReverseConveyorDelay);
+	IF NOT tonReverseConveyorDelay.IN THEN
+		bUseAdjustedPT_ReverseConveyorDelay := FALSE;
+	END_IF
+ELSE
+	tonReverseConveyorDelay(PT := T#6S);
+END_IF
+
+// TON_CheckHaveBox
+IF bUseAdjustedPT_CheckHaveBox THEN
+	TON_CheckHaveBox(PT := tRemaining_CheckHaveBox);
+	IF NOT TON_CheckHaveBox.IN THEN
+		bUseAdjustedPT_CheckHaveBox := FALSE;
+	END_IF
+ELSE
+	TON_CheckHaveBox(PT := T#35S);
+END_IF
+
+ErrorID := 2710;
+
+TON_RecordTimer(PT := T#1D);
+TON_RecordFirstTimer(PT := T#1D);
+TON_RecordSecondTimer(PT := T#1D);
+
 IF bResetRecordInfo THEN
-	FOR iResetNumber :=1 TO 100 DO
-		tRecordTimer[iResetNumber] :=T#0S;
-		tRecordFirstTimer[iResetNumber] :=T#0S;
-		tRecordSecondTimer[iResetNumber] :=T#0S;
+	FOR iResetNumber := 1 TO 100 DO
+		tRecordTimer[iResetNumber] := T#0S;
+		tRecordFirstTimer[iResetNumber] := T#0S;
+		tRecordSecondTimer[iResetNumber] := T#0S;
 	END_FOR
 END_IF]]></ST>
       </Implementation>
@@ -250,6 +488,9 @@ iMoveConveyor := 0;
 uiFirstBoxDiameterStep  :=0;
 uiSecondBoxAirBlowStep	:=0;
 _UniqueErrorCode :='0';
+// 重置暫停相關變數
+_bPaused := FALSE;
+_bPauseEdge := FALSE;
 IF Execute THEN
 	eSTATE:=STATE_EXECUTING;
 END_IF]]></ST>
@@ -290,7 +531,12 @@ VAR
 	
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy :=TRUE;
+        <ST><![CDATA[// 如果暫停中，直接返回不執行
+IF _bPaused THEN
+	RETURN;
+END_IF
+
+Busy :=TRUE;
 
 //Conveyor motor control
 CASE iMoveConveyor OF
