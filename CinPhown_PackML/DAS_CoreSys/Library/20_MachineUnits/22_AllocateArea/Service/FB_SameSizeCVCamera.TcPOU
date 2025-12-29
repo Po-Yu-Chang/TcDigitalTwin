@@ -104,21 +104,31 @@ UseBoxCamera 	:= FALSE;
 BoxCameraDone 	:= FALSE;
 
 // 機械復位到安全狀態
-Cylinder.List.fbSameSizeCV_Block1.M_Retract();
-Cylinder.List.fbSameSizeCV_Block2.M_Retract();
+IF NOT xExecute THEN
+	Cylinder.List.fbSameSizeCV_Block1.M_Retract();
+	Cylinder.List.fbSameSizeCV_Block2.M_Retract();
+	Cylinder.List.fbTransmitCV_CamaraHoriz.M_Retract();
+END_IF
 Cylinder.List.fbSameSizeCV_Press1.M_Retract();
 //Cylinder.List.fbSameSizeCV_Press2.M_Retract();
-Cylinder.List.fbTransmitCV_CamaraHoriz.M_Retract();
 Motor.List.TransmitSameSideCV.M_MotorStop();
 
 // 等待機械復位完成
-IF Cylinder.List.fbSameSizeCV_Block1.InRearPosition AND
-   Cylinder.List.fbSameSizeCV_Block2.InRearPosition AND
-   Cylinder.List.fbSameSizeCV_Press1.InRearPosition AND
-   //Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND
-   Cylinder.List.fbTransmitCV_CamaraHoriz.InRearPosition AND
-   Motor.List.TransmitSameSideCV.InStopped THEN
-	xComplete := TRUE;
+IF NOT xExecute THEN
+	IF Cylinder.List.fbSameSizeCV_Block1.InRearPosition AND
+	   Cylinder.List.fbSameSizeCV_Block2.InRearPosition AND
+	   Cylinder.List.fbSameSizeCV_Press1.InRearPosition AND
+	   //Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND
+	   Cylinder.List.fbTransmitCV_CamaraHoriz.InRearPosition AND
+	   Motor.List.TransmitSameSideCV.InStopped THEN
+		xComplete := TRUE;
+	END_IF
+ELSE
+	IF  Cylinder.List.fbSameSizeCV_Press1.InRearPosition AND
+	   //Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND
+	   Motor.List.TransmitSameSideCV.InStopped THEN
+		xComplete := TRUE;
+	END_IF
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -296,7 +306,7 @@ END_VAR]]></Declaration>
 	7:
 		M_GetErrorMsg := 'CameraHoriz cylinder not ready';
 	8:
-		M_GetErrorMsg :='Conveyor not ready';
+		M_GetErrorMsg :=' Box not arrived ';
 	9:
 		M_GetErrorMsg :='Cylinder timeout';
 	10:
@@ -439,10 +449,6 @@ END_IF]]></ST>
       <LineId Id="126" Count="0" />
       <LineId Id="62" Count="0" />
       <LineId Id="64" Count="2" />
-      <LineId Id="63" Count="0" />
-      <LineId Id="128" Count="0" />
-      <LineId Id="127" Count="0" />
-      <LineId Id="97" Count="0" />
     </LineIds>
     <LineIds Name="FB_SameSizeCVCamera.A00_BaseUnits">
       <LineId Id="1" Count="0" />
@@ -452,10 +458,22 @@ END_IF]]></ST>
       <LineId Id="65" Count="0" />
       <LineId Id="21" Count="3" />
       <LineId Id="54" Count="1" />
-      <LineId Id="25" Count="15" />
-      <LineId Id="11" Count="0" />
+      <LineId Id="25" Count="13" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="96" Count="0" />
       <LineId Id="44" Count="0" />
-      <LineId Id="43" Count="0" />
+      <LineId Id="66" Count="2" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="69" Count="6" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="97" Count="1" />
+      <LineId Id="100" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="89" Count="1" />
     </LineIds>
     <LineIds Name="FB_SameSizeCVCamera.CyclicAction">
       <LineId Id="467" Count="0" />
@@ -486,13 +504,6 @@ END_IF]]></ST>
       <LineId Id="642" Count="0" />
       <LineId Id="591" Count="4" />
       <LineId Id="643" Count="0" />
-      <LineId Id="596" Count="7" />
-      <LineId Id="618" Count="0" />
-      <LineId Id="570" Count="4" />
-      <LineId Id="617" Count="0" />
-      <LineId Id="575" Count="1" />
-      <LineId Id="687" Count="2" />
-      <LineId Id="32" Count="0" />
     </LineIds>
     <LineIds Name="FB_SameSizeCVCamera.ExitAction">
       <LineId Id="7" Count="0" />
@@ -508,11 +519,14 @@ END_IF]]></ST>
       <LineId Id="51" Count="1" />
       <LineId Id="60" Count="9" />
       <LineId Id="77" Count="3" />
-      <LineId Id="7" Count="0" />
     </LineIds>
     <LineIds Name="FB_SameSizeCVCamera.ResetAction">
       <LineId Id="11" Count="4" />
       <LineId Id="6" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="26" Count="4" />
+      <LineId Id="16" Count="9" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_SameSizeCVCamera.StartAction">
       <LineId Id="141" Count="0" />
@@ -539,6 +553,14 @@ END_IF]]></ST>
       <LineId Id="109" Count="0" />
       <LineId Id="108" Count="0" />
       <LineId Id="142" Count="0" />
+      <LineId Id="36" Count="20" />
+      <LineId Id="143" Count="0" />
+      <LineId Id="58" Count="7" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="145" Count="1" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

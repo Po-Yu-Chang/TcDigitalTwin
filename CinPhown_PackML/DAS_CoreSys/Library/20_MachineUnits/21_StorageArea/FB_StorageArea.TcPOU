@@ -198,7 +198,8 @@ fbUpperFeedInConveyor(Execute             := Service.AutoMode_UpperFeedInConveyo
                       Info                := Service.AutoMode_UpperFeedInConveyor.Info,
                       AddingBox           :=,
                       FeedBack            => Service.AutoMode_UpperFeedInConveyor.FeedBack,
-					  _bForceUpperCV_Use   =>	);
+					  _bForceUpperCV_Use   =>	,
+						Pause := bStopMem);
 
 _fbDaimeterMovement(Execute         :=,
                     Abort           := _bAnyServiceError,
@@ -877,7 +878,9 @@ M_StateComplete();]]></ST>
       <LineId Id="3190" Count="6" />
       <LineId Id="3198" Count="44" />
       <LineId Id="3487" Count="0" />
-      <LineId Id="3243" Count="38" />
+      <LineId Id="3243" Count="16" />
+      <LineId Id="3527" Count="0" />
+      <LineId Id="3260" Count="21" />
       <LineId Id="3488" Count="0" />
       <LineId Id="3282" Count="19" />
       <LineId Id="3485" Count="0" />
@@ -922,6 +925,8 @@ M_StateComplete();]]></ST>
       <LineId Id="3483" Count="0" />
       <LineId Id="3500" Count="10" />
       <LineId Id="3484" Count="0" />
+      <LineId Id="326" Count="15" />
+      <LineId Id="1" Count="0" />
     </LineIds>
     <LineIds Name="FB_StorageArea.M_Aborted">
       <LineId Id="6" Count="1" />
