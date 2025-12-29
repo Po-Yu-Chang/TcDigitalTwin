@@ -299,12 +299,16 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN:=FALSE;
             uiExecutingStep := 10080;
         END_IF
-			tonTimeOut.IN:=TRUE;
-			IF tonTimeOut.Q=TRUE THEN
-				tonTimeOut.IN:=FALSE;			
-				strStatus :='Reset Robot timeout';
-				_Error:=TRUE;
-			END_IF	
+		
+		tonTimeOut.IN:=TRUE;
+		IF tonTimeOut.Q THEN
+			tonTimeOut.IN:=FALSE;			
+			strStatus :='Reset Robot timeout';
+			_Error:=TRUE;
+		END_IF	
+		IF Robot.Error THEN
+			strStatus := 'FB_ShippingRobot place Left Plate Error';
+		END_IF
     10080:
         Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
 		tonTimeOut.IN:=TRUE;
@@ -603,11 +607,13 @@ END_IF]]></ST>
       <LineId Id="111" Count="1" />
       <LineId Id="985" Count="0" />
       <LineId Id="113" Count="1" />
+      <LineId Id="1095" Count="0" />
       <LineId Id="984" Count="0" />
       <LineId Id="981" Count="0" />
       <LineId Id="986" Count="0" />
       <LineId Id="982" Count="1" />
       <LineId Id="613" Count="0" />
+      <LineId Id="1096" Count="2" />
       <LineId Id="115" Count="3" />
       <LineId Id="887" Count="0" />
       <LineId Id="119" Count="1" />
