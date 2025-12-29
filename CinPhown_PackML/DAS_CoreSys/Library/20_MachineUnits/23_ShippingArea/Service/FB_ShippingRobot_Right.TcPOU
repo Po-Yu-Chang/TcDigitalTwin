@@ -111,7 +111,10 @@ END_VAR
 Busy    := FALSE;
 Aborted := TRUE;
 Status := strStatus;
+_AbortCompleted := FALSE;
+uiAbortingStep := 0;
 UniqueErrorCode:=_UniqueErrorCode;
+
 IF NOT Execute THEN
 	eSTATE:=STATE_RESETTING;
 END_IF
@@ -132,7 +135,9 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
 	0 :
+		_Abort := FALSE;
 		uiAbortingStep:=9999;
+		tonTimeOut.IN := FALSE;
 		IF strStatus = PreviousStrStatus THEN
 			_UniqueErrorCode :=PreviousErrorCode;
 		END_IF
@@ -295,12 +300,19 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN:=FALSE;
             uiExecutingStep := 10080;
         END_IF
-			tonTimeOut.IN:=TRUE;
-			IF tonTimeOut.Q=TRUE THEN
-				tonTimeOut.IN:=FALSE;			
-				strStatus :='Reset Robot timeout';
-				_Error:=TRUE;
-			END_IF	
+		tonTimeOut.IN:=TRUE;
+		IF tonTimeOut.Q=TRUE THEN
+			tonTimeOut.IN:=FALSE;			
+			strStatus :='Action Robot timeout';
+			_Abort:=TRUE;
+			uiResettingStep := 10000;
+		END_IF	
+		IF Robot.Error THEN
+			_Abort := TRUE;
+			strStatus := 'FB_ShippingRobot place box to right Plate , Robot Error';
+			uiResettingStep := 10000;
+		END_IF
+		
     10080:
         Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
 		tonTimeOut.IN:=TRUE;
@@ -310,7 +322,8 @@ CASE uiExecutingStep OF
         END_IF
     	IF tonTimeOut.Q=TRUE THEN
 			strStatus :='Reset Robot timeout';
-			_Error:=TRUE;
+			uiResettingStep := 10080;
+			_Abort:=TRUE;
 		END_IF	
     
    20000: // Only ClampB
@@ -523,13 +536,20 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobot_Right.M_STATE_ABORTED">
-      <LineId Id="14" Count="10" />
+      <LineId Id="14" Count="3" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="19" Count="5" />
       <LineId Id="29" Count="1" />
       <LineId Id="25" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobot_Right.M_STATE_ABORTING">
-      <LineId Id="12" Count="2" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="31" Count="0" />
       <LineId Id="25" Count="1" />
       <LineId Id="24" Count="0" />
       <LineId Id="15" Count="5" />
@@ -602,11 +622,19 @@ END_IF]]></ST>
       <LineId Id="981" Count="0" />
       <LineId Id="986" Count="0" />
       <LineId Id="982" Count="1" />
+      <LineId Id="1098" Count="0" />
       <LineId Id="613" Count="0" />
+      <LineId Id="1094" Count="1" />
+      <LineId Id="1097" Count="0" />
+      <LineId Id="1099" Count="0" />
+      <LineId Id="1096" Count="0" />
+      <LineId Id="1093" Count="0" />
       <LineId Id="115" Count="3" />
       <LineId Id="887" Count="0" />
       <LineId Id="119" Count="1" />
-      <LineId Id="884" Count="2" />
+      <LineId Id="884" Count="1" />
+      <LineId Id="1100" Count="0" />
+      <LineId Id="886" Count="0" />
       <LineId Id="172" Count="0" />
       <LineId Id="179" Count="0" />
       <LineId Id="620" Count="1" />
