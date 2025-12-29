@@ -54,17 +54,17 @@ END_IF
         <ST><![CDATA[// ============================================================================
 // 連動暫停邏輯 - 任一 Service 錯誤時，暫停所有其他 Service
 // ============================================================================
-_bAnyServiceError :=
-	Service.AutoMode_ShippingRobot_TransmitCVEnd.Status.Error OR
-	Service.AutoMode_ShippingRobot_Left.Status.Error OR
-	Service.AutoMode_ShippingRobot_Right.Status.Error OR
-	Service.AutoMode_ShippingTransCV_LeftSide.Status.Error OR
-	Service.AutoMode_ShippingTransCV_RightSide.Status.Error;
+_bAnyServiceError := false;
+//	Service.AutoMode_ShippingRobot_TransmitCVEnd.Status.Error OR
+//	Service.AutoMode_ShippingRobot_Left.Status.Error OR
+//	Service.AutoMode_ShippingRobot_Right.Status.Error OR
+//	Service.AutoMode_ShippingTransCV_LeftSide.Status.Error OR
+//	Service.AutoMode_ShippingTransCV_RightSide.Status.Error;
 
 fbShippingRobot_TransmitCVEnd(
 	Execute:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Execute,
 	Abort:= Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
-	Reset:= Reset, 
+	Reset:= Reset OR Service.AutoMode_ShippingRobot_TransmitCVEnd.Command.Reset, 
 	ObjectName:= 'Shipping Fanuc Robot TransmitCVEnd', 
 	INPUT:=INPUT,
 	Motor :=Motor,
@@ -83,7 +83,7 @@ fbShippingRobot_TransmitCVEnd(
 fbShippingRobot_Left(
 	Execute:= service.AutoMode_ShippingRobot_Left.Command.Execute,
 	Abort:= Service.AutoMode_ShippingRobot_Left.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
-	Reset:= Reset,
+	Reset:= Reset OR Service.AutoMode_ShippingRobot_Left.Command.Reset,
 	ObjectName:= 'Shipping Fanuc Robot Left', 
 	Busy=> Service.AutoMode_ShippingRobot_Left.Status.Busy, 
 	Done=> Service.AutoMode_ShippingRobot_Left.Status.Done, 
@@ -104,7 +104,7 @@ fbShippingRobot_Left(
 fbShippingRobot_Right(
 	Execute:= Service.AutoMode_ShippingRobot_Right.Command.Execute,
 	Abort:= Service.AutoMode_ShippingRobot_Right.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
-	Reset:= Reset,
+	Reset:= Reset OR Service.AutoMode_ShippingRobot_Right.Command.Reset,
 	ObjectName:= 'Shipping Fanuc Robot Right', 
 	Busy=> Service.AutoMode_ShippingRobot_Right.Status.Busy, 
 	Done=> Service.AutoMode_ShippingRobot_Right.Status.Done, 
@@ -366,6 +366,7 @@ END_VAR
       <LineId Id="87" Count="0" />
       <LineId Id="89" Count="15" />
       <LineId Id="88" Count="0" />
+      <LineId Id="115" Count="9" />
     </LineIds>
     <LineIds Name="FB_ShippingArea.M_Aborted">
       <LineId Id="6" Count="0" />

@@ -180,9 +180,12 @@ IF NOT Execute THEN
 END_IF
 
 IF Execute AND Reset THEN
+	Error := FALSE;
+	Aborted := false;
 	uiExecutingStep :=uiResumeStep;
-	PreviousStrStatus := strStatus;
-	PreviousErrorCode := _UniqueErrorCode;
+//	PreviousStrStatus := strStatus;
+//	PreviousErrorCode := _UniqueErrorCode;
+	Status := 'no error';
 	eSTATE:=STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>
@@ -196,6 +199,7 @@ END_VAR
         <ST><![CDATA[CASE uiAbortingStep OF
 	0 :
 			_Abort 			:= FALSE;
+			Abort 			:= FALSE;
 			tonTimeOut.IN 	:= FALSE;
 			uiAbortingStep	:= 9999;
 
@@ -203,9 +207,9 @@ END_VAR
 			
 			
 			
-			IF strStatus = PreviousStrStatus THEN
-				_UniqueErrorCode :=PreviousErrorCode;
-			END_IF
+//			IF strStatus = PreviousStrStatus THEN
+//				_UniqueErrorCode :=PreviousErrorCode;
+//			END_IF
 	9999:	
 			_AbortCompleted:=TRUE;
 END_CASE
@@ -269,7 +273,11 @@ END_VAR
 Busy	:=FALSE;
 Status := strStatus;
 UniqueErrorCode:=_UniqueErrorCode;
-ConveyorMotor.M_MotorStop();
+IF info.A_Position = 1 OR 
+	info.A_Position = 2 THEN
+	ConveyorMotor.M_MotorStop();
+END_IF
+
 IF NOT Execute THEN	
 eSTATE:=STATE_RESETTING;
 END_IF]]></ST>
@@ -549,14 +557,18 @@ END_IF]]></ST>
       <LineId Id="18" Count="0" />
       <LineId Id="37" Count="0" />
       <LineId Id="36" Count="0" />
-      <LineId Id="19" Count="5" />
+      <LineId Id="19" Count="4" />
+      <LineId Id="41" Count="1" />
+      <LineId Id="24" Count="0" />
       <LineId Id="29" Count="1" />
+      <LineId Id="43" Count="0" />
       <LineId Id="25" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobot_TransmitCVEnd.M_STATE_ABORTING">
       <LineId Id="12" Count="1" />
       <LineId Id="41" Count="0" />
+      <LineId Id="47" Count="0" />
       <LineId Id="43" Count="0" />
       <LineId Id="42" Count="0" />
       <LineId Id="36" Count="0" />
@@ -595,7 +607,11 @@ END_IF]]></ST>
       <LineId Id="15" Count="0" />
       <LineId Id="12" Count="0" />
       <LineId Id="23" Count="0" />
-      <LineId Id="27" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="32" Count="0" />
       <LineId Id="13" Count="1" />
       <LineId Id="5" Count="0" />
     </LineIds>
