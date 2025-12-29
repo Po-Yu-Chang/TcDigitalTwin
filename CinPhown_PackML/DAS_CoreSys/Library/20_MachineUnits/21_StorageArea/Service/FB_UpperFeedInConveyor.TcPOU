@@ -130,128 +130,6 @@ END_IF
 ]]></ST>
     </Implementation>
     <Folder Name="STATE" Id="{336cf81a-2c47-4070-b1e8-3558b4c1b362}" />
-    <Action Name="A01_PauseControl" Id="{a01c0001-0001-0001-0001-000000000001}">
-      <Implementation>
-        <ST><![CDATA[// A01_PauseControl - 暫停控制邏輯
-
-Paused := _bPaused;
-
-// 只在執行狀態處理暫停
-IF eState <> STATE_EXECUTING THEN
-	_bPaused := FALSE;
-	RETURN;
-END_IF
-
-// ===== 進入暫停 (上升邊緣) =====
-IF Pause AND NOT _bPauseEdge THEN
-	_bPauseEdge := TRUE;
-
-	IF NOT _bPaused THEN
-		_bPaused := TRUE;
-
-		// 保存計時器活動狀態和剩餘時間
-		bWasActive_UpperConveyorTimeOut := tonUpperConveyorTimeOut.IN;
-		tRemaining_UpperConveyorTimeOut := T#20S - tonUpperConveyorTimeOut.ET;
-
-		bWasActive_UpperConveyorDelay := tonUpperConveyorDelay.IN;
-		tRemaining_UpperConveyorDelay := tonUpperConveyorDelay.PT - tonUpperConveyorDelay.ET;
-
-		bWasActive_UpperTimeOut := tonUpperTimeOut.IN;
-		tRemaining_UpperTimeOut := T#5S - tonUpperTimeOut.ET;
-
-		bWasActive_UpperTimeOutFive := tonUpperTimeOutFive.IN;
-		tRemaining_UpperTimeOutFive := T#60S - tonUpperTimeOutFive.ET;
-
-		bWasActive_WaitSecondBoxArriveTimeout := tonWaitSecondBoxArriveTimeout.IN;
-		tRemaining_WaitSecondBoxArriveTimeout := T#20S - tonWaitSecondBoxArriveTimeout.ET;
-
-		bWasActive_FeedAirBlowtime := tonFeedAirBlowtime.IN;
-		tRemaining_FeedAirBlowtime := Info.FeedAirblowTime - tonFeedAirBlowtime.ET;
-
-		bWasActive_ReverseConveyorDelay := tonReverseConveyorDelay.IN;
-		tRemaining_ReverseConveyorDelay := T#6S - tonReverseConveyorDelay.ET;
-
-		bWasActive_CheckHaveBox := TON_CheckHaveBox.IN;
-		tRemaining_CheckHaveBox := T#35S - TON_CheckHaveBox.ET;
-
-		// 保存馬達狀態
-		iSaved_MoveConveyor := iMoveConveyor;
-		bSaved_CamaraBlow := OutPut.bCamara_Blow;
-
-		// 停止所有計時器
-		tonUpperConveyorTimeOut.IN := FALSE;
-		tonUpperConveyorDelay.IN := FALSE;
-		tonUpperTimeOut.IN := FALSE;
-		tonUpperTimeOutFive.IN := FALSE;
-		tonWaitSecondBoxArriveTimeout.IN := FALSE;
-		tonFeedAirBlowtime.IN := FALSE;
-		tonReverseConveyorDelay.IN := FALSE;
-		TON_CheckHaveBox.IN := FALSE;
-
-		// 停止馬達
-		iMoveConveyor := 0;
-		Motor.list.UpCV.M_MotorStop();
-
-		// 停止輸出
-		OutPut.bCamara_Blow := FALSE;
-	END_IF
-END_IF
-
-// ===== 離開暫停 (下降邊緣) =====
-IF NOT Pause AND _bPauseEdge THEN
-	_bPauseEdge := FALSE;
-
-	IF _bPaused THEN
-		_bPaused := FALSE;
-
-		// 恢復馬達狀態
-		iMoveConveyor := iSaved_MoveConveyor;
-		OutPut.bCamara_Blow := bSaved_CamaraBlow;
-
-		// 設置標志：需要使用調整後的 PT
-		IF bWasActive_UpperConveyorTimeOut THEN
-			bUseAdjustedPT_UpperConveyorTimeOut := TRUE;
-			tonUpperConveyorTimeOut.IN := TRUE;
-		END_IF
-
-		IF bWasActive_UpperConveyorDelay THEN
-			bUseAdjustedPT_UpperConveyorDelay := TRUE;
-			tonUpperConveyorDelay.IN := TRUE;
-		END_IF
-
-		IF bWasActive_UpperTimeOut THEN
-			bUseAdjustedPT_UpperTimeOut := TRUE;
-			tonUpperTimeOut.IN := TRUE;
-		END_IF
-
-		IF bWasActive_UpperTimeOutFive THEN
-			bUseAdjustedPT_UpperTimeOutFive := TRUE;
-			tonUpperTimeOutFive.IN := TRUE;
-		END_IF
-
-		IF bWasActive_WaitSecondBoxArriveTimeout THEN
-			bUseAdjustedPT_WaitSecondBoxArriveTimeout := TRUE;
-			tonWaitSecondBoxArriveTimeout.IN := TRUE;
-		END_IF
-
-		IF bWasActive_FeedAirBlowtime THEN
-			bUseAdjustedPT_FeedAirBlowtime := TRUE;
-			tonFeedAirBlowtime.IN := TRUE;
-		END_IF
-
-		IF bWasActive_ReverseConveyorDelay THEN
-			bUseAdjustedPT_ReverseConveyorDelay := TRUE;
-			tonReverseConveyorDelay.IN := TRUE;
-		END_IF
-
-		IF bWasActive_CheckHaveBox THEN
-			bUseAdjustedPT_CheckHaveBox := TRUE;
-			TON_CheckHaveBox.IN := TRUE;
-		END_IF
-	END_IF
-END_IF]]></ST>
-      </Implementation>
-    </Action>
     <Action Name="A00_BasicUnits" Id="{163a9f76-8838-42a7-b540-e0044259cf51}">
       <Implementation>
         <ST><![CDATA[// 計時器調用 - 根據暫停恢復標志決定 PT 值
@@ -349,6 +227,128 @@ IF bResetRecordInfo THEN
 		tRecordFirstTimer[iResetNumber] := T#0S;
 		tRecordSecondTimer[iResetNumber] := T#0S;
 	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A01_PauseControl" Id="{a01c0001-0001-0001-0001-000000000001}">
+      <Implementation>
+        <ST><![CDATA[// A01_PauseControl - 暫停控制邏輯
+
+Paused := _bPaused;
+
+// 只在執行狀態處理暫停
+IF eState <> STATE_EXECUTING THEN
+	_bPaused := FALSE;
+	RETURN;
+END_IF
+
+// ===== 進入暫停 (上升邊緣) =====
+IF Pause AND NOT _bPauseEdge THEN
+	_bPauseEdge := TRUE;
+
+	IF NOT _bPaused THEN
+		_bPaused := TRUE;
+
+		// 保存計時器活動狀態和剩餘時間
+		bWasActive_UpperConveyorTimeOut := tonUpperConveyorTimeOut.IN;
+		tRemaining_UpperConveyorTimeOut := T#20S - tonUpperConveyorTimeOut.ET;
+
+		bWasActive_UpperConveyorDelay := tonUpperConveyorDelay.IN;
+		tRemaining_UpperConveyorDelay := tonUpperConveyorDelay.PT - tonUpperConveyorDelay.ET;
+
+		bWasActive_UpperTimeOut := tonUpperTimeOut.IN;
+		tRemaining_UpperTimeOut := T#5S - tonUpperTimeOut.ET;
+
+		bWasActive_UpperTimeOutFive := tonUpperTimeOutFive.IN;
+		tRemaining_UpperTimeOutFive := T#60S - tonUpperTimeOutFive.ET;
+
+		bWasActive_WaitSecondBoxArriveTimeout := tonWaitSecondBoxArriveTimeout.IN;
+		tRemaining_WaitSecondBoxArriveTimeout := T#20S - tonWaitSecondBoxArriveTimeout.ET;
+
+		bWasActive_FeedAirBlowtime := tonFeedAirBlowtime.IN;
+		tRemaining_FeedAirBlowtime := Info.FeedAirblowTime - tonFeedAirBlowtime.ET;
+
+		bWasActive_ReverseConveyorDelay := tonReverseConveyorDelay.IN;
+		tRemaining_ReverseConveyorDelay := T#6S - tonReverseConveyorDelay.ET;
+
+		bWasActive_CheckHaveBox := TON_CheckHaveBox.IN;
+		tRemaining_CheckHaveBox := T#35S - TON_CheckHaveBox.ET;
+
+		// 保存馬達狀態
+		iSaved_MoveConveyor := iMoveConveyor;
+		bSaved_CamaraBlow := OutPut.bCamara_Blow;
+
+		// 停止所有計時器
+		tonUpperConveyorTimeOut.IN := FALSE;
+		tonUpperConveyorDelay.IN := FALSE;
+		tonUpperTimeOut.IN := FALSE;
+		tonUpperTimeOutFive.IN := FALSE;
+		tonWaitSecondBoxArriveTimeout.IN := FALSE;
+		tonFeedAirBlowtime.IN := FALSE;
+		tonReverseConveyorDelay.IN := FALSE;
+		TON_CheckHaveBox.IN := FALSE;
+
+		// 停止馬達
+		iMoveConveyor := 0;
+		Motor.list.UpCV.M_MotorStop();
+
+		// 停止輸出
+		OutPut.bCamara_Blow := FALSE;
+	END_IF
+END_IF
+
+// ===== 離開暫停 (下降邊緣) =====
+IF NOT Pause AND _bPauseEdge AND GVL_ADS.OpPannel_Status.StartBtnStatus THEN
+	_bPauseEdge := FALSE;
+
+	IF _bPaused THEN
+		_bPaused := FALSE;
+
+		// 恢復馬達狀態
+		iMoveConveyor := iSaved_MoveConveyor;
+		OutPut.bCamara_Blow := bSaved_CamaraBlow;
+
+		// 設置標志：需要使用調整後的 PT
+		IF bWasActive_UpperConveyorTimeOut THEN
+			bUseAdjustedPT_UpperConveyorTimeOut := TRUE;
+			tonUpperConveyorTimeOut.IN := TRUE;
+		END_IF
+
+		IF bWasActive_UpperConveyorDelay THEN
+			bUseAdjustedPT_UpperConveyorDelay := TRUE;
+			tonUpperConveyorDelay.IN := TRUE;
+		END_IF
+
+		IF bWasActive_UpperTimeOut THEN
+			bUseAdjustedPT_UpperTimeOut := TRUE;
+			tonUpperTimeOut.IN := TRUE;
+		END_IF
+
+		IF bWasActive_UpperTimeOutFive THEN
+			bUseAdjustedPT_UpperTimeOutFive := TRUE;
+			tonUpperTimeOutFive.IN := TRUE;
+		END_IF
+
+		IF bWasActive_WaitSecondBoxArriveTimeout THEN
+			bUseAdjustedPT_WaitSecondBoxArriveTimeout := TRUE;
+			tonWaitSecondBoxArriveTimeout.IN := TRUE;
+		END_IF
+
+		IF bWasActive_FeedAirBlowtime THEN
+			bUseAdjustedPT_FeedAirBlowtime := TRUE;
+			tonFeedAirBlowtime.IN := TRUE;
+		END_IF
+
+		IF bWasActive_ReverseConveyorDelay THEN
+			bUseAdjustedPT_ReverseConveyorDelay := TRUE;
+			tonReverseConveyorDelay.IN := TRUE;
+		END_IF
+
+		IF bWasActive_CheckHaveBox THEN
+			bUseAdjustedPT_CheckHaveBox := TRUE;
+			TON_CheckHaveBox.IN := TRUE;
+		END_IF
+	END_IF
 END_IF]]></ST>
       </Implementation>
     </Action>
@@ -739,7 +739,7 @@ CASE uiExecutingStep OF
 	tonUpperTimeOutFive.IN :=TRUE;		//T#5S
 	IF Info.FirstBoxCameraDone THEN
 		tonUpperTimeOutFive.IN :=FALSE;
-		FeedBack.FirstBoxCamera :=FALSE;
+		//FeedBack.FirstBoxCamera :=FALSE;
 		uiExecutingStep :=500;
 	END_IF	
 	IF tonUpperTimeOutFive.Q THEN
@@ -1270,6 +1270,8 @@ END_IF]]></ST>
       <LineId Id="93" Count="0" />
       <LineId Id="151" Count="0" />
       <LineId Id="30" Count="0" />
+      <LineId Id="7" Count="3" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_UpperFeedInConveyor.A00_BasicUnits">
       <LineId Id="2" Count="0" />
@@ -1283,6 +1285,11 @@ END_IF]]></ST>
       <LineId Id="25" Count="0" />
       <LineId Id="18" Count="6" />
       <LineId Id="17" Count="0" />
+      <LineId Id="26" Count="71" />
+    </LineIds>
+    <LineIds Name="FB_UpperFeedInConveyor.A01_PauseControl">
+      <LineId Id="2" Count="116" />
+      <LineId Id="1" Count="0" />
     </LineIds>
     <LineIds Name="FB_UpperFeedInConveyor.GetModelState">
       <LineId Id="17" Count="3" />
@@ -1363,6 +1370,9 @@ END_IF]]></ST>
       <LineId Id="67" Count="0" />
       <LineId Id="14" Count="1" />
       <LineId Id="5" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_UpperFeedInConveyor.M_STATE_ERROR">
       <LineId Id="9" Count="0" />
@@ -1903,6 +1913,8 @@ END_IF]]></ST>
       <LineId Id="1077" Count="0" />
       <LineId Id="42" Count="0" />
       <LineId Id="349" Count="2" />
+      <LineId Id="1321" Count="3" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_UpperFeedInConveyor.M_STATE_RESETTING">
       <LineId Id="88" Count="1" />

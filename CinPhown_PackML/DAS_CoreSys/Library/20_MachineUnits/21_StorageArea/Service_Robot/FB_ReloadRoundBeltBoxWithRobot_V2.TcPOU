@@ -27,6 +27,7 @@ VAR
     PreviousErrorCode : STRING;
     A2_Sensor         : BOOL;
     A3_Sensor         : BOOL;
+	_Abort			  : BOOL;
 
 	// Clamp work
 	_AClampDoingWork	: BOOL;
@@ -143,6 +144,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[Busy    := FALSE;
 Aborted := TRUE;
+_Abort  := TRUE;
 UniqueErrorCode := _UniqueErrorCode;
 Status := strStatus;
 
@@ -206,6 +208,7 @@ Status          := '';
 _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
+_Abort			:= FALSE;
 uiExecutingStep := 0;
 uiResettingStep := 0;
 uiResumeStep    := 0;	// 清除 Resume 步驟
@@ -1102,10 +1105,17 @@ END_IF]]></ST>
       <LineId Id="10" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_ABORTED">
-      <LineId Id="6" Count="2" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="8" Count="0" />
       <LineId Id="14" Count="0" />
       <LineId Id="9" Count="1" />
       <LineId Id="5" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="11" Count="2" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="15" Count="3" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_ABORTING">
       <LineId Id="6" Count="0" />
@@ -1119,7 +1129,9 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_DORMANT">
-      <LineId Id="6" Count="11" />
+      <LineId Id="6" Count="9" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="16" Count="1" />
       <LineId Id="25" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="30" Count="0" />
@@ -1129,6 +1141,8 @@ END_IF]]></ST>
       <LineId Id="35" Count="0" />
       <LineId Id="19" Count="2" />
       <LineId Id="5" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_ERROR">
       <LineId Id="11" Count="0" />
@@ -1360,6 +1374,8 @@ END_IF]]></ST>
       <LineId Id="4111" Count="0" />
       <LineId Id="4092" Count="0" />
       <LineId Id="2" Count="0" />
+      <LineId Id="756" Count="11" />
+      <LineId Id="4420" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_RESETTING">
       <LineId Id="18" Count="1" />
