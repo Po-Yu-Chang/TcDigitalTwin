@@ -33,7 +33,7 @@ VAR
     // Signal Tower controller output
     LampSingal :ST_SignalTower;
 	BuzzOnTimer			:TON;
-
+	bBuzzBypass			: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -56,7 +56,14 @@ END_IF
 LampRed := LampSingal.Lamp_Red;
 LampYellow := LampSingal.Lamp_Yellow;
 LampGreen := LampSingal.Lamp_Green;
-Buzz := LampSingal.Buzz;]]></ST>
+Buzz := LampSingal.Buzz;
+
+IF GVL_ADS.MachineState <> E_MachineState.Error THEN
+	bBuzzBypass := FALSE;
+ELSIF GVL_ADS.MachineState = E_MachineState.Error AND 
+		GVL_ADS.OpPannel_Status.StartBtnStatus THEN 
+	bBuzzBypass := TRUE;
+END_IF]]></ST>
     </Implementation>
     <Action Name="A_SignalGenerator" Id="{5007de43-27f1-4df8-92e2-4501fa1e4fb4}">
       <Implementation>
@@ -85,7 +92,9 @@ IF ForceCloseBuzz THEN
 ELSE
 	IF  GVL_ADS.MachineState = E_MachineState.Error THEN
 		BuzzOnTimer.IN :=TRUE;		
-		SignalMode := E_SignalTowerLampMode.Flash_2Hz;			
+		IF NOT bBuzzBypass THEN			// 泰興客戶需要長時間鳴笛時，有手段可以 bypass 鳴笛
+			SignalMode := E_SignalTowerLampMode.Flash_2Hz;
+		END_IF			
 	ELSE   
 		BuzzOnTimer.IN :=FALSE;
 	END_IF
@@ -272,6 +281,8 @@ END_VAR
       <LineId Id="164" Count="0" />
       <LineId Id="163" Count="0" />
       <LineId Id="165" Count="2" />
+      <LineId Id="203" Count="5" />
+      <LineId Id="202" Count="0" />
     </LineIds>
     <LineIds Name="FB_SignalTower.A_SignalGenerator">
       <LineId Id="4" Count="0" />
@@ -285,6 +296,7 @@ END_VAR
       <LineId Id="24" Count="1" />
       <LineId Id="27" Count="1" />
       <LineId Id="41" Count="0" />
+      <LineId Id="70" Count="1" />
       <LineId Id="29" Count="0" />
       <LineId Id="57" Count="3" />
       <LineId Id="26" Count="0" />

@@ -255,10 +255,10 @@ END_VAR
         <ST><![CDATA[_AbortCompleted := TRUE;
 _Abort :=FALSE;
 bTimeOutIN:=FALSE;
-AClampMoveDone	:= FALSE;
-BClampMoveDone	:= FALSE;
-_AClampDoingWork	:= FALSE;
-_BClampDoingWork	:= FALSE;
+//AClampMoveDone	:= FALSE;
+//BClampMoveDone	:= FALSE;
+//_AClampDoingWork	:= FALSE;
+//_BClampDoingWork	:= FALSE;
 //DAS.fbStorageArea.M_ResetSlideA_FeedIn();
 IF strStatus = PreviousStrStatus THEN
 	_UniqueErrorCode :=PreviousErrorCode;
@@ -329,6 +329,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[Robot.Bzone_AllowWork:=FALSE;
 Error := TRUE;
+status := strStatus;
 IF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF]]></ST>
@@ -1814,6 +1815,7 @@ END_CASE]]></ST>
     <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_ERROR">
       <LineId Id="11" Count="0" />
       <LineId Id="15" Count="0" />
+      <LineId Id="19" Count="0" />
       <LineId Id="6" Count="1" />
       <LineId Id="5" Count="0" />
     </LineIds>
