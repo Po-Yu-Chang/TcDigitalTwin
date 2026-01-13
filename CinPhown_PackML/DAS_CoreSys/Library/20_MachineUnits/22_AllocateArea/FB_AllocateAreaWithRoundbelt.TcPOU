@@ -557,7 +557,9 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT Service.AutoMode_SimpleAllocation_Batch.HandShake.Execute 
-   AND  NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute	THEN
+   AND NOT Service.AutoMode_SimpleAllocation_Batch.HandShake.Busy
+   AND NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute
+   AND NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Busy THEN
 	
 	AutoAllocateJobBatch_Ctrl.bSimpleAllocation:=FALSE;
 	AutoAllocateJobBatch_Ctrl.bExecute:=Service.AutoMode_AllocateBatchMode.HandShake.Execute;
@@ -589,8 +591,10 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[	IF NOT Service.AutoMode_AllocateBatchMode.HandShake.Execute 
-	   AND NOT Service.AutoMode_SimpleAllocation_Batch.HandShake.Execute THEN
+        <ST><![CDATA[IF NOT Service.AutoMode_AllocateBatchMode.HandShake.Execute 
+   AND NOT Service.AutoMode_AllocateBatchMode.HandShake.Busy
+   AND NOT Service.AutoMode_SimpleAllocation_Batch.HandShake.Execute
+   AND NOT Service.AutoMode_SimpleAllocation_Batch.HandShake.Busy THEN
 	AutoAllocateJobBatch_Reverse_Ctrl.bExecute:=Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute;
 	AutoAllocateJobBatch_Reverse_Ctrl.bReset :=Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Reset;
 	AutoAllocateJobBatch_Reverse_Ctrl.bOccupied:=Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Occupied;
@@ -619,7 +623,9 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT Service.AutoMode_AllocateBatchMode.HandShake.Execute 
-   AND NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute	THEN
+   AND NOT Service.AutoMode_AllocateBatchMode.HandShake.Busy
+   AND NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Execute
+   AND NOT Service.AutoMode_AllocateBatchMode_Reverse.HandShake.Busy THEN
 	
 	AutoAllocateJobBatch_Ctrl.bSimpleAllocation:=TRUE;
 	AutoAllocateJobBatch_Ctrl.bExecute:=Service.AutoMode_SimpleAllocation_Batch.HandShake.Execute;
