@@ -162,19 +162,19 @@ END_IF
         <ST><![CDATA[// ============================================================================
 // 連動暫停邏輯 - 任一 Service 錯誤時，暫停所有其他 Service
 // ============================================================================
-_bAnyServiceError :=
-	_RoundBeltMoveJob.HandShake.Error OR
-	_TurnTableMove.HandShake.Error OR
-	AutoAllocateJobBatch_Status.bError OR
-	AutoAllocateJobBatch_Reverse_Status.bError OR
-	Service.AutoMode_EmptyBoxMove.HandShake.Error OR
-	Service.AutoMode_RareBoxMove.HandShake.Error OR
-	Service.AutoMode_BoxMoveReverse.HandShake.Error OR
-	Service.AutoMode_DifferentCVCamera.Status.Error OR
-	fbOutRobot_TurnTableToRoundBel_Status.Error OR
-	Service.AutoMode_SameSizeCVCamera.Status.Error OR
-	_AutoPullout_Status.Error OR
-	Service.AllocateRobotNeedlingMove.Status.Error;
+_bAnyServiceError := FALSE;
+//	_RoundBeltMoveJob.HandShake.Error OR
+//	_TurnTableMove.HandShake.Error OR
+//	AutoAllocateJobBatch_Status.bError OR
+//	AutoAllocateJobBatch_Reverse_Status.bError OR
+//	Service.AutoMode_EmptyBoxMove.HandShake.Error OR
+//	Service.AutoMode_RareBoxMove.HandShake.Error OR
+//	Service.AutoMode_BoxMoveReverse.HandShake.Error OR
+//	Service.AutoMode_DifferentCVCamera.Status.Error OR
+//	fbOutRobot_TurnTableToRoundBel_Status.Error OR
+//	Service.AutoMode_SameSizeCVCamera.Status.Error OR
+//	_AutoPullout_Status.Error OR
+//	Service.AllocateRobotNeedlingMove.Status.Error;
 
 fbAllocateHome(
 	xDone=> ,
@@ -247,7 +247,8 @@ fb_AllocateBatchMode(
 	ProcessedIndex=> AutoAllocateJobBatch_Status.iIndex,
 	RoundBeltMoveJob_Ctrl =>,
 	RoundBeltMoveJob_Status := RoundBeltMoveJob_Status,
-	RoundBeltMoveJob_Position =>	 );
+	RoundBeltMoveJob_Position =>	 ,
+	Pause := bStopMem);
 	
 	IF fb_AllocateBatchMode.SimpleAllocateMode THEN
 		 Service.AutoMode_SimpleAllocation_Batch.WorkedID:= AutoAllocateJobBatch_Status.iIndex;
@@ -1142,7 +1143,9 @@ END_IF]]></ST>
       <LineId Id="357" Count="1" />
       <LineId Id="360" Count="1" />
       <LineId Id="359" Count="0" />
-      <LineId Id="329" Count="12" />
+      <LineId Id="329" Count="9" />
+      <LineId Id="373" Count="0" />
+      <LineId Id="339" Count="2" />
       <LineId Id="343" Count="11" />
       <LineId Id="328" Count="0" />
       <LineId Id="356" Count="0" />
@@ -1178,6 +1181,9 @@ END_IF]]></ST>
       <LineId Id="261" Count="0" />
       <LineId Id="263" Count="9" />
       <LineId Id="262" Count="0" />
+      <LineId Id="365" Count="6" />
+      <LineId Id="274" Count="6" />
+      <LineId Id="372" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateAreaWithRoundbelt.A01_RoundBeltAccessControl">
       <LineId Id="1" Count="1" />

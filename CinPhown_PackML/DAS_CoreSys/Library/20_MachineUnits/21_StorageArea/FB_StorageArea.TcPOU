@@ -107,19 +107,19 @@ END_IF
         <ST><![CDATA[// ============================================================================
 // 連動暫停邏輯 - 任一 Service 錯誤時，暫停所有其他 Service
 // ============================================================================
-_bAnyServiceError :=
-	service.AutoMode_FeedInEmptyBoxWithRobot.Status.Error OR
-	service.AutoMode_RobotRegionMove_BufferArea.Status.Error OR
-	service.AutoMode_UpperFeedInConveyor.Status.Error OR
-	service.AutoMode_AddBoxes.Status.Error OR
-	service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Error OR
-	service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Error OR
-	service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Error OR
-	service.AutoMode_RobotAbsMove.HandShake.Error OR
-	service.AutoMode_RobotRegionMove_RoundBelt.Status.Error OR
-	service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Error OR
-	service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Error OR
-	AutoPullout_Status.Error;
+//_bAnyServiceError :=
+//	service.AutoMode_FeedInEmptyBoxWithRobot.Status.Error OR
+//	service.AutoMode_RobotRegionMove_BufferArea.Status.Error OR
+//	service.AutoMode_UpperFeedInConveyor.Status.Error OR
+//	service.AutoMode_AddBoxes.Status.Error OR
+//	service.AutoMode_RobotRegionMove_FeedInConveyor.Status.Error OR
+//	service.AutoMode_RobotRegionMove_AllocatedConveyor.Status.Error OR
+//	service.AutoMode_RobotRegionMove_PullOutConveyor.Status.Error OR
+//	service.AutoMode_RobotAbsMove.HandShake.Error OR
+//	service.AutoMode_RobotRegionMove_RoundBelt.Status.Error OR
+//	service.AutoMode_ReloadRoundBeltBoxWithRobot.Status.Error OR
+//	service.AutoMode_WarehouseMotoWithRobotMove.HandShake.Error OR
+//	AutoPullout_Status.Error;
 
 fbFeedInEmptyBoxWithRobot(Execute    := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Execute,
                           Abort      := service.AutoMode_FeedInEmptyBoxWithRobot.Command.Abort OR THIS^.Abort OR _bAnyServiceError,

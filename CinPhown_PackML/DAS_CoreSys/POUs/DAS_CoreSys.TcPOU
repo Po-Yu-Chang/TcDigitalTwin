@@ -1253,7 +1253,7 @@ IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
 	END_CASE
 END_IF
 
-// Stop
+ //Stop
 
 //IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
 //	CASE PackTags[0].Status.StateCurrent OF
