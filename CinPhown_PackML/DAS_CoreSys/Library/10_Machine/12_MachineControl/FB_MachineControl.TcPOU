@@ -3604,7 +3604,7 @@ END_CASE]]></ST>
       <Declaration><![CDATA[METHOD M_Unsuspending
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[M_StateComplete();]]></ST>
       </Implementation>
     </Method>
     <Method Name="RefAllocateService" Id="{7e2d0ea7-efb8-45f5-8e87-93fdf1e313ed}" FolderPath="Privite\HMI_Handshake\">

@@ -25,10 +25,18 @@ CASE GVL_ADS.MachineMode.TargetMode OF
 ELSE
 	OP_Mode := E_UnitMode.Manual;
 END_CASE
-IF OP_Mode = E_UnitMode.Manual THEN
-	GVL_ADS.MachineMode.CurrentMode := E_MachineMode.MANUAL;
-ELSIF OP_Mode = E_UnitMode.Auto AND MachineControl.MachineHomed THEN
+
+
+//IF OP_Mode = E_UnitMode.Manual THEN
+//	GVL_ADS.MachineMode.CurrentMode := E_MachineMode.MANUAL;
+//ELSIF OP_Mode = E_UnitMode.Auto AND MachineControl.MachineHomed THEN
 	
+//	GVL_ADS.MachineMode.CurrentMode := E_MachineMode.AUTO;
+//END_IF
+
+IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Manual THEN
+	GVL_ADS.MachineMode.CurrentMode := E_MachineMode.MANUAL;
+ELSIF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
 	GVL_ADS.MachineMode.CurrentMode := E_MachineMode.AUTO;
 END_IF
 
@@ -1255,14 +1263,14 @@ END_IF
 
  //Stop
 
-//IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
-//	CASE PackTags[0].Status.StateCurrent OF
-//		ePMLState_Execute:
-//			IF CoreSys_Stop THEN
-//				PackTags[0].Command.CntrlCmd := ePMLCommand_Suspend;
-//			END_IF
-//	END_CASE
-//END_IF]]></ST>
+IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
+	CASE PackTags[0].Status.StateCurrent OF
+		ePMLState_Execute:
+			IF CoreSys_Stop THEN
+				PackTags[0].Command.CntrlCmd := ePMLCommand_Suspend;
+			END_IF
+	END_CASE
+END_IF]]></ST>
       </Implementation>
     </Action>
     <LineIds Name="DAS_CoreSys">
@@ -1274,11 +1282,14 @@ END_IF
       <LineId Id="51" Count="0" />
       <LineId Id="54" Count="4" />
       <LineId Id="52" Count="0" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="97" Count="0" />
       <LineId Id="69" Count="1" />
       <LineId Id="72" Count="0" />
       <LineId Id="86" Count="0" />
       <LineId Id="73" Count="0" />
       <LineId Id="71" Count="0" />
+      <LineId Id="99" Count="5" />
       <LineId Id="75" Count="0" />
       <LineId Id="74" Count="0" />
     </LineIds>
