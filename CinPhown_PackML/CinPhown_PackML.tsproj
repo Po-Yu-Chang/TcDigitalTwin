@@ -2685,7 +2685,6 @@ External Setpoint Generation:
 					</Drive>
 					<Controller Name="Ctrl" CtrType="1">
 						<CtrPara PriorControlFactor="1">
-							<PosDiffControl Enable="false"/>
 							<PID PosKp="90"/>
 							<Observer BandWidth="20"/>
 						</CtrPara>
@@ -2709,7 +2708,7 @@ External Setpoint Generation:
 		</Motion>
 		<Plc>
 			<Project GUID="{F0C6C3EF-6481-4440-89AE-361520A7C96C}" Name="DAS_CoreSys" PrjFilePath="DAS_CoreSys\DAS_CoreSys.plcproj" TmcFilePath="DAS_CoreSys\DAS_CoreSys.tmc" ReloadTmc="true" AmsPort="851" TargetArchiveSettings="#x0000" FileArchiveSettings="#x0000" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{9EA34497-D8E6-EB8F-B03C-9E6BB2DB434C}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{210F5995-C42E-E22A-0A58-55877A38D805}">
 					<Name>DAS_CoreSys Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -2877,12 +2876,12 @@ External Setpoint Generation:
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_UI</Name>
 							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_UI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
 							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
@@ -2917,22 +2916,22 @@ External Setpoint Generation:
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_UI</Name>
 							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_DI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_DI</Name>
 							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
 							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_DI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_DI</Name>
 							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
 							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
@@ -2947,12 +2946,12 @@ External Setpoint Generation:
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._FanucEIPState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._FanucEIPState</Name>
 							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._FanucEIPState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._FanucEIPState</Name>
 							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
 							<Type>UINT</Type>
 						</Var>
