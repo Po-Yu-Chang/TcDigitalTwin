@@ -101,6 +101,8 @@ VAR
 	//Test bool signal with hans laser 
 	bAsideComplete	: BOOL;
 	bBsideComplete	: BOOL;
+	
+	ResetDetect		: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -1332,10 +1334,15 @@ bSafetyDoorOpen := (NOT INPUT.bSafetyDoor1 OR
                    NOT INPUT.bShippingRobot_ElectricalCabinet_SafetyDoor) AND
 				   (NOT    GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass)	;		//use Safedoor bypass
 
+// 暫停復位 需要按下reset 之後start 後續做。	//edited by Gamin 20260202
 IF StopEdgeDetect.xRisingEdge THEN
-    bStopMem := TRUE;
+    bStopMem 	:= TRUE;
+	ResetDetect := FALSE;
 ELSIF ResetEdgeDetect.xRisingEdge THEN
-    bStopMem := FALSE;
+//  bStopMem 	:= FALSE;
+	ResetDetect := TRUE;
+ELSIF StartEdgeDetect.xRisingEdge AND ResetDetect THEN
+	bStopMem 	:= FALSE;
 END_IF
 
 Machine_Stop := (INPUT.bAllocate_StopPb OR
@@ -3604,7 +3611,7 @@ END_CASE]]></ST>
       <Declaration><![CDATA[METHOD M_Unsuspending
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[M_StateComplete();]]></ST>
       </Implementation>
     </Method>
     <Method Name="RefAllocateService" Id="{7e2d0ea7-efb8-45f5-8e87-93fdf1e313ed}" FolderPath="Privite\HMI_Handshake\">
@@ -3927,7 +3934,12 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]
       <LineId Id="128" Count="16" />
       <LineId Id="227" Count="1" />
       <LineId Id="247" Count="0" />
-      <LineId Id="148" Count="9" />
+      <LineId Id="253" Count="0" />
+      <LineId Id="148" Count="2" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="151" Count="1" />
+      <LineId Id="250" Count="2" />
+      <LineId Id="153" Count="4" />
       <LineId Id="226" Count="0" />
       <LineId Id="159" Count="0" />
       <LineId Id="248" Count="0" />
