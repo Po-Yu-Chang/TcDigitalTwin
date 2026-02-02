@@ -72,7 +72,7 @@ END_VAR]]></Declaration>
 	Status=> , 
 	Motors:= Motors, 
 	WarehouseStatus:= WheelhouseSensor.List, 
-	ArrivedDelayTime:= T#1.5S, 
+	ArrivedDelayTime:= T#2S, 
 	WarehouseSelect:= , 
 	WarehouseCoordinates:= , 
 	TimeOut:= T#10S);

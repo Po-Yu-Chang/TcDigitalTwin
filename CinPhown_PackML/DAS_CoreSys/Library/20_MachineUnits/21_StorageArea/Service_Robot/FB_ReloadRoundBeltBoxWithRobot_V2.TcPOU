@@ -39,6 +39,7 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
 A2_Sensor := Input.bRoundBelt_ChangeZoneA2Detect_Sensor;
 A3_Sensor := Input.bRoundBelt_ChangeZoneA3Detect_Sensor;
 
@@ -1019,7 +1020,7 @@ IF _Executed THEN
     eState := STATE_DONE;
 ELSIF NOT Execute THEN
     eState := STATE_RESETTING;
-ELSIF Abort THEN
+ELSIF Abort OR _Abort THEN
 	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
 	eState :=STATE_ABORTING;
 ELSIF _Error THEN
@@ -1057,6 +1058,7 @@ END_IF]]></ST>
     </Method>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2">
       <LineId Id="9" Count="0" />
+      <LineId Id="157" Count="0" />
       <LineId Id="59" Count="0" />
       <LineId Id="61" Count="0" />
       <LineId Id="115" Count="2" />
