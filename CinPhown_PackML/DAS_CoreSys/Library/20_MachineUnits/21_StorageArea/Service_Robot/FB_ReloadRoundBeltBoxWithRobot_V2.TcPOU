@@ -35,6 +35,8 @@ VAR
 
 	// ========== Resume 續做機制 ==========
 	uiResumeStep	: UDINT := 0;	// 錯誤發生時記錄的步驟，供續做使用
+	
+	_bRetry			: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -45,8 +47,9 @@ A3_Sensor := Input.bRoundBelt_ChangeZoneA3Detect_Sensor;
 
 (*============================================================
 Create Date : 2025/11/22
-Last Update	: 2025/11/24
-Change Log  : send flag A clamp done and B clamp done for C# use to SQL // Owner : Gamin
+Last Update	: 2026/03/31
+Change Log  : 2025/11/24，send flag A clamp done and B clamp done for C# use to SQL // Owner : Gamin
+			  2026/03/31，移植泰興鏡射版本，雷射續做，清除手臂錯誤。
 ============================================================*)]]></ST>
     </Implementation>
     <Folder Name="Method" Id="{7846ed69-ca7c-44e3-8239-25dc73879ab8}" />
@@ -143,27 +146,40 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy    := FALSE;
-Error	:= TRUE;
-Aborted := TRUE;
-_Abort  := TRUE;
-UniqueErrorCode := _UniqueErrorCode;
-Status := strStatus;
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy    := FALSE;
+	Error	:= TRUE;
+	Aborted := TRUE;
+	_Abort  := TRUE;
+	UniqueErrorCode := _UniqueErrorCode;
+	Status := strStatus;
+	_AbortCompleted := FALSE;
+	uiAbortingStep	:= 0;
+END_IF
+
+IF Reset THEN
+	_bRetry := TRUE;
+	Error	:= FALSE;
+	Aborted := FALSE;
+	_Abort  := FALSE;
+END_IF
 
 // ============================================================
 // Resume 機制：保持 Execute 並按 Reset 可從錯誤點繼續
 // ============================================================
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
-ELSIF Execute AND Reset THEN
-	// Resume 模式：從儲存的步驟繼續執行
-	Error	:= FALSE;
-	Aborted := FALSE;
-	_Abort  := false;
+ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error AND NOT Robot.Halt THEN
+	// Resume 模式：確認 Robot 不在暫停且無錯誤，從儲存的步驟繼續執行
+	Status := '';
+
 	uiExecutingStep := uiResumeStep;
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
-	eState := STATE_EXECUTING;
+	
+	IF GVL_ADS.MachineState <>E_MachineState.Error THEN
+		eSTATE:=STATE_EXECUTING;
+	END_IF
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -173,14 +189,44 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_AbortCompleted := TRUE;
-AClampMoveDone	:= FALSE;
-BClampMoveDone	:= FALSE;
-_AClampDoingWork	:= FALSE;
-_BClampDoingWork	:= FALSE;
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0:
+			_Abort  := FALSE;
+			_bRetry := FALSE;
+			tonTimeOut.IN 		 := FALSE;
+			tonFeedBoxTimeout.IN := FALSE;
+
+			uiAbortingStep := 100;
+	
+    100:
+			IF Robot._DI1.Error THEN
+				uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	200:		
+			 IF DAS_CoreSys.MachineControl.M_RobotResetCmd() THEN
+				 uiAbortingStep := 300;
+			 END_IF
+	300:
+			IF DAS_CoreSys.MachineControl.M_RobotStartCmd() THEN
+				 uiAbortingStep := 400;
+			 END_IF 
+	400:
+			IF Robot._DI1.Error THEN
+		 		uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	9999:
+			_AbortCompleted := TRUE;
+END_CASE
+
+
 IF _AbortCompleted THEN
     eState := STATE_Aborted;
-END_IF]]></ST>
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_STATE_DONE" Id="{2dcc9306-8daf-42c4-972d-01a8153741f4}" FolderPath="State\">
@@ -217,6 +263,7 @@ _Abort			:= FALSE;
 uiExecutingStep := 0;
 uiResettingStep := 0;
 uiResumeStep    := 0;	// 清除 Resume 步驟
+uiAbortingStep	:= 0;
 tonTimeOut.IN := FALSE;
 tonFeedBoxTimeout.IN := FALSE;
 PreviousStrStatus := '';
@@ -226,6 +273,8 @@ AClampMoveDone := FALSE;
 BClampMoveDone := FALSE;
 _AClampDoingWork := FALSE;
 _BClampDoingWork := FALSE;
+_AbortCompleted	 := FALSE;
+_bRetry			 := FALSE;
 
 // Wait Execute command
 IF Execute THEN
@@ -1068,6 +1117,7 @@ END_IF]]></ST>
       <LineId Id="115" Count="2" />
       <LineId Id="121" Count="0" />
       <LineId Id="120" Count="0" />
+      <LineId Id="195" Count="0" />
       <LineId Id="114" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.A00_BasicUnits">
@@ -1111,27 +1161,13 @@ END_IF]]></ST>
       <LineId Id="10" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_ABORTED">
-      <LineId Id="6" Count="0" />
-      <LineId Id="28" Count="0" />
-      <LineId Id="7" Count="0" />
-      <LineId Id="24" Count="0" />
-      <LineId Id="8" Count="0" />
-      <LineId Id="14" Count="0" />
-      <LineId Id="9" Count="1" />
-      <LineId Id="5" Count="0" />
-      <LineId Id="19" Count="0" />
-      <LineId Id="11" Count="2" />
-      <LineId Id="20" Count="0" />
-      <LineId Id="30" Count="1" />
-      <LineId Id="29" Count="0" />
-      <LineId Id="15" Count="3" />
+      <LineId Id="35" Count="25" />
+      <LineId Id="62" Count="7" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_ABORTING">
-      <LineId Id="6" Count="0" />
-      <LineId Id="13" Count="2" />
-      <LineId Id="12" Count="0" />
-      <LineId Id="7" Count="1" />
+      <LineId Id="19" Count="5" />
+      <LineId Id="35" Count="30" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_DONE">
@@ -1143,13 +1179,17 @@ END_IF]]></ST>
       <LineId Id="42" Count="0" />
       <LineId Id="16" Count="1" />
       <LineId Id="25" Count="0" />
+      <LineId Id="46" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="30" Count="0" />
       <LineId Id="29" Count="0" />
       <LineId Id="31" Count="0" />
       <LineId Id="36" Count="2" />
       <LineId Id="35" Count="0" />
-      <LineId Id="19" Count="2" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="20" Count="1" />
       <LineId Id="5" Count="0" />
       <LineId Id="28" Count="0" />
       <LineId Id="2" Count="0" />
