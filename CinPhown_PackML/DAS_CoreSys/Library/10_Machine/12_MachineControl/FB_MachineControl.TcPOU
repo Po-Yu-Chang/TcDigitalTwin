@@ -2386,9 +2386,20 @@ M_ClearOutput := true;]]></ST>
     </Method>
     <Method Name="M_Execute" Id="{560a1df4-f108-4f5f-9158-749967ef08a7}" FolderPath="States\">
       <Declaration><![CDATA[METHOD M_Execute
-]]></Declaration>
+VAR
+	CylinderIndex : UDINT;
+	MotorIndex    : INT;
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[//M_StateComplete();
+// 啟用汽缸和馬達（從 M_Resetting 移至此處，避免 Resetting ↔ Aborting 循環導致汽缸來回往復）
+FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
+    Cylinder.arCylinder[CylinderIndex].xEnable := TRUE;
+END_FOR
+FOR MotorIndex := 1 TO 26 DO
+    Motor.arMotor[MotorIndex].xEnable := TRUE;
+END_FOR
+
 CASE eModeCurrent OF
     E_UnitMode.Manual:
 			M_Manual_Cylinder();
@@ -3357,7 +3368,7 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[FOR CylinderIndex := 1 TO 53 DO
 	fbAllocateArea.M_TransCVCameraPress_ManualMode();
-    Cylinder.arCylinder[CylinderIndex].xEnable := TRUE;
+    //Cylinder.arCylinder[CylinderIndex].xEnable := TRUE;
 	CylinderManualCtrl[CylinderIndex].Cylinder REF= Cylinder.arCylinder[CylinderIndex];
 END_FOR
 
@@ -3366,7 +3377,7 @@ FOR CylinderIndex := 1 TO 53 DO
 END_FOR
 
 FOR MotorIndex := 1 TO 26 DO
-    Motor.arMotor[MotorIndex].xEnable := TRUE;
+    //Motor.arMotor[MotorIndex].xEnable := TRUE;
 	MotorManualCtrl[MotorIndex].Motor REF= Motor.arMotor[MotorIndex];
 END_FOR
 
@@ -4116,7 +4127,10 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]
       <LineId Id="4" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_Execute">
-      <LineId Id="19274" Count="4" />
+      <LineId Id="19311" Count="6" />
+      <LineId Id="19274" Count="0" />
+      <LineId Id="19318" Count="0" />
+      <LineId Id="19275" Count="3" />
       <LineId Id="19280" Count="1" />
       <LineId Id="19299" Count="0" />
       <LineId Id="19293" Count="2" />
