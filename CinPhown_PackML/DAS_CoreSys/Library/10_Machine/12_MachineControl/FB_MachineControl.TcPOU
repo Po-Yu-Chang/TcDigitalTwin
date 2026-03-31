@@ -22,6 +22,11 @@ VAR_OUTPUT
     Machine_Start : BOOL;
     Machine_Stop  : BOOL;
     Machine_Reset : BOOL;
+	// 提供給手臂Service 下達清理錯誤命令
+	RobotService_ResetCmd	: BOOL;		// 兩個旗標都由Service資料夾內的Method 控制
+	RobotService_StartCmd	: BOOL;
+	ShippingRobotService_ResetCmd	: BOOL;	// 提供給出貨區手臂，清除手臂錯誤
+	ShippingRobotService_StartCmd	: BOOL;
 END_VAR
 VAR
     // C# HMI handshake
@@ -103,6 +108,12 @@ VAR
 	bBsideComplete	: BOOL;
 	
 	ResetDetect		: BOOL;
+	
+	// 提供給手臂Service 下達清理錯誤命令
+	TON_RobotReleaseResetCmd	: TON;
+	TON_RobotReleaseStartCmd	: TON;
+	TON_Shipping_RobotRelease_ResetCmd	: TON;
+	TON_Shipping_RobotRelease_StartCmd	: TON;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -244,7 +255,12 @@ Allocate_EStopEdgeDetect(xInput := INPUT.bAllocate_EStopPb);
 Storage_EstopEdgeDetect(xInput := INPUT.bStorage_EstopPb);
 
 // HMi CameraBlow Ctrl
-fbHmiCameraBlow(xInput := GVL_HMI.Storage.Manual.UpCV.CameraBlow);]]></ST>
+fbHmiCameraBlow(xInput := GVL_HMI.Storage.Manual.UpCV.CameraBlow);
+
+TON_RobotReleaseResetCmd(IN:= RobotService_ResetCmd,PT:= T#500MS);
+TON_RobotReleaseStartCmd(IN:= RobotService_StartCmd,PT:= T#500MS);
+TON_Shipping_RobotRelease_ResetCmd(IN:= ShippingRobotService_ResetCmd,PT:= T#500MS);
+TON_Shipping_RobotRelease_StartCmd(IN:= ShippingRobotService_StartCmd,PT:= T#500MS);]]></ST>
       </Implementation>
     </Action>
     <Action Name="A01_Cylinder" Id="{03239220-aa5d-45c0-a759-6c4a9a88feea}">
@@ -1278,7 +1294,7 @@ Motor.List.TransmitDifferentSideCV(xDone =>,
 	Start:= Machine_Start , 
 //	Reset:= Machine_Reset OR fbStorageArea.RobotResetCMD, 
 //	Hold:= Machine_Stop, 
-	Reset:= Machine_Reset OR fbStorageArea.RobotResetCMD OR tofResetDelay.Q, //Postpone reset signal to fanuc robot		
+	Reset:= Machine_Reset OR fbStorageArea.RobotResetCMD OR tofResetDelay.Q OR RobotService_ResetCmd, //Postpone reset signal to fanuc robot		
 	Hold:=   NOT FanucRobot.List.StorageRobot.Error AND_THEN Machine_Stop, 		//Transport form Kinsus version to taixin
 	ManualCtrl :=  GVL_HMI.Storage.Manual.FanucRobot,
 	qEnable=> , 
@@ -1293,7 +1309,7 @@ FanucRobot.List.ShippingRobot(
 	Estop:= Machine_Estop (*OR Input.bStorage_EstopPb*), 
 	OpMode:= , 
 	Start:= Machine_Start, 
-	Reset:= Machine_Reset OR fbShippingArea.RobotResetCMD OR tofResetDelay.Q, 			//
+	Reset:= Machine_Reset OR fbShippingArea.RobotResetCMD OR tofResetDelay.Q OR ShippingRobotService_ResetCmd, 			//
 	Hold:= NOT fanucrobot.List.ShippingRobot.Error AND_THEN Machine_Stop,
 	ManualCtrl:= GVL_HMI.Shipping.Manual.FanucRobot, 
 	qEnable=> , 
@@ -3422,6 +3438,93 @@ END_CASE
 ]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_RobotResetCmd" Id="{14f9c851-1e8f-42d4-81b5-2ab672f817f4}" FolderPath="Service\">
+      <Declaration><![CDATA[METHOD M_RobotResetCmd : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bTrig : BOOL ;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bTrig := TRUE;
+
+IF bTrig THEN
+	RobotService_ResetCmd := TRUE;
+	bTrig := FALSE;
+END_IF
+
+IF TON_RobotReleaseResetCmd.Q THEN
+	RobotService_ResetCmd := FALSE;
+	M_RobotResetCmd := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RobotStartCmd" Id="{0f132dfb-c827-48b1-aca0-3a65d5873e37}" FolderPath="Service\">
+      <Declaration><![CDATA[METHOD M_RobotStartCmd : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bTrig	: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bTrig := TRUE;
+
+IF bTrig THEN
+	RobotService_StartCmd := TRUE;
+	bTrig := FALSE;
+END_IF
+
+IF TON_RobotReleaseStartCmd.Q THEN
+	RobotService_StartCmd := FALSE;
+	M_RobotStartCmd := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ShippingRobotResetCmd" Id="{ce07a8d7-2b9e-4cda-bbc2-17086176d566}" FolderPath="Service\">
+      <Declaration><![CDATA[METHOD M_ShippingRobotResetCmd : BOOL
+VAR_INPUT
+END_VAR
+
+VAR
+	bTrig: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bTrig := TRUE;
+
+IF bTrig THEN
+	ShippingRobotService_ResetCmd := TRUE;
+	bTrig := FALSE;
+END_IF
+
+IF TON_Shipping_RobotRelease_ResetCmd.Q THEN
+	ShippingRobotService_ResetCmd := FALSE;
+	M_ShippingRobotResetCmd := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ShippingRobotStartCmd" Id="{19928f72-b9df-45b0-b3fb-251a1a0a6b84}" FolderPath="Service\">
+      <Declaration><![CDATA[METHOD M_ShippingRobotStartCmd : BOOL
+VAR_INPUT
+END_VAR
+
+VAR
+	bTrig: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bTrig := TRUE;
+
+IF bTrig THEN
+	ShippingRobotService_StartCmd := TRUE;
+	bTrig := FALSE;
+END_IF
+
+IF TON_Shipping_RobotRelease_StartCmd.Q THEN
+	ShippingRobotService_StartCmd := FALSE;
+	M_ShippingRobotStartCmd := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_StartHoming" Id="{1cfc2ec4-8978-47d1-a618-ea9ffb09495f}" FolderPath="Service\">
       <Declaration><![CDATA[METHOD M_StartHoming
 VAR_INPUT
@@ -3842,6 +3945,8 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]
       <LineId Id="157" Count="0" />
       <LineId Id="156" Count="0" />
       <LineId Id="158" Count="0" />
+      <LineId Id="161" Count="3" />
+      <LineId Id="160" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.A01_Cylinder">
       <LineId Id="7180" Count="78" />
@@ -4351,6 +4456,35 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]
       <LineId Id="384" Count="2" />
       <LineId Id="45" Count="0" />
       <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineControl.M_RobotResetCmd">
+      <LineId Id="5" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="18" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineControl.M_RobotStartCmd">
+      <LineId Id="9" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="10" Count="7" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineControl.M_ShippingRobotResetCmd">
+      <LineId Id="6" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="7" Count="7" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineControl.M_ShippingRobotStartCmd">
+      <LineId Id="6" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="7" Count="7" />
+      <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_StartHoming">
       <LineId Id="5" Count="1" />

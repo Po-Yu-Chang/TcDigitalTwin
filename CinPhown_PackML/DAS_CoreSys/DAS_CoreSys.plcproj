@@ -1677,9 +1677,6 @@
     <SubObject Include="FB_FanucRobot_Basic_V2.M_ControlRSR03">
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </SubObject>
-    <SubObject Include="FB_FeedInEmptyBoxWithRobot_V3.M_ReloadBox">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
   </ItemGroup>
   <ProjectExtensions>
     <PlcProjectOptions>
