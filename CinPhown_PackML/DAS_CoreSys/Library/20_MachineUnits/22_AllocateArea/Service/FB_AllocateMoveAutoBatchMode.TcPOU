@@ -578,19 +578,19 @@ END_VAR
 				// Give RoundBelt station information
 				
 				IF CurrentProcessData.FastMode THEN // Fast mode : XY robot will start move to picking during rotate belt moving to request station
-
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].X;
-				
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;						
-																	
+					IF cylinders[iWorkingCylinder].InRearPosition THEN
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].X;
+					
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;						
+					END_IF								
 				END_IF		
 				AllocationJobBatchMode:=E_AllocationJob.MovingRotateBeltStation;
 
@@ -638,19 +638,19 @@ END_VAR
                 iWorkingCylinder :=CurrentProcessData.PickingNeedleInfo[iWorkingIndex].Clip ;
 
                 IF NOT CurrentProcessData.FastMode THEN
-												
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].X;
-				
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;	
-
+					IF cylinders[iWorkingCylinder].InRearPosition THEN							
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].X;
+					
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;	
+					END_IF
                 END_IF
 
                 IF (arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Moving OR  
@@ -799,7 +799,7 @@ END_VAR
 
 	E_AllocationJob.CylinderUpPick:
 		bCylinderCheck:=TRUE;
-		bCylinderCheckFastMode:=TRUE;					
+		//bCylinderCheckFastMode:=TRUE;					
 		bBoxCheck :=TRUE;
 		
 		tAutoAllocationJobBatchTimeOut.IN:=TRUE	;
@@ -812,7 +812,7 @@ END_VAR
 							ClipsHaveNeedle_Pick[i]	 THEN
 							cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].M_Retract();// 'Auto Mode E_AllocationJob.CylinderUpPick in Sync pick Mode');
 							bCylinderCheck :=cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].InRearPosition AND bCylinderCheck;
-							bCylinderCheckFastMode := (NOT cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].InFrontPosition) AND bCylinderCheckFastMode;
+							//bCylinderCheckFastMode := (NOT cylinders[CurrentProcessData.PickingNeedleInfo[i].Clip].InFrontPosition) AND bCylinderCheckFastMode;
 						END_IF
 					END_FOR
 					
@@ -825,7 +825,8 @@ END_VAR
 					  bBoxCheck :=INPUT.bRoundBelt_WorkZoneQ2Detect_Sensor AND bBoxCheck; 
 				END_IF
 				//Check if box still there
-		
+				
+(*//====	2026/03/31 取消fastmode		edited by Gamin
 		IF CurrentProcessData.FastMode AND bCylinderCheckFastMode AND (NOT cylinders[iWorkingCylinder].InFrontPosition) THEN
 			tonFastModeTimeDelayBatch.IN:=TRUE;
 		END_IF
@@ -835,7 +836,11 @@ END_VAR
 				tonFastModeTimeDelayBatch.IN:=FALSE;			
 				AllocationJobBatchMode:=E_AllocationJob.IfNextPTP_Picking;
 		END_IF
-		
+==========================*)
+				IF cylinders[iWorkingCylinder].InRearPosition AND bCylinderCheck THEN
+					AllocationJobBatchMode:=E_AllocationJob.IfNextPTP_Picking;
+				END_IF
+
 		IF tAutoAllocationJobBatchTimeOut.Q THEN			
 			StatusDescription :='Picking Up timeout';
 			_Abort :=TRUE	;
@@ -878,19 +883,19 @@ END_VAR
 			// Give roundBelt station
 			AllocationJobBatchMode:=E_AllocationJob.MovingRotateBeltStation_SimpleAllocatePlacing;
 				IF CurrentProcessData.FastMode THEN // Fast mode : XY robot will start move to picking during rotate belt moving to request station
-										
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].X;
-				
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;						
-													
+					IF cylinders[iWorkingCylinder].InRearPosition THEN				
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].X;
+					
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;						
+					END_IF							
 				END_IF
 		
 			ELSE
@@ -969,18 +974,19 @@ END_VAR
 				tAutoAllocationJobBatchTimeOut.IN:=TRUE;
                 IF ClipsHaveNeedle[iWorkingIndex] THEN 
                     iWorkingCylinder := CurrentProcessData.PlacingNeedleInfo[iWorkingIndex].Clip;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].X;
-				
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;						
-								
+					IF cylinders[iWorkingCylinder].InRearPosition THEN
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].X;
+					
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;						
+					END_IF
 							
 					IF CurrentProcessData.FastMode AND NOT SimpleAllocateMode THEN // Fast mode : When robot go to placing needles , Rotatebelt will start to move to next picking station	But not allow in simple allocate job due to placing location is rotatebelt also					
 						IF AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob > iProcessingIndex+1 THEN//AND AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.AllocationInfo[iProcessingIndex+1]. <> iCurrentRotateBeltStation THEN
@@ -1092,7 +1098,7 @@ END_VAR
 
             E_AllocationJob.CylinderUpPlace:
 				bCylinderCheck:=TRUE;
-				bCylinderCheckFastMode:=TRUE;
+				//bCylinderCheckFastMode:=TRUE;
 				tAutoAllocationJobBatchTimeOut.IN:=TRUE;
 				
                 cylinders[iWorkingCylinder].M_Retract();// ' Auto Mode E_AllocationJob.CylinderUpPlace');
@@ -1103,12 +1109,12 @@ END_VAR
 							ClipsHaveNeedle[i]	 THEN
 							cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].M_Retract();// 'Auto Mode E_AllocationJob.CylinderUpPlace in Sync placing Mode');
 							bCylinderCheck :=cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip ].InRearPosition AND bCylinderCheck;	
-							bCylinderCheckFastMode := (NOT cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip ].InFrontPosition) AND bCylinderCheckFastMode ;
+							//bCylinderCheckFastMode := (NOT cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip ].InFrontPosition) AND bCylinderCheckFastMode ;
 							
 						END_IF
 					END_FOR					
 				END_IF
-				
+(*================	取消 fastmode，防止偷跑導致撞機，edited BY Gamin 2026/03/31
 				IF CurrentProcessData.FastMode  AND (NOT cylinders[iWorkingCylinder].InFrontPosition) AND bCylinderCheckFastMode THEN						
                		 tonFastModeTimeDelayBatch.IN := TRUE;
 				END_IF
@@ -1118,9 +1124,13 @@ END_VAR
 					tonFastModeTimeDelayBatch.IN 				  := FALSE;
                     
                     AllocationJobBatchMode := E_AllocationJob.CheckNeedlePlaced;
-
                 END_IF
-
+====================*)
+				IF cylinders[iWorkingCylinder].InRearPosition AND bCylinderCheck THEN
+                    tAutoAllocationJobBatchTimeOut.IN         := FALSE;
+                    AllocationJobBatchMode := E_AllocationJob.CheckNeedlePlaced;
+                END_IF
+				
                 IF tAutoAllocationJobBatchTimeOut.Q THEN
 
                     StatusDescription := ' placing Up timeout';
@@ -1410,7 +1420,14 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="335" Count="0" />
       <LineId Id="337" Count="7" />
       <LineId Id="346" Count="1" />
-      <LineId Id="349" Count="144" />
+      <LineId Id="349" Count="132" />
+      <LineId Id="1084" Count="0" />
+      <LineId Id="482" Count="10" />
+      <LineId Id="1086" Count="0" />
+      <LineId Id="1085" Count="0" />
+      <LineId Id="1087" Count="0" />
+      <LineId Id="1083" Count="0" />
+      <LineId Id="493" Count="0" />
       <LineId Id="495" Count="15" />
       <LineId Id="512" Count="13" />
       <LineId Id="529" Count="1" />
@@ -1424,6 +1441,7 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="612" Count="4" />
       <LineId Id="618" Count="1" />
       <LineId Id="621" Count="39" />
+      <LineId Id="1088" Count="0" />
       <LineId Id="961" Count="10" />
       <LineId Id="960" Count="0" />
       <LineId Id="666" Count="9" />
@@ -1436,7 +1454,13 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="712" Count="5" />
       <LineId Id="719" Count="1" />
       <LineId Id="1035" Count="0" />
-      <LineId Id="722" Count="100" />
+      <LineId Id="722" Count="87" />
+      <LineId Id="811" Count="1" />
+      <LineId Id="1090" Count="1" />
+      <LineId Id="1093" Count="0" />
+      <LineId Id="1089" Count="0" />
+      <LineId Id="1094" Count="0" />
+      <LineId Id="813" Count="9" />
       <LineId Id="825" Count="25" />
       <LineId Id="870" Count="13" />
       <LineId Id="5" Count="0" />
