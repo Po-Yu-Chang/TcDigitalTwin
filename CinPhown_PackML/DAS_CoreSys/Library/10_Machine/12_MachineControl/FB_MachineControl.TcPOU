@@ -1947,9 +1947,10 @@ ELSIF (AllocateManualCommand.AllocatedRobot.AxisX.Homing.Execute OR  fbAllocateA
     arAxisCtrl_gb[AxisNo.Allocate_X].Admin._OpMode.en := ModeHoming;
 ELSIF TableMove.xBusy AND AllowAllocateRobotMove THEN
     arAxisCtrl_gb[AxisNo.Allocate_X].Admin._OpMode.en := ModePosAbs;
-ELSIF (fbAllocateArea.fb_AllocateBatchMode.Busy OR fbAllocateArea.fb_AllocateBatchMode_Reverse.Busy ) AND AllowAllocateRobotMove THEN
+ELSIF fbAllocateArea.fb_AllocateBatchMode.Busy AND AllowAllocateRobotMove THEN
     arAxisCtrl_gb[AxisNo.Allocate_X].Admin._OpMode.en := ModePosAbs;
-		 
+ELSIF fbAllocateArea.fb_AllocateBatchMode_Reverse.Busy AND fbAllocateArea.fb_AllocateBatchMode_Reverse.bAllocateRobotMoveRequest AND AllowAllocateRobotMove THEN
+	arAxisCtrl_gb[AxisNo.Allocate_X].Admin._OpMode.en := ModePosAbs;
 ELSE
     arAxisCtrl_gb[AxisNo.Allocate_X].Admin.StopDeceleration := 1000;
     arAxisCtrl_gb[AxisNo.Allocate_X].Admin._OpMode.en := E_AXIS_MODE.ModeAH;
@@ -1998,8 +1999,10 @@ ELSIF( AllocateManualCommand.AllocatedRobot.AxisY.Homing.Execute OR  fbAllocateA
     END_IF
 ELSIF TableMove.xBusy AND AllowAllocateRobotMove THEN
     arAxisCtrl_gb[AxisNo.Allocate_Y].Admin._OpMode.en := ModePosAbs;
-ELSIF (fbAllocateArea.fb_AllocateBatchMode.Busy OR fbAllocateArea.fb_AllocateBatchMode_Reverse.Busy) AND AllowAllocateRobotMove THEN
+ELSIF fbAllocateArea.fb_AllocateBatchMode.Busy AND AllowAllocateRobotMove THEN
     arAxisCtrl_gb[AxisNo.Allocate_Y].Admin._OpMode.en := ModePosAbs;
+ELSIF fbAllocateArea.fb_AllocateBatchMode_Reverse.Busy AND fbAllocateArea.fb_AllocateBatchMode_Reverse.bAllocateRobotMoveRequest AND AllowAllocateRobotMove THEN
+	arAxisCtrl_gb[AxisNo.Allocate_Y].Admin._OpMode.en := ModePosAbs;
 ELSE
     arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.StopDeceleration := 1000;
     arAxisCtrl_gb[AxisNo.Allocate_Y].Admin._OpMode.en := E_AXIS_MODE.ModeAH;
@@ -2041,9 +2044,9 @@ ELSIF TableMove.xBusy AND AllowOutRobotMove THEN
     arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Jerk := CurrentData.Axes.OutRobot_X.HalfAuto.Jerk;
     arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Velocity := CurrentData.Axes.OutRobot_X.HalfAuto.Velocity;		   
     arAxisCtrl_gb[AxisNo.OutRobot_X].Admin._OpMode.en := ModePosAbs;
-ELSIF AllocateService.AutoMode_BoxMoveReverse.HandShake.Busy 
+ELSIF (AllocateService.AutoMode_BoxMoveReverse.HandShake.Busy 
 	  OR AllocateService.AutoMode_EmptyBoxMove.HandShake.Busy 
-	  OR AllocateService.AutoMode_RareBoxMove.HandShake.Busy AND AllowOutRobotMove THEN
+	  OR AllocateService.AutoMode_RareBoxMove.HandShake.Busy) AND AllowOutRobotMove THEN
 	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Acc := CurrentData.Axes.OutRobot_X.Auto.Acceleration;
     arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Dec := CurrentData.Axes.OutRobot_X.Auto.Deceleration;
     arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Jerk := CurrentData.Axes.OutRobot_X.Auto.Jerk;
@@ -2090,9 +2093,9 @@ ELSIF TableMove.xBusy AND AllowOutRobotMove THEN
     arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Jerk := CurrentData.Axes.OutRobot_Y.HalfAuto.Jerk;
     arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Velocity := CurrentData.Axes.OutRobot_Y.HalfAuto.Velocity;		   
     arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin._OpMode.en := ModePosAbs;
-ELSIF AllocateService.AutoMode_BoxMoveReverse.HandShake.Busy 
+ELSIF (AllocateService.AutoMode_BoxMoveReverse.HandShake.Busy 
 	  OR AllocateService.AutoMode_EmptyBoxMove.HandShake.Busy 
-	  OR AllocateService.AutoMode_RareBoxMove.HandShake.Busy AND AllowOutRobotMove THEN
+	  OR AllocateService.AutoMode_RareBoxMove.HandShake.Busy) AND AllowOutRobotMove THEN
 	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Acc := CurrentData.Axes.OutRobot_Y.Auto.Acceleration;
     arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Dec := CurrentData.Axes.OutRobot_Y.Auto.Deceleration;
     arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Jerk := CurrentData.Axes.OutRobot_Y.Auto.Jerk;
@@ -4079,10 +4082,14 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]
     </LineIds>
     <LineIds Name="FB_MachineControl.M_Auto_Axes">
       <LineId Id="1353" Count="51" />
-      <LineId Id="1699" Count="0" />
+      <LineId Id="1856" Count="0" />
+      <LineId Id="1855" Count="0" />
       <LineId Id="1405" Count="2" />
       <LineId Id="1698" Count="0" />
-      <LineId Id="1408" Count="80" />
+      <LineId Id="1408" Count="45" />
+      <LineId Id="1854" Count="0" />
+      <LineId Id="1853" Count="0" />
+      <LineId Id="1454" Count="34" />
       <LineId Id="1491" Count="5" />
       <LineId Id="1769" Count="6" />
       <LineId Id="1768" Count="0" />
