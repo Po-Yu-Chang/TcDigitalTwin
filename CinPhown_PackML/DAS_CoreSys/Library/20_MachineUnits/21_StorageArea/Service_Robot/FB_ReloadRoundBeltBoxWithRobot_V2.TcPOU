@@ -144,6 +144,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[Busy    := FALSE;
+Error	:= TRUE;
 Aborted := TRUE;
 _Abort  := TRUE;
 UniqueErrorCode := _UniqueErrorCode;
@@ -156,6 +157,9 @@ IF NOT Execute THEN
 	eState := STATE_RESETTING;
 ELSIF Execute AND Reset THEN
 	// Resume 模式：從儲存的步驟繼續執行
+	Error	:= FALSE;
+	Aborted := FALSE;
+	_Abort  := false;
 	uiExecutingStep := uiResumeStep;
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
@@ -1107,7 +1111,9 @@ END_IF]]></ST>
       <LineId Id="10" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_ABORTED">
-      <LineId Id="6" Count="1" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="7" Count="0" />
       <LineId Id="24" Count="0" />
       <LineId Id="8" Count="0" />
       <LineId Id="14" Count="0" />
@@ -1116,6 +1122,8 @@ END_IF]]></ST>
       <LineId Id="19" Count="0" />
       <LineId Id="11" Count="2" />
       <LineId Id="20" Count="0" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="29" Count="0" />
       <LineId Id="15" Count="3" />
       <LineId Id="2" Count="0" />
     </LineIds>
