@@ -42,7 +42,13 @@ END_VAR
     <Implementation>
       <ST><![CDATA[SUPER^.A10_StateControl();
 A00_BasicUnits();
-SameSizeFullSensor := Input.bSameSizeCV_BoxNearStorageSensor;]]></ST>
+SameSizeFullSensor := Input.bSameSizeCV_BoxNearStorageSensor;
+
+(*============================================================
+Create Date : 2026/04/01
+Last Update	: 2026/04/01
+Change Log  : 2026/04/01，移植泰興鏡射機版本。
+============================================================*)]]></ST>
     </Implementation>
     <Folder Name="Method" Id="{a4239636-7ee3-4895-a57f-25269708e78a}" />
     <Folder Name="State" Id="{7a280747-8a3a-44cf-81bf-eeed27a38ec8}" />
@@ -1120,6 +1126,8 @@ END_IF]]></ST>
       <LineId Id="9" Count="0" />
       <LineId Id="22" Count="0" />
       <LineId Id="56" Count="0" />
+      <LineId Id="95" Count="4" />
+      <LineId Id="94" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.A00_BasicUnits">
       <LineId Id="1" Count="0" />
