@@ -265,7 +265,7 @@ _bRetry	:= FALSE;
 
 
 // Wait Execute command
-IF Execute THEN
+IF Execute AND NOT stop THEN
     eState := STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>

@@ -28,6 +28,8 @@ VAR
 	_UniqueErrorCode :STRING;
 	PreviousStrStatus : STRING;
 	PreviousErrorCode : STRING;
+	
+	_bRetry	: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -43,6 +45,54 @@ tonCheckRoundBeltDelay(PT:=T#2S);
 ErrorID:=2220;]]></ST>
       </Implementation>
     </Action>
+    <Method Name="M_CheckClampStatus" Id="{d7368d2a-fd2a-4d7a-b199-273135aac9f8}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckClampStatus : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckClampStatus := FALSE;
+
+IF NOT UseA AND NOT UseB THEN
+	M_CheckClampStatus 	:= FALSE;
+	strStatus 			:= 'FB_RobotRegionMove_RoundBelt ,Wrong Command , Both Clammp not used';
+	RETURN;
+END_IF
+
+IF UseA THEN
+	IF Get THEN
+		IF NOT Robot._DI1.ClampA_Open THEN
+			M_CheckClampStatus  := FALSE;
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use A Clamp Get ,but Clamp not open ';
+			RETURN;
+		END_IF
+	ELSE
+		IF Robot._DI1.ClampA_Open THEN
+			M_CheckClampStatus	:= FALSE;
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use A Clamp Place ,but Clamp open';
+			RETURN;
+		END_IF
+	END_IF
+END_IF
+IF UseB THEN
+	IF Get THEN
+		IF NOT Robot._DI1.ClampB_Open THEN
+			M_CheckClampStatus  := FALSE;
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use B Clamp Get ,but Clamp not open ';
+			RETURN;
+		END_IF
+	ELSE
+		IF Robot._DI1.ClampB_Open THEN
+			M_CheckClampStatus	:= FALSE;
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use B Clamp Place ,but Clamp open';
+			RETURN;
+		END_IF
+	END_IF
+END_IF
+
+M_CheckClampStatus := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_CheckCommand" Id="{c76ab9a1-42a8-47b6-a51f-2d504f545694}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
 VAR_INPUT
@@ -101,24 +151,34 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[ERROR :=TRUE;
-Busy    := FALSE;
-Aborted := TRUE;
-Status := strStatus;
-UniqueErrorCode:=_UniqueErrorCode;
-uiAbortingStep := 0;
+        <ST><![CDATA[IF NOT _bRetry THEN
+	ERROR 	:= TRUE;
+	Busy    := FALSE;
+	Aborted := TRUE;
+	Status 	:= strStatus;
+	UniqueErrorCode := _UniqueErrorCode;
+	uiAbortingStep 		:= 0;
+	_AbortCompleted		:= FALSE;
+END_IF
+
+IF reset THEN
+	_bRetry := TRUE;
+	Error 	:= FALSE;
+	Aborted := FALSE;
+END_IF
 
 //============= State Control==================
 IF NOT Execute THEN
 	eSTATE:=STATE_RESETTING;
 END_IF
-IF Execute AND Reset THEN
-	Error := FALSE;
-	Aborted := FALSE;
+IF Execute AND _bRetry AND NOT Robot._DI1.Error AND NOT Robot.Halt THEN
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
-	uiExecutingStep :=uiResumeStep;
-	eSTATE:=STATE_EXECUTING;
+	uiExecutingStep   := uiResumeStep;
+	Status := '';
+	IF GVL_ADS.MachineState <>E_MachineState.Error THEN
+		eSTATE:=STATE_EXECUTING;
+	END_IF
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -130,13 +190,38 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
 	0 :
-		uiAbortingStep:=9999;
-		tonTimeOut.IN :=FALSE;
-		_Abort :=FALSE;
-		IF strStatus = PreviousStrStatus THEN
-			_UniqueErrorCode :=PreviousErrorCode;
-		END_IF
-	9999:	_AbortCompleted:=TRUE;
+			
+			tonTimeOut.IN 				:= FALSE;
+			tonCheckRoundBeltDelay.IN	:= FALSE;
+			_Abort := FALSE;
+			_bRetry:= FALSE;
+			IF strStatus = PreviousStrStatus THEN
+				_UniqueErrorCode :=PreviousErrorCode;
+			END_IF
+			
+			uiAbortingStep := 100;
+    100:
+			IF Robot._DI1.Error THEN
+				uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	200:		
+			 IF DAS_CoreSys.MachineControl.M_RobotResetCmd() THEN
+				 uiAbortingStep := 300;
+			 END_IF
+	300:
+			IF DAS_CoreSys.MachineControl.M_RobotStartCmd() THEN
+				 uiAbortingStep := 400;
+			 END_IF 
+	400:
+			IF Robot._DI1.Error THEN
+		 		uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	9999:	
+			_AbortCompleted:=TRUE;
 END_CASE
 
 IF _AbortCompleted THEN	
@@ -179,9 +264,12 @@ strStatus :='No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 PreviousStrStatus			 :='';
 PreviousErrorCode			 :='';
+_bRetry			:= FALSE;
+uiAbortingStep  := 0;
+_AbortCompleted := FALSE;
 
 // Wait Execute command
-IF Execute THEN
+IF Execute AND NOT stop THEN
     eState := STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>
@@ -252,8 +340,14 @@ CASE uiExecutingStep OF
     20:
         // CHeck units not busy state
         IF M_CheckUnitsNotBusy() THEN
-            uiExecutingStep := 1000;
+            uiExecutingStep := 30;
         END_IF
+	30:
+		IF M_CheckClampStatus() THEN
+			uiExecutingStep := 1000;
+		ELSE
+			_Abort := TRUE;
+		END_IF
    
 	1000:   
 			// Read   coordinate
@@ -302,20 +396,28 @@ CASE uiExecutingStep OF
 				IF Get THEN  // Picking job , check box is ready
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 						_Error:=TRUE	;
-						strStatus :='No Box on A1';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : No Box on A1';
+
+
 					END_IF				
 					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 						_Error:=TRUE	;
-						strStatus :='No Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : No Box on A2';
+
+
 					END_IF	
 				ELSE		//Place job , check no box 
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 						_Error:=TRUE	;
-						strStatus :='Box on A1';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : Box on A1';
+
+
 					END_IF				
 					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 						_Error:=TRUE	;
-						strStatus :='Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : Box on A2';
+
+
 					END_IF				
 				END_IF
 				 uiSingleClampStep:=100;  
@@ -352,14 +454,16 @@ CASE uiExecutingStep OF
         END_IF
 			tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			tonTimeOut.IN:=FALSE;
-			strStatus :='Reset Robot timeout';
-			_Error:=TRUE;
+			uiResumeStep 	:= 10000;
+			tonTimeOut.IN	:= FALSE;
+			strStatus := 'FB_RobotRegionMove_RoundBlet Step 10000 : Robot Abs Move timeout';
+			_Abort			:= TRUE;
 		END_IF	
 		IF robot.Error THEN
-			uiResumeStep := 10000;
-			_Abort := TRUE;
-			strStatus := 'FB_RobotRegionMove_RoundBlet : Use ClampA Command Robot Error';
+			uiResumeStep 	:= 10000;
+			tonTimeOut.IN	:= FALSE;
+			_Abort 			:= TRUE;
+			strStatus := CONCAT('FB_RobotRegionMove_RoundBlet Step 10000 : ',robot.ErrMsg);
 		END_IF
     10080:
         Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
@@ -369,7 +473,9 @@ CASE uiExecutingStep OF
             uiExecutingStep := 99000; 
         END_IF
     	IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Reset Robot timeout';
+			strStatus :='FB_RobotRegionMove_RoundBlet Step 10000 : Reset Robot timeout';
+
+
 			_Error:=TRUE;
 		END_IF	
     
@@ -393,20 +499,28 @@ CASE uiExecutingStep OF
 				IF Get THEN  // Picking job , check box is ready
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 						_Error:=TRUE	;
-						strStatus :='No Box on A1';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : No Box on A1';
+
+
 					END_IF				
 					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 						_Error:=TRUE	;
-						strStatus :='No Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : No Box on A2';
+
+
 					END_IF	
 				ELSE		//Place job , check no box 
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 						_Error:=TRUE	;
-						strStatus :='Box on A1';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : Box on A1';
+
+
 					END_IF				
 					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 						_Error:=TRUE	;
-						strStatus :='Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : Box on A2';
+
+
 					END_IF				
 				END_IF
 				 uiSingleClampStep:=100;  
@@ -443,14 +557,15 @@ CASE uiExecutingStep OF
         END_IF	
 		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			tonTimeOut.IN:=FALSE;
-			strStatus :='Reset Robot timeout';
-			_Error:=TRUE;
+			uiResumeStep 	:= 20000;
+			tonTimeOut.IN	:= FALSE;
+			strStatus := 'FB_RobotRegionMove_RoundBlet Step 20000 : Robot Abs Move timeout';
+			_Abort			:= TRUE;
 		END_IF
 		IF robot.Error THEN
 			uiResumeStep := 20000;
 			_Abort := TRUE;
-			strStatus := 'FB_RobotRegionMove_RoundBlet : Use ClampB Command Robot Error';
+			strStatus := CONCAT('FB_RobotRegionMove_RoundBlet Step 20000 : ',robot.ErrMsg);
 		END_IF		          		 
 			
        
@@ -463,7 +578,9 @@ CASE uiExecutingStep OF
             uiExecutingStep := 99000;
         END_IF
 		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Reset Robot timeout';
+			strStatus :='FB_RobotRegionMove_RoundBlet Step 20080 : Reset Robot timeout';
+
+
 			_Error:=TRUE;
 		END_IF	
     30000: // Both Clamps
@@ -486,20 +603,28 @@ CASE uiExecutingStep OF
 					IF Get THEN  // Picking job , check box is ready
 						IF  Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 							_Error:=TRUE	;
-							strStatus :='No Box on A1';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : No Box on A1';
+
+
 						END_IF				
 						IF  Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 							_Error:=TRUE	;
-							strStatus :='No Box on A2';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : No Box on A2';
+
+
 						END_IF	
 					ELSE		//Place job , check no box 
 						IF  Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 							_Error:=TRUE	;
-							strStatus :='Box on A1';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : Box on A1';
+
+
 						END_IF				
 						IF  Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 							_Error:=TRUE	;
-							strStatus :='Box on A2';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : Box on A2';
+
+
 						END_IF				
 					END_IF
 					IF NOT _Error THEN
@@ -540,14 +665,15 @@ CASE uiExecutingStep OF
         END_IF
 		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			tonTimeOut.IN:=FALSE;
-			strStatus :='Reset Robot timeout';
-			_Error:=TRUE;
+			uiResumeStep 	:= 30000;
+			tonTimeOut.IN	:= FALSE;
+			strStatus := 'FB_RobotRegionMove_RoundBlet Step 30000 : Robot Abs Move timeout';
+			_Abort			:= TRUE;
 		END_IF
 		IF robot.Error THEN
 			uiResumeStep := 30000;
 			_Abort := TRUE;
-			strStatus := 'FB_RobotRegionMove_RoundBlet : Use BothClamp Command Robot Error';
+			strStatus := CONCAT('FB_RobotRegionMove_RoundBlet Step 30000 : ',Robot.ErrMsg);
 		END_IF	
 		
     30080: // Check robot command is clear
@@ -560,7 +686,11 @@ CASE uiExecutingStep OF
         END_IF    
    		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Stop Robot timeout';
+			strStatus :='FB_RobotRegionMove_RoundBlet Step 30080 : Stop Robot timeout';
+
+
+
+
 			_Error:=TRUE;
 		END_IF	
    
@@ -568,20 +698,28 @@ CASE uiExecutingStep OF
 			IF Get THEN  // Picking job , check box putted
 				IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 					_Error:=TRUE	;
-					strStatus :='Box still on A1';
+					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : Box still on A1';
+
+
 				END_IF				
 				IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 					_Error:=TRUE	;
-					strStatus :='Box still on A2';
+					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : Box still on A2';
+
+
 				END_IF	
 			ELSE		//Place job , check no box 
 				IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 					_Error:=TRUE	;
-					strStatus :='No Box on A1';
+					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : No Box on A1';
+
+
 				END_IF				
 				IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 					_Error:=TRUE	;
-					strStatus :='No Box on A2';
+					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : No Box on A2';
+
+
 				END_IF	
 			
 			END_IF
@@ -592,18 +730,18 @@ CASE uiExecutingStep OF
                 Status    := 'Process completed';
         	_Executed := TRUE;
 END_CASE
-IF _Executed THEN
-    eState := STATE_DONE;
+
+// ==================== STATE Control ========================
+IF NOT Execute THEN
+    eState 	:= STATE_RESETTING;
 ELSIF _Error THEN
-//	FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
-    eState := STATE_ERROR;
-ELSIF NOT Execute THEN
-    eState := STATE_RESETTING;
+    eState 	:= STATE_ERROR;
+ELSIF _Abort THEN
+	eSTATE	:= STATE_ABORTING;
+ELSIF _Executed THEN
+    eState 	:= STATE_DONE;
 END_IF
-IF _Abort OR Abort THEN
-//	FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
-	eSTATE:=STATE_ABORTING;
-END_IF]]></ST>
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_STATE_RESETTING" Id="{6ec2e219-c197-4125-8cdd-12095b874a90}" FolderPath="State\">
@@ -643,6 +781,35 @@ END_IF]]></ST>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.A00_BasicUnits">
       <LineId Id="1" Count="2" />
     </LineIds>
+    <LineIds Name="FB_RobotRegionMove_RoundBelt.M_CheckClampStatus">
+      <LineId Id="43" Count="1" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="2" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="24" Count="4" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="29" Count="4" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="36" Count="0" />
+    </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_CheckCommand">
       <LineId Id="24" Count="0" />
       <LineId Id="137" Count="0" />
@@ -669,24 +836,12 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_ABORTED">
-      <LineId Id="14" Count="4" />
-      <LineId Id="36" Count="0" />
-      <LineId Id="38" Count="0" />
-      <LineId Id="37" Count="0" />
-      <LineId Id="19" Count="2" />
-      <LineId Id="23" Count="0" />
-      <LineId Id="34" Count="1" />
-      <LineId Id="29" Count="1" />
-      <LineId Id="24" Count="1" />
+      <LineId Id="42" Count="23" />
+      <LineId Id="69" Count="3" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_ABORTING">
-      <LineId Id="12" Count="2" />
-      <LineId Id="24" Count="0" />
-      <LineId Id="15" Count="0" />
-      <LineId Id="29" Count="1" />
-      <LineId Id="28" Count="0" />
-      <LineId Id="16" Count="4" />
+      <LineId Id="34" Count="37" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_DONE">
@@ -702,7 +857,9 @@ END_IF]]></ST>
       <LineId Id="19" Count="0" />
       <LineId Id="43" Count="0" />
       <LineId Id="34" Count="0" />
+      <LineId Id="48" Count="1" />
       <LineId Id="33" Count="0" />
+      <LineId Id="47" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="16" Count="1" />
       <LineId Id="15" Count="0" />
@@ -716,171 +873,7 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_EXECUTING">
-      <LineId Id="1053" Count="0" />
-      <LineId Id="1056" Count="0" />
-      <LineId Id="1054" Count="0" />
-      <LineId Id="6" Count="1" />
-      <LineId Id="1300" Count="1" />
-      <LineId Id="1299" Count="0" />
-      <LineId Id="20" Count="0" />
-      <LineId Id="15" Count="0" />
-      <LineId Id="46" Count="0" />
-      <LineId Id="50" Count="1" />
-      <LineId Id="722" Count="0" />
-      <LineId Id="53" Count="1" />
-      <LineId Id="873" Count="0" />
-      <LineId Id="1111" Count="0" />
-      <LineId Id="55" Count="2" />
-      <LineId Id="561" Count="1" />
-      <LineId Id="58" Count="11" />
-      <LineId Id="707" Count="0" />
-      <LineId Id="710" Count="0" />
-      <LineId Id="708" Count="0" />
-      <LineId Id="731" Count="0" />
-      <LineId Id="734" Count="0" />
-      <LineId Id="1057" Count="0" />
-      <LineId Id="945" Count="1" />
-      <LineId Id="950" Count="0" />
-      <LineId Id="563" Count="1" />
-      <LineId Id="570" Count="0" />
-      <LineId Id="566" Count="1" />
-      <LineId Id="571" Count="0" />
-      <LineId Id="568" Count="1" />
-      <LineId Id="572" Count="0" />
-      <LineId Id="565" Count="0" />
-      <LineId Id="91" Count="2" />
-      <LineId Id="1248" Count="0" />
-      <LineId Id="1058" Count="0" />
-      <LineId Id="1114" Count="0" />
-      <LineId Id="1116" Count="1" />
-      <LineId Id="1115" Count="0" />
-      <LineId Id="1112" Count="1" />
-      <LineId Id="1059" Count="1" />
-      <LineId Id="1063" Count="2" />
-      <LineId Id="1062" Count="0" />
-      <LineId Id="1067" Count="0" />
-      <LineId Id="1087" Count="0" />
-      <LineId Id="1068" Count="17" />
-      <LineId Id="1066" Count="0" />
-      <LineId Id="1091" Count="0" />
-      <LineId Id="1088" Count="0" />
-      <LineId Id="1093" Count="0" />
-      <LineId Id="1118" Count="0" />
-      <LineId Id="1121" Count="0" />
-      <LineId Id="1120" Count="0" />
-      <LineId Id="1119" Count="0" />
-      <LineId Id="1122" Count="0" />
-      <LineId Id="1125" Count="1" />
-      <LineId Id="1124" Count="0" />
-      <LineId Id="1127" Count="0" />
-      <LineId Id="1129" Count="0" />
-      <LineId Id="1128" Count="0" />
-      <LineId Id="1123" Count="0" />
-      <LineId Id="1090" Count="0" />
-      <LineId Id="1094" Count="0" />
-      <LineId Id="813" Count="0" />
-      <LineId Id="614" Count="1" />
-      <LineId Id="758" Count="1" />
-      <LineId Id="617" Count="0" />
-      <LineId Id="761" Count="3" />
-      <LineId Id="111" Count="1" />
-      <LineId Id="1323" Count="0" />
-      <LineId Id="113" Count="1" />
-      <LineId Id="1321" Count="0" />
-      <LineId Id="1318" Count="0" />
-      <LineId Id="1322" Count="0" />
-      <LineId Id="1319" Count="1" />
-      <LineId Id="613" Count="0" />
-      <LineId Id="115" Count="3" />
-      <LineId Id="887" Count="0" />
-      <LineId Id="119" Count="0" />
-      <LineId Id="1381" Count="0" />
-      <LineId Id="1386" Count="1" />
-      <LineId Id="1382" Count="1" />
-      <LineId Id="120" Count="0" />
-      <LineId Id="884" Count="2" />
-      <LineId Id="172" Count="0" />
-      <LineId Id="179" Count="0" />
-      <LineId Id="620" Count="1" />
-      <LineId Id="1132" Count="49" />
-      <LineId Id="1183" Count="1" />
-      <LineId Id="1331" Count="7" />
-      <LineId Id="1193" Count="2" />
-      <LineId Id="1330" Count="0" />
-      <LineId Id="1196" Count="0" />
-      <LineId Id="789" Count="0" />
-      <LineId Id="1325" Count="4" />
-      <LineId Id="1324" Count="0" />
-      <LineId Id="652" Count="0" />
-      <LineId Id="655" Count="4" />
-      <LineId Id="1389" Count="3" />
-      <LineId Id="1388" Count="0" />
-      <LineId Id="660" Count="1" />
-      <LineId Id="205" Count="0" />
-      <LineId Id="899" Count="3" />
-      <LineId Id="662" Count="0" />
-      <LineId Id="206" Count="0" />
-      <LineId Id="1205" Count="0" />
-      <LineId Id="1209" Count="0" />
-      <LineId Id="1206" Count="2" />
-      <LineId Id="207" Count="0" />
-      <LineId Id="251" Count="0" />
-      <LineId Id="667" Count="0" />
-      <LineId Id="814" Count="0" />
-      <LineId Id="838" Count="0" />
-      <LineId Id="815" Count="0" />
-      <LineId Id="1203" Count="0" />
-      <LineId Id="1197" Count="0" />
-      <LineId Id="817" Count="0" />
-      <LineId Id="1210" Count="0" />
-      <LineId Id="835" Count="0" />
-      <LineId Id="1256" Count="17" />
-      <LineId Id="1255" Count="0" />
-      <LineId Id="1281" Count="0" />
-      <LineId Id="1274" Count="0" />
-      <LineId Id="1282" Count="0" />
-      <LineId Id="836" Count="0" />
-      <LineId Id="1212" Count="0" />
-      <LineId Id="1219" Count="0" />
-      <LineId Id="697" Count="0" />
-      <LineId Id="1220" Count="0" />
-      <LineId Id="840" Count="5" />
-      <LineId Id="1280" Count="0" />
-      <LineId Id="871" Count="1" />
-      <LineId Id="846" Count="0" />
-      <LineId Id="698" Count="2" />
-      <LineId Id="801" Count="7" />
-      <LineId Id="664" Count="2" />
-      <LineId Id="252" Count="0" />
-      <LineId Id="1345" Count="0" />
-      <LineId Id="253" Count="1" />
-      <LineId Id="1340" Count="4" />
-      <LineId Id="1339" Count="0" />
-      <LineId Id="705" Count="0" />
-      <LineId Id="255" Count="4" />
-      <LineId Id="1394" Count="3" />
-      <LineId Id="1393" Count="0" />
-      <LineId Id="927" Count="0" />
-      <LineId Id="260" Count="1" />
-      <LineId Id="923" Count="3" />
-      <LineId Id="469" Count="0" />
-      <LineId Id="554" Count="1" />
-      <LineId Id="1013" Count="18" />
-      <LineId Id="1011" Count="1" />
-      <LineId Id="1032" Count="0" />
-      <LineId Id="1346" Count="0" />
-      <LineId Id="1010" Count="0" />
-      <LineId Id="556" Count="0" />
-      <LineId Id="22" Count="0" />
-      <LineId Id="8" Count="3" />
-      <LineId Id="1363" Count="0" />
-      <LineId Id="12" Count="2" />
-      <LineId Id="5" Count="0" />
-      <LineId Id="27" Count="0" />
-      <LineId Id="1364" Count="0" />
-      <LineId Id="28" Count="0" />
-      <LineId Id="26" Count="0" />
-      <LineId Id="366" Count="4" />
+      <LineId Id="1414" Count="432" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_RESETTING">

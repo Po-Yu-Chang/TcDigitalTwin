@@ -279,7 +279,7 @@ _UniqueErrorCode	:='0';
 _bRetry				:= false;
 
 // Wait Execute command
-IF Execute THEN
+IF Execute AND NOT stop THEN
     eState := STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>
