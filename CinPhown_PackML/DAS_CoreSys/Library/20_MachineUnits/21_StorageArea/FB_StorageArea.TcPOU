@@ -47,6 +47,7 @@ VAR
 	//UpCV
     _fbDaimeterMovement   			: FB_DiameterMovement; //UpCV Internal use
     fbUpperFeedInConveyor 			: FB_UpperFeedInConveyor;
+	bUpperCV_ServiceDone			: BOOL;					// 偵測上層輸送帶是否做完
 	fbAddBoxes                      : FB_AddBoxes_v2;
 	fbBoxSupplyCtrl					: FB_BoxSupplyCtrl_v1;
     RackState                       : E_RackState;
@@ -198,8 +199,9 @@ fbUpperFeedInConveyor(Execute             := Service.AutoMode_UpperFeedInConveyo
                       Info                := Service.AutoMode_UpperFeedInConveyor.Info,
                       AddingBox           :=,
                       FeedBack            => Service.AutoMode_UpperFeedInConveyor.FeedBack,
-					  _bForceUpperCV_Use   =>	,
-						Pause := bStopMem);
+					  _bForceUpperCV_Use  =>	,
+					  Pause 			  := bStopMem,
+					  RobotService_CheckUPCVServicedone =>bUpperCV_ServiceDone);
 
 _fbDaimeterMovement(Execute         :=,
                     Abort           := _bAnyServiceError,
@@ -340,7 +342,8 @@ fbRobotAbsMove(Execute         := Service.AutoMode_RobotAbsMove.HandShake.Execut
 			   	Output:=OutPut,
 				Cylinder:= Cylinder,
 				AClampMoveDone=>Service.AutoMode_RobotAbsMove.AClampMoveDone,
-				BClampMoveDone=>Service.AutoMode_RobotAbsMove.BClampMoveDone);
+				BClampMoveDone=>Service.AutoMode_RobotAbsMove.BClampMoveDone,
+				bCheckUpperCV_ServiceDone :=bUpperCV_ServiceDone);
 
 fbRobotRegionMove_RoundBelt(Execute := Service.AutoMode_RobotRegionMove_RoundBelt.Command.Execute,
                             Abort   := THIS^.Abort OR _bAnyServiceError,
@@ -880,6 +883,7 @@ M_StateComplete();]]></ST>
       <LineId Id="3487" Count="0" />
       <LineId Id="3243" Count="16" />
       <LineId Id="3527" Count="0" />
+      <LineId Id="3529" Count="0" />
       <LineId Id="3260" Count="21" />
       <LineId Id="3488" Count="0" />
       <LineId Id="3282" Count="19" />
@@ -911,7 +915,9 @@ M_StateComplete();]]></ST>
       <LineId Id="3521" Count="2" />
       <LineId Id="3520" Count="0" />
       <LineId Id="3395" Count="4" />
-      <LineId Id="3401" Count="13" />
+      <LineId Id="3401" Count="11" />
+      <LineId Id="3528" Count="0" />
+      <LineId Id="3413" Count="1" />
       <LineId Id="3416" Count="2" />
       <LineId Id="3420" Count="5" />
       <LineId Id="3427" Count="6" />
