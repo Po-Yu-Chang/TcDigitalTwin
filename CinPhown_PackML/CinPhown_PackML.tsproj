@@ -2708,7 +2708,7 @@ External Setpoint Generation:
 		</Motion>
 		<Plc>
 			<Project GUID="{F0C6C3EF-6481-4440-89AE-361520A7C96C}" Name="DAS_CoreSys" PrjFilePath="DAS_CoreSys\DAS_CoreSys.plcproj" TmcFilePath="DAS_CoreSys\DAS_CoreSys.tmc" ReloadTmc="true" AmsPort="851" TargetArchiveSettings="#x0000" FileArchiveSettings="#x0000" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{AA669F72-7DE7-5BBD-CC6A-50484EAA8ABD}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{CCB09AA8-2EFF-B13D-4563-F9E9596A8696}">
 					<Name>DAS_CoreSys Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -2876,22 +2876,22 @@ External Setpoint Generation:
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_UI</Name>
 							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_DI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_DI</Name>
 							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
 							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_DI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_DI</Name>
 							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
 							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
@@ -2906,19 +2906,14 @@ External Setpoint Generation:
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._FanucEIPState</Name>
-							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._FanucEIPState</Name>
 							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._FanucEIPState</Name>
+							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
+							<Type>UINT</Type>
 						</Var>
 						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_UI</Name>
@@ -2926,9 +2921,9 @@ External Setpoint Generation:
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_DI</Name>
@@ -2936,12 +2931,17 @@ External Setpoint Generation:
 							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._EIPConnectionState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._EIPConnectionState</Name>
 							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._EIPConnectionState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._EIPConnectionState</Name>
 							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
 							<Type>UINT</Type>
 						</Var>
@@ -2995,19 +2995,14 @@ External Setpoint Generation:
 							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawOut_UO</Name>
 							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawOut_DO</Name>
-							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
-							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_DO</Name>
@@ -3015,9 +3010,9 @@ External Setpoint Generation:
 							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawOut_DO</Name>
+							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
+							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_UO</Name>
@@ -3025,12 +3020,17 @@ External Setpoint Generation:
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_DO</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_DO</Name>
 							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
 							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_DO</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_DO</Name>
 							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
 							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>

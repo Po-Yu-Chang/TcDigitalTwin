@@ -333,7 +333,7 @@ IF NOT Execute THEN
 	eSTATE:=STATE_RESETTING;
 END_IF
 
-IF Execute AND bRetry AND NOT Robot.Error AND NOT Robot.Halt  THEN
+IF Execute AND bRetry AND NOT Robot.Error AND NOT Robot.Halt THEN
 	uiExecutingStep :=uiResumeStep;
 
 	//Edited by Jidien Kachu in 2025/10/14
