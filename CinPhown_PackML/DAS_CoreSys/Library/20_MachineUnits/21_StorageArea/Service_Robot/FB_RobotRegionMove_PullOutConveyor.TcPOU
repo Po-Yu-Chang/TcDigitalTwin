@@ -25,6 +25,8 @@ VAR
 	_UniqueErrorCode :STRING;
 	PreviousStrStatus : STRING;
 	PreviousErrorCode : STRING;
+	
+	_bRetry		: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -39,6 +41,54 @@ A00_BasicUnits();]]></ST>
 ErrorID:=2230;]]></ST>
       </Implementation>
     </Action>
+    <Method Name="M_CheckClampStatus" Id="{397ef4ba-3b20-4acc-b6e9-ffdb7c945a8e}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckClampStatus : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckClampStatus := FALSE;
+
+IF NOT UseA AND NOT UseB THEN
+	M_CheckClampStatus 	:= FALSE;
+	strStatus 			:= 'FB_RobotRegionMove_PullOutConveyor ,Wrong Command , Both Clammp not used';
+	RETURN;
+END_IF
+
+IF UseA THEN
+	IF Get THEN
+		IF NOT Robot._DI1.ClampA_Open THEN
+			M_CheckClampStatus  := FALSE;
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use A Clamp Get ,but Clamp not open ';
+			RETURN;
+		END_IF
+	ELSE
+		IF Robot._DI1.ClampA_Open THEN
+			M_CheckClampStatus	:= FALSE;
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use A Clamp Place ,but Clamp open';
+			RETURN;
+		END_IF
+	END_IF
+END_IF
+IF UseB THEN
+	IF Get THEN
+		IF NOT Robot._DI1.ClampB_Open THEN
+			M_CheckClampStatus  := FALSE;
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use B Clamp Get ,but Clamp not open ';
+			RETURN;
+		END_IF
+	ELSE
+		IF Robot._DI1.ClampB_Open THEN
+			M_CheckClampStatus	:= FALSE;
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use B Clamp Place ,but Clamp open';
+			RETURN;
+		END_IF
+	END_IF
+END_IF
+
+M_CheckClampStatus := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_CheckCommand" Id="{b27f05d9-827a-4a87-81cf-246e9f6fe888}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_CheckCommand : BOOL // True : Command is useful
 VAR_INPUT
@@ -97,20 +147,34 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[ERROR :=TRUE;
-Busy    := FALSE;
-Aborted := TRUE;
-Status := strStatus;
-UniqueErrorCode:=_UniqueErrorCode;
+        <ST><![CDATA[IF NOT _bRetry THEN
+	ERROR 	:= TRUE;
+	Busy    := FALSE;
+	Aborted := TRUE;
+	Status  := strStatus;
+	UniqueErrorCode := _UniqueErrorCode;
+	_AbortCompleted := FALSE;
+	uiAbortingStep	:= 0;
+END_IF
+
+IF reset THEN
+	_bRetry := TRUE;
+	Error	:= FALSE;
+	Aborted	:= FALSE;
+END_IF
+
 IF NOT Execute THEN
 	eSTATE:=STATE_RESETTING;
 END_IF
-
-IF Execute AND Reset THEN
+IF Execute AND _bRetry AND NOT robot._DI1.Error AND NOT Robot.Halt THEN
+	status	:= '';
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
 	uiExecutingStep :=uiResumeStep;
-	eSTATE:=STATE_EXECUTING;
+	
+	IF GVL_ADS.MachineState <>E_MachineState.Error THEN
+		eSTATE:=STATE_EXECUTING;
+	END_IF
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -122,14 +186,37 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
 	0 :
-		uiAbortingStep:=9999;
-		DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlides_FeedOut();
-		tonTimeOut.IN:=FALSE;
-		_Abort :=FALSE;
-		IF strStatus = PreviousStrStatus THEN
-			_UniqueErrorCode :=PreviousErrorCode;
-		END_IF
-	9999:	_AbortCompleted:=TRUE;
+			
+			DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlides_FeedOut();
+			tonTimeOut.IN:= FALSE;
+			_Abort 		 := FALSE;
+			_bRetry		 := FALSE;
+			IF strStatus = PreviousStrStatus THEN
+				_UniqueErrorCode :=PreviousErrorCode;
+			END_IF
+			uiAbortingStep := 100;
+	100:
+			IF Robot._DI1.Error THEN
+				uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	200:		
+			 IF DAS_CoreSys.MachineControl.M_RobotResetCmd() THEN
+				 uiAbortingStep := 300;
+			 END_IF
+	300:
+			IF DAS_CoreSys.MachineControl.M_RobotStartCmd() THEN
+				 uiAbortingStep := 400;
+			 END_IF 
+	400:
+			IF Robot._DI1.Error THEN
+		 		uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	9999:	
+			_AbortCompleted:=TRUE;
 END_CASE
 
 IF _AbortCompleted THEN	
@@ -172,6 +259,10 @@ strStatus :='No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 PreviousStrStatus			 :='';
 PreviousErrorCode			 :='';
+uiAbortingStep := 0;
+_AbortCompleted:= FALSE;
+_bRetry	:= FALSE;
+
 
 // Wait Execute command
 IF Execute THEN
@@ -243,8 +334,14 @@ CASE uiExecutingStep OF
     20:
         // CHeck units not busy state
         IF M_CheckUnitsNotBusy() THEN
-            uiExecutingStep := 1000;
+            uiExecutingStep := 30;
         END_IF
+	30:
+		IF M_CheckClampStatus() THEN
+			uiExecutingStep := 1000;
+		ELSE
+			_Abort := TRUE;
+		END_IF
 
     1000:
         // Read   coordinate
@@ -318,15 +415,18 @@ CASE uiExecutingStep OF
             DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
             uiResumeStep := 10000;
             _Abort := TRUE;
-            strStatus := 'Feed box error';
+            strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 10000: Pullout CV error';
+
+
         END_IF
 
         tonTimeOut.IN := TRUE;
 
         IF tonTimeOut.Q = TRUE THEN
             tonTimeOut.IN := FALSE;
-            strStatus := 'Reset Robot timeout';
-            _Error := TRUE;
+            strStatus 	  := 'FB_RobotRegionMove_PullOutConveyor Step 10000: Robot Move timeout';
+            uiResumeStep := 10000;
+            _Abort := TRUE;
         END_IF
     10080:
         Robot.M_ResetRobotAbsMove(UseA, UseB); // Clear command and go to place box
@@ -339,7 +439,11 @@ CASE uiExecutingStep OF
         END_IF
 
         IF tonTimeOut.Q = TRUE THEN
-            strStatus := 'Reset Robot timeout';
+            strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 10080: Reset Robot timeout';
+
+
+
+
             _Error := TRUE;
         END_IF
 
@@ -398,15 +502,18 @@ CASE uiExecutingStep OF
             DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
             uiResumeStep := 20000;
             _Abort := TRUE;
-            strStatus := 'Feed box timeout';
+            strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 20000: Feed box timeout';
+
+
         END_IF
 
         tonTimeOut.IN := TRUE;
 
         IF tonTimeOut.Q = TRUE THEN
             tonTimeOut.IN := FALSE;
-            strStatus := 'Reset Robot timeout';
-            _Error := TRUE;
+            strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 20000: Robot Move timeout';
+            uiResumeStep := 20000;
+            _Abort := TRUE;
         END_IF
     20080:
         Robot.M_ResetRobotAbsMove(UseA, UseB);
@@ -420,7 +527,9 @@ CASE uiExecutingStep OF
         tonTimeOut.IN := TRUE;
 
         IF tonTimeOut.Q = TRUE THEN
-            strStatus := 'Reset Robot timeout';
+            strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 20080: Reset Robot timeout';
+
+
             _Error := TRUE;
         END_IF
     30000: // Both Clamps
@@ -478,7 +587,9 @@ CASE uiExecutingStep OF
                     uiResumeStep := 30000;
                     uiBothStep := 1000;
                     _Abort := TRUE;
-                    strStatus := 'Feed box timeout';
+                    strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 30000: Feed box timeout';
+
+
                 END_IF
 
             2000:
@@ -531,7 +642,9 @@ CASE uiExecutingStep OF
                     uiResumeStep := 30000;
                     uiBothStep := 3000;
                     _Abort := TRUE;
-                    strStatus := 'Feed box timeout';
+                    strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 30000: Feed box timeout';
+
+
                 END_IF
             9999: //Wait		
         // wait reset
@@ -556,9 +669,16 @@ CASE uiExecutingStep OF
 
         IF tonTimeOut.Q = TRUE THEN
             tonTimeOut.IN := FALSE;
-            strStatus := 'Reset Robot timeout';
-            _Error := TRUE;
+            strStatus 	  := 'FB_RobotRegionMove_PullOutConveyor Step 30000: Robot Move timeout';
+			uiResumeStep := 30000;
+            _Abort := TRUE;
         END_IF
+		IF robot._DI1.Error THEN
+			_Abort		 := TRUE;
+			strStatus	 := CONCAT('FB_RobotRegionMove_PullOutConveyor Step 30000,',robot.ErrMsg);
+			uiResumeStep := 30000;
+		END_IF
+
     30080: // Check robot command is clear
 
         Robot.M_ResetRobotAbsMove(UseA, UseB);
@@ -572,7 +692,9 @@ CASE uiExecutingStep OF
         tonTimeOut.IN := TRUE;
 
         IF tonTimeOut.Q = TRUE THEN
-            strStatus := 'Stop Robot timeout';
+            strStatus := 'FB_RobotRegionMove_PullOutConveyor Step 30080: Stop Robot timeout';
+
+
             _Error := TRUE;
         END_IF
 
@@ -585,14 +707,14 @@ END_CASE
 IF _Executed THEN
     eState := STATE_DONE;
 ELSIF _Error THEN
-    //	FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+
     eState := STATE_ERROR;
 ELSIF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF
 
 IF _Abort OR Abort THEN
-    //	FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+
     eSTATE := STATE_ABORTING;
 END_IF]]></ST>
       </Implementation>
@@ -637,6 +759,35 @@ END_IF]]></ST>
     <LineIds Name="FB_RobotRegionMove_PullOutConveyor.A00_BasicUnits">
       <LineId Id="1" Count="1" />
     </LineIds>
+    <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_CheckClampStatus">
+      <LineId Id="43" Count="1" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="2" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="24" Count="4" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="29" Count="4" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="36" Count="0" />
+    </LineIds>
     <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_CheckCommand">
       <LineId Id="24" Count="0" />
       <LineId Id="137" Count="0" />
@@ -662,17 +813,11 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_ABORTED">
-      <LineId Id="14" Count="9" />
-      <LineId Id="29" Count="1" />
-      <LineId Id="24" Count="1" />
+      <LineId Id="34" Count="27" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_ABORTING">
-      <LineId Id="12" Count="3" />
-      <LineId Id="24" Count="1" />
-      <LineId Id="30" Count="1" />
-      <LineId Id="29" Count="0" />
-      <LineId Id="16" Count="4" />
+      <LineId Id="35" Count="36" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_DONE">
@@ -688,6 +833,8 @@ END_IF]]></ST>
       <LineId Id="19" Count="0" />
       <LineId Id="43" Count="0" />
       <LineId Id="34" Count="0" />
+      <LineId Id="48" Count="2" />
+      <LineId Id="47" Count="0" />
       <LineId Id="33" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="16" Count="1" />
@@ -702,7 +849,7 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_EXECUTING">
-      <LineId Id="3000" Count="381" />
+      <LineId Id="3397" Count="412" />
       <LineId Id="26" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_PullOutConveyor.M_STATE_RESETTING">

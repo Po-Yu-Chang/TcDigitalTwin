@@ -32,7 +32,13 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[SUPER^.A10_StateControl();
-A00_BasicUnits();]]></ST>
+A00_BasicUnits();
+
+(*============================================================
+Create Date : 2026/04/01
+Last Update	: 2026/04/01
+Change Log  : 2026/04/01，移植泰興鏡射機版本。
+============================================================*)]]></ST>
     </Implementation>
     <Folder Name="Method" Id="{8c8868d7-0097-4403-9c44-eebf62295eba}" />
     <Folder Name="State" Id="{d387bd16-6c2f-4235-8036-17b925fb6f8b}" />
@@ -588,6 +594,8 @@ END_IF]]></ST>
     <LineIds Name="FB_RobotRegionMove_BufferArea">
       <LineId Id="9" Count="0" />
       <LineId Id="22" Count="0" />
+      <LineId Id="52" Count="4" />
+      <LineId Id="51" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_BufferArea.A00_BasicUnits">
       <LineId Id="1" Count="0" />
