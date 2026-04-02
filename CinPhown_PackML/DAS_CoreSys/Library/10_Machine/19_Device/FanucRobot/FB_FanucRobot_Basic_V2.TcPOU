@@ -216,7 +216,7 @@ TON_Reset_delay(PT := T#1S);
 TON_ResetFixDelay(PT := tResetFixTime);
 Ton_RSR_SwitchDelay(PT := T#0.3S);
 Ton_START_SwitchDelay(PT := T#1S); // Fanuc Robot need on 0.3s and then set off //Edited by Jidien kachu in 2025/10/28
-Ton_Reset_SwitchDelay(PT:=T#2s);
+Ton_Reset_SwitchDelay(PT:=T#2S);
 E_Stop_Output := _DI12.E_Stop;
 tofTempOffFaultReport(PT:=T#2s);]]></ST>
       </Implementation>

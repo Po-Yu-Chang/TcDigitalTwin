@@ -1291,7 +1291,7 @@ Motor.List.TransmitDifferentSideCV(xDone =>,
         <ST><![CDATA[FanucRobot.List.StorageRobot(
 	Estop:= Machine_Estop (*OR Input.bStorage_EstopPb*), 
 	OpMode:= , 
-	Start:= Machine_Start , 
+	Start:= Machine_Start OR RobotService_StartCmd , 
 //	Reset:= Machine_Reset OR fbStorageArea.RobotResetCMD, 
 //	Hold:= Machine_Stop, 
 	Reset:= Machine_Reset OR fbStorageArea.RobotResetCMD OR tofResetDelay.Q OR RobotService_ResetCmd, //Postpone reset signal to fanuc robot		
@@ -1308,7 +1308,7 @@ Motor.List.TransmitDifferentSideCV(xDone =>,
 FanucRobot.List.ShippingRobot(
 	Estop:= Machine_Estop (*OR Input.bStorage_EstopPb*), 
 	OpMode:= , 
-	Start:= Machine_Start, 
+	Start:= Machine_Start OR ShippingRobotService_StartCmd, 
 	Reset:= Machine_Reset OR fbShippingArea.RobotResetCMD OR tofResetDelay.Q OR ShippingRobotService_ResetCmd, 			//
 	Hold:= NOT fanucrobot.List.ShippingRobot.Error AND_THEN Machine_Stop,
 	ManualCtrl:= GVL_HMI.Shipping.Manual.FanucRobot, 
@@ -1433,6 +1433,7 @@ fb_AllocateSignalTower(
 	Buzz:= _Buzz, 
 	ForceCloseBuzz:= , 
 	BuzzSwitchOnTime:= 30000, 
+	//BuzzSwitchOnTime:= 2, 
 	Vaild=> , 
 	Error=> , 
 	ErrorID=> );
@@ -3872,7 +3873,7 @@ Service_Handshake.RebootModbusDevices REF= GVL_ADS.RebootModbusDevices;
 Service_Handshake.AutoMode_ShippingLeftSideTransCV REF= GVL_ADS.AutoMode_ShippingLeftSideTransCV;
 Service_Handshake.AutoMode_ShippingRightSideTransCV REF= GVL_ADS.AutoMode_ShippingRightSideTransCV;
 
-Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse REF= GVL_ADS.AutoMode_FeedInRoundBeltBoxToWareHouse;
+//Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse REF= GVL_ADS.AutoMode_FeedInRoundBeltBoxToWareHouse;
 
 
 
@@ -4119,7 +4120,9 @@ StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.Aut
       <LineId Id="236" Count="10" />
       <LineId Id="231" Count="1" />
       <LineId Id="229" Count="0" />
-      <LineId Id="188" Count="9" />
+      <LineId Id="188" Count="7" />
+      <LineId Id="254" Count="0" />
+      <LineId Id="196" Count="1" />
       <LineId Id="1" Count="0" />
       <LineId Id="198" Count="0" />
     </LineIds>

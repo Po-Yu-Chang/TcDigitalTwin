@@ -479,12 +479,12 @@ CASE uiExecutingStep OF
 				1000:
 						CASE Address_A OF
 						1:
-								IF 	bCheckUpperCV_ServiceDone THEN
-							BoxReady_1st:=Input.bUpCV_Block1Detect_Sensor;
+								IF 	bCheckUpperCV_ServiceDone AND Input.bUpCV_Block1Detect_Sensor THEN
+										BoxReady_1st := TRUE;
 								END_IF
 						2:
-								IF 	bCheckUpperCV_ServiceDone THEN
-							BoxReady_1st:=Input.bUpCV_BoxArrived_Sensor;
+								IF 	bCheckUpperCV_ServiceDone AND Input.bUpCV_BoxArrived_Sensor THEN
+										BoxReady_1st := TRUE;
 								END_IF
 						END_CASE						
 						
@@ -630,13 +630,13 @@ CASE uiExecutingStep OF
 
 						CASE Address_B OF
 						1:
-							IF 	bCheckUpperCV_ServiceDone THEN
-								BoxReady_2nd:=Input.bUpCV_Block1Detect_Sensor;
+							IF 	bCheckUpperCV_ServiceDone AND Input.bUpCV_Block1Detect_Sensor THEN
+								BoxReady_2nd := TRUE;
 							END_IF
 													
 						2:
-							IF 	bCheckUpperCV_ServiceDone THEN
-								BoxReady_2nd:=Input.bUpCV_BoxArrived_Sensor;
+							IF 	bCheckUpperCV_ServiceDone AND Input.bUpCV_BoxArrived_Sensor THEN
+								BoxReady_2nd := TRUE;
 							END_IF
 
 						END_CASE						
@@ -767,9 +767,6 @@ CASE uiExecutingStep OF
 					IF tonTimeOut.Q=TRUE OR Robot._DI1.Error THEN
 						strStatus :='FB_RobotRegionMove_FeedInConveyor_V2 Step 31000: Stop conveyor timeout';
 
-
-
-
 						(* Edited by Jidien Kachu in 2025/10/09 *)
 //						_Error:=TRUE;
 						uiResumeStep := 31000;
@@ -782,23 +779,18 @@ CASE uiExecutingStep OF
 				1000:
 							CASE Address_A OF							
 						1:
-								IF bCheckUpperCV_ServiceDone THEN
-							BoxReady_1st:=Input.bUpCV_Block1Detect_Sensor;
+								IF bCheckUpperCV_ServiceDone AND Input.bUpCV_Block1Detect_Sensor THEN
+										BoxReady_1st := TRUE;
 								END_IF
 						2:
-								IF bCheckUpperCV_ServiceDone THEN
-							BoxReady_1st:=Input.bUpCV_BoxArrived_Sensor;
+								IF bCheckUpperCV_ServiceDone AND Input.bUpCV_BoxArrived_Sensor THEN
+										BoxReady_1st := TRUE;
 								END_IF
 						END_CASE
 						
-
-
-
 						IF Robot._DI1.Notification THEN
-
 							uiBothStep:=2000;
 						END_IF
-						
 						
 				2000:
 
@@ -860,13 +852,13 @@ CASE uiExecutingStep OF
 				9000:
 							CASE Address_B OF							
 						1:
-								IF bCheckUpperCV_ServiceDone THEN
-									BoxReady_2nd:=Input.bUpCV_Block1Detect_Sensor;
+								IF bCheckUpperCV_ServiceDone AND Input.bUpCV_Block1Detect_Sensor THEN
+									BoxReady_2nd := TRUE;
 								END_IF
 						
 						2:
-								IF bCheckUpperCV_ServiceDone THEN
-							BoxReady_2nd:=Input.bUpCV_BoxArrived_Sensor;
+								IF bCheckUpperCV_ServiceDone AND Input.bUpCV_BoxArrived_Sensor THEN
+									BoxReady_2nd := TRUE;
 								END_IF
 
 						END_CASE
@@ -1188,7 +1180,11 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_FeedInConveyor_V2.M_STATE_EXECUTING">
-      <LineId Id="1614" Count="684" />
+      <LineId Id="1614" Count="420" />
+      <LineId Id="2038" Count="21" />
+      <LineId Id="2063" Count="0" />
+      <LineId Id="2065" Count="1" />
+      <LineId Id="2068" Count="230" />
       <LineId Id="26" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_FeedInConveyor_V2.M_STATE_RESETTING">

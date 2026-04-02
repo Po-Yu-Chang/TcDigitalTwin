@@ -73,7 +73,7 @@ VAR_GLOBAL
 	// Automode Reload RoundBelt box with robot
 	AutoMode_ReloadRoundBeltBoxWithRobot : ST_AutoMode_ReloadRoundBeltBox; // Automode : Reload RoundBelt box with robot from warehouse
 	// Automode FeedIn RoundBelt box to warehouse - 圓帶到倉儲		edited Gamin 2026/04/02 
-	AutoMode_FeedInRoundBeltBoxToWareHouse : ST_AutoMode_FeedInToWareHouseBox; // Automode : Pick box from RoundBelt and place to WareHouse
+	//AutoMode_FeedInRoundBeltBoxToWareHouse : ST_AutoMode_FeedInToWareHouseBox; // Automode : Pick box from RoundBelt and place to WareHouse
 	//AutoMode UpperFeedInConveyor
 	AutoMode_UpperFeedInConveyor : ST_Auto_UpperFeedInConveyor;
 	//AutoModeUse------倉儲馬達搭配手臂移動

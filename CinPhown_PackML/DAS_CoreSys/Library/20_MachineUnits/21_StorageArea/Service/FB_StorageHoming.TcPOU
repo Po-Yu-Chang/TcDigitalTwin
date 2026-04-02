@@ -176,7 +176,7 @@ CASE uiStorageHomingStep OF
 	// ============================================================================
 	400:
 		// 先檢查斷線狀態 (Heartbeat 偵測)
-		IF FanucRobot._Status = 'Robot Disconnect' THEN
+		IF FanucRobot._EIPConnectionState = 8195 THEN
 			// EIP 斷線，執行電源循環恢復
 			uiStorageHomingStep := 440;
 		ELSIF FanucRobot.Error THEN
@@ -212,7 +212,7 @@ CASE uiStorageHomingStep OF
 		IF tonPowerCycleTimeout.Q THEN
 			// 超時 30 秒，報錯
 			iErrorID := 22;
-		ELSIF FanucRobot._Status <> 'Robot Disconnect' THEN
+		ELSIF FanucRobot._EIPConnectionState <> 8195  THEN
 			// 已重新連線，繼續執行 RSR02
 			tonPowerCycleTimeout.IN := FALSE;
 			uiStorageHomingStep := 500;
@@ -240,6 +240,7 @@ CASE uiStorageHomingStep OF
 	1000:	
 			IF FanucRobot.OpMode = E_FanucRobotOpMode.RSR01 AND NOT FanucRobot._DI1.Done AND FanucRobot._DI12.RSR1_Active THEN
 				uiStorageHomingStep := 1100;
+				//uiStorageHomingStep := 9000;
 			END_IF
 			
 	1100:	//detect Robot Clamp ,, if clamp have box or clamp not open todo 
@@ -588,7 +589,9 @@ END_IF]]></ST>
       <LineId Id="370" Count="1" />
       <LineId Id="606" Count="2" />
       <LineId Id="605" Count="0" />
-      <LineId Id="383" Count="89" />
+      <LineId Id="383" Count="2" />
+      <LineId Id="619" Count="0" />
+      <LineId Id="386" Count="86" />
       <LineId Id="381" Count="1" />
       <LineId Id="68" Count="0" />
     </LineIds>

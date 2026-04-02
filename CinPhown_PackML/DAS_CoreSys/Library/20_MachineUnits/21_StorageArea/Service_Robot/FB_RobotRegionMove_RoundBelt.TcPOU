@@ -386,42 +386,42 @@ CASE uiExecutingStep OF
 		
 		
 		CASE uiSingleClampStep OF
-		0:
-			CASE Address_A OF						
-						1: A1Used := TRUE;
-						2: A2Used := TRUE;
-			END_CASE
-			
-			IF tonCheckRoundBeltDelay.Q THEN
+			0:
+				CASE Address_A OF						
+							1: A1Used := TRUE;
+							2: A2Used := TRUE;
+				END_CASE
+				
+				IF tonCheckRoundBeltDelay.Q THEN
+					 uiSingleClampStep:=50;  
+				END_IF
+				
+			50:
 				IF Get THEN  // Picking job , check box is ready
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
-						_Error:=TRUE	;
+						uiResettingStep := 10000;
+						_Abort:=TRUE	;
 						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : No Box on A1';
-
-
-					END_IF				
-					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
-						_Error:=TRUE	;
+					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
+						uiResettingStep := 10000;
+						_Abort:=TRUE	;
 						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : No Box on A2';
-
-
+					ELSE 
+						uiSingleClampStep := 100;
 					END_IF	
 				ELSE		//Place job , check no box 
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
-						_Error:=TRUE	;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : Box on A1';
-
-
-					END_IF				
-					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
-						_Error:=TRUE	;
+						uiResettingStep := 10000;
+						_Abort:=TRUE	;
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : Box on A1';									
+					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
+						uiResettingStep := 10000;
+						_Abort:=TRUE	;
 						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : Box on A2';
-
-
+					ELSE
+						uiSingleClampStep := 100;	
 					END_IF				
 				END_IF
-				 uiSingleClampStep:=100;  
-			END_IF
 	  
 		  100 :  
 		  		IF get THEN
@@ -489,42 +489,42 @@ CASE uiExecutingStep OF
 		
 		
 		CASE uiSingleClampStep OF
-		0:
-			CASE Address_B OF						
-						1: A1Used := TRUE;
-						2: A2Used := TRUE;
-			END_CASE
+			0:
+				CASE Address_B OF						
+							1: A1Used := TRUE;
+							2: A2Used := TRUE;
+				END_CASE
+				
+				IF tonCheckRoundBeltDelay.Q THEN
+					 uiSingleClampStep:=50;  
+				END_IF
 			
-			IF tonCheckRoundBeltDelay.Q THEN
+			50: 
 				IF Get THEN  // Picking job , check box is ready
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
-						_Error:=TRUE	;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : No Box on A1';
-
-
-					END_IF				
-					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
-						_Error:=TRUE	;
+						_Abort:=TRUE	;
+						uiResettingStep := 20000;
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : No Box on A1';		
+					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
+						_Abort:=TRUE	;
+						uiResettingStep := 20000;
 						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : No Box on A2';
-
-
+					ELSE
+						uiSingleClampStep := 100;
 					END_IF	
 				ELSE		//Place job , check no box 
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
-						_Error:=TRUE	;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : Box on A1';
-
-
-					END_IF				
-					IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
-						_Error:=TRUE	;
+						_Abort:=TRUE	;
+						uiResettingStep := 20000;
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : Box on A1';				
+					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
+						_Abort:=TRUE	;
+						uiResettingStep := 20000;
 						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : Box on A2';
-
-
+					ELSE
+						uiSingleClampStep := 100;
 					END_IF				
 				END_IF
-				 uiSingleClampStep:=100;  
-			END_IF
 	  
 		  100 :  
 		  		IF get THEN
@@ -602,29 +602,25 @@ CASE uiExecutingStep OF
 				100:
 					IF Get THEN  // Picking job , check box is ready
 						IF  Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
-							_Error:=TRUE	;
+							_Abort:=TRUE	;
+							uiResettingStep := 30000;
 							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : No Box on A1';
-
-
 						END_IF				
 						IF  Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
-							_Error:=TRUE	;
+							_Abort:=TRUE	;
+							uiResettingStep := 30000;
 							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : No Box on A2';
-
-
 						END_IF	
 					ELSE		//Place job , check no box 
 						IF  Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
-							_Error:=TRUE	;
+							_Abort:=TRUE	;
+							uiResettingStep := 30000;
 							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : Box on A1';
-
-
 						END_IF				
 						IF  Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
-							_Error:=TRUE	;
+							_Abort:=TRUE	;
+							uiResettingStep := 30000;
 							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : Box on A2';
-
-
 						END_IF				
 					END_IF
 					IF NOT _Error THEN
@@ -873,7 +869,50 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_EXECUTING">
-      <LineId Id="1414" Count="432" />
+      <LineId Id="1414" Count="84" />
+      <LineId Id="1526" Count="1" />
+      <LineId Id="1863" Count="1" />
+      <LineId Id="1866" Count="4" />
+      <LineId Id="1874" Count="3" />
+      <LineId Id="1896" Count="1" />
+      <LineId Id="1880" Count="5" />
+      <LineId Id="1889" Count="3" />
+      <LineId Id="1898" Count="1" />
+      <LineId Id="1895" Count="0" />
+      <LineId Id="1865" Count="0" />
+      <LineId Id="1528" Count="73" />
+      <LineId Id="1629" Count="1" />
+      <LineId Id="1900" Count="0" />
+      <LineId Id="1902" Count="0" />
+      <LineId Id="1927" Count="2" />
+      <LineId Id="1957" Count="0" />
+      <LineId Id="1930" Count="0" />
+      <LineId Id="1934" Count="1" />
+      <LineId Id="1958" Count="0" />
+      <LineId Id="1936" Count="0" />
+      <LineId Id="1955" Count="1" />
+      <LineId Id="1939" Count="3" />
+      <LineId Id="1959" Count="0" />
+      <LineId Id="1943" Count="0" />
+      <LineId Id="1947" Count="1" />
+      <LineId Id="1960" Count="0" />
+      <LineId Id="1949" Count="0" />
+      <LineId Id="1953" Count="1" />
+      <LineId Id="1952" Count="0" />
+      <LineId Id="1901" Count="0" />
+      <LineId Id="1631" Count="77" />
+      <LineId Id="1961" Count="0" />
+      <LineId Id="1709" Count="0" />
+      <LineId Id="1712" Count="2" />
+      <LineId Id="1962" Count="0" />
+      <LineId Id="1715" Count="0" />
+      <LineId Id="1718" Count="3" />
+      <LineId Id="1963" Count="0" />
+      <LineId Id="1722" Count="0" />
+      <LineId Id="1725" Count="2" />
+      <LineId Id="1964" Count="0" />
+      <LineId Id="1728" Count="0" />
+      <LineId Id="1731" Count="115" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_RoundBelt.M_STATE_RESETTING">

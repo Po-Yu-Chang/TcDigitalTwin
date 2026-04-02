@@ -285,7 +285,7 @@ fbRobotRegionMove_FeedInConveyor(Execute 	:= Service.AutoMode_RobotRegionMove_Fe
                                  //								 Input.bUpCV_Block1Detect_Sensor := Input.bUpCV_Block1Detect_Sensor ,
                                  Info := Service.AutoMode_RobotRegionMove_FeedInConveyor.Info,
                                  Stop :=bStopMem,
-									);
+								 bCheckUpperCV_ServiceDone :=	bUpperCV_ServiceDone);
 
 fbRobotRegionMove_AllocatedConveyor(Execute 	:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Execute,
                                     Abort 		:= Service.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
@@ -436,7 +436,8 @@ fbStorageHoming(
 	RobotResetCMD=> RobotResetCMD,
 	RackMotorHomeRequest=>,
 	Input := Input,
-	Service := Service);
+	Service := Service,
+	Output :=OutPut);
 	
 fbRebootModbusDevice(
 	xDone=> Service.RebootModbusDevices.Status.Done, 
@@ -451,28 +452,51 @@ fbRebootModbusDevice(
 	iErrorID=> , 
 	ErrorMsg=> );
 	
+//fbFeedInRoundBeltBoxToWareHouse(
+//	Execute:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Command.Execute, 
+//	Abort:= , 
+//	Reset:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Command.Reset, 
+//	Pause:= , 
+//	ObjectName:= , 
+//	Busy=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Busy, 
+//	Done=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Done, 
+//	Aborted=> , 
+//	Error=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Error, 
+//	Paused=> , 
+//	ErrorID=> , 
+//	Status=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Status, 
+//	UniqueErrorCode=> , 
+//	Robot:= FanucRobot, 
+//	RoundBelt:= DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl, 
+//	WareHouse:= fbWarehouse, 
+//	Input:= Input, 
+//	Info:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Info, 
+//	Stop:= bStopMem, 
+//	AClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.AClampMoveDone, 
+//	BClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.BClampMoveDone);
+
 fbFeedInRoundBeltBoxToWareHouse(
-	Execute:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Command.Execute, 
+	Execute:= , 
 	Abort:= , 
-	Reset:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Command.Reset, 
+	Reset:= , 
 	Pause:= , 
 	ObjectName:= , 
-	Busy=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Busy, 
-	Done=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Done, 
+	Busy=> , 
+	Done=> , 
 	Aborted=> , 
-	Error=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Error, 
+	Error=> , 
 	Paused=> , 
 	ErrorID=> , 
-	Status=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Status, 
+	Status=> , 
 	UniqueErrorCode=> , 
 	Robot:= FanucRobot, 
 	RoundBelt:= DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl, 
 	WareHouse:= fbWarehouse, 
 	Input:= Input, 
-	Info:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Info, 
+	Info:= , 
 	Stop:= bStopMem, 
-	AClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.AClampMoveDone, 
-	BClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.BClampMoveDone);]]></ST>
+	AClampMoveDone=> , 
+	BClampMoveDone=> );]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_Aborted" Id="{2a5ce397-4851-49ed-a28c-72651ea1a3fe}" FolderPath="States\">
@@ -955,11 +979,15 @@ M_StateComplete();]]></ST>
       <LineId Id="3483" Count="0" />
       <LineId Id="3500" Count="10" />
       <LineId Id="3484" Count="0" />
-      <LineId Id="326" Count="15" />
+      <LineId Id="326" Count="3" />
+      <LineId Id="3576" Count="0" />
+      <LineId Id="330" Count="11" />
       <LineId Id="1" Count="0" />
       <LineId Id="3530" Count="0" />
       <LineId Id="3532" Count="20" />
       <LineId Id="3531" Count="0" />
+      <LineId Id="3554" Count="21" />
+      <LineId Id="3553" Count="0" />
     </LineIds>
     <LineIds Name="FB_StorageArea.M_Aborted">
       <LineId Id="6" Count="1" />
