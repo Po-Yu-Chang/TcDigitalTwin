@@ -288,7 +288,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[UniqueErrorCode:=_UniqueErrorCode;
+        <ST><![CDATA[UniqueErrorCode	:= _UniqueErrorCode;
+Error			:= TRUE;
+status			:= strStatus;
+Busy			:= FALSE;
+
 IF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF]]></ST>
@@ -1196,6 +1200,9 @@ END_IF]]></ST>
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_ERROR">
       <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="17" Count="0" />
       <LineId Id="6" Count="1" />
       <LineId Id="5" Count="0" />
     </LineIds>

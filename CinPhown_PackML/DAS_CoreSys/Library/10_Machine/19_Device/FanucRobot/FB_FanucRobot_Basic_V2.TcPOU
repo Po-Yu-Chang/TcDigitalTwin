@@ -199,6 +199,7 @@ _DO18.3 := bRemoval_LaserSwitch;]]></ST>
       <Folder Name="ModeControl" Id="{4f814264-21dc-4148-978f-a27c3702b438}" />
       <Folder Name="MoveBoxToFeedInConveyor" Id="{c9d6e2f9-e9a0-4b89-852b-cc310f8857b3}" />
       <Folder Name="MoveBoxToRoundBelt" Id="{6b98bebc-f19a-4f6a-a41d-27031a7739e4}" />
+      <Folder Name="PickBoxFromRoundBelt" Id="{676c8d97-f52e-4807-87ad-dec847256722}" />
       <Folder Name="PulloutConveyor PickupBox" Id="{54747d94-7097-47ed-86d5-04c2c29ec3a8}" />
       <Folder Name="RobotAbsMove" Id="{fca1ac7b-8fd2-4c25-a683-c608de9a23a8}" />
       <Folder Name="RobotAction" Id="{8edbc682-62f4-44bc-b4cb-0bd7b86f9e10}">
@@ -2324,6 +2325,119 @@ ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
 END_IF
 
 M_StartMoveBoxToRoundBelt_ClampB := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartPickBoxFromRoundBelt_ClampA" Id="{029fdc09-38a6-4e13-a6ce-a71c0377098e}" FolderPath="Method\PickBoxFromRoundBelt\">
+      <Declaration><![CDATA[(* Pick box FROM RoundBelt using ClampA
+   Mirror of M_StartMoveBoxToRoundBelt_ClampA but with bGet=TRUE and inverted sensor logic
+   bContinue = sensor detects box AND roundbelt safe
+*)
+METHOD M_StartPickBoxFromRoundBelt_ClampA : BOOL
+VAR_INPUT
+    CarrierSelect : E_ReloadRoundBelt_PlaceAddress;
+    A2_Sensor     : BOOL;
+    A3_Sensor     : BOOL;
+	RoundBeltSafe : BOOL;
+END_VAR
+VAR_INST
+    _Area          : ST_IntToBool;
+    _Address       : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.RoundBelt;
+
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+    _Address.nInt := 1;
+ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+    _Address.nInt := 2;
+ELSE
+    RETURN;
+END_IF
+
+// Send robot target area data
+_DO3.nArea1 := _Area.BitList.Bit0;
+_DO3.nArea2 := _Area.BitList.Bit1;
+_DO3.nArea3 := _Area.BitList.Bit2;
+_DO3.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO3.nAddress1 := _Address.BitList.Bit0;
+_DO3.nAddress2 := _Address.BitList.Bit1;
+_DO3.nAddress3 := _Address.BitList.Bit2;
+_DO3.nAddress4 := _Address.BitList.Bit3;
+_DO3.nAddress5 := _Address.BitList.Bit4;
+_DO3.nAddress6 := _Address.BitList.Bit5;
+_DO3.nAddress7 := _Address.BitList.Bit6;
+
+_DO3.bGet := TRUE; // PickUp action (opposite of Place)
+
+_DO3.bExecute := TRUE;
+
+// bContinue = sensor confirms box IS present AND roundbelt safe
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+    _DO3.bContinue := A2_Sensor AND RoundBeltSafe;
+ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+    _DO3.bContinue := A3_Sensor AND RoundBeltSafe;
+END_IF
+
+M_StartPickBoxFromRoundBelt_ClampA := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_StartPickBoxFromRoundBelt_ClampB" Id="{bf9c313d-22c3-45b5-8988-5d354c26b927}" FolderPath="Method\PickBoxFromRoundBelt\">
+      <Declaration><![CDATA[(* Pick box FROM RoundBelt using ClampB
+   Mirror of M_StartMoveBoxToRoundBelt_ClampB but with bGet=TRUE and inverted sensor logic
+*)
+METHOD M_StartPickBoxFromRoundBelt_ClampB : BOOL
+VAR_INPUT
+    CarrierSelect : E_ReloadRoundBelt_PlaceAddress;
+    A2_Sensor     : BOOL;
+    A3_Sensor     : BOOL;
+	RoundBeltSafe : BOOL;
+END_VAR
+VAR_INST
+    _Area          : ST_IntToBool;
+    _Address       : ST_IntToBool;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set target area is round belt
+_Area.nInt := E_RobotArea.RoundBelt;
+
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_Address.nInt := 1;
+ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_Address.nInt := 2;
+ELSE
+	RETURN;
+END_IF
+
+// Send robot target area data
+_DO4.nArea1 := _Area.BitList.Bit0;
+_DO4.nArea2 := _Area.BitList.Bit1;
+_DO4.nArea3 := _Area.BitList.Bit2;
+_DO4.nArea4 := _Area.BitList.Bit3;
+
+// Send robot target address data
+_DO4.nAddress1 := _Address.BitList.Bit0;
+_DO4.nAddress2 := _Address.BitList.Bit1;
+_DO4.nAddress3 := _Address.BitList.Bit2;
+_DO4.nAddress4 := _Address.BitList.Bit3;
+_DO4.nAddress5 := _Address.BitList.Bit4;
+_DO4.nAddress6 := _Address.BitList.Bit5;
+_DO4.nAddress7 := _Address.BitList.Bit6;
+
+_DO4.bGet := TRUE; // PickUp action
+
+_DO4.bExecute := TRUE;
+
+// bContinue = sensor confirms box IS present AND roundbelt safe
+IF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+	_DO4.bContinue := A2_Sensor AND RoundBeltSafe;
+ELSIF CarrierSelect = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+	_DO4.bContinue := A3_Sensor AND RoundBeltSafe;
+END_IF
+
+M_StartPickBoxFromRoundBelt_ClampB := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_StartPullOutConveyorPickUpBox_ClampA" Id="{55d65623-5d4f-41b7-ad7b-2170591d4a63}" FolderPath="Method\PulloutConveyor PickupBox\">
@@ -4468,6 +4582,16 @@ END_VAR
     <LineIds Name="FB_FanucRobot_Basic_V2.M_StartMoveBoxToRoundBelt_ClampB">
       <LineId Id="18" Count="35" />
       <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic_V2.M_StartPickBoxFromRoundBelt_ClampA">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="35" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic_V2.M_StartPickBoxFromRoundBelt_ClampB">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="35" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_FanucRobot_Basic_V2.M_StartPullOutConveyorPickUpBox_ClampA">
       <LineId Id="21" Count="1" />

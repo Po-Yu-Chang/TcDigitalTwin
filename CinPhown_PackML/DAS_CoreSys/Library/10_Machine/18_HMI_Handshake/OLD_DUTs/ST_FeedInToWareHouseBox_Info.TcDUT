@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FeedInToWareHouseBox_Info" Id="{a1b2c3d4-3333-4aaa-b333-333333333333}">
+    <Declaration><![CDATA[TYPE
+    ST_FeedInToWareHouseBox_Info :
+    STRUCT
+        ClampA_Setting : ST_ClampSetting_FeedInToWareHouse; // Set clampA action (pick from RoundBelt, place to WareHouse)
+        ClampB_Setting : ST_ClampSetting_FeedInToWareHouse; // Set clampB action (pick from RoundBelt, place to WareHouse)
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

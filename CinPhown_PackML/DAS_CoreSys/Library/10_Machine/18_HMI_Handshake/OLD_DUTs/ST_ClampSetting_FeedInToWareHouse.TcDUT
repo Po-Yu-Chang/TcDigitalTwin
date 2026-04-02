@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ClampSetting_FeedInToWareHouse" Id="{a1b2c3d4-2222-4aaa-b222-222222222222}">
+    <Declaration><![CDATA[TYPE
+    ST_ClampSetting_FeedInToWareHouse :
+    STRUCT
+        Behavior         : E_ClampWork;                          // Work or NoWork
+        RoundBeltSetting : ST_RoundBeltCoordinates;              // RoundBelt station and carrier position (A2/A3) for pickup
+        WareHouseSetting : ST_WareHouseCoordinates;              // WareHouse layer and slide for placement
+        PlaceArea        : E_FeedInToWareHouse_PlaceArea;        // Target warehouse (WareHouseA or WareHouseB)
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -352,6 +352,12 @@
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_FeedInToWareHouse_PlaceArea.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_FeedInToWareHouseBox.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_ShippingLeftSideTransCV.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -589,6 +595,9 @@
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ClampSetting.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ClampSetting_FeedInToWareHouse.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ClampSetting_ReloadRoundBelt.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -632,6 +641,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FeedInEmptyBox_Status.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FeedInToWareHouseBox_Info.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FeedInToWareHouse_Ctrl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_FeedInToWareHouse_Status.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_FlowBaseCore.TcDUT">
@@ -930,6 +948,9 @@
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_FeedInAction.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_FeedInToWareHouseAction.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_ReloadRoundBoxAction.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -1003,6 +1024,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_FeedInEmptyBoxWithRobot_V3.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_FeedInRoundBeltBoxToWareHouse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_ReloadRoundBeltBoxWithRobot_V2.TcPOU">

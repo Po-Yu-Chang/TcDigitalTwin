@@ -455,8 +455,9 @@ Busy	:=FALSE;
 Status := strStatus;
 UniqueErrorCode:=_UniqueErrorCode;
 ErrorID :=2200;
+
 IF NOT Execute THEN	
-eSTATE:=STATE_RESETTING;
+	eSTATE:=STATE_RESETTING;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -1288,6 +1289,7 @@ END_IF]]></ST>
       <LineId Id="12" Count="0" />
       <LineId Id="23" Count="0" />
       <LineId Id="19" Count="0" />
+      <LineId Id="27" Count="0" />
       <LineId Id="13" Count="1" />
       <LineId Id="5" Count="0" />
     </LineIds>

@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FeedInToWareHouse_Ctrl" Id="{a1b2c3d4-6666-4aaa-b666-666666666601}">
+    <Declaration><![CDATA[TYPE ST_FeedInToWareHouse_Ctrl EXTENDS ST_CommandBasic :
+STRUCT
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

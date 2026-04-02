@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_FeedInToWareHouseAction" Id="{a1b2c3d4-4444-4aaa-b444-444444444444}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_FeedInToWareHouseAction :
+(
+	Undefined := 0,
+	ClampA_WareHouseA,
+	ClampA_WareHouseB,
+	ClampB_WareHouseA,
+	ClampB_WareHouseB,
+	A_WareHouseA_B_WareHouseA,
+	A_WareHouseA_B_WareHouseB,
+	A_WareHouseB_B_WareHouseA,
+	A_WareHouseB_B_WareHouseB
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

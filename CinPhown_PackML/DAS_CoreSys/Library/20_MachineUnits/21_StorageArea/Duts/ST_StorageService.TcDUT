@@ -9,6 +9,7 @@
         // Automode Reload RoundBelt box with robot
         AutoMode_ReloadRoundBeltBoxWithRobot : REFERENCE TO ST_AutoMode_ReloadRoundBeltBox; // Automode : Reload RoundBelt box with robot from warehouse
 
+		AutoMode_FeedInRoundBeltBoxToWareHouse : REFERENCE TO ST_AutoMode_FeedInToWareHouseBox;
         //AutoMode UpperFeedInConveyor
         AutoMode_UpperFeedInConveyor : REFERENCE TO ST_Auto_UpperFeedInConveyor;
         //AutoMode AddBoxes

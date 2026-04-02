@@ -3837,6 +3837,8 @@ Service_Handshake.RebootModbusDevices REF= GVL_ADS.RebootModbusDevices;
 Service_Handshake.AutoMode_ShippingLeftSideTransCV REF= GVL_ADS.AutoMode_ShippingLeftSideTransCV;
 Service_Handshake.AutoMode_ShippingRightSideTransCV REF= GVL_ADS.AutoMode_ShippingRightSideTransCV;
 
+Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse REF= GVL_ADS.AutoMode_FeedInRoundBeltBoxToWareHouse;
+
 
 
 
@@ -3877,7 +3879,8 @@ StorageService.AutoMode_AddBoxes REF= Service_Handshake.AutoMode_AddBoxes;
 StorageService.AutoMode_PullOutConveyor REF= Service_Handshake.AutoMode_PullOutConveyor;
 StorageService.AutoMode_RobotAbsMove REF=  Service_Handshake.AutoMode_RobotAbsMove;
 StorageService.AutoMode_WarehouseMotoWithRobotMove REF= Service_Handshake.AutoMode_WarehouseMotoWithRobotMove;
-StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]></ST>
+StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;
+StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse;]]></ST>
       </Implementation>
     </Method>
     <LineIds Name="FB_MachineControl">
@@ -4593,6 +4596,8 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]
       <LineId Id="101" Count="0" />
       <LineId Id="105" Count="0" />
       <LineId Id="107" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="111" Count="0" />
       <LineId Id="106" Count="0" />
       <LineId Id="91" Count="0" />
       <LineId Id="89" Count="0" />
@@ -4612,6 +4617,7 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;]]
       <LineId Id="23" Count="0" />
       <LineId Id="27" Count="1" />
       <LineId Id="32" Count="0" />
+      <LineId Id="36" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

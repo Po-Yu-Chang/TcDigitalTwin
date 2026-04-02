@@ -42,6 +42,7 @@ VAR
 	fbRobotAbsMove                      : FB_RobotAbsMove_V2;
     //fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove;
     fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove_V3;		//Edited by Gamin in 2025//11/24
+	fbFeedInRoundBeltBoxToWareHouse 	: FB_FeedInRoundBeltBoxToWareHouse;
 	
 	fbStorageHoming 					: FB_StorageHoming;
 	//UpCV
@@ -448,7 +449,30 @@ fbRebootModbusDevice(
 	OnDelayTime:= Service.RebootModbusDevices.OnDelayTime, 
 	xAborted=> , 
 	iErrorID=> , 
-	ErrorMsg=> );]]></ST>
+	ErrorMsg=> );
+	
+fbFeedInRoundBeltBoxToWareHouse(
+	Execute:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Command.Execute, 
+	Abort:= , 
+	Reset:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Command.Reset, 
+	Pause:= , 
+	ObjectName:= , 
+	Busy=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Busy, 
+	Done=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Error, 
+	Paused=> , 
+	ErrorID=> , 
+	Status=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Status.Status, 
+	UniqueErrorCode=> , 
+	Robot:= FanucRobot, 
+	RoundBelt:= DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl, 
+	WareHouse:= fbWarehouse, 
+	Input:= Input, 
+	Info:= Service.AutoMode_FeedInRoundBeltBoxToWareHouse.Info, 
+	Stop:= bStopMem, 
+	AClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.AClampMoveDone, 
+	BClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.BClampMoveDone);]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_Aborted" Id="{2a5ce397-4851-49ed-a28c-72651ea1a3fe}" FolderPath="States\">
@@ -933,6 +957,9 @@ M_StateComplete();]]></ST>
       <LineId Id="3484" Count="0" />
       <LineId Id="326" Count="15" />
       <LineId Id="1" Count="0" />
+      <LineId Id="3530" Count="0" />
+      <LineId Id="3532" Count="20" />
+      <LineId Id="3531" Count="0" />
     </LineIds>
     <LineIds Name="FB_StorageArea.M_Aborted">
       <LineId Id="6" Count="1" />

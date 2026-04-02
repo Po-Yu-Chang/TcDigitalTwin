@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_FeedInToWareHouse_PlaceArea" Id="{a1b2c3d4-1111-4aaa-b111-111111111111}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE
+    E_FeedInToWareHouse_PlaceArea :
+    (
+        Undefined := 0,
+        WareHouseA := 1,
+        WareHouseB := 2
+    )UINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
