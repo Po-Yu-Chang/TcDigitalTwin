@@ -2218,13 +2218,13 @@ ELSIF (AllocateManualCommand.TurnTable.Axis.Homing.Execute OR  fbAllocateArea.fb
     arAxisCtrl_gb[AxisNo.TurnTable].Admin._OpMode.en := ModeHoming;
 ELSIF TableMove.xBusy AND AllowTurnTable THEN
     arAxisCtrl_gb[AxisNo.TurnTable].Admin._OpMode.en := ModePosAbs;
-ELSIF (AllocateService.TurnTableMove.HandShake.Busy ) AND AllowTurnTable THEN
+ELSIF (AllocateService.TurnTableMove.HandShake.Busy ) AND fbAllocateArea.TurnTableControl.bTurnTableMoveRequest AND AllowTurnTable THEN
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Acc := CurrentData.Axes.TurnTable.HalfAuto.Acceleration;
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Dec := CurrentData.Axes.TurnTable.HalfAuto.Deceleration;
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Jerk := CurrentData.Axes.TurnTable.HalfAuto.Jerk;
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Velocity := CurrentData.Axes.TurnTable.HalfAuto.Velocity;
     arAxisCtrl_gb[AxisNo.TurnTable].Admin._OpMode.en := ModePosAbs;
-ELSIF AllocateService.AutoMode_TurnTableMove.HandShake.Busy AND AllowTurnTable THEN
+ELSIF AllocateService.AutoMode_TurnTableMove.HandShake.Busy AND fbAllocateArea.TurnTableControl.bTurnTableMoveRequest AND AllowTurnTable THEN
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Acc := CurrentData.Axes.TurnTable.Auto.Acceleration;
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Dec := CurrentData.Axes.TurnTable.Auto.Deceleration;
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Jerk := CurrentData.Axes.TurnTable.Auto.Jerk;
@@ -3032,7 +3032,7 @@ ELSIF (AllocateManualCommand.TurnTable.Axis.Homing.Execute OR  fbAllocateArea.fb
     arAxisCtrl_gb[AxisNo.TurnTable].Admin._OpMode.en := ModeHoming;
 ELSIF TableMove.xBusy AND AllowTurnTable THEN
     arAxisCtrl_gb[AxisNo.TurnTable].Admin._OpMode.en := ModePosAbs;
-ELSIF AllocateService.TurnTableMove.HandShake.Busy AND AllowTurnTable THEN
+ELSIF AllocateService.TurnTableMove.HandShake.Busy AND fbAllocateArea.TurnTableControl.bTurnTableMoveRequest AND AllowTurnTable THEN
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Acc := CurrentData.Axes.TurnTable.HalfAuto.Acceleration;
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Dec := CurrentData.Axes.TurnTable.HalfAuto.Deceleration;
     arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Jerk := CurrentData.Axes.TurnTable.HalfAuto.Jerk;

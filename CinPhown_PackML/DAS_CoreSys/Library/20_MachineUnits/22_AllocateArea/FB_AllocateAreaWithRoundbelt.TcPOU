@@ -218,7 +218,8 @@ TurnTableControl(
 	TimeOut:= , 
 	xAborted=> , 
 	iErrorID=> , 
-	ErrorMsg=> );
+	ErrorMsg=> ,
+	bTurnTableMoveRequest=>);
 	
 fb_AllocateBatchMode(
 	Execute:= AutoAllocateJobBatch_Ctrl.bExecute,
@@ -1144,7 +1145,9 @@ END_IF]]></ST>
       <LineId Id="36" Count="10" />
       <LineId Id="35" Count="0" />
       <LineId Id="47" Count="0" />
-      <LineId Id="49" Count="25" />
+      <LineId Id="49" Count="15" />
+      <LineId Id="374" Count="0" />
+      <LineId Id="65" Count="9" />
       <LineId Id="76" Count="3" />
       <LineId Id="357" Count="1" />
       <LineId Id="360" Count="1" />
@@ -1254,6 +1257,8 @@ END_IF]]></ST>
       <LineId Id="15" Count="0" />
       <LineId Id="9" Count="0" />
       <LineId Id="8" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateAreaWithRoundbelt.M_AutoAllocatingBatch_Reverse">
       <LineId Id="10" Count="0" />
@@ -1265,6 +1270,8 @@ END_IF]]></ST>
       <LineId Id="27" Count="0" />
       <LineId Id="25" Count="1" />
       <LineId Id="5" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateAreaWithRoundbelt.M_AutoAllocatingBatch_Simple">
       <LineId Id="6" Count="0" />
@@ -1276,6 +1283,8 @@ END_IF]]></ST>
       <LineId Id="30" Count="0" />
       <LineId Id="21" Count="0" />
       <LineId Id="5" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateAreaWithRoundbelt.M_AutoTurnTable">
       <LineId Id="5" Count="0" />
