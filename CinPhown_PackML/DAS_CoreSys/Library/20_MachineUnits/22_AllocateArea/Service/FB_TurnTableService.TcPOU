@@ -91,6 +91,10 @@ CASE uiCyclicStep OF
 		
 	125:
 		bTurnTableMoveRequest := TRUE;
+		IF  arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Moving THEN
+				uiCyclicStep := 150;
+		END_IF
+	150:
         IF arAxisStatus_gb[AxisNo.TurnTable].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.TurnTable].Admin.CmdDone THEN
 			bTurnTableMoveRequest := FALSE;
             uiCyclicStep := 200;
@@ -241,6 +245,8 @@ uiCyclicStep := 0;
       <LineId Id="163" Count="0" />
       <LineId Id="102" Count="0" />
       <LineId Id="162" Count="0" />
+      <LineId Id="179" Count="1" />
+      <LineId Id="177" Count="1" />
       <LineId Id="103" Count="0" />
       <LineId Id="175" Count="0" />
       <LineId Id="104" Count="1" />
