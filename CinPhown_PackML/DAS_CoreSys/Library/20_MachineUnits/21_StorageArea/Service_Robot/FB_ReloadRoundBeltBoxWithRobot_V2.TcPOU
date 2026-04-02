@@ -893,6 +893,12 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Place Box timeout';
 		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 61010;
+			_Abort := TRUE;
+			strStatus :=CONCAT(STR1 := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 61010: ',
+							   STR2 := Robot.ErrMsg);
+		END_IF
 
     61080:
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
@@ -948,6 +954,12 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Place Box timeout';
 		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 71010;
+			_Abort := TRUE;
+			strStatus :=CONCAT(STR1 := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 71010: ',
+							   STR2 := Robot.ErrMsg);
+		END_IF
 
     71080:
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
@@ -990,11 +1002,17 @@ CASE uiExecutingStep OF
 				END_IF
             11:
 				//========================Test==================
-				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND NOT A2_Sensor THEN
 					_A2Sensor:=A2_Sensor;
+				ELSIF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND  A2_Sensor THEN				//edited By Gamin 2026/04/02，放盒位有盒就報警
+					_Abort 	  := TRUE;
+					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampA place A2 Position has box';
 				END_IF
-				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND NOT A3_Sensor THEN
 					_A3Sensor:=A3_Sensor;
+				ELSIF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND  A3_Sensor THEN
+					_Abort	  := TRUE;
+					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampA place A3 Position has box'; 
 				END_IF
 				//======================End_test==================
                 IF ((info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2) AND A2_Sensor) OR
@@ -1037,11 +1055,17 @@ CASE uiExecutingStep OF
 				END_IF
             99:	
 				//========================Test==================
-				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 THEN
+				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND NOT A2_Sensor THEN
 					_A2Sensor:=A2_Sensor;
+				ELSIF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND  A2_Sensor THEN
+					_Abort	  := TRUE;
+					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampB place A2 Position has box'; 
 				END_IF
-				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 THEN
+				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND NOT A3_Sensor THEN
 					_A3Sensor:=A3_Sensor;
+				ELSIF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND  A3_Sensor THEN
+					_Abort	  := TRUE;
+					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampB place A3 Position has box'; 
 				END_IF
 				//======================End_test==================
         // wait reset
@@ -1065,12 +1089,19 @@ CASE uiExecutingStep OF
 			tonTimeOut.IN :=FALSE;
 			strStatus :='Place Box timeout';
 		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 81000;
+			_Abort		 := TRUE;
+			strStatus	 := CONCAT(STR1 := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ',
+								   STR2 := Robot.ErrMsg);
+		END_IF
+		
     99000: // process done
-        // Stop FeedIn conveyor
-					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
-					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
-        Status    := 'Process completed';
-        _Executed := TRUE;
+
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
+        	Status    := 'Process completed';
+        	_Executed := TRUE;
 END_CASE
 
 IF _Executed THEN
@@ -1078,10 +1109,8 @@ IF _Executed THEN
 ELSIF NOT Execute THEN
     eState := STATE_RESETTING;
 ELSIF Abort OR _Abort THEN
-	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
 	eState :=STATE_ABORTING;
 ELSIF _Error THEN
-	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
 	eState :=STATE_ERROR;
 END_IF]]></ST>
       </Implementation>
@@ -1364,7 +1393,13 @@ END_IF]]></ST>
       <LineId Id="3770" Count="0" />
       <LineId Id="4047" Count="0" />
       <LineId Id="4310" Count="0" />
-      <LineId Id="3773" Count="20" />
+      <LineId Id="3773" Count="6" />
+      <LineId Id="4458" Count="0" />
+      <LineId Id="4461" Count="1" />
+      <LineId Id="4459" Count="0" />
+      <LineId Id="4463" Count="0" />
+      <LineId Id="4460" Count="0" />
+      <LineId Id="3780" Count="13" />
       <LineId Id="4024" Count="0" />
       <LineId Id="4311" Count="1" />
       <LineId Id="4069" Count="0" />
@@ -1384,7 +1419,10 @@ END_IF]]></ST>
       <LineId Id="3803" Count="0" />
       <LineId Id="4065" Count="0" />
       <LineId Id="3804" Count="0" />
-      <LineId Id="3806" Count="13" />
+      <LineId Id="3806" Count="7" />
+      <LineId Id="4465" Count="4" />
+      <LineId Id="4464" Count="0" />
+      <LineId Id="3814" Count="5" />
       <LineId Id="3986" Count="0" />
       <LineId Id="3984" Count="1" />
       <LineId Id="3987" Count="0" />
@@ -1404,8 +1442,12 @@ END_IF]]></ST>
       <LineId Id="3973" Count="0" />
       <LineId Id="3831" Count="2" />
       <LineId Id="4027" Count="0" />
-      <LineId Id="3834" Count="4" />
-      <LineId Id="3976" Count="6" />
+      <LineId Id="3834" Count="2" />
+      <LineId Id="4438" Count="2" />
+      <LineId Id="3837" Count="1" />
+      <LineId Id="3976" Count="0" />
+      <LineId Id="4441" Count="2" />
+      <LineId Id="3977" Count="5" />
       <LineId Id="3975" Count="0" />
       <LineId Id="3839" Count="6" />
       <LineId Id="4283" Count="1" />
@@ -1417,7 +1459,11 @@ END_IF]]></ST>
       <LineId Id="3853" Count="0" />
       <LineId Id="3989" Count="6" />
       <LineId Id="3988" Count="0" />
-      <LineId Id="3854" Count="10" />
+      <LineId Id="3854" Count="6" />
+      <LineId Id="4444" Count="2" />
+      <LineId Id="3861" Count="2" />
+      <LineId Id="4448" Count="2" />
+      <LineId Id="3864" Count="0" />
       <LineId Id="4235" Count="0" />
       <LineId Id="3865" Count="1" />
       <LineId Id="4230" Count="4" />
@@ -1426,12 +1472,18 @@ END_IF]]></ST>
       <LineId Id="4324" Count="1" />
       <LineId Id="3870" Count="7" />
       <LineId Id="4089" Count="0" />
+      <LineId Id="4451" Count="1" />
+      <LineId Id="4454" Count="2" />
+      <LineId Id="4453" Count="0" />
+      <LineId Id="4457" Count="0" />
       <LineId Id="4110" Count="0" />
       <LineId Id="4090" Count="1" />
       <LineId Id="4111" Count="0" />
       <LineId Id="4092" Count="0" />
       <LineId Id="2" Count="0" />
-      <LineId Id="756" Count="11" />
+      <LineId Id="756" Count="6" />
+      <LineId Id="764" Count="1" />
+      <LineId Id="767" Count="0" />
       <LineId Id="4420" Count="0" />
     </LineIds>
     <LineIds Name="FB_ReloadRoundBeltBoxWithRobot_V2.M_STATE_RESETTING">
