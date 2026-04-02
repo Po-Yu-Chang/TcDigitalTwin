@@ -14,7 +14,7 @@ VAR_INPUT
 	Info		: ST_Auto_UpperFeedInConveyorInfo;
 
 	AddingBox	: BOOL;
-	Pause		: BOOL;	// True: 暫停機台動作和計時器
+//	Pause		: BOOL;	// True: 暫停機台動作和計時器
 
 //    Execute    :BOOL;   // True : This prog will start.
 //    Abort      :BOOL;   // True : This prog will be abort.
@@ -26,7 +26,7 @@ VAR_OUTPUT
 //	Status		: ST_StatusBasic;
 	FeedBack    : ST_Auto_UpperFeedInConveyorFeedback;
 	_bForceUpperCV_Use	: BOOL;
-	Paused		: BOOL;	// True: 目前處於暫停狀態	
+//	Paused		: BOOL;	// True: 目前處於暫停狀態	
 //    Busy    :BOOL;        // True : This prog is running.
 //    Done    :BOOL;        // True : Command has been executed.
 //    Aborted :BOOL;        // True : This prog is aborted.
@@ -45,7 +45,7 @@ VAR
 //	_Error : BOOL; // FB has an error.
 //	_ResetCompleted : BOOL; // FB resetting completed.
 //	_AbortCompleted : BOOL; // FB aborting completed.
-	_Abort		: BOOL;
+	//_Abort		: BOOL;
 	strStatus	: T_MaxString;
 	uiResumeStep : UINT;
 	iMoveConveyor	:INT;// 1 = MoveForward , -1 = Move reverse , 0 or other = Stop

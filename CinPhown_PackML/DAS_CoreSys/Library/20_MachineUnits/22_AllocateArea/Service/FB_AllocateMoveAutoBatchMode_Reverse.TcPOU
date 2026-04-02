@@ -7,7 +7,7 @@ VAR_INPUT
 //    Abort      :BOOL;   // True : This prog will be abort.
 //    Reset      :BOOL;   // True : This prog will be reset.
 //    ObjectName :STRING; // Set this fb name(About it's action)
-	Pause				:BOOL;
+//	Pause				:BOOL;
 	bOccupied			: BOOL;	
 	Clips 				: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;
 	cylinders 			: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;	
@@ -46,7 +46,7 @@ VAR
 //	_Error : BOOL; // FB has an error.
 //	_ResetCompleted : BOOL; // FB resetting completed.
 //	_AbortCompleted : BOOL; // FB aborting completed.
-	_Abort		: BOOL;
+//	_Abort		: BOOL;
 	strStatus	: STRING;
 	uiResumeStep : UINT;
 

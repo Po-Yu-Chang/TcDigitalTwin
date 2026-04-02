@@ -20,7 +20,7 @@ VAR_OUTPUT
 	BClampMoveDone	: BOOL;
 END_VAR
 VAR
-    _Abort       : BOOL;
+    //_Abort       : BOOL;
     strStatus    : STRING;
     uiResumeStep : UINT;
 

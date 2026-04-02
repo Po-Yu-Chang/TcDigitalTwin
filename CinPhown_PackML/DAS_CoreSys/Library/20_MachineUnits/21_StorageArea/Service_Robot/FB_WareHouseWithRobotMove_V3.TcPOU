@@ -18,7 +18,7 @@ VAR_OUTPUT
   // Status : ST_WareHouseWithRobotMove_Status;
 END_VAR
 VAR
-	_Abort		: BOOL;
+//	_Abort		: BOOL;
 	strStatus	: STRING;
 	uiResumeStep : UINT;
 	ClampA_WareHouseCoordinates : ST_WareHouseCoordinates;

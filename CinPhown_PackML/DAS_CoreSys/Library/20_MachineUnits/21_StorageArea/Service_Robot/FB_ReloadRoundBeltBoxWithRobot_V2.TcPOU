@@ -27,7 +27,7 @@ VAR
     PreviousErrorCode : STRING;
     A2_Sensor         : BOOL;
     A3_Sensor         : BOOL;
-	_Abort			  : BOOL;
+	//_Abort			  : BOOL;
 
 	// Clamp work
 	_AClampDoingWork	: BOOL;

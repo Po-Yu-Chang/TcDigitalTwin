@@ -33,7 +33,7 @@ VAR
 //	_Error : BOOL; // FB has an error.
 //	_ResetCompleted : BOOL; // FB resetting completed.
 //	_AbortCompleted : BOOL; // FB aborting completed.
-	_Abort		: BOOL;
+	//_Abort		: BOOL;
 	strStatus	: STRING;
 	uiResumeStep : UINT;
 	tonTimeOut   :TON;

@@ -16,15 +16,15 @@ VAR_INPUT
 	Input         : ST_InputTable;                        // IO 輸入表
     Info          : ST_FeedInToWareHouseBox_Info;         // C# ADS 餵入的動作參數 (A爪/B爪 取盒位置、放盒目標)
     Stop          : BOOL;                                 // 停止訊號，暫停 Timeout 計時
-	Pause		  : BOOL;
+//	Pause		  : BOOL;
 END_VAR
 VAR_OUTPUT
-	Paused		  : BOOL;
+//	Paused		  : BOOL;
 	AClampMoveDone	: BOOL;  // A爪動作完成旗標，供 C# 寫入 SQL
 	BClampMoveDone	: BOOL;  // B爪動作完成旗標，供 C# 寫入 SQL
 END_VAR
 VAR
-	_Abort			  : BOOL;
+//	_Abort			  : BOOL;
     strStatus         : STRING;   // 錯誤/狀態訊息
     tonTimeOut        : TON;      // 通用逾時計時器 (120s)
     _UniqueErrorCode  : STRING;

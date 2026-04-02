@@ -38,7 +38,7 @@ VAR
 	tonConveyorTimeOut	:TON;
 	tonFeedInUseAddBoxesDelay :TON;
 	strStatus	:STRING;
-	_Abort		:BOOL;
+//	_Abort		:BOOL;
 	uiResumeStep : UDINT;
 	CurrStation : UINT;
 	bInterventionRequest	 : BOOL;

@@ -47,7 +47,7 @@ VAR
 //	_AbortCompleted : BOOL; // FB aborting completed.
 	RackMotorStationTable   : ARRAY[0..9] OF st_StationPositions;
 	uiMaxRackStation :INT :=10;
-	_Abort		: BOOL;
+//	_Abort		: BOOL;
 	strStatus	: STRING;
 	uiResumeStep : UINT;
 	ExcutingStep :E_RackState;

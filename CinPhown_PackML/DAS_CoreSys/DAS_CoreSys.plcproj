@@ -46,6 +46,27 @@
     <Compile Include="Library\00_PackML\02_Mode\E_UnitMode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\DUTs\E_MethodStatus_Basic.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\DUTs\ST_CmdContent.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\DUTs\ST_MsgContent.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\FB_ObjectBase.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\FB_ObjectBase_V2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\GVLs\Para_ObjectBase.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\ITFs\IBasicElement.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\11_IOData\GVL_EIP.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
@@ -1264,25 +1285,7 @@
     <Compile Include="POUs\DAS_MotionSync.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs\E_MethodStatus_Basic.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs\ST_CmdContent.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs\ST_MsgContent.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\FB_ObjectBase.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\FB_ObjectBase_V2.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\GVLs\Para_ObjectBase.TcGVL">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\ITFs\IBasicElement.TcIO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\ModbusRTU\ComModbusRTU.TcPOU">
@@ -1321,6 +1324,11 @@
     <Folder Include="Library\00_PackML\01_ObjectBase" />
     <Folder Include="Library\00_PackML\02_Mode" />
     <Folder Include="Library\10_Machine" />
+    <Folder Include="Library\10_Machine\00_BaseFBs" />
+    <Folder Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase" />
+    <Folder Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\DUTs" />
+    <Folder Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\GVLs" />
+    <Folder Include="Library\10_Machine\00_BaseFBs\01_FB_ObjectBase\ITFs" />
     <Folder Include="Library\10_Machine\12_MachineControl\DUTs" />
     <Folder Include="Library\10_Machine\12_MachineControl\DUTs\Cylinders" />
     <Folder Include="Library\10_Machine\12_MachineControl\DUTs\Motor" />
@@ -1375,9 +1383,6 @@
     <Folder Include="POUs\ModbusRTU" />
     <Folder Include="POUs\ModbusRTU\00_BaseFBs" />
     <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase" />
-    <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\DUTs" />
-    <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\GVLs" />
-    <Folder Include="POUs\ModbusRTU\00_BaseFBs\01_FB_ObjectBase\ITFs" />
     <Folder Include="POUs\ModbusRTU\SerialComTask" />
     <Folder Include="POUs\ModbusRTU\SerialComTask\DUTs" />
     <Folder Include="POUs\RS485_JidianVersion" />
