@@ -5,6 +5,7 @@
 VAR_INPUT
 	bTrigger	: BOOL;
 	Cylinder	: REFERENCE TO  FB_Cylinder; 
+	Hold		: BOOL; //Add for holding the cylinder
 END_VAR
 VAR_OUTPUT
 END_VAR
@@ -14,8 +15,10 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[rTrig(CLK:=bTrigger);
-fTrig(CLK:=bTrigger);
+      <ST><![CDATA[IF NOT Hold THEN
+	rTrig(CLK:=bTrigger);
+	fTrig(CLK:=bTrigger);
+END_IF
 
 IF rTrig.Q THEN
 	Cylinder.M_Extend();
@@ -24,12 +27,7 @@ ELSIF fTrig.Q THEN
 END_IF]]></ST>
     </Implementation>
     <LineIds Name="FB_CylinderManualCtrl">
-      <LineId Id="9" Count="0" />
-      <LineId Id="14" Count="0" />
-      <LineId Id="16" Count="0" />
-      <LineId Id="15" Count="0" />
-      <LineId Id="17" Count="0" />
-      <LineId Id="19" Count="1" />
+      <LineId Id="33" Count="8" />
       <LineId Id="18" Count="0" />
     </LineIds>
   </POU>

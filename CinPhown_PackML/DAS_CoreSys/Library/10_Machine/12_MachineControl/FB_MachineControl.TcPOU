@@ -3104,59 +3104,93 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CylinderManualCtrl[1](bTrigger:=StorageManualCommand.UpCV.FeedInPress1.Exetend);
-CylinderManualCtrl[2](bTrigger:=StorageManualCommand.UpCV.FeedInPress2.Exetend);
-CylinderManualCtrl[3](bTrigger:=StorageManualCommand.UpCV.DiameterPress.Exetend);
-CylinderManualCtrl[4](bTrigger:=StorageManualCommand.UpCV.CamaraPress1.Exetend);
-CylinderManualCtrl[5](bTrigger:=StorageManualCommand.UpCV.CamaraPress2.Exetend);
-CylinderManualCtrl[6](bTrigger:=StorageManualCommand.UpCV.CamaraPress3.Exetend);
-CylinderManualCtrl[7](bTrigger:=StorageManualCommand.UpCV.CamaraPress4.Exetend);
-CylinderManualCtrl[8](bTrigger:=StorageManualCommand.UpCV.Block1.Exetend);
-CylinderManualCtrl[9](bTrigger:=StorageManualCommand.UpCV.Block2.Exetend);
-CylinderManualCtrl[10](bTrigger:=StorageManualCommand.UpCV.Block3.Exetend);
-CylinderManualCtrl[11](bTrigger:=StorageManualCommand.UpCV.DiameterHoriz.Exetend);
-CylinderManualCtrl[12](bTrigger:=StorageManualCommand.UpCV.DiameterVert.Exetend);
-CylinderManualCtrl[13](bTrigger:=StorageManualCommand.UpCV.DiameterClamp.Exetend);
-CylinderManualCtrl[14](bTrigger:=StorageManualCommand.UpCV.StackPush.Exetend);
-CylinderManualCtrl[15](bTrigger:=AllocateManualCommand.PullOutCV.AsidePress1.Exetend);
-CylinderManualCtrl[16](bTrigger:=AllocateManualCommand.PullOutCV.AsidePress2.Exetend);
-CylinderManualCtrl[17](bTrigger:=AllocateManualCommand.PullOutCV.AsideBlock.Exetend);
-CylinderManualCtrl[18](bTrigger:=AllocateManualCommand.PullOutCV.BsidePress1.Exetend);
-CylinderManualCtrl[19](bTrigger:=AllocateManualCommand.PullOutCV.BsidePress2.Exetend);
-CylinderManualCtrl[20](bTrigger:=AllocateManualCommand. PullOutCV.BsideBlock.Exetend);
-CylinderManualCtrl[21](bTrigger:=StorageManualCommand.LowCV.Press1.Exetend);
-CylinderManualCtrl[22](bTrigger:=StorageManualCommand.LowCV.Press2.Exetend);
-CylinderManualCtrl[23](bTrigger:=StorageManualCommand.LowCV.Press3.Exetend);
-CylinderManualCtrl[24](bTrigger:=StorageManualCommand.LowCV.Press4.Exetend);
-CylinderManualCtrl[25](bTrigger:=StorageManualCommand.LowCV.Block1.Exetend);
-CylinderManualCtrl[26](bTrigger:=StorageManualCommand.LowCV.Block2.Exetend);
-CylinderManualCtrl[27](bTrigger:=AllocateManualCommand.AllocatedRobot.LeftVert1.Exetend);
-CylinderManualCtrl[28](bTrigger:=AllocateManualCommand.AllocatedRobot.LeftVert2.Exetend);
-CylinderManualCtrl[29](bTrigger:=AllocateManualCommand.AllocatedRobot.RightVert1.Exetend);
-CylinderManualCtrl[30](bTrigger:=AllocateManualCommand.AllocatedRobot.RightVert2.Exetend);
-CylinderManualCtrl[31](bTrigger:=AllocateManualCommand.AllocatedRobot.LeftClamp1.Exetend);
-CylinderManualCtrl[32](bTrigger:=AllocateManualCommand.AllocatedRobot.LeftClamp2.Exetend);
-CylinderManualCtrl[33](bTrigger:=AllocateManualCommand.AllocatedRobot.RightClamp1.Exetend);
-CylinderManualCtrl[34](bTrigger:=AllocateManualCommand.AllocatedRobot.RightClamp2.Exetend);
-CylinderManualCtrl[35](bTrigger:=AllocateManualCommand.RoundBelt.WorkZone_Press.Exetend);
-CylinderManualCtrl[36](bTrigger:=AllocateManualCommand.RoundBelt.WorkZone_Plug.Exetend);
-CylinderManualCtrl[37](bTrigger:=AllocateManualCommand.RoundBelt.ChargeZone_Plug.Exetend);
-CylinderManualCtrl[38](bTrigger:=AllocateManualCommand.RoundBelt.TransmitCVZone_Plug.Exetend);
-CylinderManualCtrl[39](bTrigger:=AllocateManualCommand.OutRobot.AsideVert.Exetend);
-CylinderManualCtrl[40](bTrigger:=AllocateManualCommand.OutRobot.BsideVert.Exetend);
-CylinderManualCtrl[41](bTrigger:=AllocateManualCommand.OutRobot.AsideClamp.Exetend);
-CylinderManualCtrl[42](bTrigger:=AllocateManualCommand.OutRobot.BsideClamp.Exetend);
-CylinderManualCtrl[43](bTrigger:=AllocateManualCommand.TransCV.CamaraHoriz .Exetend);
-CylinderManualCtrl[44](bTrigger:=AllocateManualCommand.TransCV.DifferentSizeCV_Press2.Exetend);
-CylinderManualCtrl[45](bTrigger:=AllocateManualCommand.TransCV.DifferentSizeCV_Press1.Exetend);
-CylinderManualCtrl[46](bTrigger:=AllocateManualCommand.TransCV.DifferentSizeCV_Block1.Exetend);
-CylinderManualCtrl[47](bTrigger:=AllocateManualCommand.TransCV.SameSizeCV_Press4.Exetend);
-CylinderManualCtrl[48](bTrigger:=AllocateManualCommand.TransCV.SameSizeCV_Press3.Exetend);
-CylinderManualCtrl[49](bTrigger:=AllocateManualCommand.TransCV.SameSizeCV_Press2.Exetend);
-CylinderManualCtrl[50](bTrigger:=AllocateManualCommand.TransCV.SameSizeCV_Press1.Exetend);
-CylinderManualCtrl[51](bTrigger:=AllocateManualCommand.TransCV.SameSizeCV_Block2.Exetend);
-CylinderManualCtrl[52](bTrigger:=AllocateManualCommand.TransCV.SameSizeCV_Block1 .Exetend);
-CylinderManualCtrl[53](bTrigger:=AllocateManualCommand.TurnTable.Press.Exetend);
+        <ST><![CDATA[CylinderManualCtrl[1](bTrigger 	:=StorageManualCommand.UpCV.FeedInPress1.Exetend);
+CylinderManualCtrl[2](bTrigger 	:=StorageManualCommand.UpCV.FeedInPress2.Exetend);
+CylinderManualCtrl[3](bTrigger 	:=StorageManualCommand.UpCV.DiameterPress.Exetend);
+CylinderManualCtrl[4](bTrigger 	:=StorageManualCommand.UpCV.CamaraPress1.Exetend);
+CylinderManualCtrl[5](bTrigger 	:=StorageManualCommand.UpCV.CamaraPress2.Exetend);
+CylinderManualCtrl[6](bTrigger 	:=StorageManualCommand.UpCV.CamaraPress3.Exetend);
+CylinderManualCtrl[7](bTrigger 	:=StorageManualCommand.UpCV.CamaraPress4.Exetend);
+CylinderManualCtrl[8](bTrigger 	:=StorageManualCommand.UpCV.Block1.Exetend);
+CylinderManualCtrl[9](bTrigger 	:=StorageManualCommand.UpCV.Block2.Exetend);
+CylinderManualCtrl[10](bTrigger :=StorageManualCommand.UpCV.Block3.Exetend);
+CylinderManualCtrl[11](bTrigger :=StorageManualCommand.UpCV.DiameterHoriz.Exetend,
+					   Hold 	:= NOT Cylinder.List.fbUpCV_DiameterVert.InRearPosition);
+CylinderManualCtrl[12](bTrigger	:=StorageManualCommand.UpCV.DiameterVert.Exetend);
+CylinderManualCtrl[13](bTrigger	:=StorageManualCommand.UpCV.DiameterClamp.Exetend);
+CylinderManualCtrl[14](bTrigger	:=StorageManualCommand.UpCV.StackPush.Exetend,
+						Hold	:= NOT arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.NotMoving);
+CylinderManualCtrl[15](bTrigger	:=AllocateManualCommand.PullOutCV.AsidePress1.Exetend);
+CylinderManualCtrl[16](bTrigger	:=AllocateManualCommand.PullOutCV.AsidePress2.Exetend);
+CylinderManualCtrl[17](bTrigger	:=AllocateManualCommand.PullOutCV.AsideBlock.Exetend);
+CylinderManualCtrl[18](bTrigger	:=AllocateManualCommand.PullOutCV.BsidePress1.Exetend);
+CylinderManualCtrl[19](bTrigger	:=AllocateManualCommand.PullOutCV.BsidePress2.Exetend);
+CylinderManualCtrl[20](bTrigger	:=AllocateManualCommand. PullOutCV.BsideBlock.Exetend);
+CylinderManualCtrl[21](bTrigger	:=StorageManualCommand.LowCV.Press1.Exetend);
+CylinderManualCtrl[22](bTrigger	:=StorageManualCommand.LowCV.Press2.Exetend);
+CylinderManualCtrl[23](bTrigger	:=StorageManualCommand.LowCV.Press3.Exetend);
+CylinderManualCtrl[24](bTrigger	:=StorageManualCommand.LowCV.Press4.Exetend);
+CylinderManualCtrl[25](bTrigger	:=StorageManualCommand.LowCV.Block1.Exetend);
+CylinderManualCtrl[26](bTrigger	:=StorageManualCommand.LowCV.Block2.Exetend);
+CylinderManualCtrl[27](bTrigger	:=AllocateManualCommand.AllocatedRobot.LeftVert1.Exetend,
+						Hold	:= 	(NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.NotMoving));
+CylinderManualCtrl[28](bTrigger	:=AllocateManualCommand.AllocatedRobot.LeftVert2.Exetend,
+						Hold	:= 	(NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.NotMoving));
+
+CylinderManualCtrl[29](bTrigger	:=AllocateManualCommand.AllocatedRobot.RightVert1.Exetend,
+						Hold	:= 	(NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.NotMoving));
+
+CylinderManualCtrl[30](bTrigger	:=AllocateManualCommand.AllocatedRobot.RightVert2.Exetend,
+						Hold	:= 	(NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.NotMoving)
+								OR  (NOT arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.NotMoving));
+CylinderManualCtrl[31](bTrigger	:=AllocateManualCommand.AllocatedRobot.LeftClamp1.Exetend);
+CylinderManualCtrl[32](bTrigger	:=AllocateManualCommand.AllocatedRobot.LeftClamp2.Exetend);
+CylinderManualCtrl[33](bTrigger	:=AllocateManualCommand.AllocatedRobot.RightClamp1.Exetend);
+CylinderManualCtrl[34](bTrigger	:=AllocateManualCommand.AllocatedRobot.RightClamp2.Exetend);
+CylinderManualCtrl[35](bTrigger	:=AllocateManualCommand.RoundBelt.WorkZone_Press.Exetend,
+						Hold	:= NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving);
+CylinderManualCtrl[36](bTrigger	:=AllocateManualCommand.RoundBelt.WorkZone_Plug.Exetend,
+						Hold	:= NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving);
+CylinderManualCtrl[37](bTrigger	:=AllocateManualCommand.RoundBelt.ChargeZone_Plug.Exetend,
+						Hold	:= NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving);
+						
+CylinderManualCtrl[38](bTrigger	:=AllocateManualCommand.RoundBelt.TransmitCVZone_Plug.Exetend,
+						Hold	:= NOT arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving);
+						
+CylinderManualCtrl[39](bTrigger	:=AllocateManualCommand.OutRobot.AsideVert.Exetend,
+						Hold	:= (NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving) 
+								OR (NOT  arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.NotMoving)
+								OR (NOT  arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.NotMoving));
+						
+CylinderManualCtrl[40](bTrigger	:=AllocateManualCommand.OutRobot.BsideVert.Exetend,
+						Hold	:= (NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving)
+								OR (NOT  arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.NotMoving) 
+								OR (NOT  arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.NotMoving));
+CylinderManualCtrl[41](bTrigger	:=AllocateManualCommand.OutRobot.AsideClamp.Exetend);
+CylinderManualCtrl[42](bTrigger	:=AllocateManualCommand.OutRobot.BsideClamp.Exetend);
+CylinderManualCtrl[43](bTrigger	:=AllocateManualCommand.TransCV.CamaraHoriz .Exetend);
+CylinderManualCtrl[44](bTrigger	:=AllocateManualCommand.TransCV.DifferentSizeCV_Press2.Exetend);
+CylinderManualCtrl[45](bTrigger	:=AllocateManualCommand.TransCV.DifferentSizeCV_Press1.Exetend);
+CylinderManualCtrl[46](bTrigger	:=AllocateManualCommand.TransCV.DifferentSizeCV_Block1.Exetend);
+CylinderManualCtrl[47](bTrigger	:=AllocateManualCommand.TransCV.SameSizeCV_Press4.Exetend);
+CylinderManualCtrl[48](bTrigger	:=AllocateManualCommand.TransCV.SameSizeCV_Press3.Exetend);
+CylinderManualCtrl[49](bTrigger	:=AllocateManualCommand.TransCV.SameSizeCV_Press2.Exetend);
+CylinderManualCtrl[50](bTrigger	:=AllocateManualCommand.TransCV.SameSizeCV_Press1.Exetend);
+CylinderManualCtrl[51](bTrigger	:=AllocateManualCommand.TransCV.SameSizeCV_Block2.Exetend);
+CylinderManualCtrl[52](bTrigger	:=AllocateManualCommand.TransCV.SameSizeCV_Block1 .Exetend);
+CylinderManualCtrl[53](bTrigger	:=AllocateManualCommand.TurnTable.Press.Exetend,
+						Hold	:= NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.NotMoving);
 ]]></ST>
       </Implementation>
     </Method>
@@ -3270,6 +3304,7 @@ MotorManualCtrl[20](bForward  := StorageManualCommand.WareHouseCV_20.Forward,
 MotorManualCtrl[21](bForward  := StorageManualCommand.UpCV.UpCV.Forward,
                     bBackward := StorageManualCommand.UpCV.UpCV.Backward,
                     bStop     := StorageManualCommand.UpCV.UpCV.Stopped,
+					Hold	  := INPUT.bUpCV_DiameterHoriz_RearSensor AND INPUT.bUpCV_DiameterVert_FrontSensor,
                     Motor     := Motor.List.UpCV);
 
 MotorManualCtrl[22](bForward  := StorageManualCommand.LowCV.LowCV.Forward,
@@ -4391,12 +4426,24 @@ StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.Aut
     </LineIds>
     <LineIds Name="FB_MachineControl.M_Manual_Cylinder">
       <LineId Id="919" Count="0" />
-      <LineId Id="921" Count="51" />
+      <LineId Id="921" Count="8" />
+      <LineId Id="976" Count="0" />
+      <LineId Id="930" Count="2" />
+      <LineId Id="977" Count="0" />
+      <LineId Id="933" Count="12" />
+      <LineId Id="982" Count="20" />
+      <LineId Id="949" Count="4" />
+      <LineId Id="1003" Count="17" />
+      <LineId Id="959" Count="12" />
+      <LineId Id="1021" Count="0" />
+      <LineId Id="972" Count="0" />
       <LineId Id="865" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_Manual_Motor">
       <LineId Id="321" Count="0" />
-      <LineId Id="700" Count="107" />
+      <LineId Id="700" Count="99" />
+      <LineId Id="832" Count="3" />
+      <LineId Id="803" Count="4" />
       <LineId Id="637" Count="0" />
       <LineId Id="809" Count="19" />
       <LineId Id="152" Count="0" />

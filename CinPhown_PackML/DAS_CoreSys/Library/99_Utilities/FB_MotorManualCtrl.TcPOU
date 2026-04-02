@@ -7,8 +7,9 @@ FUNCTION_BLOCK FB_MotorManualCtrl
 VAR_INPUT
 	bForward	: BOOL;
 	bBackward	: BOOL;
-	bStop	: BOOL;
-	Motor	: REFERENCE TO  FB_Motor; 
+	bStop		: BOOL;
+	Hold		: BOOL;	//Add for holding the cylinder
+	Motor		: REFERENCE TO  FB_Motor; 
 END_VAR
 VAR_OUTPUT
 END_VAR
@@ -24,12 +25,13 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[ForWardrTrig(CLK:=bForward);
-ForWardfTrig(CLK:=bForward);
-
-BackWardrTrig(CLK:=bBackward);
-BackWardfTrig(CLK:=bBackward);
-
+      <ST><![CDATA[IF NOT Hold THEN
+	ForWardrTrig(CLK:=bForward);
+	ForWardfTrig(CLK:=bForward);
+	
+	BackWardrTrig(CLK:=bBackward);
+	BackWardfTrig(CLK:=bBackward);
+END_IF
 
 IF ForWardrTrig.Q AND NOT bBackward AND NOT bStop THEN
 	Motor.M_MoveForward();	
@@ -44,10 +46,7 @@ IF bStop OR ForWardfTrig.Q OR BackWardfTrig.Q THEN
 END_IF]]></ST>
     </Implementation>
     <LineIds Name="FB_MotorManualCtrl">
-      <LineId Id="9" Count="0" />
-      <LineId Id="14" Count="0" />
-      <LineId Id="53" Count="1" />
-      <LineId Id="16" Count="0" />
+      <LineId Id="91" Count="5" />
       <LineId Id="55" Count="0" />
       <LineId Id="58" Count="0" />
       <LineId Id="18" Count="0" />
