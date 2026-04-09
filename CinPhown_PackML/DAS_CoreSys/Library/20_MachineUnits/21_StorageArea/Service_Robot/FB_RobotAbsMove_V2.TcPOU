@@ -437,6 +437,8 @@ BClampMoveDone	:= FALSE;
 _AClampDoingWork	:= FALSE;
 _BClampDoingWork	:= FALSE;
 bRetry := FALSE;
+uiBothStep := 0;
+uiSingleClampStep :=0;
 
 // Wait Execute command
 IF Execute AND NOT stop THEN
@@ -471,8 +473,8 @@ VAR_INST
 	BoxReady_2nd : BOOL;
     CarrierReady_1st : BOOL;
     CarrierReady_2nd : BOOL;
-    uiBothStep : UINT;
-    uiSingleClampStep : UINT;	
+    //uiBothStep : UINT;
+    //uiSingleClampStep : UINT;	
 	Area : E_RobotArea;
 	Address_A : INT;
 	Address_B : INT;
@@ -493,12 +495,12 @@ CASE uiExecutingStep OF
         ActionMode       := E_ReloadRoundBoxAction.Undefined;
         CarrierReady_1st := FALSE;
         CarrierReady_2nd := FALSE;
-//        uiBothStep := 0;
-//		uiSingleClampStep :=0;
+        uiBothStep := 0;
+		uiSingleClampStep :=0;
 		uiLastBothStep := 0;//Edited by Jidien Kachu in 2025/10/14
 		uiLastSingleClampStep := 0;//Edited by Jidien Kachu in 2025/10/14
-		BoxReady_1st := 0;
-		BoxReady_2nd := 0;
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
 		bTimeOutIN:=FALSE;
         // Check command
         IF M_CheckCommand() THEN
@@ -1278,6 +1280,8 @@ END_IF]]></ST>
       <LineId Id="47" Count="2" />
       <LineId Id="34" Count="0" />
       <LineId Id="58" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="62" Count="0" />
       <LineId Id="33" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="16" Count="1" />
