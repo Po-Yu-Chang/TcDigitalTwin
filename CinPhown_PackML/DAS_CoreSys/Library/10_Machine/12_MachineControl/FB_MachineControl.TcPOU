@@ -968,6 +968,20 @@ cylinder.List.fbTurntable_Press(xDone =>,
                                 InRearPosition =>CylinderStatus.Turntable_Press.InRearPosition,
                                 ExtendOutput => InternalOutput.bTurntable_Press_Valve,
                                 RetractOutput =>);
+Cylinder.List.fbShippingBuffer_Press(xDone=> , 
+										xBusy=> , 
+										xError=> , 
+										xEnable:= , 
+										FrontSensor:= , 
+										RearSensor:= TRUE, 
+										SetupPara:= , 
+										CurrentCylinderType=> , 
+										InFrontPosition=> , 
+										InRearPosition=> , 
+										ExtendOutput=> , 
+										RetractOutput=> , 
+										iErrorID=> , 
+										ErrorMsg=> );
 ]]></ST>
       </Implementation>
     </Action>
@@ -4045,6 +4059,9 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="7726" Count="12" />
       <LineId Id="7882" Count="0" />
       <LineId Id="7739" Count="128" />
+      <LineId Id="7884" Count="0" />
+      <LineId Id="7886" Count="11" />
+      <LineId Id="7883" Count="0" />
       <LineId Id="957" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.A02_Motor">
