@@ -29,7 +29,13 @@ TYPE
         // 小手臂右 (操作面)
         ShippingRobotRight := 9,
 		// Shipping Store,K
-		TransmitCV_End :=10
+		TransmitCV_End :=10,
+		// Shipping Buffer , K
+		ShippingBufferArea := 11,
+		// 小手臂CCD Pos
+		ShippingCCDPos	:= 12,
+		// 小手臂 拔針排空盒
+		ShippingFeedOutEmptyBox := 13
     );
 END_TYPE
 ]]></Declaration>

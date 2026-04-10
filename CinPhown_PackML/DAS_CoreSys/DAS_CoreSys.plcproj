@@ -1188,16 +1188,16 @@
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\FB_ShippingArea.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingHoming.TcPOU">
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\FB_ShippingHoming.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingRobot_TransmitCVEnd.TcPOU">
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingRobot_Left.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingRobot_Left.TcPOU">
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingRobot_Right.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingRobot_Right.TcPOU">
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingRobot_TransmitCVEnd.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\Service\FB_ShippingTransCV_LeftSide.TcPOU">
@@ -1404,6 +1404,7 @@
     <Folder Include="Library\20_MachineUnits\22_AllocateArea\Service" />
     <Folder Include="Library\20_MachineUnits\23_ShippingArea" />
     <Folder Include="Library\20_MachineUnits\23_ShippingArea\Duts" />
+    <Folder Include="Library\20_MachineUnits\23_ShippingArea\RobotService" />
     <Folder Include="Library\20_MachineUnits\23_ShippingArea\Service" />
     <Folder Include="Library\99_Utilities" />
     <Folder Include="Library\99_Utilities\Duts" />

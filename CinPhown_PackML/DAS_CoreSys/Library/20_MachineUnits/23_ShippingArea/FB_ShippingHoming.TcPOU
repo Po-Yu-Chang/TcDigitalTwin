@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_ShippingHoming" Id="{fb6a1860-c382-494a-99f6-2de10876296e}" SpecialFunc="None">
+  <POU Name="FB_ShippingHoming" Id="{a389ff6d-2df6-446e-9dd8-b6fde818b220}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingHoming EXTENDS FB_ActionBasic
 VAR_INPUT
 	xExecute 	: BOOL;
@@ -54,8 +54,8 @@ fbExecuteEdgeDetect(xInput :=xExecute);
 
 ]]></ST>
     </Implementation>
-    <Folder Name="STATE" Id="{4b925b5e-f789-4880-9d0a-0db60304a629}" />
-    <Action Name="A00_BasicUnits" Id="{f3e17531-2194-49d0-addb-559149d6847b}">
+    <Folder Name="STATE" Id="{1365c42e-775f-4446-b7f3-b637cf99fa35}" />
+    <Action Name="A00_BasicUnits" Id="{65956791-bb1c-4454-8bf6-252f96cc4a15}">
       <Implementation>
         <ST><![CDATA[FanucRobotCheckTon(PT := T#90S);		//All Service TimeOut
 ResetRobotDelay(PT:=T#300MS);
@@ -87,7 +87,7 @@ _fbShippingRobot_TransmitCVEnd(
 	fbSHippingHomingBusy := THIS^.xBusy);]]></ST>
       </Implementation>
     </Action>
-    <Method Name="CleanupAction" Id="{f4a4a7bd-b035-4c68-8efe-6ad0c9c5f25b}" FolderPath="STATE\">
+    <Method Name="CleanupAction" Id="{a9bf4c7a-fb5a-479a-be39-ca47cb1eb669}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD CleanupAction
 VAR_INPUT
     xAbortProposed : BOOL;
@@ -104,7 +104,7 @@ FanucRobotCheckTon.IN := FALSE;
 uiShippingHomingStep := 0;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="CyclicAction" Id="{ccbe0fb7-3c8a-435f-b091-6473cfa1a63d}" FolderPath="STATE\">
+    <Method Name="CyclicAction" Id="{28efe66c-9769-402b-bc55-7d1c861b50ec}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD CyclicAction
 VAR_INPUT
     itfTimingController : CBML.ITimingController;
@@ -232,7 +232,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ExitAction" Id="{b40aaad3-b319-49ad-ab2a-b5db16cceaaa}" FolderPath="STATE\">
+    <Method Name="ExitAction" Id="{86b170ea-633a-43c7-8939-5f6563235fb3}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD ExitAction
 VAR_INPUT
     xAfterCleanup : BOOL;
@@ -243,7 +243,7 @@ END_VAR
         <ST><![CDATA[]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_GetErrorMsg" Id="{03eac412-96d4-4e84-bf40-8d06670d8278}">
+    <Method Name="M_GetErrorMsg" Id="{eeb0349d-35ae-4ab3-9b91-413106917694}">
       <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
 VAR_INPUT
 	xErrorID: INT;
@@ -276,7 +276,7 @@ END_VAR]]></Declaration>
 END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ResetAction" Id="{a5d6e6fc-9b41-4dd3-92ef-8e0382f51f5a}" FolderPath="STATE\">
+    <Method Name="ResetAction" Id="{29de0fe6-dff5-463d-8b62-34c704f43cf6}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD ResetAction
 VAR_OUTPUT
     xComplete : BOOL := TRUE;
@@ -289,7 +289,7 @@ TON_RebootPowerDelay.IN := FALSE;
 _fbShippingRobot_TransmitCVEnd.M_ResetHomingFeedOut();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="StartAction" Id="{a77f2f89-4696-4442-828d-0460ba5f894c}" FolderPath="STATE\">
+    <Method Name="StartAction" Id="{f811c667-2a87-41b8-8549-fe57f7889dab}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD StartAction
 VAR_OUTPUT
     xComplete : BOOL := TRUE;
