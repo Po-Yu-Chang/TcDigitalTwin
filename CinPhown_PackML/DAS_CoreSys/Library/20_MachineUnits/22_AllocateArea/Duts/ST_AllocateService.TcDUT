@@ -14,12 +14,15 @@
         AutoMode_EmptyBoxMove              : REFERENCE TO st_AutoMode_ClampingBoxesJob;
         AutoMode_BoxMoveReverse            : REFERENCE TO st_AutoMode_ClampingBoxesJob;
         AutoMode_SameSizeCVCamera          : REFERENCE TO ST_AutoMode_TransCVCamera;
+        AutoMode_SameSizeCVCamera_Reverse  : REFERENCE TO ST_AutoMode_TransCVCamera;
         AutoMode_DifferentCVCamera         : REFERENCE TO ST_AutoMode_TransCVCamera;
         AllocateRegionHome                 : REFERENCE TO st_RegionHome;
         AutoMode_PullOutConveyor           : REFERENCE TO ST_AutoPullOutConveyor;
 		AutoMode_AllocateCircleMove 	   : REFERENCE TO st_AllocateCircleMoveStructure;
 		AutoMode_TurnTableMove 			   : REFERENCE TO st_ads_OneAxisMoveWithPosition;
 		AllocateRobotNeedlingMove 		   : REFERENCE TO st_AllocateRobotNeedlingMove;
+		AutoMode_ReverseBatchPick		   : REFERENCE TO ST_AutoMode_ReverseBatchPick;
+		AutoMode_ReverseBoxToWareHouse	   : REFERENCE TO ST_AutoMode_ReverseBoxToWareHouse;
     END_STRUCT
 END_TYPE
 ]]></Declaration>

@@ -3789,6 +3789,7 @@ AllocateService.AutoMode_BoxMoveReverse 			REF= Service_Handshake.AutoMode_BoxMo
 
 //TransCV camera 
 AllocateService.AutoMode_SameSizeCVCamera 			REF= Service_Handshake.AutoMode_SameSizeCVCamera;
+AllocateService.AutoMode_SameSizeCVCamera_Reverse 	REF= Service_Handshake.AutoMode_SameSizeCVCamera_Reverse;
 AllocateService.AutoMode_DifferentCVCamera 			REF= Service_Handshake.AutoMode_DifferentCVCamera;
 
 //AllocateArea Home
@@ -3804,7 +3805,13 @@ AllocateService.AutoMode_PullOutConveyor 			REF= Service_Handshake.AutoMode_Pull
     AllocateService.AutoMode_TurnTableMOve  		REF= Service_Handshake.AutoMode_TurnTableMOve;
 	
 //Allocate robot move
-AllocateService.AllocateRobotNeedlingMove 			REF= Service_Handshake.AllocationRobotNeedlingMove;]]></ST>
+AllocateService.AllocateRobotNeedlingMove 			REF= Service_Handshake.AllocationRobotNeedlingMove;
+
+//逆向拍照批次入料
+AllocateService.AutoMode_ReverseBatchPick			REF= Service_Handshake.AutoMode_ReverseBatchPick;
+
+//同尺寸軌道回倉/NG
+AllocateService.AutoMode_ReverseBoxToWareHouse		REF= Service_Handshake.AutoMode_ReverseBoxToWareHouse;]]></ST>
       </Implementation>
     </Method>
     <Method Name="ReferenceHMI" Id="{f6889bed-a428-4faa-8d67-c5add5d80ffa}" FolderPath="Privite\HMI_Handshake\">
@@ -3866,14 +3873,26 @@ Service_Handshake.AutoMode_ShippingRobot_Left 			REF= GVL_ADS.AutoMode_ShippingR
 Service_Handshake.AutoMode_ShippingRobot_Right 			REF= GVL_ADS.AutoMode_ShippingRobot_Right;
 Service_Handshake.AutoMode_ShippingRobot_TransmitCVEnd 	REF= GVL_ADS.AutoMode_ShippingRobot_TransmitCVEnd;
 Service_Handshake.AutoMode_SameSizeCVCamera 			REF= GVL_ADS.AutoMode_SameSizeCVCamera;
+Service_Handshake.AutoMode_SameSizeCVCamera_Reverse 	REF= GVL_ADS.AutoMode_SameSizeCVCamera_Reverse;
 Service_Handshake.AutoMode_DifferentCVCamera 			REF= GVL_ADS.AutoMode_DifferentCVCamera;
 
 Service_Handshake.AllocationRobotNeedlingMove 			REF= GVL_ADS.AllocationRobotNeedlingMove;
 Service_Handshake.RebootModbusDevices 					REF= GVL_ADS.RebootModbusDevices;
 Service_Handshake.AutoMode_ShippingLeftSideTransCV 		REF= GVL_ADS.AutoMode_ShippingLeftSideTransCV;
 Service_Handshake.AutoMode_ShippingRightSideTransCV 	REF= GVL_ADS.AutoMode_ShippingRightSideTransCV;
+Service_Handshake.AutoMode_ShippingRobot_Buffer REF= GVL_ADS.AutoMode_ShippingRobot_Buffer;
+Service_Handshake.AutoMode_ShippingRobot_PhotoStandByPos REF= GVL_ADS.AutoMode_ShippingRobot_PhotoStandByPos;
+Service_Handshake.AutoMode_ShippingRobotTransfer REF= GVL_ADS.AutoMode_ShippingRobotTransfer;
 
 Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse REF= GVL_ADS.AutoMode_FeedInRoundBeltBoxToWareHouse;
+
+Service_Handshake.AutoMode_WareHouseInnerPickToRoundBelt REF= GVL_ADS.AutoMode_WareHouseInnerPickToRoundBelt;
+Service_Handshake.AutoMode_WareHouseInnerPickToRoundBeltBatch REF= GVL_ADS.AutoMode_WareHouseInnerPickToRoundBeltBatch;
+
+Service_Handshake.AutoMode_RobotSelfHoming REF= GVL_ADS.AutoMode_RobotSelfHoming;
+
+Service_Handshake.AutoMode_ReverseBatchPick REF= GVL_ADS.AutoMode_ReverseBatchPick;
+Service_Handshake.AutoMode_ReverseBoxToWareHouse REF= GVL_ADS.AutoMode_ReverseBoxToWareHouse;
 
 
 
@@ -3894,7 +3913,9 @@ ShippingService.AutoMode_ShippingRobot_Right 			REF= Service_Handshake.AutoMode_
 ShippingService.AutoMode_ShippingRobot_TransmitCVEnd 	REF= Service_Handshake.AutoMode_ShippingRobot_TransmitCVEnd;
 ShippingService.AutoMode_ShippingTransCV_LeftSide 		REF= Service_Handshake.AutoMode_ShippingLeftSideTransCV;
 ShippingService.AutoMode_ShippingTransCV_RightSide 		REF= Service_Handshake.AutoMode_ShippingRightSideTransCV;
-]]></ST>
+ShippingService.AutoMode_ShippingRobot_Buffer			REF= Service_Handshake.AutoMode_ShippingRobot_Buffer;
+ShippingService.AutoMode_ShippingRobot_PhotoStandByPos  REF= Service_Handshake.AutoMode_ShippingRobot_PhotoStandByPos;
+ShippingService.AutoMode_ShippingRobotTransfer			REF= Service_Handshake.AutoMode_ShippingRobotTransfer;]]></ST>
       </Implementation>
     </Method>
     <Method Name="RefStorageService" Id="{1a766cf2-e5ed-4657-8a78-f09a69ade618}" FolderPath="Privite\HMI_Handshake\">
@@ -3916,7 +3937,10 @@ StorageService.AutoMode_PullOutConveyor REF= Service_Handshake.AutoMode_PullOutC
 StorageService.AutoMode_RobotAbsMove REF=  Service_Handshake.AutoMode_RobotAbsMove;
 StorageService.AutoMode_WarehouseMotoWithRobotMove REF= Service_Handshake.AutoMode_WarehouseMotoWithRobotMove;
 StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;
-StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse;]]></ST>
+StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse;
+StorageService.AutoMode_WareHouseInnerPickToRoundBelt REF= Service_Handshake.AutoMode_WareHouseInnerPickToRoundBelt;
+StorageService.AutoMode_WareHouseInnerPickToRoundBeltBatch REF= Service_Handshake.AutoMode_WareHouseInnerPickToRoundBeltBatch;
+StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSelfHoming;]]></ST>
       </Implementation>
     </Method>
     <LineIds Name="FB_MachineControl">
@@ -4606,6 +4630,7 @@ StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.Aut
       <LineId Id="27" Count="1" />
       <LineId Id="40" Count="0" />
       <LineId Id="35" Count="1" />
+      <LineId Id="77" Count="0" />
       <LineId Id="34" Count="0" />
       <LineId Id="45" Count="0" />
       <LineId Id="44" Count="0" />
@@ -4616,6 +4641,8 @@ StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.Aut
       <LineId Id="57" Count="4" />
       <LineId Id="56" Count="0" />
       <LineId Id="65" Count="2" />
+      <LineId Id="72" Count="4" />
+      <LineId Id="71" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.ReferenceHMI">
       <LineId Id="5" Count="1" />
@@ -4640,14 +4667,19 @@ StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.Aut
       <LineId Id="71" Count="0" />
       <LineId Id="84" Count="1" />
       <LineId Id="90" Count="0" />
+      <LineId Id="128" Count="0" />
       <LineId Id="92" Count="0" />
       <LineId Id="97" Count="0" />
       <LineId Id="96" Count="0" />
       <LineId Id="101" Count="0" />
       <LineId Id="105" Count="0" />
       <LineId Id="107" Count="0" />
+      <LineId Id="125" Count="1" />
+      <LineId Id="124" Count="0" />
       <LineId Id="112" Count="0" />
       <LineId Id="111" Count="0" />
+      <LineId Id="117" Count="6" />
+      <LineId Id="116" Count="0" />
       <LineId Id="106" Count="0" />
       <LineId Id="91" Count="0" />
       <LineId Id="89" Count="0" />
@@ -4658,6 +4690,7 @@ StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.Aut
     <LineIds Name="FB_MachineControl.RefShippingService">
       <LineId Id="17" Count="2" />
       <LineId Id="23" Count="1" />
+      <LineId Id="28" Count="1" />
       <LineId Id="9" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.RefStorageService">
@@ -4668,6 +4701,8 @@ StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.Aut
       <LineId Id="27" Count="1" />
       <LineId Id="32" Count="0" />
       <LineId Id="36" Count="0" />
+      <LineId Id="41" Count="1" />
+      <LineId Id="40" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

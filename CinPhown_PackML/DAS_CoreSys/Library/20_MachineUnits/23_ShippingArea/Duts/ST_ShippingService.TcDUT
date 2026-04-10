@@ -9,6 +9,9 @@
         AutoMode_ShippingRobot_TransmitCVEnd : REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
 		AutoMode_ShippingTransCV_LeftSide	 : REFERENCE TO ST_AutoMode_ShippingLeftSideTransCV;
 		AutoMode_ShippingTransCV_RightSide	 : REFERENCE TO ST_AutoMode_ShippingRightSideTransCV;
+		AutoMode_ShippingRobot_Buffer		 	: REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
+		AutoMode_ShippingRobot_PhotoStandByPos	: REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
+		AutoMode_ShippingRobotTransfer			: REFERENCE TO ST_AutoMode_ShippingRobotTransfer;
     END_STRUCT
 END_TYPE
 ]]></Declaration>

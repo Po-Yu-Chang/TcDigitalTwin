@@ -36,8 +36,15 @@
         //AutoModeUse------倉儲馬達搭配手臂移動
         AutoMode_WarehouseMotoWithRobotMove : REFERENCE TO st_AutoSixAxisWarehouseParameter;
 		
+		//AutoModeUse------倉儲內取放圓帶 (單筆)
+		AutoMode_WareHouseInnerPickToRoundBelt : REFERENCE TO ST_AutoMode_WareHouseInnerPickToRoundBelt;
+		//AutoModeUse------倉儲內取放圓帶 (批次)
+		AutoMode_WareHouseInnerPickToRoundBeltBatch : REFERENCE TO ST_WareHouseInnerPickBatch;
+		
 		//Reboot Modbus devices
 		RebootModbusDevices			: REFERENCE TO st_RebootModbusDevices;
+		//AutoMode--------- 倉儲區六軸手臂單獨回原點
+		AutoMode_RobotSelfHoming	: REFERENCE TO ST_AutoMode_RobotSelfHoming;
     END_STRUCT
 END_TYPE
 ]]></Declaration>

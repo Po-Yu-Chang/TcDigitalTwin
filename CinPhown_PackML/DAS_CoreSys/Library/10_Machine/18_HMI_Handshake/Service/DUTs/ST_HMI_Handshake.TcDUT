@@ -4,7 +4,7 @@
     <Declaration><![CDATA[TYPE
     ST_HMI_Handshake :
     STRUCT
-       //========單動一行程============
+      //========單動一行程============
 	// one process use
     //配針單動資料結構
     AllocateMoveStructure : REFERENCE TO st_ads_AllocateMoveStructure;
@@ -117,17 +117,36 @@
 	AutoMode_ShippingRobot_Right           :REFERENCE TO  ST_AutoMode_ShippingRobot_MoveAbs;
 	//AutoModeUse------倉儲小手臂ABS 移動
 	AutoMode_ShippingRobot_TransmitCVEnd    : REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
-	//AutoModeUse------同尺寸拍照			
+	//AutoModeUse------同尺寸拍照
 	AutoMode_SameSizeCVCamera				: REFERENCE TO ST_AutoMode_TransCVCamera;
-	//AutoModeUse------不同尺寸拍照	
+	//AutoModeUse------同尺寸反向拍照
+	AutoMode_SameSizeCVCamera_Reverse		: REFERENCE TO ST_AutoMode_TransCVCamera;
+	//AutoModeUse------不同尺寸拍照
 	AutoMode_DifferentCVCamera				: REFERENCE TO ST_AutoMode_TransCVCamera;
 	
+	//AutoModeUse------倉儲內取放圓帶 (單筆)
+	AutoMode_WareHouseInnerPickToRoundBelt		: REFERENCE TO ST_AutoMode_WareHouseInnerPickToRoundBelt;
+	//AutoModeUse------倉儲內取放圓帶 (批次)
+	AutoMode_WareHouseInnerPickToRoundBeltBatch	: REFERENCE TO ST_WareHouseInnerPickBatch;
 	//Reboot Modbus devices
 	RebootModbusDevices			: REFERENCE TO st_RebootModbusDevices;
 	
 	//Shipping FeedOut TransCV with HansLaser handshake Service
 	AutoMode_ShippingLeftSideTransCV			: REFERENCE TO ST_AutoMode_ShippingLeftSideTransCV;
 	AutoMode_ShippingRightSideTransCV			: REFERENCE TO ST_AutoMode_ShippingRightSideTransCV;
+
+	//AutoModeUse------- 出貨區緩衝區
+	AutoMode_ShippingRobot_Buffer			:REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
+	//AutoModeUse------- 出貨區拍照位置		
+	AutoMode_ShippingRobot_PhotoStandByPos	:REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
+	//AutoModeUse------- 出貨區搬運 (合併)
+	AutoMode_ShippingRobotTransfer			:REFERENCE TO ST_AutoMode_ShippingRobotTransfer;
+	//AutoMode---------- 倉儲區手臂單獨回原點
+	AutoMode_RobotSelfHoming				: REFERENCE to ST_AutoMode_RobotSelfHoming;
+	//AutoModeUse------逆向拍照批次入料
+	AutoMode_ReverseBatchPick				: REFERENCE TO ST_AutoMode_ReverseBatchPick;
+	//AutoModeUse------同尺寸軌道回倉/NG
+	AutoMode_ReverseBoxToWareHouse			: REFERENCE TO ST_AutoMode_ReverseBoxToWareHouse;
 
 
     END_STRUCT
