@@ -1,0 +1,1256 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ShippingRobotTransfer" Id="{e4d5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingRobotTransfer EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+	Robot		: REFERENCE TO FB_FanucRobot_Basic_V2;
+	Info		: ST_ShippingRobotTransfer_Info;
+	Stop		: BOOL;
+	Input		: REFERENCE TO ST_InputTable;
+	Output		: REFERENCE TO ST_OutputTable;
+	Motor		: REFERENCE TO UNI_MotorList;
+	Cylinder	: REFERENCE TO UNI_CylinderList;
+	Buzz		: REFERENCE TO BOOL;
+	RedLamp		: REFERENCE TO BOOL;
+	bCompleteRequest	: BOOL;
+	fbShippingHomingBusy	: BOOL;
+END_VAR
+VAR_OUTPUT
+	bTransCVInPosition_Left		: BOOL;
+	bTransCVInPosition_Right	: BOOL;
+END_VAR
+VAR
+	// Phase tracking
+	_fromArea	: E_RobotArea;
+	_fromPos	: INT;
+	_fromGet	: BOOL;
+	_toArea		: E_RobotArea;
+	_toPos		: INT;
+	_toGet		: BOOL;
+
+	// Robot move
+	BoxReady_1st	: BOOL;
+	Address_A		: INT;
+	Area			: E_RobotArea;
+
+	// Timers
+	TON_RobotActionTimeOut		: TON;
+	TON_CheckRobotDoneTimeOut	: TON;
+	TON_BlinkDelay				: TON;
+	tonBoxArriveDelay			: TON;
+
+	// TransmitCVEnd
+	SensorToBeCheck		: BIT;
+	ConveyorMotor		: REFERENCE TO FB_Motor;
+	bMoveConveyorForward	: BOOL;
+	bMoveConveyorBackward	: BOOL;
+
+	// Buffer cylinder
+	uiGetStep	: UDINT;
+
+	// Blink (Left/Right buzz)
+	BuzzBlinker		: Blink;
+	LightBlinker	: Blink;
+	TrigBuzz		: R_TRIG;
+	TrigLight		: R_TRIG;
+	BlinkInfo		: ST_BlinkInfo;
+
+	// Resume
+	uiResumeStep	: UINT;
+	strStatus		: STRING;
+	_UniqueErrorCode	: STRING;
+	PreviousStrStatus	: STRING;
+	PreviousErrorCode	: STRING;
+	
+	_bRetry			: BOOL;
+
+	// Error blinking 閃爍邏輯
+	trigErrorReset		: R_TRIG;
+	tonErrorResetDelay	: TON;
+	bErrorBlinking		: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();
+]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{f5e6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8091}" />
+    <Folder Name="State" Id="{a6b7c8d9-e0f1-4a2b-3c4d-5e6f7a8b9c0d}" />
+    <Action Name="A00_BasicUnits" Id="{b7c8d9e0-f1a2-4b3c-4d5e-6f7a8b9c0d1e}">
+      <Implementation>
+        <ST><![CDATA[TON_RobotActionTimeOut(PT := T#60S);
+TON_CheckRobotDoneTimeOut(PT := T#30S);
+TON_BlinkDelay(PT := T#1S);
+tonBoxArriveDelay(PT := T#1S);
+
+// TransCV InPosition sensor 回饋 (左/右分開)
+IF GVL_HMI.Setup.ShippingRobot_DockTestSignal THEN
+	bTransCVInPosition_Left  := TRUE;
+	bTransCVInPosition_Right := TRUE;
+ELSE
+	bTransCVInPosition_Left  := Input.bShippingTransCV_Leftside_Arrived;
+	bTransCVInPosition_Right := Input.bShippingTransCV_Rightside_Arrived;
+END_IF
+
+// 輸送帶持續驅動邏輯
+IF bMoveConveyorForward AND __ISVALIDREF(ConveyorMotor) THEN
+	IF NOT ConveyorMotor.InBackWard THEN
+		ConveyorMotor.M_MoveForward();
+	END_IF
+END_IF
+IF bMoveConveyorBackward AND __ISVALIDREF(ConveyorMotor) THEN
+	IF NOT ConveyorMotor.InForWard THEN
+		ConveyorMotor.M_MoveBackward();
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckTransferCommand" Id="{c8d9e0f1-a2b3-4c4d-5e6f-7a8b9c0d1e2f}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckTransferCommand : BOOL
+VAR_INPUT
+	AreaInfo : ST_ShippingRobotTransfer_AreaInfo;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckTransferCommand := FALSE;
+
+CASE AreaInfo.Area OF
+	E_RobotArea.ShippingRobotLeft,
+	E_RobotArea.ShippingRobotRight:
+		IF AreaInfo.Position < 1 OR AreaInfo.Position > 40 THEN
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0160);
+			Status := strStatus;
+			Error := TRUE;
+			RETURN;
+		END_IF
+
+	E_RobotArea.ShippingBufferArea:
+		IF AreaInfo.Position < 1 OR AreaInfo.Position > 55 THEN
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0152);
+			Status := strStatus;
+			Error := TRUE;
+			RETURN;
+		END_IF
+
+	E_RobotArea.TransmitCV_End:
+		IF AreaInfo.Position < 1 OR AreaInfo.Position > 2 THEN
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0168);
+			Status := strStatus;
+			Error := TRUE;
+			RETURN;
+		END_IF
+
+	E_RobotArea.ShippingCCDPos:
+		// CCD 位置固定 = 0，不需要檢查
+
+	E_RobotArea.ShippingFeedOutEmptyBox:
+		// 拔針排空盒位置固定 = 0
+		IF AreaInfo.Position <> 0 THEN
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0169);
+			Status := strStatus;
+			Error := TRUE;
+			RETURN;
+		END_IF
+
+ELSE
+	strStatus := M_FormatManagedStatus(
+		AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+		InnerMessage := GVL_ErrorCode.GC_MSG_0169);
+	Status := strStatus;
+	Error := TRUE;
+	RETURN;
+END_CASE
+
+ //檢查爪子狀態
+IF AreaInfo.Get THEN
+	IF NOT Robot._DI1.ClampA_Open THEN
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0074);
+		Status := strStatus;
+		Error := TRUE;
+		RETURN;
+	END_IF
+ELSE
+	IF Robot._DI1.ClampA_Open THEN
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0100);
+		Status := strStatus;
+		Error := TRUE;
+		RETURN;
+	END_IF
+END_IF
+
+
+M_CheckTransferCommand := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SensorUpdate" Id="{d9e0f1a2-b3c4-4d5e-6f7a-8b9c0d1e2f3a}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_SensorUpdate
+VAR_INPUT
+	iPosition : INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iPosition OF
+1:
+	SensorToBeCheck := Input.bSameSizeCV_BoxNearShippingSensor;
+	ConveyorMotor REF= Motor.List.TransmitSameSideCV;
+2:
+	SensorToBeCheck := Input.bDifferentSizeCV_BoxNearShippingSensor;
+	ConveyorMotor REF= Motor.List.TransmitDifferentSideCV;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{e0f1a2b3-c4d5-4e6f-7a8b-9c0d1e2f3a4b}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy  := FALSE;
+	Error := TRUE;
+	Aborted := TRUE;
+	uiAbortingStep := 0;
+	_AbortCompleted := FALSE;
+END_IF
+
+IF reset THEN
+	_bRetry := TRUE;
+	Error   := FALSE;
+	Aborted := FALSE;
+END_IF
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
+	uiExecutingStep := uiResumeStep;
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	Status := 'no error';
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0:
+			_Abort := FALSE;
+			Abort  := FALSE;
+			TON_RobotActionTimeOut.IN    := FALSE;
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			bMoveConveyorForward  := FALSE;
+			bMoveConveyorBackward := FALSE;
+			IF __ISVALIDREF(ConveyorMotor) THEN
+				ConveyorMotor.M_MotorStop();
+			END_IF
+			uiAbortingStep := 100;
+			
+	100:
+			IF Robot._DI1.Error THEN
+				uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	200:		
+			 IF DAS_CoreSys.MachineControl.M_ShippingRobotResetCmd() THEN
+				 uiAbortingStep := 300;
+			 END_IF
+	300:
+			IF DAS_CoreSys.MachineControl.M_ShippingRobotStartCmd() THEN
+				 uiAbortingStep := 400;
+			 END_IF 
+	400:
+			IF Robot._DI1.Error THEN
+		 		uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+
+	9999:
+		_AbortCompleted := TRUE;
+END_CASE
+
+IF _AbortCompleted THEN
+	eState := STATE_ABORTED;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{b3c4d5e6-f7a8-4b9c-0d1e-2f3a4b5c6d7e}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+Paused          := FALSE;
+ErrorID         := 0;
+Status          := '';
+UniqueErrorCode := '';
+
+_Executed            := FALSE;
+_Error               := FALSE;
+_Abort               := FALSE;
+_ResetCompleted      := FALSE;
+_AbortCompleted      := FALSE;
+_HoldingCompleted    := FALSE;
+_HeldCompleted       := FALSE;
+_UnholdCompleted     := FALSE;
+
+uiExecutingStep  := 0;
+uiResettingStep  := 0;
+uiAbortingStep   := 0;
+uiHoldingStep    := 0;
+uiHeldStep       := 0;
+uiUnholdStep     := 0;
+uiGetStep        := 0;
+uiResumeStep     := 0;
+
+TON_RobotActionTimeOut.IN    := FALSE;
+TON_CheckRobotDoneTimeOut.IN := FALSE;
+TON_BlinkDelay.IN            := FALSE;
+tonBoxArriveDelay.IN         := FALSE;
+
+bMoveConveyorForward  := FALSE;
+bMoveConveyorBackward := FALSE;
+BoxReady_1st := FALSE;
+
+strStatus := M_FormatManagedStatus(
+
+	AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+
+	InnerMessage := GVL_ErrorCode.GC_MSG_0089);
+Status := '';
+Error := FALSE;
+PreviousStrStatus := '';
+PreviousErrorCode := '';
+_UniqueErrorCode  := '0';
+
+bCompleteRequest := FALSE;
+
+IF Execute THEN
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{c4d5e6f7-a8b9-4c0d-1e2f-3a4b5c6d7e8f}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 預設錯誤/忙碌狀態輸出
+Error  := TRUE;
+Busy   := FALSE;
+_Error := FALSE;
+Status := strStatus;
+
+// 停止各項輸出 (輸送帶等)
+bMoveConveyorForward  := FALSE;
+bMoveConveyorBackward := FALSE;
+IF __ISVALIDREF(ConveyorMotor) THEN
+	ConveyorMotor.M_MotorStop();
+END_IF
+
+// --- Reset 閃爍邏輯：偵測上升緣觸發 1 秒閃爍 ---
+trigErrorReset(CLK := reset);
+IF trigErrorReset.Q THEN
+	bErrorBlinking := TRUE;
+END_IF
+
+tonErrorResetDelay(IN := bErrorBlinking, PT := T#1S);
+IF tonErrorResetDelay.Q THEN
+	bErrorBlinking := FALSE;
+END_IF
+
+// 閃爍期間 (1秒) 暫時將 Error 訊號設為 FALSE
+IF bErrorBlinking THEN
+	Error := FALSE;
+END_IF
+
+// 只有當外部啟動訊號關閉時，才真正退出錯誤狀態並複歸
+IF NOT Execute THEN
+	Error := FALSE;
+	bErrorBlinking := FALSE;
+	tonErrorResetDelay.IN := FALSE;
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{d5e6f7a8-b9c0-4d1e-2f3a-4b5c6d7e8f90}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := TRUE;
+
+// 暫停
+IF Pause THEN
+	_HoldingCompleted  := FALSE;
+	_HeldCompleted     := FALSE;
+	_UnholdCompleted   := FALSE;
+	uiHoldingStep      := 0;
+	uiHeldStep         := 0;
+	uiUnholdStep       := 0;
+	eState := STATE_Holding;
+	RETURN;
+END_IF
+
+// Stop 時暫停 Timeout
+IF THIS^.Stop THEN
+	TON_RobotActionTimeOut.IN    := FALSE;
+	TON_CheckRobotDoneTimeOut.IN := FALSE;
+END_IF
+
+CASE uiExecutingStep OF
+
+	// ============================================================
+	// Phase 0: 初始化 + 命令驗證
+	// ============================================================
+	0:
+		// 非自動模式直接報錯 (避免軸控衝突)
+		IF GVL_Machine.PackTags[UnitNo.Shipping].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
+			strStatus := 'Not in Auto mode';
+			_UniqueErrorCode := 'E_NOT_AUTO_MODE';
+			_Error := TRUE;
+		ELSE
+			// 清除變數
+			BoxReady_1st          := FALSE;
+			Address_A             := 0;
+			uiGetStep             := 0;
+			bMoveConveyorForward  := FALSE;
+			bMoveConveyorBackward := FALSE;
+			BlinkInfo.BuzzCount   := 0;
+			BlinkInfo.LightCount  := 0;
+
+			// 解析命令
+			_fromArea := Info.Source.Area;
+			_fromPos  := Info.Source.Position;
+			_fromGet  := Info.Source.Get;
+			_toArea   := Info.Destination.Area;
+			_toPos    := Info.Destination.Position;
+			_toGet    := Info.Destination.Get;
+			
+			uiExecutingStep := 25;
+		END_IF
+
+	25: // 指令邏輯驗證
+		// 限制 1：來源 (Source) 必須是取件 (Get)，目的地 (Destination) 必須是放件 (Put)
+		IF NOT _fromGet OR _toGet THEN
+			strStatus := 'Error: Source must be "Get", Destination must be "Put"';
+			_Error := TRUE;
+		// 限制 2：ShippingFeedOutEmptyBox 不可作為來源 (Source)
+		ELSIF _fromArea = E_RobotArea.ShippingFeedOutEmptyBox THEN
+			strStatus := 'Error: ShippingFeedOutEmptyBox cannot be used as Source';
+			_Error := TRUE;
+		// 限制 3：目的地為 ShippingFeedOutEmptyBox 時，來源必須是 TransmitCV_End
+		ELSIF _toArea = E_RobotArea.ShippingFeedOutEmptyBox AND _fromArea <> E_RobotArea.TransmitCV_End THEN
+			strStatus := 'Error: ShippingFeedOutEmptyBox destination requires TransmitCV_End as source';
+			_Error := TRUE;
+		END_IF
+
+		IF NOT _Error THEN
+			uiExecutingStep := 50;
+		END_IF
+
+	50: // 檢查 TransCV InPosition (Source/Destination 若為 Left/Right 需對應旗標)
+		// Source 檢查
+		IF _fromArea = E_RobotArea.ShippingRobotLeft THEN
+			IF NOT bTransCVInPosition_Left THEN
+				uiResumeStep := 50;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0132);
+				Status := strStatus;
+				Error := TRUE;
+				_Abort := TRUE;
+			END_IF
+		ELSIF _fromArea = E_RobotArea.ShippingRobotRight THEN
+			IF NOT bTransCVInPosition_Right THEN
+				uiResumeStep := 50;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0133);
+				Status := strStatus;
+				Error := TRUE;
+				_Abort := TRUE;
+			END_IF
+		END_IF
+		// Destination 檢查
+		IF NOT _Abort THEN
+			IF _toArea = E_RobotArea.ShippingRobotLeft THEN
+				IF NOT bTransCVInPosition_Left THEN
+					uiResumeStep := 50;
+					strStatus := M_FormatManagedStatus(
+						AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+						InnerMessage := GVL_ErrorCode.GC_MSG_0059);
+					Status := strStatus;
+					Error := TRUE;
+					_Abort := TRUE;
+				END_IF
+			ELSIF _toArea = E_RobotArea.ShippingRobotRight THEN
+				IF NOT bTransCVInPosition_Right THEN
+					uiResumeStep := 50;
+					strStatus := M_FormatManagedStatus(
+						AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+						InnerMessage := GVL_ErrorCode.GC_MSG_0060);
+					Status := strStatus;
+					Error := TRUE;
+					_Abort := TRUE;
+				END_IF
+			END_IF
+		END_IF
+		IF NOT _Abort THEN
+			uiExecutingStep := 100;
+		END_IF
+
+	100: // 驗證 Source 命令
+		IF M_CheckTransferCommand(Info.Source) THEN
+			uiExecutingStep := 1000;
+		ELSE
+			_Error := TRUE;
+		END_IF
+
+
+
+	// ============================================================
+	// Phase 1 (FROM): 區域前置作業
+	// ============================================================
+	1000: // FROM 區域分支
+		Area      := _fromArea;
+		Address_A := _fromPos;
+		BoxReady_1st := FALSE;
+		TON_RobotActionTimeOut.IN := FALSE;
+
+		CASE _fromArea OF
+			E_RobotArea.ShippingRobotLeft,
+			E_RobotArea.ShippingRobotRight:
+				// TransCV 已在 Step 50 檢查完畢
+				uiExecutingStep := 5000;
+
+			E_RobotArea.ShippingBufferArea:
+				IF _fromGet THEN
+					// Get from buffer - 位置55需氣缸
+					uiExecutingStep := 1100;
+				ELSE
+					// Put to buffer - 確認氣缸縮回
+					uiExecutingStep := 1200;
+				END_IF
+
+			E_RobotArea.TransmitCV_End:
+				M_SensorUpdate(_fromPos);
+				IF _fromGet THEN
+					// Get: 啟動輸送帶正轉
+					bMoveConveyorForward := TRUE;
+					ConveyorMotor.M_MoveForward();
+					uiExecutingStep := 5000;
+				ELSE
+					// Put: 啟動輸送帶反轉 + 等 sensor 清除
+					bMoveConveyorBackward := TRUE;
+					uiExecutingStep := 1300;
+				END_IF
+
+			E_RobotArea.ShippingCCDPos:
+				// CCD 無前置作業
+				Address_A := 0;
+				uiExecutingStep := 5000;
+		END_CASE
+
+	1100: // Buffer Get 前置 - 氣缸處理
+		CASE uiGetStep OF
+			0:
+				CASE Address_A OF
+					1..54:
+						uiGetStep := 400;
+					55:
+						uiGetStep := 100;
+				END_CASE
+			100:
+				Cylinder.List.fbShippingBuffer_Press.M_Extend();
+				IF Cylinder.List.fbShippingBuffer_Press.InFrontPosition THEN
+					uiGetStep := 300;
+				END_IF
+			300:
+				Cylinder.List.fbShippingBuffer_Press.M_Retract();
+				IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+					uiGetStep := 400;
+				END_IF
+			400:
+				BoxReady_1st := TRUE;
+				uiExecutingStep := 5000;
+		END_CASE
+
+	1200: // Buffer Put 前置 - 確認氣缸縮回
+		IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+			BoxReady_1st := TRUE;
+			uiExecutingStep := 5000;
+		ELSE
+			Cylinder.List.fbShippingBuffer_Press.M_Retract();
+		END_IF
+
+	1300: // TransmitCVEnd Put 前置 - 等反轉 + sensor 清除
+		IF ConveyorMotor.InBackWard AND NOT SensorToBeCheck THEN
+			uiExecutingStep := 5000;
+		END_IF
+
+	// ============================================================
+	// Phase 1 (FROM): Robot AbsMove + Reset
+	// ============================================================
+	5000: // Robot AbsMove
+		TON_RobotActionTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			// TransmitCVEnd Get 時需要等 sensor
+			IF Area = E_RobotArea.TransmitCV_End AND _fromGet THEN
+				M_SensorUpdate(_fromPos);
+				tonBoxArriveDelay.IN := SensorToBeCheck;
+				bMoveConveyorForward := TRUE;
+				ConveyorMotor.M_MoveForward();
+				Robot.M_StartRobotAbsMove(
+					GetBox       := _fromGet,
+					UseClampA    := TRUE,
+					UseClampB    := FALSE,
+					Area         := Area,
+					ClampA_Address := Address_A,
+					ClampB_Address := 0,
+					BoxReady_1   := tonBoxArriveDelay.Q OR BoxReady_1st,
+					BoxReady_2   := FALSE);
+			ELSIF Area = E_RobotArea.ShippingCCDPos THEN
+				// CCD 固定 GetBox=TRUE, Address=0
+				Robot.M_StartRobotAbsMove(
+					GetBox       := TRUE,
+					UseClampA    := TRUE,
+					UseClampB    := FALSE,
+					Area         := Area,
+					ClampA_Address := 0,
+					ClampB_Address := 0,
+					BoxReady_1   := BoxReady_1st,
+					BoxReady_2   := FALSE);
+			ELSE
+				IF Area = E_RobotArea.ShippingBufferArea AND NOT _fromGet THEN
+					// Buffer Put 已在前置設好 BoxReady
+				ELSIF Area = E_RobotArea.ShippingBufferArea AND _fromGet THEN
+					// Buffer Get 已在前置設好 BoxReady
+				ELSE
+					BoxReady_1st := TRUE;
+				END_IF
+				Robot.M_StartRobotAbsMove(
+					GetBox       := _fromGet,
+					UseClampA    := TRUE,
+					UseClampB    := FALSE,
+					Area         := Area,
+					ClampA_Address := Address_A,
+					ClampB_Address := 0,
+					BoxReady_1   := BoxReady_1st,
+					BoxReady_2   := FALSE);
+			END_IF
+		ELSE
+			TON_RobotActionTimeOut.IN := FALSE;
+			tonBoxArriveDelay.IN      := FALSE;
+			uiExecutingStep := 5100;
+		END_IF
+
+		IF TON_RobotActionTimeOut.Q THEN
+			uiResumeStep := 5000;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0073);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 5000;
+			strStatus    := CONCAT('FROM: Robot Error ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
+		END_IF
+
+	5100: // FROM Reset Robot command
+		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+		TON_CheckRobotDoneTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiExecutingStep := 6000;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 5100;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0072);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
+		END_IF
+
+	// ============================================================
+	// Phase 1 (FROM): 區域後置作業
+	// ============================================================
+	6000: // FROM 後置
+		// TransmitCVEnd: 停止輸送帶
+		IF _fromArea = E_RobotArea.TransmitCV_End THEN
+			bMoveConveyorForward  := FALSE;
+			bMoveConveyorBackward := FALSE;
+			IF __ISVALIDREF(ConveyorMotor) THEN
+				ConveyorMotor.M_MotorStop();
+			END_IF
+		END_IF
+
+		// 重置變數準備 TO phase
+		BoxReady_1st := FALSE;
+		uiGetStep    := 0;
+		TON_RobotActionTimeOut.IN    := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		uiExecutingStep := 7000;
+		
+	7000:
+		IF M_CheckTransferCommand(Info.Destination) THEN
+			uiExecutingStep := 10000;
+		ELSE
+			_Error := TRUE;
+		END_IF
+
+	// ============================================================
+	// Phase 2 (TO): 區域前置作業
+	// ============================================================
+	10000: // TO 區域分支
+		Area      := _toArea;
+		Address_A := _toPos;
+		BoxReady_1st := FALSE;
+
+		CASE _toArea OF
+			E_RobotArea.ShippingRobotLeft,
+			E_RobotArea.ShippingRobotRight:
+				// TransCV 已在 Step 50 檢查完畢
+				uiExecutingStep := 15000;
+
+			E_RobotArea.ShippingBufferArea:
+				IF _toGet THEN
+					uiExecutingStep := 10100;
+				ELSE
+					uiExecutingStep := 10200;
+				END_IF
+
+			E_RobotArea.TransmitCV_End:
+				M_SensorUpdate(_toPos);
+				IF _toGet THEN
+					bMoveConveyorForward := TRUE;
+					ConveyorMotor.M_MoveForward();
+					uiExecutingStep := 15000;
+				ELSE
+					bMoveConveyorBackward := TRUE;
+					uiExecutingStep := 10300;
+				END_IF
+
+			E_RobotArea.ShippingCCDPos:
+				Address_A := 0;
+				uiExecutingStep := 15000;
+
+			E_RobotArea.ShippingFeedOutEmptyBox:
+				Address_A := _toPos;
+				uiExecutingStep := 15000;
+		END_CASE
+
+	10100: // TO Buffer Get 前置
+		CASE uiGetStep OF
+			0:
+				CASE Address_A OF
+					1..54:
+						uiGetStep := 400;
+					55:
+						uiGetStep := 100;
+				END_CASE
+			100:
+				Cylinder.List.fbShippingBuffer_Press.M_Extend();
+				IF Cylinder.List.fbShippingBuffer_Press.InFrontPosition THEN
+					uiGetStep := 300;
+				END_IF
+			300:
+				Cylinder.List.fbShippingBuffer_Press.M_Retract();
+				IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+					uiGetStep := 400;
+				END_IF
+			400:
+				BoxReady_1st := TRUE;
+				uiExecutingStep := 15000;
+		END_CASE
+
+	10200: // TO Buffer Put 前置
+		IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+			BoxReady_1st := TRUE;
+			uiExecutingStep := 15000;
+		ELSE
+			Cylinder.List.fbShippingBuffer_Press.M_Retract();
+		END_IF
+
+	10300: // TO TransmitCVEnd Put 前置
+		M_SensorUpdate(_toPos);
+		IF ConveyorMotor.InBackWard AND NOT SensorToBeCheck THEN
+			uiExecutingStep := 15000;
+		END_IF
+
+	// ============================================================
+	// Phase 2 (TO): Robot AbsMove + Reset
+	// ============================================================
+	15000: // TO Robot AbsMove
+		TON_RobotActionTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			IF Area = E_RobotArea.TransmitCV_End AND _toGet THEN
+				M_SensorUpdate(_toPos);
+				tonBoxArriveDelay.IN := SensorToBeCheck;
+				Robot.M_StartRobotAbsMove(
+					GetBox       := _toGet,
+					UseClampA    := TRUE,
+					UseClampB    := FALSE,
+					Area         := Area,
+					ClampA_Address := Address_A,
+					ClampB_Address := 0,
+					BoxReady_1   := tonBoxArriveDelay.Q OR BoxReady_1st,
+					BoxReady_2   := FALSE);
+			ELSIF Area = E_RobotArea.ShippingCCDPos THEN
+				BoxReady_1st := TRUE;
+				Robot.M_StartRobotAbsMove(
+					GetBox       := TRUE,
+					UseClampA    := TRUE,
+					UseClampB    := FALSE,
+					Area         := Area,
+					ClampA_Address := 0,
+					ClampB_Address := 0,
+					BoxReady_1   := BoxReady_1st,
+					BoxReady_2   := FALSE);
+			ELSIF Area = E_RobotArea.ShippingFeedOutEmptyBox THEN
+				BoxReady_1st := TRUE;
+				Robot.M_StartRobotAbsMove(
+					GetBox       := _toGet,
+					UseClampA    := TRUE,
+					UseClampB    := FALSE,
+					Area         := Area,
+					ClampA_Address := Address_A,
+					ClampB_Address := 0,
+					BoxReady_1   := BoxReady_1st,
+					BoxReady_2   := FALSE);
+			ELSE
+				IF Area = E_RobotArea.ShippingBufferArea AND NOT _toGet THEN
+					// Buffer Put 已設好 BoxReady
+				ELSIF Area = E_RobotArea.ShippingBufferArea AND _toGet THEN
+					// Buffer Get 已設好 BoxReady
+				ELSE
+					BoxReady_1st := TRUE;
+				END_IF
+				Robot.M_StartRobotAbsMove(
+					GetBox       := _toGet,
+					UseClampA    := TRUE,
+					UseClampB    := FALSE,
+					Area         := Area,
+					ClampA_Address := Address_A,
+					ClampB_Address := 0,
+					BoxReady_1   := BoxReady_1st,
+					BoxReady_2   := FALSE);
+			END_IF
+		ELSE
+			TON_RobotActionTimeOut.IN := FALSE;
+			tonBoxArriveDelay.IN      := FALSE;
+			uiExecutingStep := 15100;
+		END_IF
+
+		IF TON_RobotActionTimeOut.Q THEN
+			uiResumeStep := 15000;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0140);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 15000;
+			strStatus    := CONCAT('TO: Robot Error ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
+		END_IF
+
+	15100: // TO Reset Robot command
+		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+		TON_CheckRobotDoneTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiExecutingStep := 20000;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 15100;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0139);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
+		END_IF
+
+	// ============================================================
+	// Phase 2 (TO): 區域後置作業
+	// ============================================================
+	20000: // TO 後置
+		// TransmitCVEnd: 停止輸送帶
+		IF _toArea = E_RobotArea.TransmitCV_End THEN
+			bMoveConveyorForward  := FALSE;
+			bMoveConveyorBackward := FALSE;
+			IF __ISVALIDREF(ConveyorMotor) THEN
+				ConveyorMotor.M_MotorStop();
+			END_IF
+		END_IF
+
+		// Left/Right: 檢查是否需要 buzz
+		IF (_toArea = E_RobotArea.ShippingRobotLeft OR _toArea = E_RobotArea.ShippingRobotRight)
+			AND bCompleteRequest THEN
+			uiExecutingStep := 25000;
+		ELSE
+			uiExecutingStep := 99000;
+		END_IF
+
+	// ============================================================
+	// Phase 3: 警報 (buzz/lamp 閃爍)
+	// ============================================================
+	25000: // Buzz + Lamp 閃爍
+		BuzzBlinker(ENABLE := TRUE, TIMELOW := T#0.3S, TIMEHIGH := T#0.3S, OUT => Buzz);
+		LightBlinker(ENABLE := TRUE, TIMELOW := T#0.3S, TIMEHIGH := T#0.3S, OUT => RedLamp);
+		TrigBuzz(CLK := Buzz);
+		TrigLight(CLK := RedLamp);
+		IF TrigBuzz.Q THEN
+			BlinkInfo.BuzzCount := BlinkInfo.BuzzCount + 1;
+		END_IF
+		IF TrigLight.Q THEN
+			BlinkInfo.LightCount := BlinkInfo.LightCount + 1;
+		END_IF
+
+		IF BlinkInfo.BuzzCount >= BlinkInfo.MaxBuzzCOunt AND BlinkInfo.LightCount >= BlinkInfo.MaxLightCount THEN
+			TON_BlinkDelay.IN := TRUE;
+			IF TON_BlinkDelay.Q THEN
+				uiExecutingStep := 99000;
+			END_IF
+		END_IF
+
+	// ============================================================
+	// 完成
+	// ============================================================
+	99000:
+		TON_BlinkDelay.IN := FALSE;
+		bMoveConveyorForward  := FALSE;
+		bMoveConveyorBackward := FALSE;
+		Status    := 'Process completed';
+		_Executed := TRUE;
+
+END_CASE
+
+// 狀態機切換
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+ELSIF _Abort OR Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Executed THEN
+	eState := STATE_DONE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HELD" Id="{e6f7a8b9-c0d1-4e2f-3a4b-5c6d7e8f9001}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_HELD : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy   := FALSE;
+Paused := TRUE;
+
+CASE uiHeldStep OF
+	0:
+		uiHeldStep := 9999;
+	9999:
+		_HeldCompleted := TRUE;
+END_CASE
+
+IF _HeldCompleted AND NOT Pause THEN
+	eState := STATE_UnHold;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HOLDING" Id="{f7a8b9c0-d1e2-4f3a-4b5c-6d7e8f900112}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_HOLDING : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiHoldingStep OF
+	0:
+		TON_RobotActionTimeOut.IN    := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		uiHoldingStep := 9999;
+	9999:
+		_HoldingCompleted := TRUE;
+END_CASE
+
+IF _HoldingCompleted THEN
+	eState := STATE_Held;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{a8b9c0d1-e2f3-4a4b-5c6d-7e8f90011223}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error  := FALSE;
+Done   := FALSE;
+Busy   := FALSE;
+_Error := FALSE;
+
+CASE uiResettingStep OF
+	0:
+		bCompleteRequest := FALSE;
+		bMoveConveyorForward  := FALSE;
+		bMoveConveyorBackward := FALSE;
+		TON_RobotActionTimeOut.IN    := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		TON_BlinkDelay.IN            := FALSE;
+
+		// 停止輸送帶
+		Motor.List.TransmitDifferentSideCV.M_MotorStop();
+		Motor.List.TransmitSameSideCV.M_MotorStop();
+
+//		// 判斷手臂是否還在流程中
+//		IF Robot._UO1.UO03_PrgRunning OR NOT Robot._DI1.Done THEN
+//			// 手臂還在跑 → 切 RSR2 回原點
+//			uiResettingStep := 50;
+//		ELSE
+//			// 手臂已經閒置 → 直接清 command
+//			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+//			uiResettingStep := 100;
+//		END_IF
+
+//	50: // 切 RSR2，讓 Fanuc 中斷目前程式並回原點
+//		Robot.OpMode := E_FanucRobotOpMode.RSR02;
+//		IF Robot._RSR2_Completed THEN
+//			uiResettingStep := 60;
+//		END_IF
+
+//	60: // RSR2 完成，切回 RSR1 工作模式
+//		Robot.OpMode := E_FanucRobotOpMode.RSR01;
+//		IF Robot._RSR1_Ready THEN
+//			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+//			uiResettingStep := 100;
+//		END_IF
+
+//	100:
+//		// Buffer 氣缸確認縮回
+//		IF __ISVALIDREF(Cylinder) THEN
+//			IF NOT Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+//				Cylinder.List.fbShippingBuffer_Press.M_Retract();
+//			END_IF
+//		END_IF
+		uiResettingStep := 200;
+
+	200:
+		// 等氣缸縮回 (如果有的話)
+		IF NOT __ISVALIDREF(Cylinder) OR Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+			uiResettingStep := 9999;
+		ELSE
+			Cylinder.List.fbShippingBuffer_Press.M_Retract();
+		END_IF
+
+	9999:
+		_ResetCompleted := TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+	eState := STATE_DORMANT;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_UNHOLD" Id="{b9c0d1e2-f3a4-4b5c-6d7e-8f9001122334}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_UNHOLD : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiUnholdStep OF
+	0:
+		uiUnholdStep := 9999;
+	9999:
+		_UnholdCompleted := TRUE;
+END_CASE
+
+IF _UnholdCompleted THEN
+	Paused := FALSE;
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ShippingRobotTransfer">
+      <LineId Id="9" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="24" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_CheckTransferCommand">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="42" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="48" Count="31" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="80" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_SensorUpdate">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_ABORTED">
+      <LineId Id="31" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="3" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="8" Count="3" />
+      <LineId Id="14" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_ABORTING">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="10" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="27" Count="18" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="15" Count="7" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_DONE">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_DORMANT">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="44" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="50" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_ERROR">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="14" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="20" Count="19" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_EXECUTING">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="62" />
+      <LineId Id="594" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="595" Count="0" />
+      <LineId Id="70" Count="4" />
+      <LineId Id="596" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="597" Count="0" />
+      <LineId Id="78" Count="10" />
+      <LineId Id="94" Count="91" />
+      <LineId Id="506" Count="1" />
+      <LineId Id="186" Count="86" />
+      <LineId Id="497" Count="1" />
+      <LineId Id="501" Count="2" />
+      <LineId Id="505" Count="0" />
+      <LineId Id="499" Count="0" />
+      <LineId Id="273" Count="70" />
+      <LineId Id="493" Count="0" />
+      <LineId Id="344" Count="68" />
+      <LineId Id="574" Count="0" />
+      <LineId Id="413" Count="75" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="495" Count="1" />
+      <LineId Id="530" Count="2" />
+      <LineId Id="500" Count="0" />
+      <LineId Id="533" Count="2" />
+      <LineId Id="504" Count="0" />
+      <LineId Id="536" Count="2" />
+      <LineId Id="508" Count="21" />
+      <LineId Id="539" Count="8" />
+      <LineId Id="598" Count="0" />
+      <LineId Id="561" Count="8" />
+      <LineId Id="599" Count="7" />
+      <LineId Id="548" Count="12" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="581" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_HELD">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="11" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_HOLDING">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="10" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_RESETTING">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="43" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="49" Count="19" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_STATE_UNHOLD">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="9" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

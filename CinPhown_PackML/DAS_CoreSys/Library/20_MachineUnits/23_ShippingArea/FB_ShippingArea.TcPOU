@@ -8,6 +8,7 @@ VAR_INPUT
 	INPUT       	: REFERENCE TO ST_InputTable;
 	OUTPUT			: REFERENCE TO ST_OutputTable;
 	Motor    		: REFERENCE TO UNI_MotorList;
+	Cylinder		: REFERENCE TO UNI_CylinderList;
     Reset           : REFERENCE TO BOOL;
 	Stop 			: REFERENCE TO BOOL;
     bStopMem 		: REFERENCE TO BOOL;
@@ -31,6 +32,9 @@ VAR
 	//Robot Service
 	fbShippingRobot_Left 			: FB_ShippingRobot_Left;
 	fbShippingRobot_Right 			: FB_ShippingRobot_Right;
+	
+	
+	fbShippingRobotTransfer			: FB_ShippingRobotTransfer;
 	
 	//HansLaser HandShake TransCV Service
 	fbShippingLeftSideTransCV		: FB_ShippingTransCV_LeftSide;
@@ -173,7 +177,36 @@ fbShippingRightSideTransCV(
 	RobotStatus:= Service.AutoMode_ShippingRobot_Right.Status, 
 	xAborted=> , 
 	iErrorID=> , 
-	ErrorMsg=> Service.AutoMode_ShippingTransCV_RightSide.Status.Status);]]></ST>
+	ErrorMsg=> Service.AutoMode_ShippingTransCV_RightSide.Status.Status);
+
+
+fbShippingRobotTransfer(
+	Execute:= Service.AutoMode_ShippingRobotTransfer.Command.Execute,
+	Abort:= Service.AutoMode_ShippingRobotTransfer.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset OR Service.AutoMode_ShippingRobotTransfer.Command.Reset,
+	Pause:= bStopMem,
+	ObjectName:= 'FB_ShippingRobotTransfer',
+	Busy=> Service.AutoMode_ShippingRobotTransfer.Status.Busy,
+	Done=> Service.AutoMode_ShippingRobotTransfer.Status.Done,
+	Aborted=> ,
+	Error=> Service.AutoMode_ShippingRobotTransfer.Status.Error,
+	Paused=> ,
+	ErrorID=> ,
+	Status=> Service.AutoMode_ShippingRobotTransfer.Status.Status,
+	UniqueErrorCode=> ,
+	Robot:= FanucRobot,
+	Info:= Service.AutoMode_ShippingRobotTransfer.Info,
+	Stop:= bStopMem,
+	Input:= INPUT,
+	Output:= OUTPUT,
+	Motor:= Motor,
+	Cylinder:= Cylinder,
+	Buzz:= DAS_CoreSys.MachineControl._Buzz,
+	RedLamp:= DAS_CoreSys.MachineControl._RedLamp,
+	bCompleteRequest:= Service.AutoMode_ShippingRobotTransfer.bCompleteRequest,
+	bTransCVInPosition_Left=> Service.AutoMode_ShippingRobotTransfer.bTransCVInPosition_Left,
+	bTransCVInPosition_Right=> Service.AutoMode_ShippingRobotTransfer.bTransCVInPosition_Right,
+	fbShippingHomingBusy:= fbShippingHoming.xBusy);]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_Aborted" Id="{3b7aeb74-3c46-4095-9c8f-17f92de17ccd}" FolderPath="States\">
@@ -367,6 +400,8 @@ END_VAR
       <LineId Id="89" Count="15" />
       <LineId Id="88" Count="0" />
       <LineId Id="115" Count="9" />
+      <LineId Id="126" Count="27" />
+      <LineId Id="125" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingArea.M_Aborted">
       <LineId Id="6" Count="0" />

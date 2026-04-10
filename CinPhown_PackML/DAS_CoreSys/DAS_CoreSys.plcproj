@@ -1191,6 +1191,9 @@
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\FB_ShippingHoming.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingRobotTransfer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingRobot_Left.TcPOU">
       <SubType>Code</SubType>
     </Compile>

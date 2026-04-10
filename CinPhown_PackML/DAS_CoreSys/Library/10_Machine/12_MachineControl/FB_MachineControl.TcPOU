@@ -207,6 +207,7 @@ fbShippingArea(eModeCommand :=,
 			   INPUT :=INPUT,
 			   OUTPUT := InternalOutput,
 			   Motor := Motor,
+			   Cylinder := Cylinder,
 			   Reset := Machine_Reset,
 			   Stop := Machine_Stop,
 			   bStopMem:=bStopMem,
@@ -3985,6 +3986,7 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="124" Count="0" />
       <LineId Id="159" Count="0" />
       <LineId Id="125" Count="0" />
+      <LineId Id="165" Count="0" />
       <LineId Id="147" Count="1" />
       <LineId Id="153" Count="0" />
       <LineId Id="62" Count="0" />
