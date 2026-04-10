@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ShippingRobotTransfer_Info" Id="{c2b3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e}">
+    <Declaration><![CDATA[TYPE ST_ShippingRobotTransfer_Info :
+STRUCT
+	Source      : ST_ShippingRobotTransfer_AreaInfo;   // 來源
+	Destination : ST_ShippingRobotTransfer_AreaInfo;   // 目標
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ClampActionRecord" Id="{a7c83e21-5f4d-4b8e-9a12-6d3f1e8c4b57}">
+    <Declaration><![CDATA[// 倉儲取放動作紀錄 — 每次從倉儲取盒或放回倉儲時記錄一筆
+// 由 FB_WareHouseInnerPickToRoundBelt 在動作完成時寫入
+// C# 透過 ADS 讀取 FeedBack=TRUE 後批次讀取整個陣列
+TYPE ST_ClampActionRecord :
+STRUCT
+	WareHouse	: INT;		// 倉別 (E_WareHouse 對應值)
+	Layer		: INT;		// 層 (E_WAREHOUSELAYER 對應值)
+	Slide		: INT;		// 軌道 (E_WAREHOUSESLIDE 對應值)
+	Clamp		: INT;		// 0 = A爪, 1 = B爪
+	IsPick		: BOOL;		// TRUE = 取盒 (從倉儲取出), FALSE = 放盒 (放回倉儲)
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

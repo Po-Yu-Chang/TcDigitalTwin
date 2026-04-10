@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_ShippingRobotTransfer" Id="{d3c4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_ShippingRobotTransfer :
+STRUCT
+	Command          : ST_CommandBasic;
+	Status           : ST_StatusBasic;
+	Info             : ST_ShippingRobotTransfer_Info;
+	bCompleteRequest : BOOL;              // buzz/lamp 完成警報觸發
+	bTransCVInPosition_Left  : BOOL;    // 左側 TransCV sensor 到位狀態回饋
+	bTransCVInPosition_Right : BOOL;    // 右側 TransCV sensor 到位狀態回饋
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

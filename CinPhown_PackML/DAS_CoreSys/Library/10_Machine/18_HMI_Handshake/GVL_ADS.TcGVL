@@ -73,7 +73,7 @@ VAR_GLOBAL
 	// Automode Reload RoundBelt box with robot
 	AutoMode_ReloadRoundBeltBoxWithRobot : ST_AutoMode_ReloadRoundBeltBox; // Automode : Reload RoundBelt box with robot from warehouse
 	// Automode FeedIn RoundBelt box to warehouse - 圓帶到倉儲		edited Gamin 2026/04/02 
-	//AutoMode_FeedInRoundBeltBoxToWareHouse : ST_AutoMode_FeedInToWareHouseBox; // Automode : Pick box from RoundBelt and place to WareHouse
+	AutoMode_FeedInRoundBeltBoxToWareHouse : ST_AutoMode_FeedInToWareHouseBox; // Automode : Pick box from RoundBelt and place to WareHouse
 	//AutoMode UpperFeedInConveyor
 	AutoMode_UpperFeedInConveyor : ST_Auto_UpperFeedInConveyor;
 	//AutoModeUse------倉儲馬達搭配手臂移動
@@ -118,20 +118,35 @@ VAR_GLOBAL
 	AutoMode_ShippingRobot_Right           : ST_AutoMode_ShippingRobot_MoveAbs;
 	//AutoModeUse------倉儲小手臂ABS 移動
 	AutoMode_ShippingRobot_TransmitCVEnd    : ST_AutoMode_ShippingRobot_MoveAbs;
-	//AutoModeUse------同尺寸拍照			
+	//AutoModeUse------同尺寸拍照
 	AutoMode_SameSizeCVCamera				: ST_AutoMode_TransCVCamera;
-	//AutoModeUse------不同尺寸拍照	
+	//AutoModeUse------同尺寸反向拍照
+	AutoMode_SameSizeCVCamera_Reverse		: ST_AutoMode_TransCVCamera;
+	//AutoModeUse------不同尺寸拍照
 	AutoMode_DifferentCVCamera				: ST_AutoMode_TransCVCamera;
+	//AutoModeUse------逆向拍照批次入料
+	AutoMode_ReverseBatchPick				: ST_AutoMode_ReverseBatchPick;
+	//AutoModeUse------同尺寸軌道回倉/NG
+	AutoMode_ReverseBoxToWareHouse			: ST_AutoMode_ReverseBoxToWareHouse;
 		
 	//Shipping FeedOut TransCV with HansLaser handshake Service
-	AutoMode_ShippingLeftSideTransCV			: ST_AutoMode_ShippingLeftSideTransCV;
-	AutoMode_ShippingRightSideTransCV			: ST_AutoMode_ShippingRightSideTransCV;
-	
+	AutoMode_ShippingLeftSideTransCV		: ST_AutoMode_ShippingLeftSideTransCV;
+	AutoMode_ShippingRightSideTransCV		: ST_AutoMode_ShippingRightSideTransCV;
+	//AutoModeUse------倉儲內取放圓帶 (單筆)
+	AutoMode_WareHouseInnerPickToRoundBelt		: ST_AutoMode_WareHouseInnerPickToRoundBelt;
+	//AutoModeUse------倉儲內取放圓帶 (批次)
+	AutoMode_WareHouseInnerPickToRoundBeltBatch	: ST_WareHouseInnerPickBatch;
 	//Reboot Modbus devices
 	RebootModbusDevices			: st_RebootModbusDevices;
+	//AutoModeUse------- 出貨區緩衝區
+	AutoMode_ShippingRobot_Buffer			: ST_AutoMode_ShippingRobot_MoveAbs;
+	//AutoModeUse------- 出貨區拍照位置
+	AutoMode_ShippingRobot_PhotoStandByPos	: ST_AutoMode_ShippingRobot_MoveAbs;
+	//AutoModeUse------- 出貨區搬運 (合併)
+	AutoMode_ShippingRobotTransfer			: ST_AutoMode_ShippingRobotTransfer;
+	//AutoModeUse------- 手臂單獨回原點
+	AutoMode_RobotSelfHoming				: ST_AutoMode_RobotSelfHoming;
 	
-
-
 END_VAR
 ]]></Declaration>
   </GVL>

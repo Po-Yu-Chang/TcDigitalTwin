@@ -379,6 +379,9 @@
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_FeedInToWareHouseBox.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_RobotSelfHoming.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_ShippingLeftSideTransCV.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -562,6 +565,9 @@
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_TransCVCamera.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_WareHouseInnerPickToRoundBelt.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoPullOutConveyor.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -608,6 +614,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AxisControl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ClampActionRecord.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_ClampingBoxesInfo.TcDUT">
@@ -805,6 +814,12 @@
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WareHouseCoordinates.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WareHouseInnerPickBatch.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WareHouseInnerPickFlowInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_WriteAllOffsetData_Command.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -884,6 +899,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\E_RobotAddress.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_AutoMode_ShippingRobotTransfer.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\19_Device\FanucRobot\DUTs\ST_AutoMode_ShippingRobot_MoveAbs.TcDUT">
@@ -1086,6 +1104,12 @@
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_AllocateService.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_AutoMode_ReverseBatchPick.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_AutoMode_ReverseBoxToWareHouse.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_DuoCylinders.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -1150,6 +1174,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\Duts\ST_BlinkInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Duts\ST_ShippingRobotTransfer_AreaInfo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\Duts\ST_ShippingRobotTransfer_Info.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\Duts\ST_ShippingService.TcDUT">

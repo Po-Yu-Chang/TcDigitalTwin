@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_WareHouseInnerPickToRoundBelt" Id="{b8e3c4a1-7d5f-4a2e-9c01-3f8b12d6e5a7}">
+    <Declaration><![CDATA[// 倉儲內取放圓帶 — 自動模式包裝結構 (單筆)
+// 提供 Command/Status 握手 + 流程資訊 + 動作紀錄陣列
+// C# 透過 ADS 讀取 FeedBack=TRUE 後批次讀取 ActionRecords
+TYPE ST_AutoMode_WareHouseInnerPickToRoundBelt :
+STRUCT
+	Command			: ST_CommandBasic;		// Execute / Abort / Reset 控制命令
+	Status			: ST_StatusBasic;		// Busy / Done / Error / Status 狀態回報
+	Info			: ST_WareHouseInnerPickFlowInfo;	// 單筆流程資訊 (A/B爪設定+深度)
+	ActionRecords	: ARRAY[0..39] OF ST_ClampActionRecord;	// 倉儲取放動作紀錄
+	ActionIndex		: INT;					// 已記錄筆數
+	FeedBack		: BOOL;					// PLC → C#: 陣列可讀取
+	ReadComplete	: BOOL;					// C# → PLC: 讀取完成確認
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

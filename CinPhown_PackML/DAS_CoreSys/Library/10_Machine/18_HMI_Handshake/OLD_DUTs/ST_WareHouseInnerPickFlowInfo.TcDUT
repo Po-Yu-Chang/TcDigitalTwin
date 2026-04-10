@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_WareHouseInnerPickFlowInfo" Id="{e3597e04-f4c0-4ffe-aad4-acf9b363a79d}">
+    <Declaration><![CDATA[// 倉儲內取放圓帶 — 單筆流程資訊
+// 定義 A/B 爪各自的倉儲來源、圓帶目標、以及要取的目標深度 (Position)
+// 由上位機 (C# HMI) 透過 ADS 寫入，PLC 端根據此結構執行取放動作
+//
+// TargetPosition 說明：
+//   1 = P1 = 最前面的盒子 (直接取)
+//   2 = P2 = 第二個盒子 (需協助爪搬開 P1)
+//   3+ = P3 以後 (需先清除前面盒子到 buffer，再由協助爪配合目標爪取放)
+//   0 = 不使用此爪
+TYPE ST_WareHouseInnerPickFlowInfo :
+STRUCT
+	ID				: INT := -1;	// 流程 ID, -1 = 空/跳過, 其餘為有效流程編號
+	ClampA_Setting	: ST_ClampSetting_ReloadRoundBelt;	// A 爪設定：倉儲來源 (倉別/層/軌) + 圓帶目標 (站位/載具)
+	ClampB_Setting	: ST_ClampSetting_ReloadRoundBelt;	// B 爪設定：倉儲來源 (倉別/層/軌) + 圓帶目標 (站位/載具)
+	TargetPositionA	: INT;	// A 爪目標深度 1..10, 0 = 此爪不動作
+	TargetPositionB	: INT;	// B 爪目標深度 1..10, 0 = 此爪不動作
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

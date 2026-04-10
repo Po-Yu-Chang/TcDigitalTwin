@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_ReverseBatchPick" Id="{d4e5f6a7-b8c9-4dae-1f2a-3b4c5d6e7f8a}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_ReverseBatchPick :
+STRUCT
+	Command				: ST_CommandBasic;		// C# → PLC (Execute, Reset, Abort)
+	Status				: ST_StatusBasic;		// PLC → C# (Done, Busy, Error)
+
+	// ===== 鐵盤 Sensor (目前由 C# ADS 模擬寫入, 後續要改成獨立硬體訊號) =====
+	bLeftPlateReady		: BOOL;				// 左鐵盤到位 sensor  // 後面要改成獨立硬體訊號
+	bRightPlateReady	: BOOL;				// 右鐵盤到位 sensor  // 後面要改成獨立硬體訊號
+
+	// ===== 鐵盤配置 (C# → PLC) =====
+	LeftPlate			: ARRAY[0..3] OF BOOL;
+	RightPlate			: ARRAY[0..3] OF BOOL;
+	bLeftConfigReady	: BOOL;
+	bRightConfigReady	: BOOL;
+
+	// ===== 拍照 Handshake =====
+	UseBoxCamera		: BOOL;				// PLC → C# (請求拍照)
+	BoxCameraDone		: BOOL;				// C# → PLC (拍照完成)
+	CameraIsOK			: BOOL;				// C# → PLC
+	CameraWarehouse		: INT;				// C# → PLC (倉 1=A, 2=B)
+	CameraLevel			: INT;				// C# → PLC (層 1~10)
+	CameraTrack			: INT;				// C# → PLC (軌 1~20)
+
+	// ===== 鐵盤狀態 (PLC → C#) =====
+	bLeftPlateArrived	: BOOL;
+	bRightPlateArrived	: BOOL;
+	bLeftPlateDone		: BOOL;
+	bRightPlateDone		: BOOL;
+
+	// ===== 狀態監控 (PLC → C#) =====
+	uiUnphotographedCount	: UINT;
+	uiTotalProcessed		: UINT;
+	uiTransportedCount		: UINT;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ShippingRobotTransfer_AreaInfo" Id="{b1a2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d}">
+    <Declaration><![CDATA[TYPE ST_ShippingRobotTransfer_AreaInfo :
+STRUCT
+	Area     : E_RobotArea;   // 目標區域 (8=Left, 9=Right, 10=TransmitCVEnd, 11=Buffer, 12=CCD)
+	Position : INT;           // 位置地址 (0=CCD, 1-55=Buffer, 1-2=TransmitCVEnd, 1-40=Left/Right)
+	Get      : BOOL;          // TRUE=取盒, FALSE=放盒
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

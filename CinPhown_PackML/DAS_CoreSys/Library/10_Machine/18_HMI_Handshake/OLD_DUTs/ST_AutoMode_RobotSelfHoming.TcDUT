@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_AutoMode_RobotSelfHoming" Id="{aed58ee0-baee-46d5-9f7c-a6e8bb4ac71e}">
+    <Declaration><![CDATA[TYPE ST_AutoMode_RobotSelfHoming :
+STRUCT
+	Command	: ST_CommandBasic;
+	Status	: ST_StatusBasic;
+	BypassFeedOutToNGCV	: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
