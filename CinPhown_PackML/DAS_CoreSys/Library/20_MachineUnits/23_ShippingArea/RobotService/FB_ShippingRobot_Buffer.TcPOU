@@ -1,0 +1,663 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ShippingRobot_Buffer" Id="{a9c689c3-62d7-4e8d-a522-504fa02421e2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingRobot_Buffer EXTENDS FB_RobotRegionMove_BufferArea
+VAR_INPUT
+	Input	: REFERENCE TO ST_InputTable;
+	Output	: REFERENCE TO ST_OutputTable;
+	Cylinder: REFERENCE TO UNI_CylinderList;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	// 用於轉型 Lreal
+	iCmdPosA	: INT;
+	
+	TON_RobotActionTimeOut		: TON;
+	TON_CheckRobotDoneTimeOut	: TON;
+	
+	uiGetStep	: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.A00_BasicUnits();
+SUPER^.A10_StateControl();
+
+Area := E_RobotArea.ShippingBufferArea;
+
+]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{eed330bb-9c28-4b16-9af0-7b68af246eea}" />
+    <Folder Name="STATE" Id="{26e05343-2396-4016-9441-f6f98f2e2127}" />
+    <Action Name="A00_BasicUnits" Id="{6ae9a89d-0abe-477b-868b-4bfc72806063}">
+      <Implementation>
+        <ST><![CDATA[TON_RobotActionTimeOut( PT := T#60S);
+TON_CheckRobotDoneTimeOut(PT := T#30S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommandVaild" Id="{ea971e1b-fd91-43bb-8fdb-7b907498ead0}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommandVaild : BOOL
+VAR_INPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.Get :=Info.Get;
+UseA := Info.UseA;
+UseB := Info.UseB;
+
+// 出貨區小手臂只有 A爪,所以程式內只有判斷 useA
+IF UseB THEN
+	M_CheckCommandVaild := FALSE;
+	status 				:= 'FB_ShippingRobot_Buffer , not have B Clamp , not can retry';
+	RETURN;
+END_IF
+IF NOT UseA THEN
+	M_CheckCommandVaild := FALSE;
+	status 				:= 'FB_ShippingRobot_Buffer , A Clamp must be used';
+	RETURN;
+END_IF
+
+// 預防上位給予的位置是小數點
+IF info.A_Position <> INT_TO_LREAL(LREAL_TO_INT(info.A_Position)) THEN
+	M_CheckCommandVaild := FALSE;
+	status 				:= 'FB_ShippingRobot_Buffer , A_Position not integer ,not can retry';
+	RETURN;
+END_IF
+
+iCmdPosA := LREAL_TO_INT(info.A_Position);
+
+IF NOT ((iCmdPosA >= 1) AND (iCmdPosA <= 55))  THEN
+	M_CheckCommandVaild := FALSE;
+	status 				:= 'FB_ShippingRobot_Buffer , Position not valid ,not can retry';
+	RETURN;
+END_IF
+
+
+IF Get THEN
+	IF NOT Robot._DI1.ClampA_Open THEN
+		status 				:= 'Get command , clamp have box ';
+		M_CheckCommandVaild := FALSE;
+		RETURN;
+	END_IF
+ELSE
+	IF Robot._DI1.ClampA_Open THEN 
+		status 				:= 'Place command , clamp not have box ';
+		M_CheckCommandVaild := FALSE;
+		RETURN;
+	END_IF
+END_IF
+
+M_CheckCommandVaild := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{3930ef75-0a3e-426e-acaf-02c9d6479da4}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy  := FALSE;
+Error := TRUE;
+Aborted := TRUE;
+uiAbortingStep 	:= 0;
+_AbortCompleted := FALSE;
+
+// 狀態機切換
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND reset THEN
+	Error	:= false;
+	Aborted	:= false;
+	eState 	:= STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{a4dc43b5-b5c1-4399-bcd8-07633045eeca}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0 :
+		_Abort := FALSE;
+		TON_RobotActionTimeOut.IN 	 := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		
+		uiAbortingStep:=9999;
+
+	9999:	
+		_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{e168d079-2c02-4ddb-9c0c-17fa3bc10b61}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{4872fb27-b323-438d-bbef-cc6ac0e012e4}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy 			:= FALSE;
+Done 			:= FALSE;
+Aborted 		:= FALSE;
+Error			:= FALSE;
+Paused			:= FALSE;
+ErrorID			:= 0;
+Status			:= '';
+UniqueErrorCode := '';
+
+_Executed 			:= FALSE;
+_Error				:= FALSE;
+_Abort				:= FALSE;
+_ResetCompleted 	:= FALSE;
+_AbortCompleted 	:= FALSE;
+_HoldingCompleted 	:= FALSE;
+_HeldCompleted	 	:= FALSE;
+_UnholdCompleted 	:= FALSE;
+
+uiExecutingStep 	:= 0;
+uiResettingStep 	:= 0;
+uiAbortingStep 		:= 0;
+uiHoldingStep		:= 0;
+uiHeldStep			:= 0;
+uiUnholdStep		:= 0;
+uiGetStep			:= 0;
+
+TON_RobotActionTimeOut.IN 	 := FALSE;
+TON_CheckRobotDoneTimeOut.IN := FALSE;
+
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{79c1e4db-6998-470a-87ea-891f26e170a0}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ERROR   := TRUE;
+Busy	:= FALSE;
+_Error	:= false;
+
+IF NOT Execute THEN	
+	Error	:= FALSE;
+	eSTATE	:=STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{d9069fe1-b66b-4138-b6a4-1fa2bc03ff82}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	Address_A	 : INT;
+	BoxReady_1st : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[busy := true;
+
+// 暫停
+IF Pause THEN 
+	_HoldingCompleted 	:= FALSE;
+	_HeldCompleted	 	:= FALSE;
+	_UnholdCompleted 	:= FALSE;
+	uiHoldingStep		:= 0;
+	uiHeldStep			:= 0;
+	uiUnholdStep		:= 0;
+	eState    			:= STATE_Holding;
+END_IF
+
+// 動作主流程 狀態機
+CASE uiExecutingStep OF
+	
+	0:		// init 
+			BoxReady_1st := FALSE;		
+			Address_A	 := 0;
+			
+			uiExecutingStep := 100;
+		
+	100:	// 檢查命令是否是有效值
+			IF M_CheckCommandVaild() THEN
+				uiExecutingStep := 1000;
+			ELSE
+				_Error := TRUE;
+			END_IF
+			
+	1000:	// 注入位置座標
+			Address_A 		:= iCmdPosA;
+			uiExecutingStep := 10000;
+			
+	10000:	// RobotAction
+			TON_RobotActionTimeOut.IN := TRUE;
+			IF NOT Robot._DI1.Done THEN  
+				IF Get THEN
+					// 取盒動作先判斷盒子的目標位置，去選擇接下來的動作。
+					CASE uiGetStep OF
+							0:	
+								CASE Address_A OF
+									1..54:
+											uiGetStep := 400;
+									55:
+											uiGetStep := 100;
+								END_CASE
+								
+							100:
+								Cylinder.List.fbShippingBuffer_Press.M_Extend();
+								IF Cylinder.List.fbShippingBuffer_Press.InFrontPosition THEN
+									uiGetStep := 300;
+								END_IF						
+							300:
+								Cylinder.List.fbShippingBuffer_Press.M_Retract();
+								IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+									uiGetStep := 400;
+								END_IF
+							400:
+								BoxReady_1st := TRUE;
+						END_CASE
+						
+					 Robot.M_StartRobotAbsMove(GetBox:=TRUE,
+												UseClampA:=UseA,
+												UseClampB:=FALSE,
+												Area:=Area,
+												ClampA_Address:=Address_A,
+												ClampB_Address:=0,
+												BoxReady_1:=BoxReady_1st,
+												BoxReady_2:=FALSE);	  
+				
+				ELSE
+					
+					IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+						BoxReady_1st:=TRUE;
+					ELSE
+						Cylinder.List.fbShippingBuffer_Press.M_Retract();
+					END_IF
+					
+					Robot.M_StartRobotAbsMove(GetBox:=FALSE,
+												UseClampA:=UseA,
+												UseClampB:=FALSE,
+												Area:=Area,
+												ClampA_Address:=Address_A,
+												ClampB_Address:=0,
+												BoxReady_1:=BoxReady_1st,
+												BoxReady_2:=FALSE);	
+				END_IF
+			ELSE
+				uiExecutingStep := 11000;
+			END_IF
+			
+			IF TON_RobotActionTimeOut.Q  THEN
+				_Abort 	:= TRUE;
+				Status	:= 'FB_ShippingRobot_Buffer ,Step:10000 RobotAction Timeout,can retry';
+			END_IF
+			IF Robot.Error THEN
+				Status := CONCAT('FB_ShippingRobot place Left Plate Error',robot.ErrMsg);
+				_Abort := TRUE;
+		END_IF
+			
+	11000:	// reset 手臂命令
+			Robot.M_ResetRobotAbsMove(UseA,UseB); // Clear command and go to place box
+			TON_RobotActionTimeOut.IN 	 := FALSE;
+			TON_CheckRobotDoneTimeOut.IN := TRUE;
+			IF NOT Robot._DI1.Done THEN
+				TON_CheckRobotDoneTimeOut.IN := FALSE;
+            	uiExecutingStep := 90000; 
+        	END_IF
+			IF TON_CheckRobotDoneTimeOut.Q THEN
+				_Error := TRUE;
+				status := 'FB_ShippingRobot_Buffer , Step:11000 Wait Robot done Timeout';
+			END_IF
+
+	90000:
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			Status    := 'Process completed';
+        	_Executed := TRUE;
+end_case
+
+// 狀態機切換
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+ELSIF _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Executed THEN
+	eState := STATE_DONE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HELD" Id="{603948e9-5ba7-47bc-94b4-3bdfa81d9b6f}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_HELD : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+Busy 	:= FALSE;
+Paused 	:= TRUE;
+
+CASE uiHeldStep OF
+	0:
+		uiHeldStep := 9999;
+
+	9999:
+		_HeldCompleted := TRUE;	
+
+END_CASE
+
+IF _HeldCompleted AND NOT Pause THEN
+	eState := STATE_UnHold;
+END_IF
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HOLDING" Id="{dca8d9e8-8155-489f-846e-828c41a28a8c}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_HOLDING : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+CASE uiHoldingStep OF 
+	0:	    // 需關閉 Timer 等等須暫停的變數
+		TON_RobotActionTimeOut.IN 	 := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		
+		uiHoldingStep := 9999;
+		
+	9999:	// holding 完成
+		_HoldingCompleted := TRUE;
+END_CASE
+
+IF _HoldingCompleted THEN
+	eState := STATE_Held;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{adc2f575-16f7-4820-80cd-67581bf862c5}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+Error :=FALSE;
+_Error :=FALSE;
+
+CASE uiResettingStep OF
+	
+	0:
+		IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+			uiResettingStep := 9999;
+		ELSE
+			Cylinder.List.fbShippingBuffer_Press.M_Retract();
+		END_IF
+	
+	9999:
+		_ResetCompleted:=TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_UNHOLD" Id="{ab4e84f2-c476-42ce-ab0d-e0858fcfb914}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_UNHOLD : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiUnholdStep OF 
+	0:		
+		uiUnholdStep := 9999;
+		
+	9999:
+		_UnholdCompleted := TRUE;
+		
+END_CASE
+
+IF _UnholdCompleted THEN
+	Paused := FALSE;
+	eState := STATE_EXECUTING;
+END_IF
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ShippingRobot_Buffer">
+      <LineId Id="9" Count="1" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="29" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.A00_BasicUnits">
+      <LineId Id="1" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_CheckCommandVaild">
+      <LineId Id="72" Count="1" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="5" Count="1" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="77" Count="1" />
+      <LineId Id="75" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="35" Count="11" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="52" Count="12" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="18" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_ABORTED">
+      <LineId Id="23" Count="4" />
+      <LineId Id="31" Count="3" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_ABORTING">
+      <LineId Id="14" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="30" Count="6" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_DONE">
+      <LineId Id="15" Count="3" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_DORMANT">
+      <LineId Id="11" Count="20" />
+      <LineId Id="37" Count="2" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="34" Count="2" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_ERROR">
+      <LineId Id="13" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_EXECUTING">
+      <LineId Id="13" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="22" Count="3" />
+      <LineId Id="42" Count="2" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="143" Count="1" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="60" Count="1" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="49" Count="2" />
+      <LineId Id="54" Count="2" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="312" Count="0" />
+      <LineId Id="287" Count="1" />
+      <LineId Id="304" Count="1" />
+      <LineId Id="307" Count="2" />
+      <LineId Id="306" Count="0" />
+      <LineId Id="310" Count="0" />
+      <LineId Id="289" Count="11" />
+      <LineId Id="286" Count="0" />
+      <LineId Id="311" Count="0" />
+      <LineId Id="77" Count="6" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="73" Count="1" />
+      <LineId Id="317" Count="0" />
+      <LineId Id="313" Count="0" />
+      <LineId Id="302" Count="0" />
+      <LineId Id="314" Count="2" />
+      <LineId Id="303" Count="0" />
+      <LineId Id="85" Count="6" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="92" Count="1" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="97" Count="1" />
+      <LineId Id="100" Count="0" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="325" Count="0" />
+      <LineId Id="327" Count="1" />
+      <LineId Id="324" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="95" Count="1" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="105" Count="2" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="130" Count="0" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="210" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="27" Count="8" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_HELD">
+      <LineId Id="44" Count="0" />
+      <LineId Id="29" Count="13" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="28" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_HOLDING">
+      <LineId Id="35" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="26" Count="7" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="23" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_RESETTING">
+      <LineId Id="39" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="50" Count="4" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="69" Count="1" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="56" Count="5" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="42" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_UNHOLD">
+      <LineId Id="27" Count="11" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
