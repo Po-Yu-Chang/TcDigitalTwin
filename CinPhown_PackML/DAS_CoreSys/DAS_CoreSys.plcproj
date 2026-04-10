@@ -1089,6 +1089,9 @@
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotRegionMove_RoundBelt.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotSelfHoming.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_WareHouseWithRobotMove_V3.TcPOU">
       <SubType>Code</SubType>
     </Compile>

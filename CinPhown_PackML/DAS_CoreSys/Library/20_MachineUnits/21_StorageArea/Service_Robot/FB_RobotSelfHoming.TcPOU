@@ -1,0 +1,710 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_RobotSelfHoming" Id="{0c6d3f9d-a90b-4856-baac-9148ece74de6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RobotSelfHoming EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+	FanucRobot		: REFERENCE TO FB_FanucRobot_Basic_V2;
+	Input			: REFERENCE TO ST_InputTable;
+	Output			: REFERENCE TO ST_OutputTable;
+	Motor			: REFERENCE TO UNI_MotorList;
+	
+	
+	BypassFeedOutToNGCV	: BOOL;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	binjectVelPara	 : BOOL;
+	_RobotFeedOutVel : UINT :=20  ;
+	RobotRunningVel	 : UINT;
+	
+	// Reboot Timer
+	TON_RobotRebootDelay		: TON;		// 手臂電源復位延遲
+	TON_RobotRebootTimeOut		: TON;		// 手臂重啟斷訊回歸延遲
+	TON_RobotErrorDetectDelay	: TON;		// 手臂偵測錯誤延遲
+	TON_ServiceTimeOut			: TON;		
+	
+	//Internal Robot FeedOut To NGCV use
+	TON_RobotFeedOutCommand : TON;			// 手臂放盒至 NG軌道 Command 計時
+	TON_RobotTimeOut		: TON;			// 手臂放盒至 NG軌道 Service done 計時
+	
+	_fbRobotRegionMove_FeedInConveyor :  FB_RobotRegionMove_FeedInConveyor_V2;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{e5513f77-b6bd-4c17-8bfa-78acea4ec0d1}" />
+    <Folder Name="STATE" Id="{5e985baf-c723-4fc7-99dc-509424012119}" />
+    <Action Name="A00_BasicUnits" Id="{24d5713b-efef-4b36-b6fc-fedcbf6c95ac}">
+      <Implementation>
+        <ST><![CDATA[TON_RobotRebootDelay(		PT := T#2S);
+TON_RobotRebootTimeOut(		PT := T#60S);
+TON_RobotErrorDetectDelay(	PT := T#3S);
+TON_ServiceTimeOut(			PT := T#120S);
+TON_RobotFeedOutCommand(	PT:= T#5S);
+TON_RobotTimeOut(			PT := T#60S);
+
+_fbRobotRegionMove_FeedInConveyor(
+	Execute:= , 
+	Abort:= , 
+	Reset:= , 
+	ObjectName:= , 
+	Busy=> , 
+	Done=> , 
+	Aborted=> , 
+	Error=> , 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	Robot:= FanucRobot, 
+	LowerConveyor:= Motor.List.LowCV, 
+	Input:= input, 
+	Info:= , 
+	Stop:= );]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{b121d546-aa96-4805-8b4e-9dd85d212cb5}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF GVL_ADS.AutoMode_RobotAbsMove.HandShake.Execute 
+	OR GVL_ADS.AutoMode_FeedInEmptyBoxWithRobot.Command.Execute 
+	OR GVL_ADS.AutoMode_FeedInRoundBeltBoxToWareHouse.Command.Execute
+	OR GVL_ADS.AutoMode_ReloadRoundBeltBoxWithRobot.Command.Execute 
+	OR GVL_ADS.AutoMode_RobotRegionMove_AllocatedConveyor.Command.Execute
+	OR GVL_ADS.AutoMode_RobotRegionMove_BufferArea.Command.Execute
+	OR GVL_ADS.AutoMode_RobotRegionMove_FeedInConveyor.Command.Execute
+	OR GVL_ADS.AutoMode_RobotRegionMove_PullOutConveyor.Command.Execute
+	OR GVL_ADS.AutoMode_RobotRegionMove_RoundBelt.Command.Execute
+	OR GVL_ADS.AutoMode_WarehouseMotoWithRobotMove.HandShake.Execute 
+THEN
+	M_CheckCommand := FALSE;
+ELSE
+	M_CheckCommand := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{d413253b-821b-4d11-8a0a-9346684ba383}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+Busy  := FALSE;
+Error := TRUE;
+Aborted := TRUE;
+uiAbortingStep 	:= 0;
+_AbortCompleted := FALSE;
+
+// 狀態機切換
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND reset THEN
+	Error	:= false;
+	Aborted	:= false;
+	eState 	:= STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{7bff3210-ed17-4f26-8196-f4dcc57eb168}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+CASE uiAbortingStep OF
+	0 :
+		_Abort := FALSE;
+		TON_RobotRebootDelay.IN 	:= FALSE;
+		TON_RobotRebootTimeOut.IN	:= FALSE;
+		TON_RobotErrorDetectDelay.IN:= FALSE;
+		TON_ServiceTimeOut.IN		:= FALSE;
+		TON_RobotFeedOutCommand.IN	:= FALSE;
+		TON_RobotTimeOut.IN			:= FALSE;
+		
+		uiAbortingStep:=9999;
+
+	9999:	
+		_AbortCompleted:=TRUE;
+END_CASE
+
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{588af139-df7d-41bb-8502-f03b95eb560a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{7e763d92-bbe7-4314-bc80-0cf41c6fda68}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+Busy 			:= FALSE;
+Done 			:= FALSE;
+Aborted 		:= FALSE;
+Error			:= FALSE;
+Paused			:= FALSE;
+ErrorID			:= 0;
+Status			:= '';
+UniqueErrorCode := '';
+
+_Executed 			:= FALSE;
+_Error				:= FALSE;
+_Abort				:= FALSE;
+_ResetCompleted 	:= FALSE;
+_AbortCompleted 	:= FALSE;
+_HoldingCompleted 	:= FALSE;
+_HeldCompleted	 	:= FALSE;
+_UnholdCompleted 	:= FALSE;
+
+uiExecutingStep 		:= 0;
+uiResettingStep 		:= 0;
+uiAbortingStep 			:= 0;
+uiHoldingStep			:= 0;
+uiHeldStep				:= 0;
+uiUnholdStep			:= 0;
+
+TON_RobotRebootDelay.IN 	:= FALSE;
+TON_RobotRebootTimeOut.IN	:= FALSE;
+TON_RobotErrorDetectDelay.IN:= FALSE;
+TON_ServiceTimeOut.IN		:= FALSE;
+TON_RobotFeedOutCommand.IN	:= FALSE;
+TON_RobotTimeOut.IN			:= FALSE;
+
+IF Execute THEN
+    eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{30964383-c653-4fcd-86d9-e78ce1ce423c}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+ERROR   := TRUE;
+Busy	:= FALSE;
+_Error	:= false;
+
+IF NOT Execute THEN	
+	Error	:= FALSE;
+	eSTATE	:=STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{5dfa9b57-3367-4025-a6b9-abfc93e17bcd}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+busy := true;
+
+// 暫停
+IF Pause THEN 
+	_HoldingCompleted 	:= FALSE;
+	_HeldCompleted	 	:= FALSE;
+	_UnholdCompleted 	:= FALSE;
+	uiHoldingStep		:= 0;
+	uiHeldStep			:= 0;
+	uiUnholdStep		:= 0;
+	eState    			:= STATE_Holding;
+END_IF
+IF TON_ServiceTimeOut.Q THEN
+	status	:= 'FB_RobotSelfHoming Service TimeOut';
+	_Error	:= TRUE;
+END_IF
+IF GVL_HMI.Setup.StorageRobot.RobotVelocity = 0 THEN
+	_Error := TRUE;
+	status := 'FB_RobotSelfHoming Step 1100 : Robot Speed cannot be 0 ';
+	eState := STATE_ERROR;
+	RETURN;
+END_IF
+
+// 動作主流程 狀態機
+CASE uiExecutingStep OF
+	
+	0:		
+			IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
+				Status := 'FB_RobotSelfHoming : Not in Auto mode';
+				_Error := TRUE;
+			ELSE
+				uiExecutingStep := 50;
+			END_IF
+
+	50:		// 檢查是否有其他的手臂程式正在執行。
+			TON_ServiceTimeOut.IN := TRUE;
+			IF NOT binjectVelPara THEN
+				binjectVelPara	:= TRUE;
+				RobotRunningVel := LREAL_TO_UINT( GVL_HMI.Setup.StorageRobot.RobotVelocity);
+			END_IF
+			
+			IF M_CheckCommand() THEN
+				uiExecutingStep := 100;
+			ELSE
+				status := 'FB_RobotSelfHoming Step 0 : Wrong Command : another Robot Service Executing';
+				_Error := TRUE;
+			END_IF
+	
+	100:
+			IF FanucRobot._EIPConnectionState = 8195 THEN
+				Output.bStorage_FanucRobotPower := TRUE;
+				TON_RobotRebootDelay.IN 		:= TRUE;
+				TON_RobotRebootTimeOut.IN		:= TRUE;
+			ELSE
+				uiExecutingStep := 200;
+			END_IF
+			IF TON_RobotRebootDelay.Q THEN
+				output.bStorage_FanucRobotPower := FALSE;
+			END_IF
+			IF TON_RobotRebootTimeOut.Q THEN
+				status := 'FB_RobotSelfHoming Step 100: Robot Reboot Timeout';
+				_Error := TRUE;
+			END_IF
+			
+	200:	// Robot 斷訊恢復後重新下回 home 命令
+			TON_RobotRebootDelay.IN			:= FALSE;
+			TON_RobotRebootTimeOut.IN		:= FALSE;
+			FanucRobot.OpMode := E_FanucRobotOpMode.RSR02;		//Restart Robot Homing
+			TON_RobotErrorDetectDelay.IN := TRUE;
+			IF TON_RobotErrorDetectDelay.Q THEN
+				uiExecutingStep := 500;
+			END_IF
+	500:
+			IF FanucRobot._RSR2_Completed THEN
+				uiExecutingStep := 600;
+			END_IF
+			
+	600:
+			FanucRobot.OpMode := E_FanucRobotOpMode.RSR01;
+			IF FanucRobot._RSR1_Ready THEN
+				uiExecutingStep := 700;
+			END_IF
+	700:
+			IF FanucRobot.OpMode = E_FanucRobotOpMode.RSR01 AND NOT FanucRobot._DI1.Done AND FanucRobot._DI12.RSR1_Active THEN
+				uiExecutingStep := 1050;
+			END_IF
+	1050:
+			IF BypassFeedOutToNGCV THEN
+				uiExecutingStep := 9999;
+			ELSE
+				uiExecutingStep := 1100;
+			END_IF
+			
+	1100:	//detect Robot Clamp ,, if clamp have box or clamp not open todo 
+			IF NOT FanucRobot._DI1.ClampA_Open AND NOT FanucRobot._DI1.ClampB_Open  THEN
+				GVL_HMI.Setup.StorageRobot.RobotVelocity := _RobotFeedOutVel;
+				uiExecutingStep := 2000;
+			ELSIF NOT FanucRobot._DI1.ClampA_Open  THEN
+				GVL_HMI.Setup.StorageRobot.RobotVelocity := _RobotFeedOutVel;
+				uiExecutingStep := 3000;
+			ELSIF NOT FanucRobot._DI1.ClampB_Open  THEN
+				GVL_HMI.Setup.StorageRobot.RobotVelocity := _RobotFeedOutVel;
+				uiExecutingStep := 4000;
+			ELSE 
+				GVL_HMI.Setup.StorageRobot.RobotVelocity := RobotRunningVel;
+				uiExecutingStep := 9999;
+			END_IF
+		
+	2000:	// Both Clamp , not open and sensor detect	
+			TON_RobotFeedOutCommand.IN := TRUE;
+			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := TRUE,
+												UseB := TRUE);
+			IF _fbRobotRegionMove_FeedInConveyor.Busy THEN
+				uiExecutingStep := 2100;
+			END_IF
+			IF TON_RobotFeedOutCommand.Q THEN
+				status := 'Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
+				_Error := TRUE;
+			END_IF
+		
+	2100:	// FeedOut done clear command 
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
+			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
+				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+				uiExecutingStep := 0;
+			END_IF
+			IF TON_RobotTimeOut.Q THEN
+				status := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+				_Error := TRUE;
+			END_IF
+		
+	3000:	//Clamp A 
+			TON_RobotFeedOutCommand.IN := TRUE;
+			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := TRUE,
+												useB := FALSE);
+			IF _fbRobotRegionMove_FeedInConveyor.Busy THEN
+				uiExecutingStep := 3100;
+			END_IF
+			IF TON_RobotFeedOutCommand.Q THEN
+				status := 'Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
+				_Error := TRUE;
+			END_IF
+		
+	3100:	//FeedOut Done clear command
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
+			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
+				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+				uiExecutingStep := 0;
+			END_IF
+			IF TON_RobotTimeOut.Q THEN
+				status := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+				_Error := TRUE;
+			END_IF
+		
+	4000:	//Clamp B
+			TON_RobotFeedOutCommand.IN := TRUE;
+			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := FALSE,
+												useB := TRUE);
+			IF _fbRobotRegionMove_FeedInConveyor.Busy THEN
+				uiExecutingStep := 4100;
+			END_IF
+			IF TON_RobotFeedOutCommand.Q THEN
+				status := 'Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
+				_Error := TRUE;
+			END_IF
+		
+	4100:	//FeedOut Done clear command
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
+			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
+				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+				uiExecutingStep := 0;
+			END_IF
+			IF TON_RobotTimeOut.Q THEN
+				status := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+				_Error := TRUE;
+			END_IF
+			
+	9999:
+			status		:= 'Process done';
+			_Executed 	:= TRUE;		
+end_case
+
+// 狀態機切換
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+ELSIF _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Executed THEN
+	eState := STATE_DONE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HELD" Id="{a2d74bbd-d8b1-409e-a4a7-fb7b68a092a2}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_HELD : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+Busy 	:= FALSE;
+Paused 	:= TRUE;
+
+CASE uiHeldStep OF
+	0:
+		uiHeldStep := 9999;
+
+	9999:
+		_HeldCompleted := TRUE;	
+
+END_CASE
+
+IF _HeldCompleted AND NOT Pause THEN
+	eState := STATE_UnHold;
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HOLDING" Id="{d05190a2-1409-4bb3-85bc-59b6268389de}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_HOLDING : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+CASE uiHoldingStep OF 
+	0:	    // 需關閉 Timer 等等須暫停的變數
+	
+		TON_RobotRebootDelay.IN 	:= FALSE;
+		TON_RobotRebootTimeOut.IN	:= FALSE;
+		TON_RobotErrorDetectDelay.IN:= FALSE;
+		TON_ServiceTimeOut.IN		:= FALSE;
+		TON_RobotFeedOutCommand.IN	:= FALSE;
+		TON_RobotTimeOut.IN			:= FALSE;
+		
+		uiHoldingStep := 9999;
+		
+	9999:	// holding 完成
+		_HoldingCompleted := TRUE;
+END_CASE
+
+IF _HoldingCompleted THEN
+	eState := STATE_Held;
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{56eb26f3-0fc1-48b6-b1e0-7ac02d6e439e}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiResettingStep OF
+	
+	0:
+			TON_RobotRebootDelay.IN 	:= FALSE;
+			TON_RobotRebootTimeOut.IN	:= FALSE;
+			TON_RobotErrorDetectDelay.IN:= FALSE;
+			TON_ServiceTimeOut.IN		:= FALSE;
+			TON_RobotFeedOutCommand.IN	:= FALSE;
+			TON_RobotTimeOut.IN			:= FALSE;
+			
+			_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
+			
+			uiResettingStep := 9999;
+	9999:
+			_ResetCompleted:=TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+	eSTATE:=STATE_DORMANT;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_UNHOLD" Id="{ea6bb275-074d-4092-9035-05cb61d1de40}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_UNHOLD : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+CASE uiUnholdStep OF 
+	0:		
+		uiUnholdStep := 9999;
+		
+	9999:
+		_UnholdCompleted := TRUE;
+		
+END_CASE
+
+IF _UnholdCompleted THEN
+	Paused := FALSE;
+	eState := STATE_EXECUTING;
+END_IF
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RobotSelfHoming">
+      <LineId Id="9" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.A00_BasicUnits">
+      <LineId Id="2" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="1" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="7" Count="15" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_CheckCommand">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="11" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_ABORTED">
+      <LineId Id="21" Count="0" />
+      <LineId Id="23" Count="4" />
+      <LineId Id="31" Count="3" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="39" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_ABORTING">
+      <LineId Id="12" Count="0" />
+      <LineId Id="14" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="46" Count="4" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="30" Count="6" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_DONE">
+      <LineId Id="15" Count="3" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_DORMANT">
+      <LineId Id="10" Count="21" />
+      <LineId Id="37" Count="2" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="49" Count="2" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_ERROR">
+      <LineId Id="9" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_EXECUTING">
+      <LineId Id="10" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="22" Count="3" />
+      <LineId Id="42" Count="2" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="115" Count="1" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="234" Count="4" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="224" Count="1" />
+      <LineId Id="227" Count="2" />
+      <LineId Id="222" Count="1" />
+      <LineId Id="221" Count="0" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="209" Count="2" />
+      <LineId Id="207" Count="1" />
+      <LineId Id="66" Count="19" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="86" Count="23" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="122" Count="29" />
+      <LineId Id="212" Count="0" />
+      <LineId Id="152" Count="10" />
+      <LineId Id="213" Count="0" />
+      <LineId Id="163" Count="10" />
+      <LineId Id="214" Count="0" />
+      <LineId Id="174" Count="10" />
+      <LineId Id="215" Count="0" />
+      <LineId Id="185" Count="10" />
+      <LineId Id="216" Count="0" />
+      <LineId Id="196" Count="10" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="110" Count="2" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="27" Count="8" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_HELD">
+      <LineId Id="44" Count="0" />
+      <LineId Id="29" Count="13" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="28" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_HOLDING">
+      <LineId Id="35" Count="0" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="44" Count="4" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="26" Count="7" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="23" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_RESETTING">
+      <LineId Id="52" Count="2" />
+      <LineId Id="69" Count="4" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="78" Count="1" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="55" Count="6" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="42" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RobotSelfHoming.M_STATE_UNHOLD">
+      <LineId Id="39" Count="0" />
+      <LineId Id="27" Count="11" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

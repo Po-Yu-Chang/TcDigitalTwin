@@ -2708,7 +2708,7 @@ External Setpoint Generation:
 		</Motion>
 		<Plc>
 			<Project GUID="{F0C6C3EF-6481-4440-89AE-361520A7C96C}" Name="DAS_CoreSys" PrjFilePath="DAS_CoreSys\DAS_CoreSys.plcproj" TmcFilePath="DAS_CoreSys\DAS_CoreSys.tmc" ReloadTmc="true" AmsPort="851" TargetArchiveSettings="#x0000" FileArchiveSettings="#x0000" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{A6A26B18-8ED2-C526-DA3C-2C1B0B242E9A}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{41CCFDB4-A001-8996-BBAB-9218DCCCCACA}">
 					<Name>DAS_CoreSys Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
