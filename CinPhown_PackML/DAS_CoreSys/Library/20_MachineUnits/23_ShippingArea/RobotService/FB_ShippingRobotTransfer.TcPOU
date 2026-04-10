@@ -120,9 +120,7 @@ CASE AreaInfo.Area OF
 	E_RobotArea.ShippingRobotLeft,
 	E_RobotArea.ShippingRobotRight:
 		IF AreaInfo.Position < 1 OR AreaInfo.Position > 40 THEN
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0160);
+			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, Left/Right Position must be 1-40';
 			Status := strStatus;
 			Error := TRUE;
 			RETURN;
@@ -130,9 +128,7 @@ CASE AreaInfo.Area OF
 
 	E_RobotArea.ShippingBufferArea:
 		IF AreaInfo.Position < 1 OR AreaInfo.Position > 55 THEN
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0152);
+			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, Buffer Area Position must be 1-55';
 			Status := strStatus;
 			Error := TRUE;
 			RETURN;
@@ -140,9 +136,7 @@ CASE AreaInfo.Area OF
 
 	E_RobotArea.TransmitCV_End:
 		IF AreaInfo.Position < 1 OR AreaInfo.Position > 2 THEN
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0168);
+			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, TransmitCV_End Position must be 1-2';
 			Status := strStatus;
 			Error := TRUE;
 			RETURN;
@@ -154,18 +148,14 @@ CASE AreaInfo.Area OF
 	E_RobotArea.ShippingFeedOutEmptyBox:
 		// 拔針排空盒位置固定 = 0
 		IF AreaInfo.Position <> 0 THEN
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0169);
+			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, FeedOut Empty Box Position must be 0';
 			Status := strStatus;
 			Error := TRUE;
 			RETURN;
 		END_IF
 
 ELSE
-	strStatus := M_FormatManagedStatus(
-		AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-		InnerMessage := GVL_ErrorCode.GC_MSG_0169);
+	strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, Invalid Area';
 	Status := strStatus;
 	Error := TRUE;
 	RETURN;
@@ -174,18 +164,14 @@ END_CASE
  //檢查爪子狀態
 IF AreaInfo.Get THEN
 	IF NOT Robot._DI1.ClampA_Open THEN
-		strStatus := M_FormatManagedStatus(
-			AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-			InnerMessage := GVL_ErrorCode.GC_MSG_0074);
+		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA is not open';
 		Status := strStatus;
 		Error := TRUE;
 		RETURN;
 	END_IF
 ELSE
 	IF Robot._DI1.ClampA_Open THEN
-		strStatus := M_FormatManagedStatus(
-			AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-			InnerMessage := GVL_ErrorCode.GC_MSG_0100);
+		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA is not open';
 		Status := strStatus;
 		Error := TRUE;
 		RETURN;
@@ -353,11 +339,6 @@ bMoveConveyorForward  := FALSE;
 bMoveConveyorBackward := FALSE;
 BoxReady_1st := FALSE;
 
-strStatus := M_FormatManagedStatus(
-
-	AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-
-	InnerMessage := GVL_ErrorCode.GC_MSG_0089);
 Status := '';
 Error := FALSE;
 PreviousStrStatus := '';
@@ -499,9 +480,7 @@ CASE uiExecutingStep OF
 		IF _fromArea = E_RobotArea.ShippingRobotLeft THEN
 			IF NOT bTransCVInPosition_Left THEN
 				uiResumeStep := 50;
-				strStatus := M_FormatManagedStatus(
-					AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-					InnerMessage := GVL_ErrorCode.GC_MSG_0132);
+				strStatus := 'FB_ShippingRobotTransfer Step 50: Source Left TransCV not in position';
 				Status := strStatus;
 				Error := TRUE;
 				_Abort := TRUE;
@@ -509,9 +488,7 @@ CASE uiExecutingStep OF
 		ELSIF _fromArea = E_RobotArea.ShippingRobotRight THEN
 			IF NOT bTransCVInPosition_Right THEN
 				uiResumeStep := 50;
-				strStatus := M_FormatManagedStatus(
-					AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-					InnerMessage := GVL_ErrorCode.GC_MSG_0133);
+				strStatus := 'FB_ShippingRobotTransfer Step 50: Source Right TransCV not in position';
 				Status := strStatus;
 				Error := TRUE;
 				_Abort := TRUE;
@@ -522,9 +499,7 @@ CASE uiExecutingStep OF
 			IF _toArea = E_RobotArea.ShippingRobotLeft THEN
 				IF NOT bTransCVInPosition_Left THEN
 					uiResumeStep := 50;
-					strStatus := M_FormatManagedStatus(
-						AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-						InnerMessage := GVL_ErrorCode.GC_MSG_0059);
+					strStatus := 'FB_ShippingRobotTransfer Step 50: Destination Left TransCV not in position';
 					Status := strStatus;
 					Error := TRUE;
 					_Abort := TRUE;
@@ -532,9 +507,7 @@ CASE uiExecutingStep OF
 			ELSIF _toArea = E_RobotArea.ShippingRobotRight THEN
 				IF NOT bTransCVInPosition_Right THEN
 					uiResumeStep := 50;
-					strStatus := M_FormatManagedStatus(
-						AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-						InnerMessage := GVL_ErrorCode.GC_MSG_0060);
+					strStatus := 'FB_ShippingRobotTransfer Step 50: Destination Right TransCV not in position';
 					Status := strStatus;
 					Error := TRUE;
 					_Abort := TRUE;
@@ -692,9 +665,7 @@ CASE uiExecutingStep OF
 
 		IF TON_RobotActionTimeOut.Q THEN
 			uiResumeStep := 5000;
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0073);
+			strStatus := 'FB_ShippingRobotTransfer Step 5000: Robot AbsMove timeout';
 			Status := strStatus;
 			Error := TRUE;
 			_Abort       := TRUE;
@@ -716,9 +687,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF TON_CheckRobotDoneTimeOut.Q THEN
 			uiResumeStep := 5100;
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0072);
+			strStatus := 'FB_ShippingRobotTransfer Step 5100: Robot Reset timeout';
 			Status := strStatus;
 			Error := TRUE;
 			_Abort       := TRUE;
@@ -896,9 +865,7 @@ CASE uiExecutingStep OF
 
 		IF TON_RobotActionTimeOut.Q THEN
 			uiResumeStep := 15000;
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0140);
+			strStatus := 'FB_ShippingRobotTransfer Step 15000: Robot AbsMove timeout';
 			Status := strStatus;
 			Error := TRUE;
 			_Abort       := TRUE;
@@ -920,9 +887,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF TON_CheckRobotDoneTimeOut.Q THEN
 			uiResumeStep := 15100;
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0139);
+			strStatus := 'FB_ShippingRobotTransfer Step 15100: Robot Reset timeout';
 			Status := strStatus;
 			Error := TRUE;
 			_Abort       := TRUE;
@@ -1141,12 +1106,8 @@ END_IF
       <LineId Id="3" Count="24" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_CheckTransferCommand">
-      <LineId Id="1" Count="0" />
-      <LineId Id="4" Count="42" />
-      <LineId Id="2" Count="0" />
-      <LineId Id="48" Count="31" />
-      <LineId Id="87" Count="0" />
-      <LineId Id="80" Count="2" />
+      <LineId Id="92" Count="65" />
+      <LineId Id="82" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_SensorUpdate">
       <LineId Id="1" Count="0" />
@@ -1182,7 +1143,8 @@ END_IF
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_DORMANT">
       <LineId Id="1" Count="0" />
-      <LineId Id="4" Count="44" />
+      <LineId Id="4" Count="33" />
+      <LineId Id="43" Count="5" />
       <LineId Id="2" Count="0" />
       <LineId Id="50" Count="5" />
     </LineIds>
@@ -1193,43 +1155,8 @@ END_IF
       <LineId Id="20" Count="19" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_EXECUTING">
-      <LineId Id="1" Count="0" />
-      <LineId Id="4" Count="62" />
-      <LineId Id="594" Count="0" />
-      <LineId Id="68" Count="0" />
-      <LineId Id="595" Count="0" />
-      <LineId Id="70" Count="4" />
-      <LineId Id="596" Count="0" />
-      <LineId Id="76" Count="0" />
-      <LineId Id="597" Count="0" />
-      <LineId Id="78" Count="10" />
-      <LineId Id="94" Count="91" />
-      <LineId Id="506" Count="1" />
-      <LineId Id="186" Count="86" />
-      <LineId Id="497" Count="1" />
-      <LineId Id="501" Count="2" />
-      <LineId Id="505" Count="0" />
-      <LineId Id="499" Count="0" />
-      <LineId Id="273" Count="70" />
-      <LineId Id="493" Count="0" />
-      <LineId Id="344" Count="68" />
-      <LineId Id="574" Count="0" />
-      <LineId Id="413" Count="75" />
-      <LineId Id="2" Count="0" />
-      <LineId Id="495" Count="1" />
-      <LineId Id="530" Count="2" />
-      <LineId Id="500" Count="0" />
-      <LineId Id="533" Count="2" />
-      <LineId Id="504" Count="0" />
-      <LineId Id="536" Count="2" />
-      <LineId Id="508" Count="21" />
-      <LineId Id="539" Count="8" />
-      <LineId Id="598" Count="0" />
-      <LineId Id="561" Count="8" />
-      <LineId Id="599" Count="7" />
-      <LineId Id="548" Count="12" />
-      <LineId Id="570" Count="0" />
-      <LineId Id="581" Count="1" />
+      <LineId Id="607" Count="553" />
+      <LineId Id="582" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_HELD">
       <LineId Id="1" Count="0" />

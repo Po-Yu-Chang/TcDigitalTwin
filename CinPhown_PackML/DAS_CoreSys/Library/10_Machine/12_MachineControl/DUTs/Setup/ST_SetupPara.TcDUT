@@ -11,7 +11,8 @@
         StorageRobot  : ST_SetupFanucRobot;
         ShippingRobot : ST_SetupFanucRobot;
         Mechanical    : ST_Setup_Mechanical;
-		Light : ST_Setup_Light;
+		Light 		  : ST_Setup_Light;
+		ShippingRobot_DockTestSignal : BOOL;
     END_STRUCT
 END_TYPE
 ]]></Declaration>
