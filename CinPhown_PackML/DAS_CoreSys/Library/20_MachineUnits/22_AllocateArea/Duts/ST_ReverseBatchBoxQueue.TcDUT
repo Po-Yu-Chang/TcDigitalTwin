@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ReverseBatchBoxQueue" Id="{b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e}">
+    <Declaration><![CDATA[TYPE ST_ReverseBatchBoxQueue :
+STRUCT
+	Boxes		: ARRAY[0..15] OF ST_ReverseBatchBoxResult;	// 環形佇列
+	WriteIdx	: UINT;		// FB_A 寫入位置
+	ReadIdx		: UINT;		// 大手臂讀取位置
+	Count		: UINT;		// 待搬運數量
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

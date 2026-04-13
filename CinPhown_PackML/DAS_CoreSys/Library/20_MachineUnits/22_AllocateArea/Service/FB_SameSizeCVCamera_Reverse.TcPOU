@@ -1,0 +1,473 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_SameSizeCVCamera_Reverse" Id="{a3c1d2e4-5f67-4b89-9c01-2d3e4f5a6b7c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SameSizeCVCamera_Reverse EXTENDS FB_ActionBasic
+VAR_INPUT
+    xExecute    : BOOL;
+    xAbort      : BOOL;
+	xReset		: BOOL;
+    Cylinder 	: REFERENCE TO UNI_CylinderList;
+    TimeOut  	: LREAL := 600; // Unit : s
+	Input		: ST_InputTable;
+	OutPut		: ST_OutputTable;
+	Motor		: REFERENCE to UNI_MotorList;
+	BoxCameraDone :BOOL;
+END_VAR
+VAR_OUTPUT
+    xAborted : BOOL;
+    iErrorID : INT;
+    ErrorMsg : STRING;
+	UseBoxCamera	:BOOL;
+END_VAR
+VAR
+    StateBehaviour   : CBML.ETrigATo;
+    CurrentPosition : ST_PositionTable;
+	uiCyclicStep    : UINT := 0;
+	TON_DelaySensor	:TON;
+	TON_TimeOut		:TON;
+	TON_ArriviedTimeOut :TON ;
+	TON_CameraTimeOut	:TON;
+	TON_ConveyorTimeOut	:TON;
+	Reset_Rtrig 	:R_TRIG;
+	TON_SameSizeBoxDetect1_Delay :TON;
+	fbExecuteEdgeDetect :FB_EdgeDetect;
+	// ========== Resume 續做機制 ==========
+	uiResumeStep	: UINT := 0;		// 錯誤發生時記錄的步驟，供續做使用
+	bResumeEnabled	: BOOL := FALSE;	// 續做模式啟用旗標
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.IBehaviourModel := StateBehaviour;
+
+StateBehaviour(xExecute := xExecute,
+              xAbort := xAbort OR fbExecuteEdgeDetect.xFallingEdge,
+              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              xDone => xDone,
+              xBusy => xBusy,
+              xError => xError,
+              xAborted => xAborted);
+
+fbExecuteEdgeDetect(xInput :=xExecute);
+
+iErrorID := StateBehaviour._model.iErrorID;
+ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
+
+Reset_Rtrig(CLK:= xReset);
+IF Reset_Rtrig.Q THEN
+	StateBehaviour.ResetModel(xCommit:=xReset);
+END_IF
+
+A00_BaseUnits();]]></ST>
+    </Implementation>
+    <Folder Name="Action" Id="{b4d2e3f5-6a78-4c9a-ad12-3e4f5a6b7c8d}" />
+    <Action Name="A00_BaseUnits" Id="{c5e3f4a6-7b89-4dab-be23-4f5a6b7c8d9e}">
+      <Implementation>
+        <ST><![CDATA[TON_DelaySensor(PT:= T#1S);
+TON_TimeOut(PT := T#20S);
+TON_ArriviedTimeOut(PT:= T#20S);	//等待盒子到位
+TON_CameraTimeOut(PT:=T#30S);		// 拍照Timer
+TON_ConveyorTimeOut(PT:=T#60S);
+TON_SameSizeBoxDetect1_Delay(PT:=T#3S);
+TON_SameSizeBoxDetect1_Delay.IN :=Input.bSameSizeCV_BoxDetect1_Sensor AND Motor.List.TransmitSameSideCV.InBackWard;]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="CleanupAction" Id="{d6f4a5b7-8c9a-4ebc-cf34-5a6b7c8d9e0f}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CleanupAction
+VAR_INPUT
+    xAbortProposed : BOOL;
+    iErrorIDProposed: INT;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    xAbort: BOOL := xAbortProposed;
+ 	iErrorID : INT := iErrorIDProposed;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+// ============================================================
+// Resume 機制：保存當前步驟供後續 Resume 使用
+// ============================================================
+IF uiResumeStep = 0 THEN
+	uiResumeStep := uiCyclicStep;
+END_IF
+
+// 清除所有 Timer
+TON_DelaySensor.IN 		:= FALSE;
+TON_TimeOut.IN 			:= FALSE;
+TON_ArriviedTimeOut.IN 	:= FALSE;
+TON_CameraTimeOut.IN 	:= FALSE;
+TON_ConveyorTimeOut.IN 	:= FALSE;
+
+// 重置輸出信號
+UseBoxCamera 	:= FALSE;
+BoxCameraDone 	:= FALSE;
+
+// 機械復位到安全狀態
+IF NOT xExecute THEN
+	Cylinder.List.fbSameSizeCV_Block1.M_Retract();
+	Cylinder.List.fbSameSizeCV_Block2.M_Retract();
+	Cylinder.List.fbTransmitCV_CamaraHoriz.M_Retract();
+END_IF
+Cylinder.List.fbSameSizeCV_Press2.M_Retract();
+Motor.List.TransmitSameSideCV.M_MotorStop();
+
+// 等待機械復位完成
+IF NOT xExecute THEN
+	IF Cylinder.List.fbSameSizeCV_Block2.InRearPosition AND
+	   Cylinder.List.fbSameSizeCV_Block1.InRearPosition AND
+	   Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND
+	   Cylinder.List.fbTransmitCV_CamaraHoriz.InRearPosition AND
+	   Motor.List.TransmitSameSideCV.InStopped THEN
+		xComplete := TRUE;
+	END_IF
+ELSE
+	IF  Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND
+	   Motor.List.TransmitSameSideCV.InStopped THEN
+		xComplete := TRUE;
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CyclicAction" Id="{e7a5b6c8-9dab-4fcd-d045-6b7c8d9e0f1a}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD CyclicAction
+VAR_INPUT
+    itfTimingController : CBML.ITimingController;
+END_VAR
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+    iErrorID : INT := 0;
+END_VAR
+VAR_INST
+	bMoveConveyorBackward:BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+IF bMoveConveyorBackward THEN
+	IF NOT Motor.List.TransmitSameSideCV.InForWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveBackward();
+	END_IF
+END_IF
+
+CASE uiCyclicStep OF
+	0:	// 初始化
+		bMoveConveyorBackward:=FALSE;
+		uiCyclicStep :=1000;
+
+	1000:	// 擋盒子 (Block2)
+		TON_TimeOut.IN:=TRUE;
+		Cylinder.List.fbSameSizeCV_Block2.M_Extend();
+		Cylinder.List.fbTransmitCV_CamaraHoriz.M_Retract();
+		IF Cylinder.List.fbSameSizeCV_Block2.InFrontPosition AND
+			Cylinder.List.fbTransmitCV_CamaraHoriz.InRearPosition THEN
+			TON_TimeOut.IN:=FALSE;
+			uiCyclicStep :=1050;
+		END_IF
+		IF TON_TimeOut.Q THEN
+			uiResumeStep := uiCyclicStep;
+			iErrorID := 10;
+		END_IF
+
+	1050:	// 馬達反轉
+		TON_ConveyorTimeOut.IN:=TRUE;
+		bMoveConveyorBackward:=TRUE;
+		Cylinder.List.fbSameSizeCV_Press1.M_Retract();
+		IF Motor.List.TransmitSameSideCV.InBackWard AND
+			Cylinder.List.fbSameSizeCV_Press1.InRearPosition THEN
+			TON_ConveyorTimeOut.IN:= FALSE;
+			uiCyclicStep :=1100;
+		END_IF
+		IF TON_ConveyorTimeOut.Q THEN
+			uiResumeStep := uiCyclicStep;
+			iErrorID := 10;
+		END_IF
+
+	1100:	// 檢查盒子到達擋塊
+		TON_ArriviedTimeOut.IN:=TRUE;
+		TON_DelaySensor.IN:=Input.bSameSizeCV_BoxDetect2_Sensor;
+		IF TON_DelaySensor.Q THEN
+			TON_DelaySensor.IN :=FALSE;
+			TON_ArriviedTimeOut.IN :=FALSE;
+			Cylinder.List.fbSameSizeCV_Press1.M_Extend();
+			bMoveConveyorBackward:=FALSE;
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+			uiCyclicStep :=1200;
+		END_IF
+		IF TON_ArriviedTimeOut.Q THEN
+			uiResumeStep := uiCyclicStep;
+			iErrorID := 9;
+		END_IF
+
+	1200:	// 發送拍照請求 & 壓住盒子
+		TON_ConveyorTimeOut.IN:=TRUE;
+		IF Cylinder.List.fbSameSizeCV_Press1.InFrontPosition AND
+			Motor.List.TransmitSameSideCV.InStopped THEN
+			TON_ConveyorTimeOut.IN:= FALSE;
+			UseBoxCamera :=TRUE;
+			uiCyclicStep :=1300;
+		END_IF
+		IF TON_ConveyorTimeOut.Q THEN
+			uiResumeStep := uiCyclicStep;
+			iErrorID := 10;
+		END_IF
+
+	1300:	// 等待 C# 拍照完成 (Camera 錯誤不可續做)
+		TON_CameraTimeOut.IN:=TRUE;
+		IF BoxCameraDone THEN
+			TON_CameraTimeOut.IN :=FALSE;
+			Cylinder.List.fbSameSizeCV_Block2.M_Retract();
+			bMoveConveyorBackward:=TRUE;
+			uiCyclicStep :=1400;
+		END_IF
+		IF TON_CameraTimeOut.Q THEN
+			uiResumeStep := uiCyclicStep;
+			iErrorID := 11;
+		END_IF
+
+	1400:	// 盒子通過 Detect1 感測器
+		TON_TimeOut.IN :=TRUE;
+		IF Input.bSameSizeCV_BoxDetect3_Sensor THEN
+			TON_TimeOut.IN :=FALSE;
+			uiCyclicStep :=1500;
+		END_IF
+		IF TON_TimeOut.Q THEN
+			uiResumeStep := uiCyclicStep;
+			iErrorID := 12;
+		END_IF
+
+	1500:	// 離開感測器後停止馬達
+		TON_DelaySensor.IN :=TRUE;
+		IF NOT Input.bSameSizeCV_BoxDetect3_Sensor THEN
+			TON_DelaySensor.IN :=FALSE;
+			bMoveConveyorBackward:=FALSE;
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+			uiCyclicStep :=1600;
+		END_IF
+		IF TON_DelaySensor.Q THEN
+			TON_DelaySensor.IN:=FALSE;
+			bMoveConveyorBackward:=FALSE;
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+			uiCyclicStep :=1600;
+		END_IF
+
+	1600:	// 等待馬達停止
+		IF Motor.List.TransmitSameSideCV.InStopped THEN
+			xComplete :=TRUE;
+		END_IF
+
+END_CASE
+
+IF TON_SameSizeBoxDetect1_Delay.Q THEN
+	iErrorID := 13;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExitAction" Id="{f8b6c7d9-aebc-4ade-e156-7c8d9e0f1a2b}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ExitAction
+VAR_INPUT
+    xAfterCleanup : BOOL;
+    xInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[	uiCyclicStep    := 0;
+	xAfterCleanup := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetErrorMsg" Id="{a9c7d8ea-bfcd-4bef-f267-8d9e0f1a2b3c}">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+	xErrorID: INT;
+END_VAR
+
+VAR
+
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE xErrorID OF
+	1:
+		M_GetErrorMsg := 'No Error';
+	2:
+		M_GetErrorMsg := 'Action time out';
+	3:
+		M_GetErrorMsg := 'Position Data invalid';
+	4:
+		M_GetErrorMsg := 'Block1 cylinder not ready';
+	5:
+		M_GetErrorMsg := 'Block2 cylinder not ready';
+	6:
+		M_GetErrorMsg := 'Press1 cylinder not ready';
+	7:
+		M_GetErrorMsg := 'Press2 cylinder not ready';
+	8:
+		M_GetErrorMsg := 'CameraHoriz cylinder not ready';
+	9:
+		M_GetErrorMsg :=' Box not arrived ';
+	10:
+		M_GetErrorMsg :='Cylinder timeout';
+	11:
+		M_GetErrorMsg :='C# BoxCameraDone timeout';
+	12:
+		M_GetErrorMsg :='Box cross sensor timeout';
+	13:
+		M_GetErrorMsg :='SameSizeConveyor full box infront ';
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetAction" Id="{bad8e9fb-cadf-4cf0-a378-9e0f1a2b3c4d}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD ResetAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+// ============================================================
+// Resume 機制判斷
+// ------------------------------------------------------------
+// 當錯誤發生後，操作員可選擇：
+//   1. 保持 xExecute = TRUE 並按 Reset → Resume (從錯誤點繼續)
+//   2. 先關閉 xExecute，再重新啟動 → 從頭開始
+// ============================================================
+bResumeEnabled := xExecute;
+
+// 如果不是 Resume 模式，清除 Resume 步驟記錄
+IF NOT bResumeEnabled THEN
+	uiResumeStep := 0;
+END_IF
+
+// 清除所有 Timer
+TON_DelaySensor.IN 		:= FALSE;
+TON_TimeOut.IN 			:= FALSE;
+TON_ArriviedTimeOut.IN 	:= FALSE;
+TON_CameraTimeOut.IN 	:= FALSE;
+TON_ConveyorTimeOut.IN 	:= FALSE;
+
+xComplete := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartAction" Id="{cbe9faac-dbea-4d01-b489-af1a2b3c4d5e}" FolderPath="Action\">
+      <Declaration><![CDATA[METHOD StartAction
+VAR_OUTPUT
+    xComplete : BOOL := TRUE;
+	iErrorID : INT := 0;
+END_VAR
+VAR
+	bIsResumeMode : BOOL;	// 局部變數：記錄是否為 Resume 模式
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[xComplete := FALSE;
+
+// 清除所有 Timer
+TON_DelaySensor.IN 		:= FALSE;
+TON_TimeOut.IN 			:= FALSE;
+TON_ArriviedTimeOut.IN 	:= FALSE;
+TON_CameraTimeOut.IN 	:= FALSE;
+TON_ConveyorTimeOut.IN 	:= FALSE;
+
+// ============================================================
+// Resume 機制處理
+// ------------------------------------------------------------
+// 可 Resume 的錯誤: 氣缸/馬達/等待盒子
+// 不可 Resume 的錯誤: Step 1300 (C# 拍照失敗)
+// ============================================================
+bIsResumeMode := bResumeEnabled AND uiResumeStep > 0 AND uiResumeStep <> 1300;
+
+IF bResumeEnabled AND uiResumeStep > 0 THEN
+	IF uiResumeStep = 1300 THEN
+		// Camera 錯誤：不可 Resume，強制從頭開始
+		uiCyclicStep 	:= 0;
+		UseBoxCamera 	:= FALSE;
+		BoxCameraDone 	:= FALSE;
+	ELSE
+		// 其他錯誤：允許 Resume (人工已確認可繼續)
+		uiCyclicStep := uiResumeStep;
+	END_IF
+	// 清除 Resume 旗標
+	bResumeEnabled 	:= FALSE;
+	uiResumeStep 	:= 0;
+ELSE
+	// 正常模式：從頭開始
+	uiCyclicStep 	:= 0;
+	UseBoxCamera 	:= FALSE;
+	BoxCameraDone 	:= FALSE;
+END_IF
+
+// ============================================================
+// 啟動前錯誤檢查
+// ============================================================
+IF TON_SameSizeBoxDetect1_Delay.Q THEN
+	iErrorID := 13;
+END_IF
+
+IF Cylinder.List.fbSameSizeCV_Block1.xError THEN
+	iErrorID := 4;
+END_IF
+IF Cylinder.List.fbSameSizeCV_Block2.xError THEN
+	iErrorID := 5;
+END_IF
+IF Cylinder.List.fbSameSizeCV_Press1.xError THEN
+	iErrorID := 6;
+END_IF
+IF Cylinder.List.fbSameSizeCV_Press2.xError THEN
+	iErrorID := 7;
+END_IF
+IF Cylinder.List.fbTransmitCV_CamaraHoriz.xError THEN
+	iErrorID := 8;
+END_IF
+IF Motor.List.TransmitSameSideCV.xError THEN
+	iErrorID := 9;
+END_IF
+
+// 完成條件：Resume 模式直接完成，正常模式需檢查初始位置
+IF bIsResumeMode OR
+   (Cylinder.List.fbSameSizeCV_Block2.InRearPosition AND
+    Motor.List.TransmitSameSideCV.InStopped) THEN
+	xComplete := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse">
+      <LineId Id="9" Count="0" />
+      <LineId Id="4" Count="4" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="10" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse.A00_BaseUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse.CleanupAction">
+      <LineId Id="2" Count="0" />
+      <LineId Id="4" Count="42" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse.CyclicAction">
+      <LineId Id="139" Count="0" />
+      <LineId Id="4" Count="116" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse.ExitAction">
+      <LineId Id="13" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse.M_GetErrorMsg">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="6" Count="21" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse.ResetAction">
+      <LineId Id="2" Count="0" />
+      <LineId Id="4" Count="22" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCVCamera_Reverse.StartAction">
+      <LineId Id="2" Count="0" />
+      <LineId Id="4" Count="67" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

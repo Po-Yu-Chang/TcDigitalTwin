@@ -79,9 +79,13 @@ VAR
     fbOutRobot_TurnTableToRoundBel_Status : ST_StatusBasic;
 	
     //TransCV Camera
-    fbSameSizeCVCamera  : FB_SameSizeCVCamera;
-    fbDifferentCVCamera : FB_DifferentCVCamera;
-	TransCV_Press 		: BOOL :=FALSE;
+    fbSameSizeCVCamera  		: FB_SameSizeCVCamera;
+	fbSameSizeCVCamera_Reverse 	: FB_SameSizeCVCamera_Reverse;
+    fbDifferentCVCamera 		: FB_DifferentCVCamera;
+	// 逆向拍照批次入料
+	fbReverseBatchPickAndPhoto 	: FB_SameSizeCV_ReverseBatchPickAndPhoto;
+	fbReverseBoxToWareHouse    	: FB_SameSizeCV_ReverseBoxToWareHouse;
+	TransCV_Press 				: BOOL :=FALSE;
 
     // Round belt
     AutoRotatebelt_Internal_Ctrl   : st_RoundBeltAutoSingleMove_Ctrl;
@@ -394,8 +398,107 @@ fbOutRobot_TurnTableToRoundBelt(
 		iErrorID=> , 
 		ErrorMsg=> , 
 		UseBoxCamera=> Service.AutoMode_SameSizeCVCamera.UseBoxCamera);
-	
-	
+		
+	fbSameSizeCVCamera_Reverse(
+		xReset := Service.AutoMode_SameSizeCVCamera_Reverse.Command.Reset,
+		xDone=> Service.AutoMode_SameSizeCVCamera_Reverse.Status.Done,
+		xBusy=> Service.AutoMode_SameSizeCVCamera_Reverse.Status.Busy,
+		xError=> Service.AutoMode_SameSizeCVCamera_Reverse.Status.Error,
+		xExecute:= Service.AutoMode_SameSizeCVCamera_Reverse.Command.Execute,
+		xAbort:= Service.AutoMode_SameSizeCVCamera_Reverse.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+		Cylinder:= Cylinder,
+		TimeOut:= ,
+		Input:= INPUT,
+		OutPut:= OUTPUT,
+		Motor:= Motor,
+		BoxCameraDone:= Service.AutoMode_SameSizeCVCamera_Reverse.BoxCameraDone,
+		xAborted=> ,
+		iErrorID=> ,
+		ErrorMsg=> ,
+		UseBoxCamera=> Service.AutoMode_SameSizeCVCamera_Reverse.UseBoxCamera);
+		
+	// ================================================================
+	// 逆向拍照批次入料 — 逐欄位 link ADS HandShake
+	// ================================================================
+
+	// --- fbReverseBoxToWareHouse (子FB: 軌道→大手臂→入倉/NG，輸送帶要先動) ---
+	fbReverseBoxToWareHouse(
+		// Command (C# → PLC)
+		Execute := Service.AutoMode_ReverseBoxToWareHouse.Command.Execute,
+		Abort := Service.AutoMode_ReverseBoxToWareHouse.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+		Reset := Service.AutoMode_ReverseBoxToWareHouse.Command.Reset,
+		ObjectName := 'Reverse box to warehouse',
+		// 盒子資訊 (C# → PLC)
+		bBoxA_Enable := Service.AutoMode_ReverseBoxToWareHouse.bBoxA_Enable,
+		bBoxA_IsOK := Service.AutoMode_ReverseBoxToWareHouse.bBoxA_IsOK,
+		iBoxA_Warehouse := Service.AutoMode_ReverseBoxToWareHouse.iBoxA_Warehouse,
+		iBoxA_Level := Service.AutoMode_ReverseBoxToWareHouse.iBoxA_Level,
+		iBoxA_Track := Service.AutoMode_ReverseBoxToWareHouse.iBoxA_Track,
+		bBoxB_Enable := Service.AutoMode_ReverseBoxToWareHouse.bBoxB_Enable,
+		bBoxB_IsOK := Service.AutoMode_ReverseBoxToWareHouse.bBoxB_IsOK,
+		iBoxB_Warehouse := Service.AutoMode_ReverseBoxToWareHouse.iBoxB_Warehouse,
+		iBoxB_Level := Service.AutoMode_ReverseBoxToWareHouse.iBoxB_Level,
+		iBoxB_Track := Service.AutoMode_ReverseBoxToWareHouse.iBoxB_Track,
+		// 硬體
+		Cylinder := Cylinder,
+		Motor := Motor,
+		Input := INPUT,
+		OutPut := OUTPUT,
+		StorageRobot := DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot,
+		WareHouse := DAS_CoreSys.MachineControl.fbStorageArea.fbWarehouse,
+		Stop := bStopMem,
+		// Status output (PLC → C#)
+		bBoxA_Done => Service.AutoMode_ReverseBoxToWareHouse.bBoxA_Done,
+		bBoxB_Done => Service.AutoMode_ReverseBoxToWareHouse.bBoxB_Done);
+	// Status (PLC → C#)
+	Service.AutoMode_ReverseBoxToWareHouse.Status.Done	:= fbReverseBoxToWareHouse.Done;
+	Service.AutoMode_ReverseBoxToWareHouse.Status.Busy	:= fbReverseBoxToWareHouse.Busy;
+	Service.AutoMode_ReverseBoxToWareHouse.Status.Error	:= fbReverseBoxToWareHouse.Error;	
+
+	// --- fbReverseBatchPickAndPhoto (主FB: 三軌 Pipeline) ---
+	fbReverseBatchPickAndPhoto(
+		// Command (C# → PLC)
+		Execute := Service.AutoMode_ReverseBatchPick.Command.Execute,
+		Abort := Service.AutoMode_ReverseBatchPick.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+		Reset := Service.AutoMode_ReverseBatchPick.Command.Reset,
+		ObjectName := 'Reverse batch pick and photo',
+		// 鐵盤 Sensor (C# → PLC, 後續改硬體訊號)
+		bLeftPlateReady := Service.AutoMode_ReverseBatchPick.bLeftPlateReady,
+		bRightPlateReady := Service.AutoMode_ReverseBatchPick.bRightPlateReady,
+		// 鐵盤配置 (C# → PLC)
+		LeftPlate := Service.AutoMode_ReverseBatchPick.LeftPlate,
+		RightPlate := Service.AutoMode_ReverseBatchPick.RightPlate,
+		bLeftConfigReady := Service.AutoMode_ReverseBatchPick.bLeftConfigReady,
+		bRightConfigReady := Service.AutoMode_ReverseBatchPick.bRightConfigReady,
+		// 拍照結果 (C# → PLC)
+		BoxCameraDone := Service.AutoMode_ReverseBatchPick.BoxCameraDone,
+		CameraIsOK := Service.AutoMode_ReverseBatchPick.CameraIsOK,
+		CameraWarehouse := Service.AutoMode_ReverseBatchPick.CameraWarehouse,
+		CameraLevel := Service.AutoMode_ReverseBatchPick.CameraLevel,
+		CameraTrack := Service.AutoMode_ReverseBatchPick.CameraTrack,
+		// 硬體
+		Cylinder := Cylinder,
+		Motor := Motor,
+		Input := INPUT,
+		OutPut := OUTPUT,
+		StorageRobot := DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot,
+		ShippingRobot := DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot,
+		WareHouse := DAS_CoreSys.MachineControl.fbStorageArea.fbWarehouse,
+		Stop := bStopMem,
+		// Status output (PLC → C#)
+		bLeftPlateArrived => Service.AutoMode_ReverseBatchPick.bLeftPlateArrived,
+		bRightPlateArrived => Service.AutoMode_ReverseBatchPick.bRightPlateArrived,
+		bLeftPlateDone => Service.AutoMode_ReverseBatchPick.bLeftPlateDone,
+		bRightPlateDone => Service.AutoMode_ReverseBatchPick.bRightPlateDone,
+		UseBoxCamera => Service.AutoMode_ReverseBatchPick.UseBoxCamera,
+		uiUnphotographedCount => Service.AutoMode_ReverseBatchPick.uiUnphotographedCount,
+		uiTotalProcessed => Service.AutoMode_ReverseBatchPick.uiTotalProcessed,
+		uiTransportedCount => Service.AutoMode_ReverseBatchPick.uiTransportedCount);
+	// Status (PLC → C#)
+	Service.AutoMode_ReverseBatchPick.Status.Done	:= fbReverseBatchPickAndPhoto.Done;
+	Service.AutoMode_ReverseBatchPick.Status.Busy	:= fbReverseBatchPickAndPhoto.Busy;
+	Service.AutoMode_ReverseBatchPick.Status.Error	:= fbReverseBatchPickAndPhoto.Error;
+
 	
 fbPulloutCV(
 	Execute:= _AutoPullout_Ctrl.Execute,
@@ -1182,7 +1285,15 @@ END_IF]]></ST>
       <LineId Id="158" Count="13" />
       <LineId Id="188" Count="0" />
       <LineId Id="214" Count="13" />
-      <LineId Id="204" Count="9" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="456" Count="0" />
+      <LineId Id="459" Count="15" />
+      <LineId Id="457" Count="1" />
+      <LineId Id="420" Count="35" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="418" Count="0" />
+      <LineId Id="375" Count="42" />
+      <LineId Id="206" Count="7" />
       <LineId Id="228" Count="0" />
       <LineId Id="251" Count="0" />
       <LineId Id="253" Count="7" />
