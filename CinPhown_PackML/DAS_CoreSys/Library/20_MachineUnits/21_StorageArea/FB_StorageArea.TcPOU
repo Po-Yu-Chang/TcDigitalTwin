@@ -43,7 +43,9 @@ VAR
     //fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove;
     fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove_V3;		//Edited by Gamin in 2025//11/24
 	fbFeedInRoundBeltBoxToWareHouse 	: FB_FeedInRoundBeltBoxToWareHouse;
-		fbRobotSelfHoming				: FB_RobotSelfHoming;
+	fbWareHouseInnerPickToRoundBelt 	 : FB_WareHouseInnerPickToRoundBelt;
+	fbWareHouseInnerPickToRoundBeltBatch : FB_WareHouseInnerPickToRoundBeltBatch;
+	fbRobotSelfHoming					: FB_RobotSelfHoming;
 	
 	fbStorageHoming 					: FB_StorageHoming;
 	//UpCV
@@ -383,6 +385,29 @@ fbReloadRoundBeltBoxWithRobot(Execute	:= Service.AutoMode_ReloadRoundBeltBoxWith
                               Stop 		:= bStopMem,
 							  AClampMoveDone=>Service.AutoMode_ReloadRoundBeltBoxWithRobot.AClampMoveDone,
 							  BClampMoveDone=>Service.AutoMode_ReloadRoundBeltBoxWithRobot.BClampMoveDone);
+							  
+fbWareHouseInnerPickToRoundBelt(Execute	:= Service.AutoMode_WareHouseInnerPickToRoundBelt.Command.Execute,
+                                Abort 	:= THIS^.Abort OR _bAnyServiceError,
+                                Reset 	:= Service.AutoMode_WareHouseInnerPickToRoundBelt.Command.Reset,
+                                ObjectName:= 'Warehouse inner pick to roundbelt',
+                                Busy    => Service.AutoMode_WareHouseInnerPickToRoundBelt.Status.Busy,
+                                Done    => Service.AutoMode_WareHouseInnerPickToRoundBelt.Status.Done,
+                                Aborted =>,
+                                Error   => Service.AutoMode_WareHouseInnerPickToRoundBelt.Status.Error,
+                                ErrorID =>,
+                                Status  => Service.AutoMode_WareHouseInnerPickToRoundBelt.Status.Status,
+                                UniqueErrorCode =>,
+                                Robot 	:= FanucRobot,
+                                RoundBelt := DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl,
+                                WareHouse := fbWarehouse,
+                                Input 	:= Input,
+                                Info 	:= Service.AutoMode_WareHouseInnerPickToRoundBelt.Info,
+                                Stop 	:= bStopMem,
+                                ReadComplete := Service.AutoMode_WareHouseInnerPickToRoundBelt.ReadComplete,
+                                ActionRecords=>Service.AutoMode_WareHouseInnerPickToRoundBelt.ActionRecords,
+                                ActionIndex=>Service.AutoMode_WareHouseInnerPickToRoundBelt.ActionIndex,
+                                FeedBack=>Service.AutoMode_WareHouseInnerPickToRoundBelt.FeedBack);
+								
 //============================ Auto Mode Robot Warehouse Move =============================
 IF NOT bWarehouseMoveInternalAccess THEN
     _RobotWarehouseMoveAuto_Ctrl := RobotWarehouseMoveAuto_Ctrl;
@@ -991,7 +1016,12 @@ M_StateComplete();]]></ST>
       <LineId Id="3420" Count="5" />
       <LineId Id="3427" Count="6" />
       <LineId Id="3517" Count="1" />
-      <LineId Id="3434" Count="33" />
+      <LineId Id="3434" Count="16" />
+      <LineId Id="3597" Count="0" />
+      <LineId Id="3599" Count="19" />
+      <LineId Id="3598" Count="0" />
+      <LineId Id="3619" Count="0" />
+      <LineId Id="3451" Count="16" />
       <LineId Id="3511" Count="1" />
       <LineId Id="3519" Count="0" />
       <LineId Id="3468" Count="14" />
