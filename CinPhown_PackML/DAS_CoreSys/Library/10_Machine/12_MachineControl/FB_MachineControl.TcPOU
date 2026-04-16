@@ -91,6 +91,8 @@ VAR
 	bTest2 				: BOOL;
 	SafeDoorsOpen 		: ARRAY[0..20] OF BOOL;
 	SafeDoorResetError	: BOOL;
+	bStorageRobotError	: BOOL;
+	bShippingRobotError	: BOOL;
 	i 					: INT;
 	
 	//Btn ctrl
@@ -114,6 +116,7 @@ VAR
 	TON_RobotReleaseStartCmd	: TON;
 	TON_Shipping_RobotRelease_ResetCmd	: TON;
 	TON_Shipping_RobotRelease_StartCmd	: TON;
+	
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -2591,7 +2594,14 @@ RegisterAlarm(Trigger := Cylinder.List.fbLowCV_Press4.xError,					ID := 151,valu
 RegisterAlarm(Trigger := Cylinder.List.fbLowCV_Block1.xError,					ID := 152,value := E_Severity.Level2,Message := Cylinder.List.fbLowCV_Block1.ErrorMsg,Category := 1);
 RegisterAlarm(Trigger := Cylinder.List.fbLowCV_Block2.xError,					ID := 153,value := E_Severity.Level2,Message := Cylinder.List.fbLowCV_Block2.ErrorMsg,Category := 1);
 
+
 // Robot Error
+IF fbStorageArea.fbStorageHoming.Homed THEN
+	bStorageRobotError := fanucrobot.List.StorageRobot.Error;
+END_IF
+IF fbShippingArea.fbShippingHoming.Homed THEN
+	bShippingRobotError := fanucrobot.List.ShippingRobot.Error;
+END_IF
 RegisterAlarm(Trigger := fanucrobot.List.StorageRobot.Error,					ID := 158,value := E_Severity.Level5,Message := fanucrobot.List.StorageRobot.ErrMsg,Category:=1);
 RegisterAlarm(Trigger := fanucrobot.List.ShippingRobot.Error,					ID := 159,value := E_Severity.Level5,Message := fanucrobot.List.ShippingRobot.ErrMsg,Category:=1);
 
@@ -2621,24 +2631,29 @@ RegisterAlarm(Trigger := bByPassModBusRTU[4],ID := 303,value := E_Severity.Level
 
 
 //Safe Door
-SafeDoorsOpen[1] 	:=  NOT INPUT.bSafetyDoor1   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[2] 	:=  NOT INPUT.bSafetyDoor2   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[3] 	:=  NOT INPUT.bSafetyDoor3   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[4] 	:=  NOT INPUT.bSafetyDoor4   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;
-SafeDoorsOpen[5] 	:=  NOT INPUT.bSafetyDoor5   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[6] 	:=  NOT INPUT.bSafetyDoor6   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[7] 	:=  NOT INPUT.bSafetyDoor7   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[8] 	:=  NOT INPUT.bSafetyDoor8   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[9] 	:=  NOT INPUT.bSafetyDoor9   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[10] 	:=  NOT INPUT.bSafetyDoor10   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[11] 	:=  NOT INPUT.bSafetyDoor11   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[12] 	:=  NOT INPUT.bSafetyDoor12   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[13] 	:=  NOT INPUT.bSafetyDoor13   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[14] 	:=  NOT INPUT.bSafetyDoor14   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[15] 	:=  NOT INPUT.bAllocate_Electrical_Cabinet_SafetyDoor   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-SafeDoorsOpen[16] 	:=  NOT INPUT.bShippingRobot_ElectricalCabinet_SafetyDoor   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
-
 IF NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass THEN
+	SafeDoorsOpen[1] 	:=  NOT INPUT.bSafetyDoor1   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[2] 	:=  NOT INPUT.bSafetyDoor2   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[3] 	:=  NOT INPUT.bSafetyDoor3   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[4] 	:=  NOT INPUT.bSafetyDoor4   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;
+	SafeDoorsOpen[5] 	:=  NOT INPUT.bSafetyDoor5   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[6] 	:=  NOT INPUT.bSafetyDoor6   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[7] 	:=  NOT INPUT.bSafetyDoor7   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[8] 	:=  NOT INPUT.bSafetyDoor8   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[9] 	:=  NOT INPUT.bSafetyDoor9   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[10] 	:=  NOT INPUT.bSafetyDoor10   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[11] 	:=  NOT INPUT.bSafetyDoor11   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[12] 	:=  NOT INPUT.bSafetyDoor12   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[13] 	:=  NOT INPUT.bSafetyDoor13   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[14] 	:=  NOT INPUT.bSafetyDoor14   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[15] 	:=  NOT INPUT.bAllocate_Electrical_Cabinet_SafetyDoor   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+	SafeDoorsOpen[16] 	:=  NOT INPUT.bShippingRobot_ElectricalCabinet_SafetyDoor   AND NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass;	 
+ELSE
+	FOR i := 1 TO 20 DO 
+		SafeDoorsOpen[i] := FALSE;
+	END_FOR
+END_IF
+
 	RegisterAlarm(Trigger := SafeDoorsOpen[1],  ID := 401, value := E_Severity.Level2, Message := 'Safe door1  Opened',  Category := 1); 
 	RegisterAlarm(Trigger := SafeDoorsOpen[2],  ID := 402, value := E_Severity.Level2, Message := 'Safe door2  Opened',  Category := 1); 
 	RegisterAlarm(Trigger := SafeDoorsOpen[3],  ID := 403, value := E_Severity.Level2, Message := 'Safe door3  Opened',  Category := 1); 
@@ -2655,7 +2670,7 @@ IF NOT GVL_HMI.Setup.Mechanical.stSafetyByPass.SafeDoorByPass THEN
 	RegisterAlarm(Trigger := SafeDoorsOpen[14],	ID := 414, value := E_Severity.Level2, Message := 'Safe door14  Opened',  Category := 1); 
 	RegisterAlarm(Trigger := SafeDoorsOpen[15],	ID := 415, value := E_Severity.Level2, Message := 'Allocate_Electrical_Cabinet_SafetyDoor  Opened',  Category := 1); 
 	RegisterAlarm(Trigger := SafeDoorsOpen[16],	ID := 416, value := E_Severity.Level2, Message := 'bShippingRobot_ElectricalCabinet_SafetyDoor  Opened',  Category := 1); 
-END_IF
+
 
 M_General_AlarmRegister := TRUE;]]></ST>
       </Implementation>
@@ -4357,8 +4372,12 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="3017" Count="1" />
       <LineId Id="2816" Count="57" />
       <LineId Id="2880" Count="0" />
+      <LineId Id="3037" Count="0" />
       <LineId Id="2935" Count="0" />
-      <LineId Id="2937" Count="2" />
+      <LineId Id="2937" Count="0" />
+      <LineId Id="3040" Count="4" />
+      <LineId Id="3038" Count="0" />
+      <LineId Id="2938" Count="1" />
       <LineId Id="2936" Count="0" />
       <LineId Id="2879" Count="0" />
       <LineId Id="2881" Count="5" />
@@ -4372,7 +4391,10 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="2895" Count="3" />
       <LineId Id="2951" Count="0" />
       <LineId Id="2996" Count="2" />
-      <LineId Id="2952" Count="17" />
+      <LineId Id="2952" Count="1" />
+      <LineId Id="3045" Count="0" />
+      <LineId Id="2954" Count="15" />
+      <LineId Id="3046" Count="3" />
       <LineId Id="3028" Count="0" />
       <LineId Id="2970" Count="0" />
       <LineId Id="2972" Count="15" />
