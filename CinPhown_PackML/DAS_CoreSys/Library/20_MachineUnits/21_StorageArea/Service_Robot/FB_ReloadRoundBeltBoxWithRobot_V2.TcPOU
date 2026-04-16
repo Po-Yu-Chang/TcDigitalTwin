@@ -1003,17 +1003,21 @@ CASE uiExecutingStep OF
             11:
 				//========================Test==================
 				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND NOT A2_Sensor THEN
-					_A2Sensor:=A2_Sensor;
+					_A2Sensor		:= A2_Sensor;
+					uiPlaceBothStep := 15;
 				ELSIF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND  A2_Sensor THEN				//edited By Gamin 2026/04/02，放盒位有盒就報警
 					_Abort 	  := TRUE;
 					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampA place A2 Position has box';
 				END_IF
 				IF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND NOT A3_Sensor THEN
-					_A3Sensor:=A3_Sensor;
+					_A3Sensor		:= A3_Sensor;
+					uiPlaceBothStep := 15;
 				ELSIF info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND  A3_Sensor THEN
 					_Abort	  := TRUE;
 					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampA place A3 Position has box'; 
 				END_IF
+				
+			15:
 				//======================End_test==================
                 IF ((info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2) AND A2_Sensor) OR
                     ((info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3) AND A3_Sensor)
@@ -1046,28 +1050,33 @@ CASE uiExecutingStep OF
                 IF RoundBelt.xDone THEN
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
                     CarrierReady_2nd := TRUE;
-                    uiPlaceBothStep  := 99;
+                    uiPlaceBothStep  := 80;
                 END_IF
 				IF RoundBelt.xError THEN
 					_Error :=TRUE;
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();	
 					strStatus:='RoundBelt Error';
 				END_IF
-            99:	
+            80:	
 				//========================Test==================
 				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND NOT A2_Sensor THEN
 					_A2Sensor:=A2_Sensor;
+					uiPlaceBothStep := 99;
 				ELSIF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2 AND  A2_Sensor THEN
 					_Abort	  := TRUE;
 					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampB place A2 Position has box'; 
 				END_IF
 				IF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND NOT A3_Sensor THEN
 					_A3Sensor:=A3_Sensor;
+					uiPlaceBothStep := 99;
 				ELSIF info.ClampB_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3 AND  A3_Sensor THEN
 					_Abort	  := TRUE;
 					strStatus := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: ClampB place A3 Position has box'; 
 				END_IF
 				//======================End_test==================
+			99:
+				;
+			
         // wait reset
         END_CASE
 
@@ -1443,11 +1452,16 @@ END_IF]]></ST>
       <LineId Id="3831" Count="2" />
       <LineId Id="4027" Count="0" />
       <LineId Id="3834" Count="2" />
+      <LineId Id="4490" Count="0" />
       <LineId Id="4438" Count="2" />
       <LineId Id="3837" Count="1" />
       <LineId Id="3976" Count="0" />
+      <LineId Id="4489" Count="0" />
       <LineId Id="4441" Count="2" />
-      <LineId Id="3977" Count="5" />
+      <LineId Id="3977" Count="0" />
+      <LineId Id="4488" Count="0" />
+      <LineId Id="4487" Count="0" />
+      <LineId Id="3978" Count="4" />
       <LineId Id="3975" Count="0" />
       <LineId Id="3839" Count="6" />
       <LineId Id="4283" Count="1" />
@@ -1460,11 +1474,16 @@ END_IF]]></ST>
       <LineId Id="3989" Count="6" />
       <LineId Id="3988" Count="0" />
       <LineId Id="3854" Count="6" />
+      <LineId Id="4494" Count="0" />
       <LineId Id="4444" Count="2" />
       <LineId Id="3861" Count="2" />
+      <LineId Id="4495" Count="0" />
       <LineId Id="4448" Count="2" />
       <LineId Id="3864" Count="0" />
       <LineId Id="4235" Count="0" />
+      <LineId Id="4491" Count="0" />
+      <LineId Id="4493" Count="0" />
+      <LineId Id="4492" Count="0" />
       <LineId Id="3865" Count="1" />
       <LineId Id="4230" Count="4" />
       <LineId Id="4229" Count="0" />

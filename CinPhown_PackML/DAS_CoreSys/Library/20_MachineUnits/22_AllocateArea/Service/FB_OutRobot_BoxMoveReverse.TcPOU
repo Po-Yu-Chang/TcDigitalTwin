@@ -111,19 +111,6 @@ END_VAR
       <Implementation>
         <ST><![CDATA[//For Outbox move reverse, Boxes must place on same position , therefor only work with TargetPosition of ClipA
 
-
-
-IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos[1].Y_Pos AND UseA AND UseB THEN
-		bSyncPlace:=TRUE;
-	ELSE
-		bSyncPlace:=FALSE;	
-END_IF
-IF PickingPos[0].X_Pos =PickingPos[1].X_Pos AND PickingPos[0].Y_Pos = PickingPos[1].Y_Pos AND UseA AND UseB THEN
-		bSyncPick:=TRUE;
-	ELSE
-		bSyncPick:=FALSE;	
-END_IF
-
 IF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 5 THEN
 	ConveyorMotor REF= Motor.List.TransmitDifferentSideCV;
 ELSIF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 6 THEN
@@ -140,7 +127,7 @@ IF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA=5 THEN
 		bMotorMoveForward := TRUE;	
 END_IF
 IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibA THEN
-	PickingPos[0] :=FUN_GetPositionTableData('A',5,0);
+	PickingPos[0] :=FUN_GetPositionTableData('R',1,0);
 	UseA := TRUE;
 	CASE  AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA OF	
 		
@@ -156,7 +143,7 @@ IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibA THEN
 END_IF
 
 IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibB THEN
-	PickingPos[1] :=FUN_GetPositionTableData('A',6,1);
+	PickingPos[1] :=FUN_GetPositionTableData('R',2,1);
 	UseB :=TRUE;
 		CASE AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA OF
 		
@@ -170,6 +157,17 @@ IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibB THEN
 		RETURN;
 	END_CASE
 END_IF
+IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos[1].Y_Pos AND UseA AND UseB THEN
+		bSyncPlace:=TRUE;
+	ELSE
+		bSyncPlace:=FALSE;	
+END_IF
+IF PickingPos[0].X_Pos =PickingPos[1].X_Pos AND PickingPos[0].Y_Pos = PickingPos[1].Y_Pos AND UseA AND UseB THEN
+		bSyncPick:=TRUE;
+	ELSE
+		bSyncPick:=FALSE;	
+END_IF
+
 M_GetWorkingConditions :=TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -698,8 +696,8 @@ END_IF]]></ST>
       <LineId Id="13" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_GetWorkingConditions">
-      <LineId Id="35" Count="1" />
-      <LineId Id="76" Count="12" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="88" Count="0" />
       <LineId Id="93" Count="0" />
       <LineId Id="95" Count="1" />
       <LineId Id="98" Count="1" />
@@ -710,6 +708,9 @@ END_IF]]></ST>
       <LineId Id="128" Count="0" />
       <LineId Id="138" Count="29" />
       <LineId Id="134" Count="0" />
+      <LineId Id="173" Count="8" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="171" Count="0" />
       <LineId Id="39" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_RecoveryAllObjects">
