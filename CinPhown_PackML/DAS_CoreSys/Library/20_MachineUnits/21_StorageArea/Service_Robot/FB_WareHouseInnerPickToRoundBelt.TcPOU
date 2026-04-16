@@ -1,0 +1,2662 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_WareHouseInnerPickToRoundBelt" Id="{2fe49a34-ec28-451d-b0aa-e785f40b1be7}" SpecialFunc="None">
+    <Declaration><![CDATA[// FB_WareHouseInnerPickToRoundBelt
+// Single-flow warehouse inner pick to round belt service
+// Handles A/B dual-claw coordination for picking boxes from deep positions (P1..P10)
+// and placing them on the round belt.
+//
+// Scenarios handled:
+//   A1: Single target P1 (direct pick)
+//   A2: Single target P2 (helper claw assists)
+//   A3: Single target P3+ (buffer + helper claw)
+//   B1: Dual same-source {P1,P2}
+//   B2: Dual same-source {P1,P3+}
+//   B3: Dual same-source {P2+,P2+}
+//   C1: Dual different-source P1+P1
+//   C2: Dual different-source P1+P2
+//   C3: Dual different-source P2+P2
+//   C4: Dual different-source P3+
+//
+// Create Date : 2026/04/01
+// Owner       : Copilot
+
+FUNCTION_BLOCK FB_WareHouseInnerPickToRoundBelt EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+
+VAR_INPUT
+	Robot			: REFERENCE TO FB_FanucRobot_Basic_V2;	// 倉儲區 Fanuc 手臂
+	RoundBelt		: REFERENCE TO FB_RoundBeltService;		// 圓帶服務 (移位、到位確認)
+	WareHouse		: REFERENCE TO FB_WareHouse;				// 倉儲 FB (推盒 ReloadBox / 進盒 FeedInBox)
+	Input			: ST_InputTable;						// IO 輸入表 (圓帶 sensor 等)
+	Info			: ST_WareHouseInnerPickFlowInfo;			// 當前流程：A/B 爪設定 + 目標深度
+	Stop			: BOOL;									// 外部停止信號 (暫停 timeout 計時)
+	ReadComplete	: BOOL;									// C# 讀取陣列完成確認 (C# → PLC)
+END_VAR
+
+VAR_OUTPUT
+	ActionRecords	: ARRAY[0..39] OF ST_ClampActionRecord;	// 倉儲取放動作紀錄陣列
+	ActionIndex		: INT;		// 當前已記錄的動作筆數 (0..40)
+	FeedBack		: BOOL;		// TRUE = 流程完成，陣列可讀取 (PLC → C#)
+END_VAR
+
+VAR
+	strStatus			: STRING;			// 當前狀態/錯誤描述
+	tonTimeOut			: TON;				// 每步逾時計時器 (PT=120s, 每步完成時重置)
+	tonReadComplete		: TON;				// C# 讀取確認逾時計時器 (PT=5s)
+	_UniqueErrorCode	: STRING;			// 唯一錯誤代碼 (用於錯誤追蹤)
+	uiResumeStep		: UDINT := 0;		// 逾時後恢復步序 (Abort→Reset→Resume)
+	_bRetry				: BOOL;				// 恢復旗標 (Reset 時回到 uiResumeStep)
+
+	// 情境分類結果 (由 M_ClassifyScenario 設定)
+	_nScenario			: INT;		// 情境代碼: 1=A1, 2=A2, 3=A3, 10=B1, 11=B2, 12=B3, 20=C1, 21=C2, 22=C3, 23=C4
+	_bSameSource		: BOOL;		// 雙爪是否同倉同層同軌
+	_bDualTarget		: BOOL;		// 是否雙爪都要取 (A+B 都是 Work)
+	_nTargetA			: INT;		// A 爪有效目標深度 (0 = 不動作)
+	_nTargetB			: INT;		// B 爪有效目標深度 (0 = 不動作)
+	_nMaxDepth			: INT;		// 最深目標深度 (決定 buffer 需求)
+	_nBufferCount		: INT;		// 需搬到 buffer 的盒數 = MAX(最深深度 - 2, 0)
+	_nBufferStep		: INT;		// 當前 buffer 迴圈步序 (搬出 1..N, 還原 N..1)
+
+	// 雙來源序列化追蹤 (C2-C4 情境)
+	_nAfterPlaceStep	: UDINT;	// 放圓帶/buffer還原後的跳轉目標 (0=預設99000完成)
+	_nPhase1Count		: INT;		// B3用: phase1 buffer清除數量 (= MIN(Pa,Pb) - 1)
+
+	// 圓帶 sensor 快取 (每 cycle 更新)
+	A2_Sensor			: BOOL;		// 圓帶換區 A2 偵測 sensor
+	A3_Sensor			: BOOL;		// 圓帶換區 A3 偵測 sensor
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
+A2_Sensor := Input.bRoundBelt_ChangeZoneA2Detect_Sensor;
+A3_Sensor := Input.bRoundBelt_ChangeZoneA3Detect_Sensor;
+]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{3cf0a6eb-51a4-4bd8-ab84-bb133882efea}" />
+    <Folder Name="State" Id="{6c3e5a59-8dde-4761-a96c-628fef2d472c}" />
+    <Action Name="A00_BasicUnits" Id="{4ca50f59-1109-49a5-996f-50c4843c7700}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT := T#600S);
+tonReadComplete(PT := T#15S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{da7c0f18-a5db-4246-9097-de3beee39cdc}" FolderPath="Method\">
+      <Declaration><![CDATA[// 驗證命令是否合法
+// 檢查: 至少一爪為 Work, 且有效爪的 TargetPosition 在 1..10 範圍內
+METHOD M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	bAWork : BOOL;
+	bBWork : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bAWork := Info.ClampA_Setting.Behavior = E_ClampWork.Work;
+bBWork := Info.ClampB_Setting.Behavior = E_ClampWork.Work;
+
+IF NOT bAWork AND NOT bBWork THEN
+	M_CheckCommand := FALSE;
+	RETURN;
+END_IF
+
+IF bAWork AND (Info.TargetPositionA < 1 OR Info.TargetPositionA > 10) THEN
+	M_CheckCommand := FALSE;
+	RETURN;
+END_IF
+
+IF bBWork AND (Info.TargetPositionB < 1 OR Info.TargetPositionB > 10) THEN
+	M_CheckCommand := FALSE;
+	RETURN;
+END_IF
+
+M_CheckCommand := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ClassifyScenario" Id="{f644296b-191e-4f41-88ea-a1d7ee62cede}" FolderPath="Method\">
+      <Declaration><![CDATA[// 分類情境
+// 根據 A/B 爪的 Work 狀態、目標深度、以及是否同源，設定 _nScenario 等變數
+// 情境代碼:
+//   單目標: 1(A1:P1), 2(A2:P2), 3(A3:P3+)
+//   雙目標同源: 10(B1:{P1,P2}), 11(B2:{P1,P3+}), 12(B3:{P2+,P2+})
+//   雙目標不同源: 20(C1:P1+P1), 21(C2:P1+P2), 22(C3:P2+P2), 23(C4:P3+)
+METHOD M_ClassifyScenario
+VAR_INPUT
+END_VAR
+VAR
+	bAWork	: BOOL;
+	bBWork	: BOOL;
+	nSmall	: INT;
+	nLarge	: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bAWork := Info.ClampA_Setting.Behavior = E_ClampWork.Work;
+bBWork := Info.ClampB_Setting.Behavior = E_ClampWork.Work;
+
+_nTargetA := SEL(bAWork, 0, Info.TargetPositionA);
+_nTargetB := SEL(bBWork, 0, Info.TargetPositionB);
+_bDualTarget := bAWork AND bBWork;
+_bSameSource := M_IsSameSource();
+
+IF _bDualTarget THEN
+	_nMaxDepth := MAX(_nTargetA, _nTargetB);
+ELSIF bAWork THEN
+	_nMaxDepth := _nTargetA;
+ELSE
+	_nMaxDepth := _nTargetB;
+END_IF
+
+// Single target scenarios
+IF NOT _bDualTarget THEN
+	CASE _nMaxDepth OF
+	1:
+		_nScenario := 1;	// A1: Single P1
+		_nBufferCount := 0;
+	2:
+		_nScenario := 2;	// A2: Single P2
+		_nBufferCount := 0;
+	ELSE
+		_nScenario := 3;	// A3: Single P3+
+		_nBufferCount := _nMaxDepth - 2;
+	END_CASE
+	RETURN;
+END_IF
+
+// Dual target scenarios
+nSmall := MIN(_nTargetA, _nTargetB);
+nLarge := MAX(_nTargetA, _nTargetB);
+
+IF _bSameSource THEN
+	IF nSmall = 1 AND nLarge = 2 THEN
+		_nScenario := 10;	// B1: {P1, P2}
+		_nBufferCount := 0;
+	ELSIF nSmall = 1 AND nLarge >= 3 THEN
+		_nScenario := 11;	// B2: {P1, P3+}
+		_nBufferCount := nLarge - 2;
+	ELSE
+		_nScenario := 12;	// B3: deep pair
+		// 非目標盒數 = nLarge - 2 (Pa/Pb 本身不算)
+		// Phase1 清 P1..P(Pa-1) = nSmall-1 個
+		// Phase2 清 P(Pa+1)..P(Pb-1) = nLarge-nSmall-1 個
+		// 驗證: (nSmall-1) + (nLarge-nSmall-1) = nLarge-2 ✓
+		_nBufferCount := nLarge - 2;
+		_nPhase1Count := nSmall - 1;
+	END_IF
+ELSE
+	IF nSmall = 1 AND nLarge = 1 THEN
+		_nScenario := 20;	// C1: P1+P1
+		_nBufferCount := 0;
+	ELSIF nSmall = 1 AND nLarge = 2 THEN
+		_nScenario := 21;	// C2: P1+P2
+		_nBufferCount := 0;
+	ELSIF nSmall = 2 AND nLarge = 2 THEN
+		_nScenario := 22;	// C3: P2+P2
+		_nBufferCount := 0;
+	ELSE
+		_nScenario := 23;	// C4: P3+
+		_nBufferCount := MAX(nLarge - 2, 0);
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_IsSameSource" Id="{20cadeca-cdc0-404e-a8e9-1e171df5b4ce}" FolderPath="Method\">
+      <Declaration><![CDATA[// 判斷 A/B 爪是否來自同一個倉儲來源 (同倉別 + 同層 + 同軌道)
+// 同源時走 B 系列情境 (同軌取放)，不同源走 C 系列情境 (跨軌取放)
+METHOD M_IsSameSource : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _bDualTarget THEN
+	M_IsSameSource := FALSE;
+	RETURN;
+END_IF
+
+// 比對 PickUpArea (倉別) + Layer (層) + Slide (軌) 三項皆相同才算同源
+M_IsSameSource :=
+	(Info.ClampA_Setting.PickUpArea = Info.ClampB_Setting.PickUpArea) AND
+	(Info.ClampA_Setting.WareHouseSetting.Layer = Info.ClampB_Setting.WareHouseSetting.Layer) AND
+	(Info.ClampA_Setting.WareHouseSetting.Slide = Info.ClampB_Setting.WareHouseSetting.Slide);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{46779543-e0cd-4f18-ae10-01c3025de2b1}" FolderPath="State\">
+      <Declaration><![CDATA[// 已中止狀態 — 等待 Reset 信號，支援恢復 (uiResumeStep > 0 時回到中斷點)
+METHOD M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+
+VAR
+	theb: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+
+Busy := FALSE;
+Aborted := TRUE;
+Error := TRUE;
+Status := strStatus;
+_AbortCompleted := FALSE;
+uiAbortingStep := 0;
+	tonReadComplete.IN  := FALSE;
+	tonTimeOut.IN		:= FALSE;
+
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+
+IF Reset THEN
+	Busy := FALSE;
+	Aborted := FALSE;
+	Error := FALSE;
+	IF uiResumeStep > 0 THEN
+		uiExecutingStep := uiResumeStep;
+		_bRetry := TRUE;
+	END_IF
+	
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{6f78fedd-ea4c-4ea9-bb3a-564bc0a3b867}" FolderPath="State\">
+      <Declaration><![CDATA[// 中止狀態 — 清除手臂/倉儲命令，等待手臂完成後設定 _AbortCompleted
+METHOD M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	_bAbortWaitStarted : BOOL;	// 確保至少等一個 cycle 再判斷 Done
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+0:
+	_Abort := FALSE;
+	//Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	WareHouse.M_ResetFeedInBox();
+	tonReadComplete.IN  := FALSE;
+	tonTimeOut.IN		:= FALSE;
+	_bAbortWaitStarted := FALSE;
+	uiAbortingStep := 100;
+100:
+	// 先等一個 cycle 讓 Robot 處理 Reset，避免 Done 殘留直接通過
+//	IF NOT _bAbortWaitStarted THEN
+//		_bAbortWaitStarted := TRUE;
+//	ELSIF Robot._DI1.Done THEN
+//		_bAbortWaitStarted := FALSE;
+//		uiAbortingStep := 9999;
+//	END_IF
+	uiAbortingStep := 9999;
+9999:
+	_AbortCompleted := TRUE;
+END_CASE
+IF _AbortCompleted THEN	
+	eSTATE :=STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{6dfeddb6-dfea-4b2e-901c-9cca0e5122e8}" FolderPath="State\">
+      <Declaration><![CDATA[// 完成狀態 — 等待 Execute 釋放後進入 RESETTING
+METHOD M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{47a4caa7-202e-4d02-b2cf-e5043f1725a1}" FolderPath="State\">
+      <Declaration><![CDATA[// 休眠狀態 — 清除所有旗標、步序、狀態，等待 Execute 觸發
+METHOD M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy				:= FALSE;
+Done				:= FALSE;
+Aborted				:= FALSE;
+Error				:= FALSE;
+ErrorID				:= 0;
+Status				:= '';
+_ResetCompleted		:= FALSE;
+_Error				:= FALSE;
+_Executed			:= FALSE;
+_Abort				:= FALSE;
+uiExecutingStep		:= 0;
+uiResettingStep		:= 0;
+uiResumeStep		:= 0;
+uiAbortingStep		:= 0;
+
+tonTimeOut.IN		:= FALSE;
+tonReadComplete.IN	:= FALSE;
+_UniqueErrorCode	:= '0';
+
+// 清除動作紀錄陣列 + 握手旗標
+MEMSET(ADR(ActionRecords), 0, SIZEOF(ActionRecords));
+ActionIndex			:= 0;
+FeedBack			:= FALSE;
+
+_nScenario			:= 0;
+_bSameSource		:= FALSE;
+_bDualTarget		:= FALSE;
+_nTargetA			:= 0;
+_nTargetB			:= 0;
+_nMaxDepth			:= 0;
+_nBufferCount		:= 0;
+_nBufferStep		:= 0;
+_nAfterPlaceStep	:= 0;
+_nPhase1Count		:= 0;
+
+_AbortCompleted		:= FALSE;
+_bRetry				:= FALSE;
+
+IF Execute AND NOT Stop THEN
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{2be830aa-366e-4ea8-898a-efb6d5e19fde}" FolderPath="State\">
+      <Declaration><![CDATA[// 錯誤狀態 — 顯示錯誤訊息，等待 Execute 釋放後進入 RESETTING
+METHOD M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Error := TRUE;
+Status := strStatus;
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{1076bfbc-6579-4186-8c38-dcab6fda5656}" FolderPath="State\">
+      <Declaration><![CDATA[// 執行主狀態 — 根據情境分類執行對應的取放流程
+// ═══════════════════════════════════════════════════════════════
+// 步序總覽:
+// ── Phase 0: 初始化 ─────────────────────────────────────────
+//   0:      驗證命令 (M_CheckCommand) → 跳 5
+//   5:      分類情境 (M_ClassifyScenario) + 快取座標/倉別 + 判斷目標爪 → 跳 10
+//   10:     情境分派 CASE → 跳到對應步序區段
+//
+// ── A1: 單目標 P1 (直取) ────────────────────────────────────
+//   1000:   倉儲推盒 + 目標爪夾取 + 取得圓帶權限
+//   1080:   清除命令 → 60000
+//
+// ── A2: 單目標 P2 (協助爪搬開 P1) ──────────────────────────
+//   1100:   協助爪從目標來源取 P1 阻擋盒
+//   1110:   清除命令
+//   1120:   目標爪取 P2 (已是最前面) + 取得圓帶權限
+//   1130:   清除命令
+//   1140:   協助爪把 P1 放回倉儲原位
+//   1150:   清除命令 → 60000
+//
+// ── A3: 單目標 P3+ (buffer + 協助爪) ───────────────────────
+//   1200:   初始化 buffer 迴圈 (_nBufferStep := 1)
+//   1202:   迴圈檢查: 完成→1300 / 雙爪→1210 / 單爪→1240
+//   --- 雙爪路徑 (一次清兩個到 buffer) ---
+//   1210:   目標爪從倉儲取第一個盒子
+//   1215:   清除命令
+//   1220:   協助爪從倉儲取第二個盒子
+//   1225:   清除命令
+//   1230:   雙爪移到 buffer 放下兩個盒子
+//   1235:   清除命令 + 計數+2 → 回 1202
+//   --- 單爪路徑 (剩餘一個) ---
+//   1240:   目標爪從倉儲取盒子
+//   1245:   清除命令
+//   1250:   目標爪移到 buffer 放下
+//   1255:   清除命令 + 計數+1 → 回 1202
+//   1300:   重置 BoxReady (buffer 清完)
+//   1310:   協助爪取 P(N-1) (倒數第二個)
+//   1320:   清除命令
+//   1330:   目標爪取 P(N) 目標盒 + 取得圓帶權限
+//   1340:   清除命令
+//   1350:   協助爪把 P(N-1) 放回倉儲
+//   1360:   清除命令 → 60000
+//
+// ── B1: 同源 {P1,P2} (由外到內取) ──────────────────────────
+//   2000:   外層爪取 P1 + 取得圓帶權限
+//   2010:   清除命令
+//   2020:   內層爪取 P2 (已是最前面)
+//   2030:   清除命令 → 80000
+//
+// ── B2: 同源 {P1,P3+} (外層直取 + 內層 buffer 清除) ────────
+//   2100:   外層爪取 P1 + 取得圓帶權限
+//   2105:   清除命令
+//   2110:   初始化 buffer 迴圈
+//   2115:   迴圈檢查: 完成→2140 / 未完成→2120
+//   2120:   內層爪從倉儲取最前面盒子
+//   2125:   清除命令
+//   2130:   內層爪移到 buffer 放下
+//   2135:   清除命令 + 計數+1 → 回 2115
+//   2140:   重置 BoxReady
+//   2145:   內層爪取目標盒
+//   2150:   清除命令 → 80000
+//
+// ── B3: 同源 {P2+,P2+} (雙階段 buffer) ────────────────────
+//   2200:   初始化 buffer 迴圈
+//   2205:   Phase1 迴圈檢查: 完成→2240 / 雙爪→2206 / 單爪→2210
+//   --- Phase1 雙爪路徑 (兩爪都空，一次清兩個到 buffer) ---
+//   2206:   外層爪從倉儲取第一個盒子
+//   2207:   清除命令
+//   2208:   內層爪從倉儲取第二個盒子
+//   2209:   清除命令
+//   2228:   雙爪同時放到 buffer
+//   2229:   清除命令 + 計數+2 → 回 2205
+//   --- Phase1 單爪路徑 (剩餘一個) ---
+//   2210:   內層爪從倉儲取盒子
+//   2215:   清除命令
+//   2220:   內層爪放到 buffer
+//   2225:   清除命令 + 計數+1 → 回 2205
+//   2240:   外層爪取 Pa + 取得圓帶權限
+//   2245:   清除命令
+//   2250:   Phase3 迴圈檢查: 完成→2270 / 未完成→2255
+//   2255:   內層爪清 P(Pa+1)..P(Pb-1) 到 buffer
+//   2258:   清除命令
+//   2260:   內層爪放到 buffer
+//   2265:   清除命令 + 計數+1 → 回 2250
+//   2270:   重置 BoxReady
+//   2275:   內層爪取 Pb
+//   2280:   清除命令 → 80000
+//
+// ── C1: 不同源 P1+P1 (各取各) ──────────────────────────────
+//   3000:   A爪取A來源P1 + 取得圓帶權限
+//   3010:   清除命令
+//   3020:   B爪取B來源P1
+//   3030:   清除命令 → 80000
+//
+// ── C2: 不同源 P1+P2 (協助爪幫P2側搬P1) ───────────────────
+//   3100:   協助爪(P1側)去P2來源取P1阻擋盒 + 取得圓帶權限
+//   3105:   清除命令
+//   3110:   P2目標爪取P2
+//   3115:   清除命令
+//   3120:   協助爪把P1放回P2來源
+//   3125:   清除命令
+//   3130:   協助爪(P1側)回自己來源取P1
+//   3135:   清除命令 → 80000
+//
+// ── C3: 不同源 P2+P2 (兩輪 A2) ─────────────────────────────
+//   3200:   Round1 設定: A為目標 + _nAfterPlaceStep=3250 → 跳 1100
+//   3250:   Round2 設定: B為目標 + _nAfterPlaceStep=0 → 跳 1100
+//
+// ── C4: 不同源含 P3+ (兩輪 A 系列) ─────────────────────────
+//   3300:   Round1 設定: 深側為目標 + _nAfterPlaceStep=3350 → 跳 A1/A2/A3
+//   3350:   Round2 設定: 淺側為目標 + _nAfterPlaceStep=0 → 跳 A1/A2/A3
+//
+// ── 共用: 單爪放圓帶 ───────────────────────────────────────
+//   60000:  確認手臂空閒 + 取得圓帶權限
+//   60100:  圓帶移到指定站位 + 等待到位
+//   60200:  手臂放盒到圓帶載具
+//   60300:  清除命令 + 釋放圓帶 → buffer還原(90000)/跳轉(_nAfterPlaceStep)/完成(99000)
+//
+// ── 共用: 雙爪放圓帶 ───────────────────────────────────────
+//   80000:  確認手臂空閒 + 取得圓帶權限
+//   81000:  雙爪交替放圓帶子步序 (內部 uiPlaceBothStep 0→80)
+//   81080:  清除命令 + 釋放圓帶 → buffer還原(90000)/跳轉(_nAfterPlaceStep)/完成(99000)
+//
+// ── 共用: Buffer 逆序還原 ──────────────────────────────────
+//   90000:  初始化還原迴圈 (_nBufferStep := _nBufferCount)
+//   90005:  迴圈檢查: 完成→跳轉/完成 / 雙爪→90010 / 單爪→90040
+//   --- 雙爪路徑 (一次還原兩個) ---
+//   90010:  雙爪從 buffer 取兩個盒子
+//   90015:  清除命令
+//   90020:  目標爪放回倉儲 (高位)
+//   90025:  清除命令
+//   90030:  協助爪放回倉儲 (低位)
+//   90035:  清除命令 + 計數-2 → 回 90005
+//   --- 單爪路徑 (剩餘一個) ---
+//   90040:  目標爪從 buffer 取盒子
+//   90045:  清除命令
+//   90050:  目標爪放回倉儲
+//   90055:  清除命令 + 計數-1 → 回 90005
+//
+// ── 完成 ───────────────────────────────────────────────────
+//   99000:  設定 _Executed + ADone/BDone 旗標
+// ═══════════════════════════════════════════════════════════════
+METHOD M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	_coordsA			: ST_WareHouseCoordinates;	// A 爪倉儲座標快取
+	_coordsB			: ST_WareHouseCoordinates;	// B 爪倉儲座標快取
+	_wsA				: E_WareHouse;				// A 爪倉別快取
+	_wsB				: E_WareHouse;				// B 爪倉別快取
+	_bTargetIsA			: BOOL;			// TRUE = A 爪是目標爪, FALSE = B 爪是目標爪
+	BoxReady_1st		: BOOL;			// 倉儲推盒到位旗標 (ClampA 側)
+	BoxReady_2nd		: BOOL;			// 倉儲推盒到位旗標 (ClampB 側)
+	CarrierReady_1st	: BOOL;			// 圓帶載具到位旗標 (第一爪)
+	CarrierReady_2nd	: BOOL;			// 圓帶載具到位旗標 (第二爪)
+	uiPlaceBothStep		: UINT;			// 雙爪放圓帶子步序 (81000 內部用)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := TRUE;
+IF THIS^.Stop THEN
+	tonTimeOut.IN := FALSE;
+END_IF
+
+CASE uiExecutingStep OF
+
+// ========== Phase 0: 初始化 & 驗證命令 ==========
+0:
+	// 非自動模式直接報錯 (避免軸控衝突)
+	IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
+		strStatus := 'Not in Auto mode';
+		_UniqueErrorCode := 'E_NOT_AUTO_MODE';
+		_Error := TRUE;
+	ELSE
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		CarrierReady_1st := FALSE;
+		CarrierReady_2nd := FALSE;
+		uiPlaceBothStep := 0;
+		_nAfterPlaceStep := 0;
+		_nBufferStep := 1;
+		IF M_CheckCommand() THEN
+			uiExecutingStep := 5;
+		ELSE
+			strStatus := 'Invalid command';
+			_Error := TRUE;
+		END_IF
+	END_IF
+
+// Step 5: 分類情境 + 快取座標 + 判斷目標爪
+5:
+	M_ClassifyScenario();
+	_coordsA := Info.ClampA_Setting.WareHouseSetting;
+	_coordsB := Info.ClampB_Setting.WareHouseSetting;
+	// 從 PickUpArea 推導倉別 (ST_WareHouseCoordinates 沒有 WareHouse 欄位)
+	CASE Info.ClampA_Setting.PickUpArea OF
+		E_ReloadRoundBelt_PickupArea.WareHouseA: _wsA := E_WareHouse.WareHouseA;
+		E_ReloadRoundBelt_PickupArea.WareHouseB: _wsA := E_WareHouse.WareHouseB;
+	ELSE _wsA := E_WareHouse.None;
+	END_CASE
+	CASE Info.ClampB_Setting.PickUpArea OF
+		E_ReloadRoundBelt_PickupArea.WareHouseA: _wsB := E_WareHouse.WareHouseA;
+		E_ReloadRoundBelt_PickupArea.WareHouseB: _wsB := E_WareHouse.WareHouseB;
+	ELSE _wsB := E_WareHouse.None;
+	END_CASE
+	// 判斷目標爪：單目標=有 Work 的那隻; 雙目標=A 為預設
+	// 注意: B 系列步序直接用 _nTargetA <= _nTargetB 判斷先後順序，不依賴 _bTargetIsA
+	// _bTargetIsA 主要用於 A 系列 (單爪)、C 系列複用 A 系列、以及 buffer 還原 (90000)
+	IF NOT _bDualTarget THEN
+		_bTargetIsA := Info.ClampA_Setting.Behavior = E_ClampWork.Work;
+	ELSE
+		IF _bSameSource AND _nTargetA > _nTargetB THEN
+			_bTargetIsA := FALSE;
+		ELSE
+			_bTargetIsA := TRUE;
+		END_IF
+	END_IF
+	uiExecutingStep := 10;
+
+// Step 10: 情境分派跳轉
+10:
+	// 根據情境編號跳轉到對應的步序區段
+	// ── A 系列：單目標 (只有一爪有 Work) ──
+	// ── B 系列：雙目標同倉同軌 (同一條 slide 取兩個盒子) ──
+	// ── C 系列：雙目標不同來源 (不同倉/不同軌各取一盒) ──
+	CASE _nScenario OF
+
+	// ── A 系列 (單目標) ──────────────────────────────────────
+	1:	uiExecutingStep := 1000;
+		// A1: 目標位置 P1 (最前面) → 直接取，無需協助爪
+		// 流程: 倉儲推盒→目標爪夾取→放圓帶
+
+	2:	uiExecutingStep := 1100;
+		// A2: 目標位置 P2 (第二個) → 協助爪先把 P1 搬開
+		// 流程: 協助爪取P1→目標爪取P2→協助爪放回P1→目標爪放圓帶
+		// ※ P2 永遠不用 buffer，用協助爪即可
+
+	3:	uiExecutingStep := 1200;
+		// A3: 目標位置 P3 以後 (含P3) → P1..P(N-2) 搬去 buffer，P(N-1) 由協助爪處理
+		// 流程: 前置盒→buffer→協助爪取P(N-1)→目標爪取PN→協助爪放回P(N-1)→放圓帶→buffer逆序還原
+
+	// ── B 系列 (同源雙目標：同倉、同軌) ────────────────────
+	10:	uiExecutingStep := 2000;
+		// B1: A爪=P1, B爪=P2 (或反之) → 由外到內依序取，兩個都是目標盒
+		// 流程: 先取P1(淺)→再取P2(深,此時已是最前面)→雙爪放圓帶
+		// ※ 不需要放回任何盒子
+
+	11:	uiExecutingStep := 2100;
+		// B2: 其中一爪=P1, 另一爪=P3+ → 外層直取 + 內層buffer清除 + 雙爪放圓帶 + buffer還原
+
+	12:	uiExecutingStep := 2200;
+		// B3: 兩爪都是 P2 以後 → 雙階段buffer清除 + 雙爪放圓帶 + buffer還原
+
+	// ── C 系列 (不同源雙目標：不同倉 或 不同軌) ──────────
+	20:	uiExecutingStep := 3000;
+		// C1: A來源P1 + B來源P1 → 兩軌互不影響，各取最前面
+		// 流程: A爪取A來源P1→B爪取B來源P1→雙爪放圓帶
+
+	21:	uiExecutingStep := 3100;
+		// C2: 其中一邊P1 + 另一邊P2 → P2側先由協助爪搬開P1 → 雙爪放圓帶
+
+	22:	uiExecutingStep := 3200;
+		// C3: 兩邊都是P2 → 分兩輪各走A2流程 (每輪單爪放圓帶)
+
+	23:	uiExecutingStep := 3300;
+		// C4: 任一邊含P3+ → 分兩輪各走A系列流程 (含buffer，深度大的先做)
+
+	ELSE
+		// 未知情境 → 錯誤
+		strStatus := CONCAT('未知情境編號: ', INT_TO_STRING(_nScenario));
+		_UniqueErrorCode := 'E_UNKNOWN_SCENARIO';
+		_Error := TRUE;
+	END_CASE
+
+// ========== A1: 單目標 P1 — 直接取最前面盒子 ==========
+// 1000: 倉儲推盒 + 目標爪夾取 + 預先取得圓帶權限
+// 1080: 清除命令 → 跳到放圓帶 (60000)
+1000:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	ELSE
+		// Pick 完成通知: 目標爪從倉儲取盒
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1080;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1000; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1080:
+	// 清除手臂/倉儲命令 → 等待 Robot 回 Idle → 跳到單爪放圓帶 (60000)
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 60000;
+	END_IF
+
+// ========== A2: 單目標 P2 — 協助爪搬開 P1 阻擋盒 ==========
+// ※ 此段 (1100-1150→60000) 也被 C3/C4 複用：C3/C4 透過設定 _bTargetIsA 和
+//   _nAfterPlaceStep 後跳轉至 1100，複用整個 A2 流程
+// 1100: 協助爪 (helper) 從倉儲取 P1 阻擋盒 (目標爪的反對爪)
+// 1110: 清除命令 + 等待 Robot 回 Idle
+// 1120: 目標爪取 P2 (此時 P2 已是最前面) ※ A2 不預取圓帶權限，由 60000 統一取得
+// 1130: 清除命令 + 等待 Robot 回 Idle
+// 1140: 協助爪把 P1 阻擋盒放回倉儲原位 (FeedInBox = 進盒方向，與 ReloadBox 推盒方向相反)
+// 1150: 清除命令 + 等待 Robot 回 Idle → 跳到放圓帶 (60000)
+1100:
+	// 協助爪取阻擋盒: _bTargetIsA=TRUE → B爪(協助)去目標來源取P1
+	//                  _bTargetIsA=FALSE → A爪(協助)去目標來源取P1
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 協助爪從倉儲取阻擋盒
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1110;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1100; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1110:
+	// 清除手臂/倉儲命令 → 等待 Robot 回 Idle (Done 消失) → 進入目標爪取盒
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 1120;
+	END_IF
+
+1120:
+	// 目標爪取 P2 (阻擋盒已被協助爪搬走，P2 現在是最前面)
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Pick 完成通知: 目標爪從倉儲取目標盒
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1130;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1120; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1130:
+	// 清除手臂/倉儲命令 → 等待 Robot 回 Idle → 進入協助爪放回阻擋盒
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 1140;
+	END_IF
+
+1140:
+	// 協助爪把 P1 阻擋盒放回倉儲原位
+	// FeedInBox = 倉儲進盒方向 (從手臂側推入倉位)，與 ReloadBox (從倉位推出到手臂側) 相反
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Place 完成通知: 協助爪放回阻擋盒到倉儲
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := FALSE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1150;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1140; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1150:
+	// 清除手臂/倉儲命令 → 等待 Robot 回 Idle → 跳到單爪放圓帶 (60000)
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 60000;
+	END_IF
+
+// ========== A3: 單目標 P3+ — 先清 buffer，再協助爪配合目標爪取放 ==========
+// 流程概述:
+//   Phase 1 (1200-1250): 迴圈清除前 N-2 個盒子到 buffer (N=目標深度)
+//     1200: 初始化 buffer 迴圈計數器
+//     1210: 檢查迴圈是否完成 → 完成跳 1300
+//     1220: 目標爪從倉儲取最前面盒子 (用於搬到 buffer)
+//     1230: 清除命令
+//     1240: 手臂移到 buffer 放下盒子
+//     1250: 清除命令 + 計數器+1 → 回到 1210
+//   Phase 2 (1300-1360): 協助爪取 P(N-1), 目標爪取 P(N), 協助爪放回 P(N-1)
+//     1300: 重置 BoxReady
+//     1310: 協助爪取 P(N-1) (倒數第二個盒子)
+//     1320: 清除命令
+//     1330: 目標爪取 P(N) (目標盒子, 此時是最前面)
+//     1340: 清除命令
+//     1350: 協助爪把 P(N-1) 放回倉儲
+//     1360: 清除命令 → 跳到放圓帶 (60000)
+// 放圓帶後會跳到 buffer 還原 (90000)
+1200:
+	_nBufferStep := 1;
+	uiExecutingStep := 1202;
+
+1202:
+	IF _nBufferStep > _nBufferCount THEN
+		uiExecutingStep := 1300;		// buffer 清完 → Phase 2
+	ELSIF _nBufferStep + 1 <= _nBufferCount THEN
+		// 剩 2 個以上: 雙爪一次清兩個
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 1210;
+	ELSE
+		// 剩 1 個: 單爪清
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 1240;
+	END_IF
+
+// ===== 雙爪 buffer 清除路徑 =====
+// Step 1: 目標爪從倉儲取第一個盒子
+1210:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Pick 完成通知: 目標爪取第一個盒子 (buffer 清除用)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1215;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1210; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1215:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 1220;
+	END_IF
+
+// Step 2: 協助爪從倉儲取第二個盒子
+1220:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 協助爪取第二個盒子 (buffer 清除用)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1225;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1220; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1225:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 1230;
+	END_IF
+
+// Step 3: 雙爪同時移到 buffer 放下兩個盒子
+1230:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := _nBufferStep + 1,
+				BoxReady_1 := TRUE, BoxReady_2 := TRUE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep + 1, ClampB_Address := _nBufferStep,
+				BoxReady_1 := TRUE, BoxReady_2 := TRUE);
+		END_IF
+	ELSE
+		// buffer 放盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1235;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1230; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1235:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep + 2;
+		uiExecutingStep := 1202;
+	END_IF
+
+// ===== 單爪 buffer 清除路徑 (剩一個) =====
+1240:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Pick 完成通知: 目標爪從倉儲取盒 (buffer 清除用)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1245;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1240; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1245:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 1250;
+	END_IF
+
+1250:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := FALSE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := 0,
+				BoxReady_1 := TRUE, BoxReady_2 := FALSE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := FALSE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := 0, ClampB_Address := _nBufferStep,
+				BoxReady_1 := FALSE, BoxReady_2 := TRUE);
+		END_IF
+	ELSE
+		// buffer 放盒不記��� (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1255;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1250; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1255:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep + 1;
+		uiExecutingStep := 1202;
+	END_IF
+
+1300:
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	uiExecutingStep := 1310;
+
+1310:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 協助爪從倉儲取 P(N-1)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1320;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1310; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1320:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 1330;
+	END_IF
+
+1330:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Pick 完成通知: 目標爪從倉儲取目標盒 P(N)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1340;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1330; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1340:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 1350;
+	END_IF
+
+1350:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Place 完成通知: 協助爪放回 P(N-1) 到倉儲
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := FALSE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 1360;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 1350; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+1360:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 60000;
+	END_IF
+
+// ========== B1: 同源雙目標 {P1, P2} — 由外到內依序取 ==========
+// 同倉同軌，A=P1 B=P2 (或反之)
+// 先取較淺的 P1 (由對應爪取)，取走後 P2 變最前面，再取 P2
+// 兩個都是目標盒，不需要放回任何盒子
+// 2000: 先取 P1 (位置較淺的爪先取) + 預先取得圓帶權限
+// 2010: 清除命令
+// 2020: 再取 P2 (位置較深的爪再取, 此時 P2 已是最前面)
+// 2030: 清除命令 → 跳到雙爪放圓帶 (80000)
+2000:
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	ELSE
+		// Pick 完成通知: 外層爪取 P1
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2010;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2000; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2010:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 2020;
+	END_IF
+
+2020:
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 內層爪取 P2
+		IF ActionIndex < 40 THEN
+			IF _nTargetA > _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2030;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2020; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2030:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 80000;
+	END_IF
+
+// ========== B2: 同源雙目標 {P1, P3+} — 外層直取 + 內層 buffer 清除 ==========
+// 同倉同軌，一爪=P1 另一爪=P3+
+// Phase 1: 外層爪直接取 P1
+// Phase 2: 內層爪逐一搬 P2..P(N-1) 到 buffer
+// Phase 3: 內層爪取目標 P(N) (已是最前面)
+// → 雙爪放圓帶 (80000) → buffer 還原 (90000)
+// 2100: 外層爪取 P1 + GetRoundBeltAccess
+// 2105: 清除命令
+// 2110: 初始化 buffer 迴圈
+// 2115: 檢查迴圈 → 完成跳 2145
+// 2120: 內層爪取前面盒子 (用於搬 buffer)
+// 2125: 清除命令
+// 2130: 移到 buffer 放下
+// 2135: 清除命令 + 計數+1 → 回 2115
+// 2140: 重置 BoxReady
+// 2145: 內層爪取目標盒
+// 2150: 清除命令 → 80000
+2100:
+	// 外層爪 (target深度較淺=P1) 取 P1
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			// A 是 P1 (外層), B 是 P3+ (內層)
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			// B 是 P1 (外層), A 是 P3+ (內層)
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	ELSE
+		// Pick 完成通知: 外層爪取 P1
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2105;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2100; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2105:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 2110;
+	END_IF
+
+// Buffer 清除迴圈: 內層爪搬 P2..P(N-1) 到 buffer
+2110:
+	_nBufferStep := 1;
+	uiExecutingStep := 2115;
+
+2115:
+	IF _nBufferStep > _nBufferCount THEN
+		uiExecutingStep := 2140;	// buffer 清除完 → 取內層目標
+	ELSE
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 2120;
+	END_IF
+
+2120:
+	// 內層爪 (深度較大的那隻) 從倉儲取最前面盒子
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			// B 是內層爪 → 用 ClampB 取 (同源所以用 _wsA/_coordsA)
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			// A 是內層爪 → 用 ClampA 取 (同源所以用 _wsB/_coordsB)
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 內層爪從倉儲取盒 (buffer 清除用)
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2125;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2120; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2125:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 2130;
+	END_IF
+
+2130:
+	// 內層爪移到 buffer 放下盒子
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := FALSE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := 0, ClampB_Address := _nBufferStep,
+				BoxReady_1 := FALSE, BoxReady_2 := TRUE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := FALSE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := 0,
+				BoxReady_1 := TRUE, BoxReady_2 := FALSE);
+		END_IF
+	ELSE
+		// buffer 放盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2135;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2130; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2135:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep + 1;
+		uiExecutingStep := 2115;
+	END_IF
+
+// 取內層目標
+2140:
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	uiExecutingStep := 2145;
+
+2145:
+	// 內層爪取目標盒 (此時已是最前面)
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			// B 是內層目標
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			// A 是內層目標
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 內層爪從倉儲取目標盒
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2150;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2145; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2150:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 80000;	// 雙爪放圓帶 → buffer 還原
+	END_IF
+
+// ========== B3: 同源雙目標 {P2+, P2+} — 雙階段 buffer 清除 ==========
+// 同倉同軌，兩爪目標都 >= P2
+// Phase 1: 清 P1..P(Pa-1) 到 buffer (Pa=外層目標) — 兩爪都空，用雙爪加速
+// Phase 2: 外層爪取 Pa
+// Phase 3: 清 P(Pa+1)..P(Pb-1) 到 buffer (Pb=內層目標) [若有中間盒] — 外層爪佔用，單爪
+// Phase 4: 內層爪取 Pb
+// → 雙爪放圓帶 (80000) → buffer 還原 (90000)
+// 步序: 2200-2290
+2200:
+	_nBufferStep := 1;
+	uiExecutingStep := 2205;
+
+// Phase 1 buffer 清除: P1..P(Pa-1) — 兩爪都空，用雙爪加速 (仿 A3 1202-1255)
+2205:
+	IF _nBufferStep > _nPhase1Count THEN
+		uiExecutingStep := 2240;	// phase1 完成 → 取外層目標
+	ELSIF _nBufferStep + 1 <= _nPhase1Count THEN
+		// 剩 2 個以上: 雙爪一次清兩個
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 2206;
+	ELSE
+		// 剩 1 個: 單爪清
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 2210;
+	END_IF
+
+// ===== Phase1 雙爪 buffer 清除路徑 (一次清兩個) =====
+// Step 1: 外層爪從倉儲取第一個盒子
+2206:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Pick 完成通知: 外層爪取第一個盒子 (B3 phase1 buffer 雙爪)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2207;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2206; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2207:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 2208;
+	END_IF
+
+// Step 2: 內層爪從倉儲取第二個盒子
+2208:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 內層爪取第二個盒子 (B3 phase1 buffer 雙爪)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2209;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2208; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2209:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 2228;
+	END_IF
+
+// Step 3: 雙爪同時移到 buffer 放下兩個盒子
+2228:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := _nBufferStep + 1,
+				BoxReady_1 := TRUE, BoxReady_2 := TRUE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep + 1, ClampB_Address := _nBufferStep,
+				BoxReady_1 := TRUE, BoxReady_2 := TRUE);
+		END_IF
+	ELSE
+		// buffer 放盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2229;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2228; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2229:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep + 2;
+		uiExecutingStep := 2205;
+	END_IF
+
+// ===== Phase1 單爪 buffer 清除路徑 (剩餘一個) =====
+2210:
+	// 用內層爪清除 (外層爪保持空閒，Phase 2 要用)
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			// B 是內層爪 (較深), 同源用 _wsA/_coordsA
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			// A 是內層爪, 同源用 _wsB/_coordsB
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 內層爪從倉儲取盒 (B3 phase1 buffer 單爪)
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2215;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2210; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2215:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 2220;
+	END_IF
+
+2220:
+	// 內層爪放到 buffer
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := FALSE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := 0, ClampB_Address := _nBufferStep,
+				BoxReady_1 := FALSE, BoxReady_2 := TRUE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := FALSE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := 0,
+				BoxReady_1 := TRUE, BoxReady_2 := FALSE);
+		END_IF
+	ELSE
+		// buffer 放盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2225;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2220; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2225:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep + 1;
+		uiExecutingStep := 2205;
+	END_IF
+
+// Phase 2: 外層爪取 Pa
+2240:
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			// A 是外層目標
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			// B 是外層目標
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	ELSE
+		// Pick 完成通知: 外層爪取 Pa
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2245;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2240; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2245:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 2250;
+	END_IF
+
+// Phase 3: 清 P(Pa+1)..P(Pb-1) 到 buffer (若有中間盒)
+// _nBufferStep 繼續從 _nPhase1Count 往上累加
+2250:
+	IF _nBufferStep > _nBufferCount THEN
+		uiExecutingStep := 2270;	// 無中間盒或已清完 → 取內層目標
+	ELSE
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 2255;
+	END_IF
+
+2255:
+	// 內層爪清中間盒到 buffer (外層爪已佔用)
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 內層爪從倉儲取盒 (B3 phase2 buffer)
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2258;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2255; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2258:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 2260;
+	END_IF
+
+2260:
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := FALSE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := 0, ClampB_Address := _nBufferStep,
+				BoxReady_1 := FALSE, BoxReady_2 := TRUE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := FALSE, UseClampA := TRUE, UseClampB := FALSE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := 0,
+				BoxReady_1 := TRUE, BoxReady_2 := FALSE);
+		END_IF
+	ELSE
+		// buffer 放盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2265;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2260; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2265:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep + 1;
+		uiExecutingStep := 2250;
+	END_IF
+
+// Phase 4: 內層爪取 Pb
+2270:
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	uiExecutingStep := 2275;
+
+2275:
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA <= _nTargetB THEN
+			// B 是內層目標
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			// A 是內層目標
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 內層爪從倉儲取目標盒 Pb
+		IF ActionIndex < 40 THEN
+			IF _nTargetA <= _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 2280;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 2275; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+2280:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 80000;	// 雙爪放圓帶 → buffer 還原
+	END_IF
+
+// ========== C1: 不同源 P1+P1 — 兩條軌道各取最前面盒子 ==========
+// A 爪去 A 來源取 P1, B 爪去 B 來源取 P1
+// 兩條軌道互不影響，依序取完後雙爪放圓帶
+// 3000: A 爪取 A 來源 P1 + 預先取得圓帶權限
+// 3010: 清除命令
+// 3020: B 爪取 B 來源 P1
+// 3030: 清除命令 → 跳到雙爪放圓帶 (80000)
+3000:
+	IF NOT Robot._DI1.Done THEN
+		WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+		IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+		Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	ELSE
+		// Pick 完成通知: A爪取 A 來源 P1
+		IF ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 3010;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 3000; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+3010:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 3020;
+	END_IF
+
+3020:
+	IF NOT Robot._DI1.Done THEN
+		WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+		IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+		Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+	ELSE
+		// Pick 完成通知: B爪取 B 來源 P1
+		IF ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 3030;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 3020; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+3030:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 80000;
+	END_IF
+
+// ========== C2: 不同源 P1+P2 — 先幫P2側搬開阻擋盒，再各取各目標 ==========
+// 不同倉/不同軌，一邊 P1 另一邊 P2
+// 先處理 P2 側: P1 側的爪當協助爪去 P2 來源搬開 P1 阻擋盒
+// P2 目標爪取 P2 → 協助爪放回 P1 → 協助爪取自己的 P1 → 雙爪放圓帶
+// _nTargetA > _nTargetB → A=P2側 B=P1側 (B當協助)
+// _nTargetB > _nTargetA → B=P2側 A=P1側 (A當協助)
+// 步序: 3100-3170
+3100:
+	// 協助爪 (P1側) 去 P2側的來源取 P1 阻擋盒 + 取得圓帶權限
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA > _nTargetB THEN
+			// A=P2側, B=P1側 → B(協助)去A的來源取P1
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			// B=P2側, A=P1側 → A(協助)去B的來源取P1
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	ELSE
+		// Pick 完成通知: 協助爪(P1側)去P2來源取阻擋盒
+		IF ActionIndex < 40 THEN
+			IF _nTargetA > _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 3105;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 3100; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+3105:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 3110;
+	END_IF
+
+3110:
+	// P2目標爪取 P2 (阻擋盒已搬走，P2 現在是最前面)
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA > _nTargetB THEN
+			// A取P2 from A的來源
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			// B取P2 from B的來源
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Pick 完成通知: P2目標爪取P2
+		IF ActionIndex < 40 THEN
+			IF _nTargetA > _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 3115;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 3110; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+3115:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 3120;
+	END_IF
+
+3120:
+	// 協助爪把 P1 阻擋盒放回 P2 側來源
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA > _nTargetB THEN
+			// B(協助)放回A的來源
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			// A(協助)放回B的來源
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Place 完成通知: 協助爪放回阻擋盒到P2來源
+		IF ActionIndex < 40 THEN
+			IF _nTargetA > _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := FALSE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 3125;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 3120; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+3125:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 3130;
+	END_IF
+
+3130:
+	// 協助爪 (P1側) 回自己的來源取 P1 (自己的目標盒)
+	IF NOT Robot._DI1.Done THEN
+		IF _nTargetA > _nTargetB THEN
+			// B 取自己的 P1 from B的來源
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			// A 取自己的 P1 from A的來源
+			WareHouse.M_StartReloadBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bReloadBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Pick 完成通知: 協助爪(P1側)回自己來源取P1
+		IF ActionIndex < 40 THEN
+			IF _nTargetA > _nTargetB THEN
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := TRUE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 3135;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 3130; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+3135:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetReloadBox();
+	IF NOT Robot._DI1.Done THEN
+		uiExecutingStep := 80000;	// 雙爪各持目標盒 → 雙爪放圓帶
+	END_IF
+
+// ========== C3: 不同源 P2+P2 — 兩輪各走 A2 流程 ==========
+// 不同倉/不同軌，兩邊都是 P2
+// 無法一次完成 → 拆成兩輪，每輪各做一個來源的 A2 流程 (單爪放圓帶)
+// Round 1: A 為目標 (B 當協助) → 複用 A2(1100) → 單爪放圓帶 → 跳回 3250
+// Round 2: B 為目標 (A 當協助) → 複用 A2(1100) → 單爪放圓帶 → 完成
+3200:
+	// Round 1 設定: A 先做
+	_bTargetIsA := TRUE;
+	_nBufferCount := 0;			// P2 不用 buffer
+	_nAfterPlaceStep := 3250;		// 圓帶後跳到 round 2 設定
+	uiExecutingStep := 1100;		// 跳到 A2 流程
+
+// Round 2 設定 (由 _nAfterPlaceStep 從 60300 跳轉至此)
+3250:
+	_bTargetIsA := FALSE;
+	_nBufferCount := 0;
+	_nAfterPlaceStep := 0;			// round 2 結束後回 99000
+	uiExecutingStep := 1100;		// 跳到 A2 流程
+
+// ========== C4: 不同源含 P3+ — 兩輪各走 A 系列流程 ==========
+// 不同倉/不同軌，至少一邊 >= P3
+// 深度較大的一邊先做 (深度相同 → A 先做)
+// 每輪根據該邊深度走 A1/A2/A3，含 buffer 清除還原
+// Round 1: 深側目標, 淺側當協助 → 跳 A系列 → 單爪放圓帶/buffer還原 → 跳 3350
+// Round 2: 淺側目標, 深側當協助 → 跳 A系列 → 單爪放圓帶/buffer還原 → 完成
+3300:
+	// Round 1 設定: 深度較大的一邊先做
+	IF _nTargetA >= _nTargetB THEN
+		_bTargetIsA := TRUE;			// A 較深 (或等深), A 先做
+		_nBufferCount := MAX(_nTargetA - 2, 0);
+	ELSE
+		_bTargetIsA := FALSE;			// B 較深, B 先做
+		_nBufferCount := MAX(_nTargetB - 2, 0);
+	END_IF
+	_nAfterPlaceStep := 3350;			// round 1 完成後跳到 round 2 設定
+	// 根據深度跳到對應 A 系列入口
+	IF _bTargetIsA THEN
+		CASE _nTargetA OF
+			1: uiExecutingStep := 1000;	// A1
+			2: uiExecutingStep := 1100;	// A2
+		ELSE uiExecutingStep := 1200;		// A3
+		END_CASE
+	ELSE
+		CASE _nTargetB OF
+			1: uiExecutingStep := 1000;	// A1
+			2: uiExecutingStep := 1100;	// A2
+		ELSE uiExecutingStep := 1200;		// A3
+		END_CASE
+	END_IF
+
+// Round 2 設定 (由 _nAfterPlaceStep 從 60300/90010 跳轉至此)
+3350:
+	// 切換到另一邊做 round 2
+	IF _nTargetA >= _nTargetB THEN
+		_bTargetIsA := FALSE;			// round 1 做了 A, 現在做 B
+		_nBufferCount := MAX(_nTargetB - 2, 0);
+	ELSE
+		_bTargetIsA := TRUE;			// round 1 做了 B, 現在做 A
+		_nBufferCount := MAX(_nTargetA - 2, 0);
+	END_IF
+	_nAfterPlaceStep := 0;				// round 2 完成後回 99000
+	_nBufferStep := 1;
+	// 根據深度跳到對應 A 系列入口
+	IF _bTargetIsA THEN
+		CASE _nTargetA OF
+			1: uiExecutingStep := 1000;	// A1
+			2: uiExecutingStep := 1100;	// A2
+		ELSE uiExecutingStep := 1200;		// A3
+		END_CASE
+	ELSE
+		CASE _nTargetB OF
+			1: uiExecutingStep := 1000;	// A1
+			2: uiExecutingStep := 1100;	// A2
+		ELSE uiExecutingStep := 1200;		// A3
+		END_CASE
+	END_IF
+
+// ========== 60000: 單爪放盒到圓帶 ==========
+// 60000: 手臂清除命令 + 取得圓帶存取權 (不等手臂空閒，並行啟動)
+// 60100: 圓帶移動到站位 + 等待手臂空閒 (並行) → 兩者都完成才進入 60200
+// 60200: 手臂將盒子放到圓帶指定載具位置
+// 60300: 釋放圓帶存取權 + 清除命令 → 如有 buffer 跳 90000，否則跳 99000 完成
+60000:
+	// 圓帶先動 — 不等手臂完全空閒，手臂清除與圓帶移動並行
+	WareHouse.M_ResetReloadBox();
+	Robot.M_ResetAllCommand();
+	CarrierReady_1st := FALSE;
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	uiExecutingStep := 60100;
+
+60100:
+	// 圓帶移動 (與手臂清除並行)
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	IF _bTargetIsA THEN
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := Info.ClampA_Setting.RoundBeltSetting.Station);
+	ELSE
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := Info.ClampB_Setting.RoundBeltSetting.Station);
+	END_IF
+	IF RoundBelt.xDone AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving THEN
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+		CarrierReady_1st := TRUE;
+	END_IF
+	// 圓帶到位 + 手臂完全空閒 → 進入放盒
+	IF CarrierReady_1st AND
+		NOT Robot._DI1.Done AND
+		NOT (Robot._DI1.AbsMoveA OR Robot._DI1.AbsMoveB OR Robot._DI1.WarehouseA OR Robot._DI1.WarehouseB) THEN
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 60200;
+	END_IF
+	IF RoundBelt.xError THEN
+		_Error := TRUE;
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+		strStatus := 'RoundBelt error';
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 60100; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+60200:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			Robot.M_StartMoveBoxToRoundBelt_ClampA(
+				CarrierSelect := Info.ClampA_Setting.RoundBeltSetting.ReloadCarrier,
+				A2_Sensor := A2_Sensor, A3_Sensor := A3_Sensor,
+				RoundBeltSafe := CarrierReady_1st);
+		ELSE
+			Robot.M_StartMoveBoxToRoundBelt_ClampB(
+				CarrierSelect := Info.ClampB_Setting.RoundBeltSetting.ReloadCarrier,
+				A2_Sensor := A2_Sensor, A3_Sensor := A3_Sensor,
+				RoundBeltSafe := CarrierReady_1st);
+		END_IF
+	ELSE
+		// 圓帶放盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 60300;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 60200; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+60300:
+	// 釋放圓帶資源 + 清除手臂命令 → 三路分派:
+	// 1. buffer > 0: 先去 90000 逆序還原 buffer 盒子 (還原完再由 90010 判斷跳轉)
+	// 2. _nAfterPlaceStep > 0: C3/C4 的下一輪入口 (如 3250/3350)
+	// 3. 否則: 99000 全部完成
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		IF _nBufferCount > 0 THEN
+			uiExecutingStep := 90000;
+		ELSIF _nAfterPlaceStep > 0 THEN
+			uiExecutingStep := _nAfterPlaceStep;
+			_nAfterPlaceStep := 0;
+		ELSE
+			uiExecutingStep := 99000;
+		END_IF
+	END_IF
+
+// ========== 80000: 雙爪放盒到圓帶 (A 爪先放, B 爪後放) ==========
+// 80000: 清除命令 + 立即進入圓帶流程 (不等手臂空閒，並行啟動)
+// 81000: 雙爪放圓帶主迴圈 (子步序 uiPlaceBothStep):
+//   0:  取得圓帶存取權
+//   10: 移動圓帶到 A 爪站位 → 等待到位
+//   11: 等待 A 爪載具 sensor 確認 (A2/A3) → 再次取得圓帶存取權
+//   20: 等待 Robot Notification (A 爪放完) → Reset 圓帶動作
+//   30: 移動圓帶到 B 爪站位
+//   40: 等待 B 爪載具到位
+//   99: 等待手臂完成
+// 81080: 釋放圓帶存取權 + 清除命令 → buffer 還原或完成
+80000:
+	// 圓帶先動 — 不等手臂完全空閒，手臂清除與圓帶移動並行
+	WareHouse.M_ResetReloadBox();
+	Robot.M_ResetAllCommand();
+	uiExecutingStep := 81000;
+
+81000:
+	// ── 子步序: 圓帶側與手臂側並行協調 ──
+	// 圓帶側 (uiPlaceBothStep): 依序移到 A站位→確認載具→等A放完→移到 B站位→確認載具
+	// 手臂側 (下方 M_StartMoveBoxToRoundBelt_Both): 每 cycle 持續呼叫，根據 CarrierReady 旗標推進
+	CASE uiPlaceBothStep OF
+	0:
+		// 初始化: 取得圓帶控制權，立即開始移動
+		CarrierReady_1st := FALSE;
+		CarrierReady_2nd := FALSE;
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		uiPlaceBothStep := 10;
+	10:
+		// 圓帶移到 A 爪站位，等待到位 (與手臂清除並行)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := Info.ClampA_Setting.RoundBeltSetting.Station);
+		IF RoundBelt.xDone THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+			CarrierReady_1st := TRUE;	// → 手臂開始 A 爪放盒
+			uiPlaceBothStep := 11;
+		END_IF
+		IF RoundBelt.xError THEN
+			_Error := TRUE;
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			strStatus := 'RoundBelt error';
+		END_IF
+	11:
+		// 等待 A 爪對應的載具 sensor 偵測到位 (確認載具已在手臂放盒範圍內)
+		// A2 載具用 A2_Sensor 確認, A3 載具用 A3_Sensor 確認
+		IF ((Info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A2) AND A2_Sensor) OR
+			((Info.ClampA_Setting.RoundBeltSetting.ReloadCarrier = E_ReloadRoundBelt_PlaceAddress.A3) AND A3_Sensor) THEN
+			// 載具到位 → 重新取得圓帶權限 (step 10 釋放過)，準備等手臂放完後移到 B 站位
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+			uiPlaceBothStep := 20;
+		END_IF
+	20:
+		// 等待手臂 Notification = A 爪放盒完成信號 (手臂程式中途發出，不等全部結束)
+		IF Robot._DI1.Notification THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			// 確認圓帶不在 Done 狀態 (已被 Reset)，才開始移到 B 站位
+			IF NOT RoundBelt.xDone THEN
+				uiPlaceBothStep := 30;
+			END_IF
+		END_IF
+	30:
+		// 圓帶移到 B 爪站位
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := Info.ClampB_Setting.RoundBeltSetting.Station);
+		uiPlaceBothStep := 40;
+	40:
+		// 等待 B 爪站位到位
+		IF RoundBelt.xDone THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			CarrierReady_2nd := TRUE;	// → 手臂開始 B 爪放盒
+			uiPlaceBothStep := 99;
+		END_IF
+		IF RoundBelt.xError THEN
+			_Error := TRUE;
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			strStatus := 'RoundBelt error';
+		END_IF
+	99: // 圓帶側完成，等待手臂側 Done
+	END_CASE
+
+	// 手臂側: 每 cycle 持續呼叫，手臂內部根據 CarrierReady 旗標推進雙爪放盒流程
+	IF NOT Robot._DI1.Done THEN
+		Robot.M_StartMoveBoxToRoundBelt_Both(
+			CarrierSelect_ClampA := Info.ClampA_Setting.RoundBeltSetting.ReloadCarrier,
+			CarrierSelect_ClampB := Info.ClampB_Setting.RoundBeltSetting.ReloadCarrier,
+			A2_Sensor := A2_Sensor, A3_Sensor := A3_Sensor,
+			RoundBeltSafe_1st := CarrierReady_1st,
+			RoundBeltSafe_2nd := CarrierReady_2nd);
+	ELSE
+		// 圓帶放盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 81080;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 81000; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+81080:
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		IF _nBufferCount > 0 THEN
+			uiExecutingStep := 90000;		// 有 buffer 要還原
+		ELSIF _nAfterPlaceStep > 0 THEN
+			uiExecutingStep := _nAfterPlaceStep;	// C3/C4 跳轉到下一輪
+			_nAfterPlaceStep := 0;
+		ELSE
+			uiExecutingStep := 99000;		// 完成
+		END_IF
+	END_IF
+
+// ========== 90000: Buffer 盒子逆序還原 ==========
+// 將之前搬到 buffer 的盒子，逆序 (後進先出) 放回倉儲
+// 雙爪路徑: 一次從 buffer 取兩個 → 依序放回倉儲
+// 單爪路徑: 剩一個時用目標爪處理
+90000:
+	_nBufferStep := _nBufferCount;
+	BoxReady_1st := FALSE;
+	BoxReady_2nd := FALSE;
+	uiExecutingStep := 90005;
+
+90005:
+	IF _nBufferStep < 1 THEN
+		// buffer 還原完成 → 檢查是否有下一輪跳轉 (C3/C4)
+		IF _nAfterPlaceStep > 0 THEN
+			uiExecutingStep := _nAfterPlaceStep;
+			_nAfterPlaceStep := 0;
+		ELSE
+			uiExecutingStep := 99000;
+		END_IF
+	ELSIF _nBufferStep >= 2 THEN
+		// 剩 2 個以上: 雙爪一次還原兩個
+		uiExecutingStep := 90010;
+	ELSE
+		// 剩 1 個: 單爪還原
+		uiExecutingStep := 90040;
+	END_IF
+
+// ===== 雙爪 buffer 還原路徑 =====
+// Step 1: 雙爪從 buffer 取兩個盒子
+90010:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := TRUE, UseClampA := TRUE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := _nBufferStep - 1,
+				BoxReady_1 := TRUE, BoxReady_2 := TRUE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := TRUE, UseClampA := TRUE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep - 1, ClampB_Address := _nBufferStep,
+				BoxReady_1 := TRUE, BoxReady_2 := TRUE);
+		END_IF
+	ELSE
+		// buffer 取盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 90015;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 90010; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+90015:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 90020;
+	END_IF
+
+// Step 2: 目標爪放回倉儲 (buffer 高位, LIFO 先還原)
+90020:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Place 完成通知: 目標爪放回倉儲 (buffer 高位)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := FALSE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 90025;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 90020; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+90025:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 90030;
+	END_IF
+
+// Step 3: 協助爪放回倉儲 (buffer 低位)
+90030:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampB(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_2nd := BoxReady_2nd);
+		ELSE
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampA(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_1st := BoxReady_1st);
+		END_IF
+	ELSE
+		// Place 完成通知: 協助爪放回倉儲 (buffer 低位)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := FALSE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 90035;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 90030; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+90035:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep - 2;
+		uiExecutingStep := 90005;
+	END_IF
+
+// ===== 單爪 buffer 還原路徑 (剩一個) =====
+90040:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox := TRUE, UseClampA := TRUE, UseClampB := FALSE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := _nBufferStep, ClampB_Address := 0,
+				BoxReady_1 := TRUE, BoxReady_2 := FALSE);
+		ELSE
+			Robot.M_StartRobotAbsMove(
+				GetBox := TRUE, UseClampA := FALSE, UseClampB := TRUE,
+				Area := E_RobotArea.BufferArea,
+				ClampA_Address := 0, ClampB_Address := _nBufferStep,
+				BoxReady_1 := FALSE, BoxReady_2 := TRUE);
+		END_IF
+	ELSE
+		// buffer 取盒不記數 (非倉儲操作)
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 90045;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 90040; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+90045:
+	Robot.M_ResetAllCommand();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		uiExecutingStep := 90050;
+	END_IF
+
+90050:
+	IF NOT Robot._DI1.Done THEN
+		IF _bTargetIsA THEN
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsA, WarehouseCoordinates := _coordsA);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampA(WareHouseSelect := _wsA, Info := _coordsA, BoxReady_1st := BoxReady_1st);
+		ELSE
+			WareHouse.M_StartFeedInBox(WareHouseSelect := _wsB, WarehouseCoordinates := _coordsB);
+			IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+			Robot.M_StartWareHousePlaceBox_ClampB(WareHouseSelect := _wsB, Info := _coordsB, BoxReady_2nd := BoxReady_2nd);
+		END_IF
+	ELSE
+		// Place 完成通知: 放回倉儲 (buffer 逆序還原)
+		IF ActionIndex < 40 THEN
+			IF _bTargetIsA THEN
+				ActionRecords[ActionIndex].WareHouse := _wsA; ActionRecords[ActionIndex].Layer := _coordsA.Layer; ActionRecords[ActionIndex].Slide := _coordsA.Slide; ActionRecords[ActionIndex].Clamp := 0;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := _wsB; ActionRecords[ActionIndex].Layer := _coordsB.Layer; ActionRecords[ActionIndex].Slide := _coordsB.Slide; ActionRecords[ActionIndex].Clamp := 1;
+			END_IF
+			ActionRecords[ActionIndex].IsPick := FALSE;
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		tonTimeOut.IN := FALSE;
+		uiExecutingStep := 90055;
+	END_IF
+	tonTimeOut.IN := TRUE;
+	IF tonTimeOut.Q THEN uiResumeStep := 90050; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
+
+90055:
+	Robot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	IF NOT Robot._DI1.Done THEN
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+		_nBufferStep := _nBufferStep - 1;
+		uiExecutingStep := 90005;
+	END_IF
+
+// ========== 99000: 流程完成 → 等待 C# 讀取動作紀錄 ==========
+99000:
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	FeedBack := TRUE;
+	uiExecutingStep := 99100;
+
+// Step 99100: 等待 C# 確認讀取完成 (5 秒逾時保護)
+99100:
+	//tonReadComplete(IN := TRUE, PT := T#15S);
+	tonReadComplete.IN := true;
+	IF ReadComplete THEN
+		FeedBack := FALSE;
+		tonReadComplete.IN := FALSE;
+		Status := 'Process completed';
+		_Executed := TRUE;
+	ELSIF tonReadComplete.Q THEN
+		// C# 讀取逾時 → Abort + 設 resume 回 99100，Reset 後可續做
+		tonReadComplete.IN := FALSE;
+		strStatus := 'ReadComplete timeout (C# did not respond within 5s)';
+		_UniqueErrorCode := 'E_READ_COMPLETE_TIMEOUT';
+		uiResumeStep := 99100;
+		_Abort := TRUE;
+	END_IF
+
+END_CASE
+
+// 狀態轉換判斷 (每 cycle 在 CASE 之後檢查)
+// 優先順序: 完成 > 外部取消 > 中止(逾時) > 錯誤
+// _Executed: 由 step 99000 設定，需等 Robot.Halt 解除才實際轉換 (避免手臂急停中換狀態)
+// NOT Execute: 外部 (Batch FB 或 HMI) 取消 Execute，直接進入 RESETTING
+// _Abort: 由逾時或內部異常設定，進入 ABORTING 清理手臂/倉儲資源
+// _Error: 由命令驗證失敗或圓帶錯誤設定，進入 STATE_ERROR 顯示錯誤
+IF _Executed AND NOT Robot.Halt THEN
+	eState := STATE_DONE;
+ELSIF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Abort OR _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{4690878c-1fd7-4984-b127-48f280350e3c}" FolderPath="State\">
+      <Declaration><![CDATA[// 重置狀態 — 釋放所有資源 (圓帶/倉儲/手臂)，清除爪動作旗標
+// 如果有恢復旗標 (_bRetry)，回到 STATE_EXECUTING 的中斷步序
+METHOD M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _Executed THEN Done := TRUE; END_IF
+
+CASE uiResettingStep OF
+0:
+	// 清除動作紀錄 + 握手旗標
+	MEMSET(ADR(ActionRecords), 0, SIZEOF(ActionRecords));
+	ActionIndex := 0;
+	FeedBack := FALSE;
+
+	// 釋放所有外部資源 → 圓帶/倉儲/手臂回到初始狀態
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+	DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+	WareHouse.M_ResetReloadBox();
+	WareHouse.M_ResetFeedInBox();
+	Robot.M_ResetAllCommand();
+
+	// 清除內部狀態
+	tonTimeOut.IN := FALSE;
+	tonReadComplete.IN := FALSE;
+	strStatus := '';
+	_UniqueErrorCode := '0';
+
+	IF _bRetry THEN
+		_bRetry := FALSE;
+		eState := STATE_EXECUTING;
+		RETURN;
+	END_IF
+	uiResettingStep := 100;
+100:
+	_ResetCompleted := TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+	eState := STATE_DORMANT;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.A00_BasicUnits">
+      <LineId Id="2" Count="0" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_CheckCommand">
+      <LineId Id="3" Count="18" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_ClassifyScenario">
+      <LineId Id="3" Count="66" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_IsSameSource">
+      <LineId Id="3" Count="9" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_ABORTED">
+      <LineId Id="42" Count="1" />
+      <LineId Id="3" Count="3" />
+      <LineId Id="38" Count="1" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="7" Count="1" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="9" Count="3" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_ABORTING">
+      <LineId Id="3" Count="1" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="5" Count="2" />
+      <LineId Id="38" Count="1" />
+      <LineId Id="8" Count="9" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="18" Count="2" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_DONE">
+      <LineId Id="3" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_DORMANT">
+      <LineId Id="3" Count="40" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_ERROR">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_EXECUTING">
+      <LineId Id="3" Count="1649" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="1654" Count="308" />
+      <LineId Id="2152" Count="0" />
+      <LineId Id="1963" Count="31" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_RESETTING">
+      <LineId Id="3" Count="34" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ReverseBatchBoxResult" Id="{a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d}">
+    <Declaration><![CDATA[TYPE ST_ReverseBatchBoxResult :
+STRUCT
+	bActive		: BOOL;		// 此 slot 有資料
+	bIsOK		: BOOL;		// 拍照結果 OK/NG
+	iWarehouse	: INT;		// 倉 (OK 時有效)
+	iLevel		: INT;		// 層 (OK 時有效)
+	iTrack		: INT;		// 軌 (OK 時有效)
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

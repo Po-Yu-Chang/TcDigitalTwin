@@ -1092,6 +1092,12 @@
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_RobotSelfHoming.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_WareHouseInnerPickToRoundBelt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_WareHouseInnerPickToRoundBeltBatch.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_WareHouseWithRobotMove_V3.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -1114,6 +1120,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_DuoCylinders.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_ReverseBatchBoxQueue.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_ReverseBatchBoxResult.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\st_RoundBeltAutoSingleMove_Status.TcDUT">
@@ -1171,6 +1183,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_DifferentCVCamera.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_SameSizeCVCamera_Reverse.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_SameSizeCV_ReverseBatchPickAndPhoto.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_SameSizeCV_ReverseBoxToWareHouse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_TurnTableService.TcPOU">

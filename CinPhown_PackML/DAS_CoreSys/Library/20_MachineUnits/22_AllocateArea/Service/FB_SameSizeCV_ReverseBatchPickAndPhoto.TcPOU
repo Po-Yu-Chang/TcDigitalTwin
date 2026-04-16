@@ -1,0 +1,1120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_SameSizeCV_ReverseBatchPickAndPhoto" Id="{1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d}" SpecialFunc="None">
+    <Declaration><![CDATA[// FB_SameSizeCV_ReverseBatchPickAndPhoto
+// 逆向拍照批次入料服務
+// Pipeline 三軌平行:
+//   Track 1 (小手臂): 從鐵盤取盒放到同尺寸軌道 (ShippingRobotTransfer)
+//   Track 2 (拍照):   觸發逆向拍照, 接收 C# 回傳結果
+//   Track 3 (大手臂): 雙爪/單爪搬運到倉庫或 NG 區 (倉儲 Fanuc Robot)
+//
+// 狀態機架構: FB_ObjectBase_V2 + IBasicElement
+//   DORMANT → EXECUTING → DONE / ABORTING → ABORTED → RESETTING → DORMANT
+//
+// Handshake: 由 FB_AllocateAreaWithRoundbelt 逐欄位 link ADS 結構
+
+FUNCTION_BLOCK FB_SameSizeCV_ReverseBatchPickAndPhoto EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+
+VAR_INPUT
+	// ===== 鐵盤 Sensor (C# → PLC, 目前 C# 模擬，後續改硬體訊號) =====
+	bLeftPlateReady		: BOOL;
+	bRightPlateReady	: BOOL;
+
+	// ===== 鐵盤配置 (C# → PLC) =====
+	LeftPlate			: ARRAY[0..3] OF BOOL;
+	RightPlate			: ARRAY[0..3] OF BOOL;
+	bLeftConfigReady	: BOOL;
+	bRightConfigReady	: BOOL;
+
+	// ===== 拍照結果 (C# → PLC) =====
+	BoxCameraDone		: BOOL;
+	CameraIsOK			: BOOL;
+	CameraWarehouse		: INT;
+	CameraLevel			: INT;
+	CameraTrack			: INT;
+
+	// ===== 硬體 REFERENCE =====
+	Cylinder			: REFERENCE TO UNI_CylinderList;
+	Motor				: REFERENCE TO UNI_MotorList;
+	Input				: ST_InputTable;
+	OutPut				: ST_OutputTable;
+	StorageRobot		: REFERENCE TO FB_FanucRobot_Basic_V2;
+	ShippingRobot		: REFERENCE TO FB_FanucRobot_Basic_V2;
+	WareHouse			: REFERENCE TO FB_WareHouse;
+	
+	Stop				: BOOL;
+
+	// ===== 設定 =====
+	PlateWaitTimeout	: TIME := T#60S;
+	WaitPairTimeout		: TIME := T#15S;
+	BatchTimeout		: TIME := T#600S;
+END_VAR
+
+VAR_OUTPUT
+	// ===== 鐵盤狀態 (PLC → C#) =====
+	bLeftPlateArrived	: BOOL;
+	bRightPlateArrived	: BOOL;
+	bLeftPlateDone		: BOOL;
+	bRightPlateDone		: BOOL;
+
+	// ===== 拍照請求 (PLC → C#) =====
+	UseBoxCamera		: BOOL;
+
+	// ===== 狀態監控 (PLC → C#) =====
+	uiUnphotographedCount	: UINT;
+	uiTotalProcessed		: UINT;
+	uiTransportedCount		: UINT;
+	
+	
+END_VAR
+
+VAR
+	strStatus			: STRING;
+	_UniqueErrorCode	: STRING;
+	_bRetry				: BOOL;
+
+	// ===== Track 1: 小手臂取盒 =====
+	uiPickStep				: UINT := 0;
+	uiCurrentSide			: UINT := 0;		// 0=Left, 1=Right
+	uiCurrentSlot			: UINT := 0;		// 0..3
+	bPickTrackDone			: BOOL;
+	bLeftProcessed			: BOOL;
+	bRightProcessed			: BOOL;
+	bLeftPlateReady_Prev	: BOOL;
+	bRightPlateReady_Prev	: BOOL;
+	bLeftConfigLatched		: BOOL;
+	bRightConfigLatched		: BOOL;
+	bLeftConfigReady_Prev	: BOOL;
+	bRightConfigReady_Prev	: BOOL;
+
+	// ===== Track 2: 拍照 =====
+	uiCameraStep			: UINT := 0;
+	uiCameraRequestCount	: UINT := 0;
+
+	// ===== Track 3: 大手臂搬運 =====
+	uiTransportStep		: UINT := 0;
+	BoxQueue			: ST_ReverseBatchBoxQueue;
+	stGripA				: ST_ReverseBatchBoxResult;
+	stGripB				: ST_ReverseBatchBoxResult;
+	bUseDualGrip		: BOOL;
+	bTransportBusy		: BOOL;
+
+	// ===== Timers =====
+	tonTimeOut				: TON;
+	TON_PlateWaitTimeout	: TON;
+	TON_PickupTimeout		: TON;
+	TON_CameraTimeout		: TON;
+	TON_ConfigTimeout		: TON;
+	TON_WaitPairTimeout		: TON;
+	TON_CameraClearTimeout	: TON;
+
+	// ===== Resume =====
+	uiResumePickStep		: UINT := 0;
+	uiResumeCameraStep		: UINT := 0;
+	uiResumeTransportStep	: UINT := 0;
+	
+	// 內部使用Service
+	ShippingTransfer	: FB_ShippingRobotTransfer;
+	BoxToWareHouse		: FB_SameSizeCV_ReverseBoxToWareHouse;
+	_fbSameSizeCV_ReverseCamera	: FB_SameSizeCVCamera_Reverse;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
+]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{2b3c4d5e-6f7a-4b8c-9dae-1f2a3b4c5d6e}" />
+    <Folder Name="State" Id="{a1b2c3d4-e5f6-4a7b-8c9d-1234567890ab}" />
+    <Action Name="A00_BasicUnits" Id="{3c4d5e6f-7a8b-4c9d-aebf-2a3b4c5d6e7f}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(PT := BatchTimeout);
+TON_PlateWaitTimeout(PT := PlateWaitTimeout);
+TON_PickupTimeout(PT := T#60S);
+TON_CameraTimeout(PT := T#600S);
+TON_ConfigTimeout(PT := T#60S);
+TON_WaitPairTimeout(PT := WaitPairTimeout);
+TON_CameraClearTimeout(PT := T#30S);
+
+
+ShippingTransfer(
+	Execute:= , 
+	Abort:= , 
+	Reset:= , 
+	Pause:= , 
+	ObjectName:= , 
+	Busy=> , 
+	Done=> , 
+	Aborted=> , 
+	Error=> , 
+	Paused=> , 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	Robot:= ShippingRobot, 
+	Info:= , 
+	Stop:= Stop, 
+	Input:= INPUT, 
+	Output:= OUTPUT, 
+	Motor:= Motor, 
+	Cylinder:= Cylinder, 
+	Buzz:= , 
+	RedLamp:= , 
+	bCompleteRequest:= , 
+	fbShippingHomingBusy:= , 
+	bTransCVInPosition_Left=> , 
+	bTransCVInPosition_Right=> );
+	
+BoxToWareHouse(
+	Execute:= , 
+	Abort:= , 
+	Reset:= , 
+	Pause:= , 
+	ObjectName:= , 
+	Busy=> , 
+	Done=> , 
+	Aborted=> , 
+	Error=> , 
+	Paused=> , 
+	ErrorID=> , 
+	Status=> , 
+	UniqueErrorCode=> , 
+	bBoxA_Enable:= , 
+	bBoxA_IsOK:= , 
+	iBoxA_Warehouse:= , 
+	iBoxA_Level:= , 
+	iBoxA_Track:= , 
+	bBoxB_Enable:= , 
+	bBoxB_IsOK:= , 
+	iBoxB_Warehouse:= , 
+	iBoxB_Level:= , 
+	iBoxB_Track:= , 
+	NGAreaPosition:= , 
+	PickupPosition:= , 
+	Cylinder:= Cylinder, 
+	Motor:= Motor, 
+	Input:= Input, 
+	OutPut:= OutPut, 
+	StorageRobot:= StorageRobot, 
+	WareHouse:= WareHouse, 
+	Stop:= Stop, 
+	bBoxA_Done=> , 
+	bBoxB_Done=> );
+	
+_fbSameSizeCV_ReverseCamera(
+	xDone=> , 
+	xBusy=> , 
+	xError=> , 
+	xExecute:= , 
+	xAbort:= , 
+	xReset:= , 
+	Cylinder:= Cylinder, 
+	TimeOut:= , 
+	Input:= input, 
+	OutPut:= output, 
+	Motor:= Motor, 
+	BoxCameraDone:= , 
+	xAborted=> , 
+	iErrorID=> , 
+	ErrorMsg=> , 
+	UseBoxCamera=> );]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_GetErrorMsg" Id="{9cadbedf-d0e1-4f23-a4b5-8a9b0c1d2e3f}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_GetErrorMsg : T_MaxString
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _UniqueErrorCode = 'E_PICKUP_TIMEOUT' THEN
+	M_GetErrorMsg := 'ReverseBatch: ShippingRobot pickup timeout';
+ELSIF _UniqueErrorCode = 'E_BIGARM_TIMEOUT' THEN
+	M_GetErrorMsg := 'ReverseBatch: BigArm transport timeout';
+ELSIF _UniqueErrorCode = 'E_CONVEYOR_FULL' THEN
+	M_GetErrorMsg := 'ReverseBatch: Conveyor full (queue overflow)';
+ELSIF _UniqueErrorCode = 'E_CONFIG_TIMEOUT' THEN
+	M_GetErrorMsg := 'ReverseBatch: Waiting C# plate config timeout';
+ELSIF _UniqueErrorCode = 'E_CAMERA_TIMEOUT' THEN
+	M_GetErrorMsg := 'ReverseBatch: Camera timeout';
+ELSIF _UniqueErrorCode = 'E_CAMERA_CLEAR_TIMEOUT' THEN
+	M_GetErrorMsg := 'ReverseBatch: C# did not clear BoxCameraDone';
+ELSIF _UniqueErrorCode = 'E_BATCH_TIMEOUT' THEN
+	M_GetErrorMsg := 'ReverseBatch: Batch global timeout';
+ELSIF _UniqueErrorCode = '' THEN
+	M_GetErrorMsg := 'No Error';
+ELSE
+	M_GetErrorMsg := _UniqueErrorCode;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{a7b8c9da-ebfc-4d01-4c5d-7890abcdef01}" FolderPath="State\">
+      <Declaration><![CDATA[// 已中止狀態 — 等待 Reset 信號，支援 Resume
+METHOD M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy 			:= FALSE;
+	Aborted 		:= TRUE;
+	Error 			:= TRUE;
+	Status 			:= strStatus;
+	uiAbortingStep 	:= 0;
+	_AbortCompleted := FALSE;
+END_IF
+
+
+IF reset THEN
+	_bRetry := TRUE;
+	Aborted := FALSE;
+	Error 	:= FALSE;	
+END_IF
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+
+// 等待外部 Reset → 恢復或重置
+IF Execute
+	AND _bRetry 
+	AND NOT StorageRobot._DI1.Error 
+	AND NOT ShippingRobot._DI1.Error 
+	AND NOT StorageRobot.Halt
+	AND NOT StorageRobot.Halt
+THEN
+	status := 'Retry Complete';
+	// 恢復三軌步驟
+	uiPickStep := uiResumePickStep;
+	uiCameraStep := uiResumeCameraStep;
+	uiTransportStep := uiResumeTransportStep;
+	uiResumePickStep := 0;
+	uiResumeCameraStep := 0;
+	uiResumeTransportStep := 0;
+	// 跳過初始化，直接進入三軌運行
+	uiExecutingStep := 100;
+
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{f6a7b8c9-daeb-4fc0-3b4c-67890abcdef0}" FolderPath="State\">
+      <Declaration><![CDATA[// 中止狀態 — 停止所有 Track，保存 Resume 步驟
+METHOD M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+0:
+	// 保存所有 Track Resume 步驟 (如果尚未保存)
+	IF uiResumePickStep = 0 AND uiResumeTransportStep = 0 AND uiResumeCameraStep = 0 THEN
+		uiResumePickStep := uiPickStep;
+		uiResumeCameraStep := uiCameraStep;
+		uiResumeTransportStep := uiTransportStep;
+	END_IF
+
+	// 清除所有 Timer
+	tonTimeOut.IN				:= FALSE;
+	TON_PlateWaitTimeout.IN		:= FALSE;
+	TON_PickupTimeout.IN		:= FALSE;
+	TON_CameraTimeout.IN		:= FALSE;
+	TON_ConfigTimeout.IN		:= FALSE;
+	TON_WaitPairTimeout.IN		:= FALSE;
+	TON_CameraClearTimeout.IN	:= FALSE;
+
+	// 清除輸出
+	UseBoxCamera := FALSE;
+
+	// 停止小手臂
+	ShippingTransfer.Execute := FALSE;
+	ShippingTransfer.Abort := TRUE;
+
+	// 停止大手臂子服務
+	BoxToWareHouse.Execute := FALSE;
+	BoxToWareHouse.Abort := TRUE;
+
+	uiAbortingStep := 100;
+
+100:
+	// 等待子服務停止 (ShippingTransfer + BoxToWareHouse)
+	IF (NOT ShippingTransfer.Busy OR ShippingTransfer.Aborted)
+	   AND (NOT BoxToWareHouse.Busy OR BoxToWareHouse.Aborted) THEN
+		ShippingTransfer.Abort := FALSE;
+		BoxToWareHouse.Abort := FALSE;
+		uiAbortingStep := 9999;
+	END_IF
+
+9999:
+	_AbortCompleted := TRUE;
+END_CASE
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF _AbortCompleted THEN
+	eState := STATE_Aborted;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{d4e5f6a7-b8c9-4dae-1f2a-4567890abcde}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+tonTimeOut.IN := FALSE;
+
+// 等待外部取消 Execute 後進入 RESETTING
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{b2c3d4e5-f6a7-4b8c-9d0e-234567890abc}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+VAR
+	i : UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 清除所有輸出與內部狀態
+Busy				:= FALSE;
+Done				:= FALSE;
+Aborted				:= FALSE;
+Error				:= FALSE;
+ErrorID				:= 0;
+Status				:= '';
+_ResetCompleted		:= FALSE;
+_Error				:= FALSE;
+_Executed			:= FALSE;
+_Abort				:= FALSE;
+uiExecutingStep		:= 0;
+uiResettingStep		:= 0;
+uiAbortingStep		:= 0;
+
+tonTimeOut.IN		:= FALSE;
+_UniqueErrorCode	:= '';
+_bRetry				:= FALSE;
+
+// 清除 Track 變數
+uiPickStep 			:= 0;
+uiCameraStep 		:= 0;
+uiTransportStep 	:= 0;
+uiCameraRequestCount := 0;
+uiUnphotographedCount := 0;
+uiTotalProcessed 	:= 0;
+uiTransportedCount 	:= 0;
+bPickTrackDone 		:= FALSE;
+bLeftProcessed 		:= FALSE;
+bRightProcessed 	:= FALSE;
+bTransportBusy 		:= FALSE;
+bUseDualGrip 		:= FALSE;
+UseBoxCamera 		:= FALSE;
+bLeftPlateArrived 	:= FALSE;
+bRightPlateArrived 	:= FALSE;
+bLeftPlateDone 		:= FALSE;
+bRightPlateDone 	:= FALSE;
+bLeftPlateReady_Prev := FALSE;
+bRightPlateReady_Prev := FALSE;
+bLeftConfigLatched 	:= FALSE;
+bRightConfigLatched := FALSE;
+bLeftConfigReady_Prev := FALSE;
+bRightConfigReady_Prev := FALSE;
+
+uiResumePickStep 	:= 0;
+uiResumeCameraStep 	:= 0;
+uiResumeTransportStep := 0;
+
+// 清除 Timers
+TON_PlateWaitTimeout.IN		:= FALSE;
+TON_PickupTimeout.IN		:= FALSE;
+TON_CameraTimeout.IN		:= FALSE;
+TON_ConfigTimeout.IN		:= FALSE;
+TON_WaitPairTimeout.IN		:= FALSE;
+TON_CameraClearTimeout.IN	:= FALSE;
+
+// 清除佇列
+BoxQueue.WriteIdx 	:= 0;
+BoxQueue.ReadIdx 	:= 0;
+BoxQueue.Count 		:= 0;
+FOR i := 0 TO 15 DO
+	BoxQueue.Boxes[i].bActive := FALSE;
+END_FOR
+stGripA.bActive := FALSE;
+stGripB.bActive := FALSE;
+
+_AbortCompleted := FALSE;
+
+// 監聽外部 Execute/Reset (由 FB_AllocateAreaWithRoundbelt link ADS)
+IF Execute AND NOT Stop THEN
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{e5f6a7b8-c9da-4ebf-2a3b-567890abcdef}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Error := TRUE;
+Status := strStatus;
+tonTimeOut.IN := FALSE;
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{c3d4e5f6-a7b8-4c9d-0e1f-34567890abcd}" FolderPath="State\">
+      <Declaration><![CDATA[// 執行主狀態 — Pipeline 三軌平行
+// ═══════════════════════════════════════════════════
+// uiExecutingStep:
+//   0:   初始化 (清除計數/佇列)
+//   100: 三軌平行運行 + Done 判斷
+// ═══════════════════════════════════════════════════
+METHOD M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := TRUE;
+tonTimeOut.IN := TRUE;
+
+// 外部中止 (由 FB_AllocateAreaWithRoundbelt 傳入 Abort)
+IF Abort THEN
+	strStatus := 'Aborted';
+	_UniqueErrorCode := 'E_ABORT';
+	_Abort := TRUE;
+	RETURN;
+END_IF
+
+// 批次全域逾時
+IF tonTimeOut.Q THEN
+	strStatus := 'Batch timeout';
+	_UniqueErrorCode := 'E_BATCH_TIMEOUT';
+	// 保存所有 Track 的 Resume 步驟
+	uiResumePickStep := uiPickStep;
+	uiResumeCameraStep := uiCameraStep;
+	uiResumeTransportStep := uiTransportStep;
+	_Abort := TRUE;
+	RETURN;
+END_IF
+
+// Stop 時暫停所有 Timeout (含批次全域逾時)
+IF Stop THEN
+	tonTimeOut.IN             := FALSE;
+	TON_PickupTimeout.IN      := FALSE;
+	TON_CameraTimeout.IN      := FALSE;
+	TON_ConfigTimeout.IN      := FALSE;
+	TON_WaitPairTimeout.IN    := FALSE;
+	TON_CameraClearTimeout.IN := FALSE;
+END_IF
+
+CASE uiExecutingStep OF
+
+// ═══════════════════════════════════════════════════
+// Step 0: 初始化
+// ═══════════════════════════════════════════════════
+0:
+	uiPickStep := 0;
+	uiCameraStep := 0;
+	uiTransportStep := 0;
+	uiCameraRequestCount := 0;
+	uiUnphotographedCount := 0;
+	uiTotalProcessed := 0;
+	uiTransportedCount := 0;
+	bPickTrackDone := FALSE;
+	bLeftProcessed := FALSE;
+	bRightProcessed := FALSE;
+	bTransportBusy := FALSE;
+	bUseDualGrip := FALSE;
+	UseBoxCamera := FALSE;
+	bLeftPlateArrived := FALSE;
+	bRightPlateArrived := FALSE;
+	bLeftPlateDone := FALSE;
+	bRightPlateDone := FALSE;
+	bLeftPlateReady_Prev := FALSE;
+	bRightPlateReady_Prev := FALSE;
+	bLeftConfigLatched := FALSE;
+	bRightConfigLatched := FALSE;
+	bLeftConfigReady_Prev := FALSE;
+	bRightConfigReady_Prev := FALSE;
+
+	uiExecutingStep := 50;
+50:
+	Cylinder.List.fbSameSizeCV_Press3.M_Extend();
+	Cylinder.List.fbSameSizeCV_Press1.M_Extend();
+	IF 	Cylinder.List.fbSameSizeCV_Press3.InFrontPosition
+		AND	Cylinder.List.fbSameSizeCV_Press1.infrontposition
+	THEN
+		uiExecutingStep := 100;
+	END_IF
+// ═══════════════════════════════════════════════════
+// Step 100: 三軌平行運行
+// ═══════════════════════════════════════════════════
+100:
+	// C# 信號已透過 VAR_INPUT 傳入，不需要 HandShake reference 檢查
+
+	// ================================================================
+	// Track 1: 小手臂取盒 (鐵盤 → 同尺寸軌道)
+	// ================================================================
+	CASE uiPickStep OF
+		0:	// 初始化
+			bLeftProcessed 		:= FALSE;
+			bRightProcessed 	:= FALSE;
+			bPickTrackDone 		:= FALSE;
+			bLeftPlateDone 		:= FALSE;
+			bRightPlateDone 	:= FALSE;
+			bLeftPlateArrived 	:= FALSE;
+			bRightPlateArrived 	:= FALSE;
+			uiPickStep := 100;
+
+		100:	// 等待鐵盤到位
+			// 偵測到位 (上升沿) — 目前由 C# ADS 模擬寫入, 後續要改成獨立硬體訊號
+			IF bLeftPlateReady AND NOT bLeftPlateReady_Prev THEN
+				bLeftPlateArrived := TRUE;
+				bLeftProcessed := FALSE;
+				bLeftPlateDone := FALSE;		// [Fix H2] 新盤到位，清除上一盤 Done
+			END_IF
+			IF bRightPlateReady AND NOT bRightPlateReady_Prev THEN
+				bRightPlateArrived := TRUE;
+				bRightProcessed := FALSE;
+				bRightPlateDone := FALSE;		// [Fix H2]
+			END_IF
+			bLeftPlateReady_Prev := bLeftPlateReady;
+			bRightPlateReady_Prev := bRightPlateReady;
+
+			// [Fix H1] ConfigReady 上升沿鎖存
+			IF bLeftConfigReady AND NOT bLeftConfigReady_Prev THEN
+				bLeftConfigLatched := TRUE;
+			END_IF
+			IF bRightConfigReady AND NOT bRightConfigReady_Prev THEN
+				bRightConfigLatched := TRUE;
+			END_IF
+			bLeftConfigReady_Prev := bLeftConfigReady;
+			bRightConfigReady_Prev := bRightConfigReady;
+
+			// 兩邊都 OFF → Done 計時
+			TON_PlateWaitTimeout.IN := NOT bLeftPlateReady AND NOT bRightPlateReady
+										AND NOT bLeftPlateArrived AND NOT bRightPlateArrived;
+
+			// 有盤到位且 C# 已給配置 → 開始取盒 (先左後右)
+			IF bLeftPlateReady AND bLeftConfigLatched AND NOT bLeftProcessed THEN
+				bLeftPlateArrived := FALSE;
+				bLeftConfigLatched := FALSE;
+				uiCurrentSide := 0;
+				uiCurrentSlot := 0;
+				TON_ConfigTimeout.IN := FALSE;
+				uiPickStep := 200;
+			ELSIF bRightPlateReady AND bRightConfigLatched AND NOT bRightProcessed THEN
+				bRightPlateArrived := FALSE;
+				bRightConfigLatched := FALSE;
+				uiCurrentSide := 1;
+				uiCurrentSlot := 0;
+				TON_ConfigTimeout.IN := FALSE;
+				uiPickStep := 200;
+			END_IF
+
+			// 等待 C# 配置逾時
+			IF (bLeftPlateArrived OR bRightPlateArrived) THEN
+				TON_ConfigTimeout.IN := TRUE;
+				IF TON_ConfigTimeout.Q THEN
+					uiResumePickStep := uiPickStep;
+					uiResumeCameraStep := uiCameraStep;
+					uiResumeTransportStep := uiTransportStep;
+					strStatus := 'Waiting C# plate config timeout';
+					_UniqueErrorCode := 'E_CONFIG_TIMEOUT';
+					_Abort := TRUE;
+					RETURN;
+				END_IF
+			END_IF
+
+		200:	// 尋找下一個要取的格子
+			IF uiCurrentSide = 0 THEN
+				WHILE uiCurrentSlot <= 3 AND NOT LeftPlate[uiCurrentSlot] DO
+					uiCurrentSlot := uiCurrentSlot + 1;
+				END_WHILE
+			ELSE
+				WHILE uiCurrentSlot <= 3 AND NOT RightPlate[uiCurrentSlot] DO
+					uiCurrentSlot := uiCurrentSlot + 1;
+				END_WHILE
+			END_IF
+
+			IF uiCurrentSlot > 3 THEN
+				uiPickStep := 500;
+			ELSIF uiUnphotographedCount < 5 THEN
+				uiPickStep := 300;
+			ELSE
+				uiPickStep := 250;
+			END_IF
+
+		250:	// 等待軌道空間
+			IF uiUnphotographedCount < 5 THEN
+				uiPickStep := 300;
+			END_IF
+
+		300:	// 啟動小手臂
+			ShippingTransfer.Info.Source.Area := SEL(uiCurrentSide = 0,
+			E_RobotArea.ShippingRobotRight, E_RobotArea.ShippingRobotLeft);
+			ShippingTransfer.Info.Source.Position := UINT_TO_INT(uiCurrentSlot + 1);
+			ShippingTransfer.Info.Source.Get := TRUE;
+			ShippingTransfer.Info.Destination.Area := E_RobotArea.TransmitCV_End;
+			ShippingTransfer.Info.Destination.Position := 1;
+			ShippingTransfer.Info.Destination.Get := FALSE;
+			uiPickStep := 305;
+			
+		305:
+			ShippingTransfer.Execute := TRUE;
+			uiPickStep := 310;
+
+		310:	// 等待完成
+			TON_PickupTimeout.IN := TRUE;
+			IF ShippingTransfer.Done THEN
+				TON_PickupTimeout.IN := FALSE;
+				ShippingTransfer.Execute := FALSE;
+				uiPickStep := 320;
+			END_IF
+			IF ShippingTransfer.Error OR ShippingTransfer.Aborted THEN
+				TON_PickupTimeout.IN := FALSE;
+				ShippingTransfer.Execute := FALSE;
+				uiResumePickStep := 300;
+				uiResumeCameraStep := uiCameraStep;
+				uiResumeTransportStep := uiTransportStep;
+				strStatus := 'ShippingRobot pickup failed';
+				_UniqueErrorCode := 'E_PICKUP_TIMEOUT';
+				_Abort := TRUE;
+				RETURN;
+			END_IF
+			IF TON_PickupTimeout.Q THEN
+				ShippingTransfer.Execute := FALSE;
+				uiResumePickStep := 300;
+				uiResumeCameraStep := uiCameraStep;
+				uiResumeTransportStep := uiTransportStep;
+				strStatus := 'ShippingRobot pickup timeout';
+				_UniqueErrorCode := 'E_PICKUP_TIMEOUT';
+				_Abort := TRUE;
+				RETURN;
+			END_IF
+
+		320:	// 等待 DORMANT
+			IF NOT ShippingTransfer.Busy AND NOT ShippingTransfer.Done THEN
+				uiPickStep := 400;
+			END_IF
+
+		400:	// 更新計數，觸發拍照
+			uiUnphotographedCount := uiUnphotographedCount + 1;
+			uiTotalProcessed := uiTotalProcessed + 1;
+			uiCameraRequestCount := uiCameraRequestCount + 1;
+			uiCurrentSlot := uiCurrentSlot + 1;
+			uiPickStep := 200;
+
+		500:	// 本盤取完，通知 C#
+			IF uiCurrentSide = 0 THEN
+				bLeftPlateDone := TRUE;
+				bLeftProcessed := TRUE;
+			ELSE
+				bRightPlateDone := TRUE;
+				bRightProcessed := TRUE;
+			END_IF
+
+			// 檢查是否需要取另一盤
+			IF uiCurrentSide = 0 AND bRightPlateReady AND bRightConfigLatched AND NOT bRightProcessed THEN
+				bRightPlateArrived := FALSE;
+				bRightConfigLatched := FALSE;
+				uiCurrentSide := 1;
+				uiCurrentSlot := 0;
+				uiPickStep := 200;
+			ELSE
+				bPickTrackDone := TRUE;
+				uiPickStep := 100;
+			END_IF
+
+	END_CASE
+
+	// ================================================================
+	// Track 2: 逆向拍照 (單盒 Handshake)
+	// ================================================================
+	CASE uiCameraStep OF
+		0:	// 等待觸發
+			IF uiCameraRequestCount > 0 THEN
+				uiCameraRequestCount := uiCameraRequestCount - 1;
+				uiCameraStep := 50;
+			END_IF
+		50:
+			_fbSameSizeCV_ReverseCamera.xExecute := TRUE;
+			UseBoxCamera := _fbSameSizeCV_ReverseCamera.UseBoxCamera;
+			IF UseBoxCamera THEN
+				uiCameraStep := 100;
+			END_IF
+
+		100:	// 等待 C# 拍照完成
+			TON_CameraTimeout.IN := TRUE;
+			IF BoxCameraDone THEN
+				_fbSameSizeCV_ReverseCamera.BoxCameraDone := TRUE;
+				TON_CameraTimeout.IN := FALSE;
+				uiCameraStep := 150;
+			END_IF
+			IF TON_CameraTimeout.Q THEN
+				uiResumePickStep := uiPickStep;
+				uiResumeCameraStep := uiCameraStep;
+				uiResumeTransportStep := uiTransportStep;
+				strStatus := 'Camera timeout';
+				_UniqueErrorCode := 'E_CAMERA_TIMEOUT';
+				_Abort := TRUE;
+				RETURN;
+			END_IF
+			
+		150:
+			IF _fbSameSizeCV_ReverseCamera.xDone THEN
+				_fbSameSizeCV_ReverseCamera.xExecute := FALSE;
+			END_IF
+			IF  NOT _fbSameSizeCV_ReverseCamera.xExecute 
+				AND NOT _fbSameSizeCV_ReverseCamera.xBusy
+				AND NOT _fbSameSizeCV_ReverseCamera.xError 
+			THEN
+				uiCameraStep := 200;
+			END_IF
+
+		200:	// 記錄結果到佇列
+			UseBoxCamera := FALSE;
+
+			IF BoxQueue.Count < 16 THEN
+				uiUnphotographedCount := uiUnphotographedCount - 1;
+
+				BoxQueue.Boxes[BoxQueue.WriteIdx].bActive 		:= TRUE;
+				BoxQueue.Boxes[BoxQueue.WriteIdx].bIsOK 		:= CameraIsOK;
+				BoxQueue.Boxes[BoxQueue.WriteIdx].iWarehouse 	:= CameraWarehouse;
+				BoxQueue.Boxes[BoxQueue.WriteIdx].iLevel 		:= CameraLevel;
+				BoxQueue.Boxes[BoxQueue.WriteIdx].iTrack 		:= CameraTrack;
+
+				BoxQueue.WriteIdx := (BoxQueue.WriteIdx + 1) MOD 16;
+				BoxQueue.Count := BoxQueue.Count + 1;
+				TON_CameraClearTimeout.IN := TRUE;
+				uiCameraStep := 210;
+			ELSE
+				uiResumePickStep := uiPickStep;
+				uiResumeCameraStep := uiCameraStep;
+				uiResumeTransportStep := uiTransportStep;
+				strStatus := 'Conveyor full (queue overflow)';
+				_UniqueErrorCode := 'E_CONVEYOR_FULL';
+				_Abort := TRUE;
+				RETURN;
+			END_IF
+
+		210:	// 等待 C# 清除 BoxCameraDone
+			IF NOT BoxCameraDone THEN
+				TON_CameraClearTimeout.IN := FALSE;
+				uiCameraStep := 0;
+			END_IF
+			IF TON_CameraClearTimeout.Q THEN
+				TON_CameraClearTimeout.IN := FALSE;
+				uiResumePickStep := uiPickStep;
+				uiResumeCameraStep := uiCameraStep;
+				uiResumeTransportStep := uiTransportStep;
+				strStatus := 'C# did not clear BoxCameraDone';
+				_UniqueErrorCode := 'E_CAMERA_CLEAR_TIMEOUT';
+				_Abort := TRUE;
+				RETURN;
+			END_IF
+
+	END_CASE
+
+	// ================================================================
+	// Track 3: 大手臂搬運 (透過 FB_SameSizeCV_ReverseBoxToWareHouse)
+	// ================================================================
+	CASE uiTransportStep OF
+		0:	// 等待佇列有盒子
+			IF BoxQueue.Count >= 2 THEN
+				TON_WaitPairTimeout.IN := FALSE;
+				bUseDualGrip := TRUE;
+				uiTransportStep := 100;
+			ELSIF BoxQueue.Count = 1 THEN
+				TON_WaitPairTimeout.IN := TRUE;
+				IF TON_WaitPairTimeout.Q THEN
+					TON_WaitPairTimeout.IN := FALSE;
+					bUseDualGrip := FALSE;
+					uiTransportStep := 100;
+				END_IF
+			ELSE
+				TON_WaitPairTimeout.IN := FALSE;
+			END_IF
+
+		100:	// 從佇列取出盒子
+			stGripA := BoxQueue.Boxes[BoxQueue.ReadIdx];
+			BoxQueue.Boxes[BoxQueue.ReadIdx].bActive := FALSE;
+			BoxQueue.ReadIdx := (BoxQueue.ReadIdx + 1) MOD 16;
+			BoxQueue.Count := BoxQueue.Count - 1;
+
+			IF bUseDualGrip AND BoxQueue.Count > 0 THEN
+				stGripB := BoxQueue.Boxes[BoxQueue.ReadIdx];
+				BoxQueue.Boxes[BoxQueue.ReadIdx].bActive := FALSE;
+				BoxQueue.ReadIdx := (BoxQueue.ReadIdx + 1) MOD 16;
+				BoxQueue.Count := BoxQueue.Count - 1;
+			ELSE
+				stGripB.bActive := FALSE;
+				bUseDualGrip := FALSE;
+			END_IF
+
+			bTransportBusy := TRUE;
+			uiTransportStep := 200;
+
+		200:	// 啟動 BoxToWareHouse
+			BoxToWareHouse.bBoxA_Enable		:= TRUE;
+			BoxToWareHouse.bBoxA_IsOK		:= stGripA.bIsOK;
+			BoxToWareHouse.iBoxA_Warehouse	:= stGripA.iWarehouse;
+			BoxToWareHouse.iBoxA_Level		:= stGripA.iLevel;
+			BoxToWareHouse.iBoxA_Track		:= stGripA.iTrack;
+
+			BoxToWareHouse.bBoxB_Enable		:= bUseDualGrip;
+			IF bUseDualGrip THEN
+				BoxToWareHouse.bBoxB_IsOK		:= stGripB.bIsOK;
+				BoxToWareHouse.iBoxB_Warehouse	:= stGripB.iWarehouse;
+				BoxToWareHouse.iBoxB_Level		:= stGripB.iLevel;
+				BoxToWareHouse.iBoxB_Track		:= stGripB.iTrack;
+			END_IF
+			uiTransportStep := 205;
+			
+		205:
+
+			BoxToWareHouse.Execute := TRUE;
+			uiTransportStep := 300;
+
+		300:	// 等待完成
+			IF BoxToWareHouse.Done THEN
+				BoxToWareHouse.Execute := FALSE;
+				uiTransportedCount := uiTransportedCount + 1;
+				IF bUseDualGrip THEN
+					uiTransportedCount := uiTransportedCount + 1;
+				END_IF
+				uiTransportStep := 400;
+			END_IF
+			IF BoxToWareHouse.Error OR BoxToWareHouse.Aborted THEN
+				BoxToWareHouse.Execute := FALSE;
+				uiResumePickStep := uiPickStep;
+				uiResumeCameraStep := uiCameraStep;
+				uiResumeTransportStep := 200;
+				strStatus := 'BigArm transport failed';
+				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+				_Abort := TRUE;
+				RETURN;
+			END_IF
+
+		400:	// 等待子 FB 回到 DORMANT
+			IF NOT BoxToWareHouse.Busy AND NOT BoxToWareHouse.Done THEN
+				uiTransportStep := 500;
+			END_IF
+
+		500:	// 回到待命
+			bTransportBusy := FALSE;
+			stGripA.bActive := FALSE;
+			stGripB.bActive := FALSE;
+			uiTransportStep := 0;
+
+	END_CASE
+
+	// ================================================================
+	// Done 判斷
+	// ================================================================
+	IF TON_PlateWaitTimeout.Q
+	   AND uiUnphotographedCount = 0
+	   AND BoxQueue.Count = 0
+	   AND NOT bTransportBusy
+	   AND uiTotalProcessed > 0
+	   AND uiTotalProcessed = uiTransportedCount THEN
+		_Executed := TRUE;
+	END_IF
+
+END_CASE
+
+// 狀態切換
+IF _Error THEN
+	eState := STATE_ERROR;
+ELSIF _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Executed THEN
+	eState := STATE_DONE;
+ELSIF NOT Execute THEN
+	estate := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{b8c9daeb-fcd0-4e12-5d6e-890abcdef012}" FolderPath="State\">
+      <Declaration><![CDATA[// 重置狀態 — 清除旗標，支援 Retry/Resume
+METHOD M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiResettingStep OF
+0:
+	Done := FALSE;
+	Error := FALSE;
+	Aborted := FALSE;
+	tonTimeOut.IN := FALSE;
+
+	// 清除所有 Timer
+	TON_PlateWaitTimeout.IN		:= FALSE;
+	TON_PickupTimeout.IN		:= FALSE;
+	TON_CameraTimeout.IN		:= FALSE;
+	TON_ConfigTimeout.IN		:= FALSE;
+	TON_WaitPairTimeout.IN		:= FALSE;
+	TON_CameraClearTimeout.IN	:= FALSE;
+	
+	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+	Cylinder.List.fbSameSizeCV_Press1.M_Retract();
+
+	_fbSameSizeCV_ReverseCamera.xExecute := FALSE;
+//	// _bRetry: 從 ABORTED 觸發 → 恢復到中斷點繼續
+//	IF _bRetry THEN
+//		_bRetry := FALSE;
+
+//		eState := STATE_EXECUTING;
+//		RETURN;
+//	END_IF
+
+	uiResettingStep := 100;
+
+100:
+	_ResetCompleted := TRUE;
+END_CASE
+
+IF _ResetCompleted AND NOT Execute THEN
+	eState := STATE_DORMANT;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto">
+      <LineId Id="9" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="5" />
+      <LineId Id="10" Count="27" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="40" Count="33" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="76" Count="15" />
+      <LineId Id="75" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_GetErrorMsg">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="6" Count="14" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_STATE_ABORTED">
+      <LineId Id="43" Count="0" />
+      <LineId Id="47" Count="2" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="20" Count="3" />
+      <LineId Id="7" Count="2" />
+      <LineId Id="28" Count="2" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="34" Count="7" />
+      <LineId Id="11" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_STATE_ABORTING">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="41" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="54" Count="1" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_STATE_DONE">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_STATE_DORMANT">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="70" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_STATE_ERROR">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_STATE_EXECUTING">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="62" />
+      <LineId Id="459" Count="0" />
+      <LineId Id="462" Count="0" />
+      <LineId Id="461" Count="0" />
+      <LineId Id="464" Count="2" />
+      <LineId Id="463" Count="0" />
+      <LineId Id="67" Count="112" />
+      <LineId Id="182" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="440" Count="1" />
+      <LineId Id="443" Count="0" />
+      <LineId Id="183" Count="1" />
+      <LineId Id="439" Count="0" />
+      <LineId Id="185" Count="68" />
+      <LineId Id="256" Count="1" />
+      <LineId Id="467" Count="2" />
+      <LineId Id="485" Count="0" />
+      <LineId Id="472" Count="0" />
+      <LineId Id="486" Count="0" />
+      <LineId Id="258" Count="1" />
+      <LineId Id="471" Count="0" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="484" Count="0" />
+      <LineId Id="261" Count="11" />
+      <LineId Id="475" Count="0" />
+      <LineId Id="473" Count="1" />
+      <LineId Id="476" Count="7" />
+      <LineId Id="273" Count="97" />
+      <LineId Id="445" Count="1" />
+      <LineId Id="444" Count="0" />
+      <LineId Id="371" Count="57" />
+      <LineId Id="447" Count="0" />
+      <LineId Id="449" Count="0" />
+      <LineId Id="429" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_SameSizeCV_ReverseBatchPickAndPhoto.M_STATE_RESETTING">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="12" />
+      <LineId Id="48" Count="3" />
+      <LineId Id="17" Count="3" />
+      <LineId Id="29" Count="9" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
