@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FeedInRBActionRecord" Id="{a1b2c3d4-7777-4aaa-b777-777777777777}">
+    <Declaration><![CDATA[// 圓帶回倉 (FeedInRB) 動作紀錄 — 每筆 batch 流程完成時記錄
+// 由 FB_FeedInRoundBeltBoxToWareHouse 的 batch handshake 模式寫入
+// C# 透過 ADS 讀取 FeedBack=TRUE 後讀取整個陣列
+//
+// 用於記錄: 從圓帶哪一站取盒 → 放到哪個目的地 (倉儲層軌 / PullOut 內外側)
+TYPE ST_FeedInRBActionRecord :
+STRUCT
+	// === 來源 (圓帶) ===
+	PickStation		: INT;		// 圓帶 station 編號 (E_RoundBeltStation 對應值, 1..40)
+	PickCarrier		: INT;		// 圓帶載具位置 (E_ReloadRoundBelt_PlaceAddress, 1=A1 / 2=A2 / 3=A3 / 4=A4)
+
+	// === 目的 ===
+	DestType		: INT;		// 0 = WareHouse, 1 = PullOut
+	WareHouse		: INT;		// (DestType=0 時) 倉別 (E_WareHouse 對應值, 1=A / 2=B)
+	Layer			: INT;		// (DestType=0 時) 層 (E_WAREHOUSELAYER 對應值)
+	Slide			: INT;		// (DestType=0 時) 軌道 (E_WAREHOUSESLIDE 對應值)
+	PullOutSide		: INT;		// (DestType=1 時) 0 = Inner (I3_Slide,左) / 1 = Outer (I4_Slide,右)
+
+	// === 共用 ===
+	Clamp			: INT;		// 0 = A爪, 1 = B爪
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FeedInRBFlowInfo" Id="{a1b2c3d4-8888-4aaa-b888-888888888888}">
+    <Declaration><![CDATA[// 圓帶回倉 (FeedInRB) — 單筆流程資訊
+// 定義 A/B 爪各自的圓帶來源 + 目的地 (倉儲 or PullOut)
+// 由上位機 (C# HMI) 透過 ADS 寫入,PLC 端根據此結構執行取放動作
+//
+// 跟 ST_ClampSetting_FeedInToWareHouse 共用, 但 PlaceArea 已擴充支援 PullOutInner / PullOutOuter
+// 當 PlaceArea = WareHouseA/B → 使用 WareHouseSetting (Layer/Slide)
+// 當 PlaceArea = PullOutInner → 對應 PullOutConveyor I3_Slide (左, 1)
+// 當 PlaceArea = PullOutOuter → 對應 PullOutConveyor I4_Slide (右, 2)
+TYPE ST_FeedInRBFlowInfo :
+STRUCT
+	ID				: INT := -1;	// 流程 ID, -1 = 空/跳過, 其餘為有效流程編號
+	ClampA_Setting	: ST_ClampSetting_FeedInToWareHouse;	// A 爪設定 (圓帶來源 + 目的地)
+	ClampB_Setting	: ST_ClampSetting_FeedInToWareHouse;	// B 爪設定
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -3900,9 +3900,9 @@ Service_Handshake.AutoMode_ShippingRobot_PhotoStandByPos REF= GVL_ADS.AutoMode_S
 Service_Handshake.AutoMode_ShippingRobotTransfer REF= GVL_ADS.AutoMode_ShippingRobotTransfer;
 
 Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse REF= GVL_ADS.AutoMode_FeedInRoundBeltBoxToWareHouse;
-
 Service_Handshake.AutoMode_WareHouseInnerPickToRoundBelt REF= GVL_ADS.AutoMode_WareHouseInnerPickToRoundBelt;
 Service_Handshake.AutoMode_WareHouseInnerPickToRoundBeltBatch REF= GVL_ADS.AutoMode_WareHouseInnerPickToRoundBeltBatch;
+Service_Handshake.AutoMode_FeedInRoundBeltBoxBatch REF= GVL_ADS.AutoMode_FeedInRoundBeltBoxBatch;
 
 Service_Handshake.AutoMode_RobotSelfHoming REF= GVL_ADS.AutoMode_RobotSelfHoming;
 
@@ -3955,6 +3955,7 @@ StorageService.RebootModbusDevices REF= Service_Handshake.RebootModbusDevices;
 StorageService.AutoMode_FeedInRoundBeltBoxToWareHouse REF= Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse;
 StorageService.AutoMode_WareHouseInnerPickToRoundBelt REF= Service_Handshake.AutoMode_WareHouseInnerPickToRoundBelt;
 StorageService.AutoMode_WareHouseInnerPickToRoundBeltBatch REF= Service_Handshake.AutoMode_WareHouseInnerPickToRoundBeltBatch;
+StorageService.AutoMode_FeedInRoundBeltBoxBatch REF= Service_Handshake.AutoMode_FeedInRoundBeltBoxBatch;
 StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSelfHoming;]]></ST>
       </Implementation>
     </Method>
@@ -4697,7 +4698,9 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="124" Count="0" />
       <LineId Id="112" Count="0" />
       <LineId Id="111" Count="0" />
-      <LineId Id="117" Count="6" />
+      <LineId Id="118" Count="2" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="121" Count="2" />
       <LineId Id="116" Count="0" />
       <LineId Id="106" Count="0" />
       <LineId Id="91" Count="0" />
@@ -4721,6 +4724,7 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="32" Count="0" />
       <LineId Id="36" Count="0" />
       <LineId Id="41" Count="1" />
+      <LineId Id="46" Count="0" />
       <LineId Id="40" Count="0" />
     </LineIds>
   </POU>

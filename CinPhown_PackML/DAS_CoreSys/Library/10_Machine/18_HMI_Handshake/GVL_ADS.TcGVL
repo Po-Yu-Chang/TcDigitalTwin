@@ -136,6 +136,8 @@ VAR_GLOBAL
 	AutoMode_WareHouseInnerPickToRoundBelt		: ST_AutoMode_WareHouseInnerPickToRoundBelt;
 	//AutoModeUse------倉儲內取放圓帶 (批次)
 	AutoMode_WareHouseInnerPickToRoundBeltBatch	: ST_WareHouseInnerPickBatch;
+	//AutoModeUse------圓帶回倉/PullOut (批次)
+	AutoMode_FeedInRoundBeltBoxBatch			: ST_FeedInRBBatch;
 	//Reboot Modbus devices
 	RebootModbusDevices			: st_RebootModbusDevices;
 	//AutoModeUse------- 出貨區緩衝區

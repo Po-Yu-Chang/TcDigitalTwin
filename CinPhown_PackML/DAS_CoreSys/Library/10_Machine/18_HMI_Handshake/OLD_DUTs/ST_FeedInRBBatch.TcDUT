@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_FeedInRBBatch" Id="{a1b2c3d4-9999-4aaa-b999-999999999999}">
+    <Declaration><![CDATA[// 圓帶回倉 (FeedInRB) — 批次結構
+// 最多 40 筆流程, 由上位機 (C# HMI) 透過 ADS 寫入 FlowInfo 陣列
+// 每筆流程可選擇放到 倉儲 (WareHouseA/B) 或 PullOutConveyor (Inner/Outer)
+//
+// HandShake 控制啟動 (Execute) / 完成 (Done) / 錯誤 (Error) / 重置 (Reset)
+// WorkedID 回報每筆流程完成狀態 → C# 端據此更新 SQL 紀錄
+// ActionRecords 為當前單筆流程的動作紀錄, C# 透過 FeedBack 握手讀取
+//
+// FeedBack/ReadComplete 跨迭代握手協定:
+//   PLC: 單筆完成 → FeedBack:=TRUE → 等 ReadComplete=TRUE → 清 FeedBack → 進下一筆
+//   C#:  看到 FeedBack=TRUE → 讀 ActionRecords → 寫 ReadComplete=TRUE → 等 FeedBack=FALSE → 清 ReadComplete
+TYPE ST_FeedInRBBatch :
+STRUCT
+	FlowInfo		: ARRAY[0..39] OF ST_FeedInRBFlowInfo;		// 流程陣列, 最多 40 筆
+	HandShake		: st_HandshakeBase;		// Execute/Done/Busy/Error/Reset 握手信號
+	NrOfFlow		: UINT;					// 本次批次有效流程數量 (0..40)
+	Pause			: BOOL;					// TRUE = 暫停批次執行 (完成當前流程後在邊界凍結)
+	WorkedID		: ARRAY[0..39] OF INT;	// 完成回報: -1 = 未完成, 其餘 = 已完成的流程 ID
+
+	// === 內層 per-iteration handshake ===
+	ActionRecords	: ARRAY[0..39] OF ST_FeedInRBActionRecord;	// 當前流程的動作紀錄
+	ActionIndex		: INT;		// 已記錄筆數
+	FeedBack		: BOOL;		// PLC → C#: 陣列可讀取
+	ReadComplete	: BOOL;		// C# → PLC: 讀取完成確認
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
