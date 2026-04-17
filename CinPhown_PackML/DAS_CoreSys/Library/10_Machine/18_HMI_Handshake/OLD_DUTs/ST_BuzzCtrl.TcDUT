@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_BuzzCtrl" Id="{ef602a1e-786b-4d32-88db-2df5e068a955}">
+    <Declaration><![CDATA[TYPE ST_BuzzCtrl :
+STRUCT
+	Command : ST_CommandBasic;
+	Status	: ST_StatusBasic;
+	BuzzTime	: LREAL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -149,8 +149,9 @@
 	AutoMode_ReverseBatchPick				: REFERENCE TO ST_AutoMode_ReverseBatchPick;
 	//AutoModeUse------同尺寸軌道回倉/NG
 	AutoMode_ReverseBoxToWareHouse			: REFERENCE TO ST_AutoMode_ReverseBoxToWareHouse;
-
-
+	//BuzzCtrl
+	BuzzCtrl								: REFERENCE TO ST_BuzzCtrl;
+			
     END_STRUCT
 END_TYPE
 ]]></Declaration>

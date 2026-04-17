@@ -1,0 +1,218 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_BuzzCtrl" Id="{997df931-9958-4242-ba31-0deebd1332a0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_BuzzCtrl EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+	Timer	: LREAL;
+  (*Execute    :BOOL;   // True : This prog will start.
+    Abort      :BOOL;   // True : This prog will be abort.
+    Reset      :BOOL;   // True : This prog will be reset.
+    ObjectName :STRING; // Set this fb name(About it's action)	*)
+END_VAR
+VAR_OUTPUT
+	Buzz	: BOOL;
+	(*Busy    :BOOL;        // True : This prog is running.
+    Done    :BOOL;        // True : Command has been executed.
+    Aborted :BOOL;        // True : This prog is aborted.
+    Error   :BOOL;        // True : This prog has an error.
+    ErrorID :UINT;       // Output ErrorID
+    Status  :T_MaxString; // Output this prog status by string(255bytes)
+	UniqueErrorCode :STRING;	*)
+END_VAR
+VAR
+	BuzzBilnker	: BLINK;
+	_Timer		: TIME;
+	TON_Timer	: TON;
+	
+	strStatus	: STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+THIS^.A00_BasicUnits();
+]]></ST>
+    </Implementation>
+    <Folder Name="STATE" Id="{16999dec-b355-422a-8d1d-4ca9e477e305}" />
+    <Action Name="A00_BasicUnits" Id="{38694ca4-3ca6-4e31-9735-d3be0f440194}">
+      <Implementation>
+        <ST><![CDATA[_Timer := LREAL_TO_TIME(Timer*1000);
+TON_Timer(PT := _Timer);
+BuzzBilnker( TIMEHIGH := T#0.5S , TIMELOW :=T#0.5S );
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_STATE_ABORTED" Id="{d4dda197-c8a4-4eef-a86f-15374320b8ab}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{4abdad7b-ac4a-4d62-a9ea-564634bf300a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{fd284d1b-44de-46eb-873e-de95bbe298c8}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+
+IF NOT Execute THEN
+	eSTATE:=STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{b43ab523-e9c5-4140-8496-f3fbe16a0c18}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_AbortCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+strStatus :='No Error';
+uiExecutingStep :=uiResettingStep :=uiAbortingStep :=0;
+
+IF Execute THEN 
+	eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{0d8e27ad-0c55-4408-8091-d5f4a178d400}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{d2bbad4b-a9f7-463b-8d90-2d6892f6cc1c}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiExecutingStep OF 
+	0:
+			uiExecutingStep := 100;
+		
+	100:
+			TON_Timer.IN 		:= TRUE;
+			BuzzBilnker.ENABLE  := TRUE;
+			BuzzBilnker(OUT => buzz);
+			IF TON_Timer.Q THEN 
+				BuzzBilnker.ENABLE := FALSE;
+				uiExecutingStep := 9900;
+			END_IF
+	9900:
+			strStatus := 'Process done ';
+			_Executed := TRUE;
+	
+END_CASE
+
+
+IF _Executed THEN 
+	eState := STATE_DONE;
+END_IF
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{b8d5a984-1152-4734-a28e-7afd554e66f0}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error :=FALSE;
+Done :=FALSE;
+Busy := FALSE;
+
+TON_Timer.IN		:= FALSE;
+BuzzBilnker.ENABLE 	:= FALSE;
+_ResetCompleted := TRUE;
+Buzz := BuzzBilnker.OUT AND BuzzBilnker.ENABLE;
+IF _ResetCompleted THEN
+	eState := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BuzzCtrl">
+      <LineId Id="14" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="19" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.A00_BasicUnits">
+      <LineId Id="2" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.M_STATE_ABORTED">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.M_STATE_ABORTING">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.M_STATE_DONE">
+      <LineId Id="8" Count="2" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.M_STATE_DORMANT">
+      <LineId Id="13" Count="6" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="20" Count="2" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="5" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.M_STATE_ERROR">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.M_STATE_EXECUTING">
+      <LineId Id="11" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="23" Count="2" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="30" Count="2" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="33" Count="2" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="12" Count="1" />
+      <LineId Id="8" Count="2" />
+      <LineId Id="5" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_BuzzCtrl.M_STATE_RESETTING">
+      <LineId Id="9" Count="2" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="5" Count="2" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

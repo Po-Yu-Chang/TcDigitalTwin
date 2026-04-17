@@ -94,6 +94,7 @@ VAR
 	bStorageRobotError	: BOOL;
 	bShippingRobotError	: BOOL;
 	i 					: INT;
+	BuzzCtrlUseBuzz		   : BOOL;
 	
 	//Btn ctrl
 	tofResetDelay	:TOF;
@@ -116,6 +117,8 @@ VAR
 	TON_RobotReleaseStartCmd	: TON;
 	TON_Shipping_RobotRelease_ResetCmd	: TON;
 	TON_Shipping_RobotRelease_StartCmd	: TON;
+	
+	fbBuzzCtrl : FB_BuzzCtrl;
 	
 END_VAR
 ]]></Declaration>
@@ -253,6 +256,21 @@ fbErrorHandler(
 	ActiveAlarmCount=> , 
 	TotalRecords=> , 
 	SystemStatus=> );
+	
+fbBuzzCtrl(
+	Execute:= Service_Handshake.BuzzCtrl.Command.Execute, 
+	Abort:= Service_Handshake.BuzzCtrl.Command.Abort, 
+	Reset:= Service_Handshake.BuzzCtrl.Command.Reset, 
+	ObjectName:= , 
+	Busy=> Service_Handshake.BuzzCtrl.Status.Busy, 
+	Done=> Service_Handshake.BuzzCtrl.Status.Done, 
+	Aborted=> , 
+	Error=> Service_Handshake.BuzzCtrl.Status.Error, 
+	ErrorID=> , 
+	Status=> Service_Handshake.BuzzCtrl.Status.Status, 
+	UniqueErrorCode=> , 
+	Timer:=Service_Handshake.BuzzCtrl.BuzzTime, 
+	Buzz=> BuzzCtrlUseBuzz);
 	
 fbBlink_05(ENABLE:= TRUE, TIMELOW:= T#0.25S, TIMEHIGH:= T#0.25S, OUT=> );
 Allocate_EStopEdgeDetect(xInput := INPUT.bAllocate_EStopPb);
@@ -1415,8 +1433,8 @@ Machine_Start :=
 InternalOutput.bAllocated_SignalTower_RedLamp := _RedLamp;
 InternalOutput.bAllocated_SignalTower_YellowLamp := _YellowLamp;
 InternalOutput.bAllocated_SignalTower_GreenLamp := _GreenLamp;
-InternalOutput.bAllocated_Buzzer := _Buzz;
-InternalOutput.bStorage_Buzzer := _Buzz;
+InternalOutput.bAllocated_Buzzer := _Buzz OR BuzzCtrlUseBuzz;
+InternalOutput.bStorage_Buzzer 	 := _Buzz OR BuzzCtrlUseBuzz;
 InternalOutput.bStorage_SingleTower_RedLamp := _RedLamp;
 InternalOutput.bStorage_SingleTower_YellowLamp := _YellowLamp;
 InternalOutput.bStorage_SingleTower_GreenLamp := _GreenLamp;
@@ -3924,6 +3942,8 @@ Service_Handshake.AutoMode_RobotSelfHoming REF= GVL_ADS.AutoMode_RobotSelfHoming
 Service_Handshake.AutoMode_ReverseBatchPick REF= GVL_ADS.AutoMode_ReverseBatchPick;
 Service_Handshake.AutoMode_ReverseBoxToWareHouse REF= GVL_ADS.AutoMode_ReverseBoxToWareHouse;
 
+Service_Handshake.BuzzCtrl REF= GVL_ADS.BuzzCtrl;
+
 
 
 
@@ -4034,6 +4054,9 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="140" Count="0" />
       <LineId Id="136" Count="2" />
       <LineId Id="127" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="168" Count="12" />
+      <LineId Id="167" Count="0" />
       <LineId Id="149" Count="1" />
       <LineId Id="155" Count="0" />
       <LineId Id="154" Count="0" />
@@ -4724,6 +4747,8 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="132" Count="0" />
       <LineId Id="121" Count="2" />
       <LineId Id="116" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="136" Count="0" />
       <LineId Id="106" Count="0" />
       <LineId Id="91" Count="0" />
       <LineId Id="89" Count="0" />

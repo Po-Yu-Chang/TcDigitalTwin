@@ -201,6 +201,9 @@
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\Service\FB_BuzzCtrl.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\12_MachineControl\Service\FB_MachineHoming.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -614,6 +617,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\st_AxisControl.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_BuzzCtrl.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ClampActionRecord.TcDUT">
