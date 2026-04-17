@@ -68,6 +68,8 @@ VAR
 	trigErrorReset		: R_TRIG;
 	tonErrorResetDelay	: TON;
 	bErrorBlinking		: BOOL;
+	
+	HasBufferArea		: BOOL := FALSE;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -107,6 +109,27 @@ END_IF
 ]]></ST>
       </Implementation>
     </Action>
+    <Method Name="M_CheckMechanism" Id="{0c2b362e-fca6-41e6-ad8c-6bdf39514720}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckMechanism : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF HasBufferArea THEN
+	M_CheckMechanism := TRUE;
+	RETURN;
+END_IF
+
+IF (info.Destination.Area = E_RobotArea.BufferArea) OR
+   (info.Source.Position = E_RobotArea.BufferArea) THEN
+	M_CheckMechanism := FALSE;
+	strStatus := 'FB_ShippingRobotTransfer, Wrong Command: no BufferArea';
+	RETURN;
+END_IF
+
+M_CheckMechanism := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_CheckTransferCommand" Id="{c8d9e0f1-a2b3-4c4d-5e6f-7a8b9c0d1e2f}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_CheckTransferCommand : BOOL
 VAR_INPUT
@@ -348,7 +371,11 @@ _UniqueErrorCode  := '0';
 bCompleteRequest := FALSE;
 
 IF Execute THEN
-	eState := STATE_EXECUTING;
+	IF M_CheckMechanism THEN
+		eState := STATE_EXECUTING;
+	ELSE
+		eState := STATE_ERROR;
+	END_IF
 END_IF
 ]]></ST>
       </Implementation>
@@ -1105,6 +1132,10 @@ END_IF
       <LineId Id="1" Count="0" />
       <LineId Id="3" Count="24" />
     </LineIds>
+    <LineIds Name="FB_ShippingRobotTransfer.M_CheckMechanism">
+      <LineId Id="18" Count="11" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_CheckTransferCommand">
       <LineId Id="92" Count="65" />
       <LineId Id="82" Count="0" />
@@ -1146,7 +1177,12 @@ END_IF
       <LineId Id="4" Count="33" />
       <LineId Id="43" Count="5" />
       <LineId Id="2" Count="0" />
-      <LineId Id="50" Count="5" />
+      <LineId Id="50" Count="2" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="54" Count="1" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_ERROR">
       <LineId Id="1" Count="0" />

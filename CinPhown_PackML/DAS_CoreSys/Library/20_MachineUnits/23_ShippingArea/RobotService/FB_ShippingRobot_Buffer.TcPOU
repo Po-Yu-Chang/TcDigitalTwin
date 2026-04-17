@@ -10,6 +10,7 @@ END_VAR
 VAR_OUTPUT
 END_VAR
 VAR
+	HasBufferArea		: BOOL:= FALSE;
 	// 用於轉型 Lreal
 	iCmdPosA	: INT;
 	
@@ -191,8 +192,11 @@ uiGetStep			:= 0;
 TON_RobotActionTimeOut.IN 	 := FALSE;
 TON_CheckRobotDoneTimeOut.IN := FALSE;
 
-IF Execute THEN
+IF Execute AND HasBufferArea THEN
     eState := STATE_EXECUTING;
+ELSE
+	Status := 'FB_ShippingRobot_Buffer, Wrong Comman Not have bufferArea in ShippingArea';
+	eState := STATE_ERROR;
 END_IF
 ]]></ST>
       </Implementation>
@@ -528,6 +532,7 @@ END_IF
       <LineId Id="52" Count="0" />
       <LineId Id="43" Count="0" />
       <LineId Id="34" Count="2" />
+      <LineId Id="56" Count="2" />
       <LineId Id="33" Count="0" />
       <LineId Id="9" Count="0" />
     </LineIds>

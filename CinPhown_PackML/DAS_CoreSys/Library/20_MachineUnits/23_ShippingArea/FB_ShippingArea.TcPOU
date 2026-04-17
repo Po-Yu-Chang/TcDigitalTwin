@@ -33,7 +33,7 @@ VAR
 	fbShippingRobot_Left 			: FB_ShippingRobot_Left;
 	fbShippingRobot_Right 			: FB_ShippingRobot_Right;
 	fbShippingRobot_Buffer			: FB_ShippingRobot_Buffer;
-	
+	fbShippingRobot_PhotoStandByPos	: FB_ShippingRobot_PhotoStandByPos;
 	fbShippingRobotTransfer			: FB_ShippingRobotTransfer;
 	
 	//HansLaser HandShake TransCV Service
@@ -209,25 +209,45 @@ fbShippingRobotTransfer(
 	fbShippingHomingBusy:= fbShippingHoming.xBusy);
 	
 fbShippingRobot_Buffer(
-	Execute:= ,//Service.AutoMode_ShippingRobot_Buffer.Command.Execute, 
-	Abort:= ,//Service.AutoMode_ShippingRobot_Buffer.Command.Abort, 
-	Reset:= ,//Service.AutoMode_ShippingRobot_Buffer.Command.Reset, 
+	Execute:= Service.AutoMode_ShippingRobot_Buffer.Command.Execute, 
+	Abort:= Service.AutoMode_ShippingRobot_Buffer.Command.Abort, 
+	Reset:= Service.AutoMode_ShippingRobot_Buffer.Command.Reset, 
 	Pause:= bStopMem, 
 	ObjectName:= 'FB_ShippingRobot_Buffer', 
-	Busy=> ,//Service.AutoMode_ShippingRobot_Buffer.Status.Busy, 
-	Done=> ,//Service.AutoMode_ShippingRobot_Buffer.Status.Done, 
+	Busy=> Service.AutoMode_ShippingRobot_Buffer.Status.Busy, 
+	Done=> Service.AutoMode_ShippingRobot_Buffer.Status.Done, 
 	Aborted=> , 
-	Error=> ,//Service.AutoMode_ShippingRobot_Buffer.Status.Error, 
+	Error=> Service.AutoMode_ShippingRobot_Buffer.Status.Error, 
 	Paused=> , 
 	ErrorID=> , 
-	Status=> ,//Service.AutoMode_ShippingRobot_Buffer.Status.Status, 
+	Status=> Service.AutoMode_ShippingRobot_Buffer.Status.Status, 
 	UniqueErrorCode=> , 
 	Robot:= fanucrobot, 
-	Info:= ,//Service.AutoMode_ShippingRobot_Buffer.Info, 
+	Info:= Service.AutoMode_ShippingRobot_Buffer.Info, 
 	Stop:= , 
 	Input:= INPUT, 
 	Output:= OUTPUT,
-	Cylinder := cylinder);]]></ST>
+	Cylinder := cylinder);
+	
+fbShippingRobot_PhotoStandByPos(
+	Execute:= Service.AutoMode_ShippingRobot_PhotoStandByPos.Command.Execute, 
+	Abort:= Service.AutoMode_ShippingRobot_PhotoStandByPos.Command.Abort, 
+	Reset:=  Service.AutoMode_ShippingRobot_PhotoStandByPos.Command.Reset, 
+	Pause:= bStopMem, 
+	ObjectName:= 'FB_ShippingRobot_PhotoStandByPos', 
+	Busy=> Service.AutoMode_ShippingRobot_PhotoStandByPos.Status.Busy, 
+	Done=> Service.AutoMode_ShippingRobot_PhotoStandByPos.Status.Done, 
+	Aborted=> , 
+	Error=> Service.AutoMode_ShippingRobot_PhotoStandByPos.Status.Error, 
+	Paused=> , 
+	ErrorID=> , 
+	Status=> Service.AutoMode_ShippingRobot_PhotoStandByPos.Status.Status, 
+	UniqueErrorCode=> , 
+	Robot:= , 
+	Info:= Service.AutoMode_ShippingRobot_PhotoStandByPos.Info, 
+	Stop:= , 
+	Input:= INPUT,
+	Output:= OUTPUT);]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_Aborted" Id="{3b7aeb74-3c46-4095-9c8f-17f92de17ccd}" FolderPath="States\">
@@ -426,6 +446,9 @@ END_VAR
       <LineId Id="154" Count="0" />
       <LineId Id="156" Count="18" />
       <LineId Id="155" Count="0" />
+      <LineId Id="175" Count="0" />
+      <LineId Id="177" Count="17" />
+      <LineId Id="176" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingArea.M_Aborted">
       <LineId Id="6" Count="0" />
