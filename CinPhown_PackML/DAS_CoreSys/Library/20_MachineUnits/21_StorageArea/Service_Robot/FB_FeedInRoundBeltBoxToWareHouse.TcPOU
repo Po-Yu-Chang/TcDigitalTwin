@@ -65,9 +65,11 @@ A3_Sensor := Input.bRoundBelt_ChangeZoneA3Detect_Sensor;
 
 (*============================================================
 Create Date : 2026/03/18
-Last Update	: 2026/03/23
+Last Update	: 2026/04/14
 Change Log  : 2026/03/18，Initial version - Pick box from RoundBelt and place to WareHouse
 			  2026/03/23，修正續做，新增手臂先在aborting清除錯誤，
+			  2026/04/14，新的FB新增回拔輸送帶放盒位置支援，ActionRecords功能，把這一隻舊的移除。
+			  
 ============================================================*)]]></ST>
     </Implementation>
     <Folder Name="Method" Id="{d4280eb9-ca7e-442a-b801-73dd87db9133}" />
@@ -1545,6 +1547,8 @@ END_IF]]></ST>
       <LineId Id="12" Count="0" />
       <LineId Id="10" Count="1" />
       <LineId Id="53" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="109" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.A00_BasicUnits">

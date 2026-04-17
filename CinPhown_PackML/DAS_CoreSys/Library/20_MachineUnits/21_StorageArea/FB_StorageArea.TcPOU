@@ -41,11 +41,12 @@ VAR
     //fbRobotAbsMove                      : FB_RobotAbsMove;
 	fbRobotAbsMove                      : FB_RobotAbsMove_V2;
     //fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove;
-    fbWareHouseWithRobotMove            : FB_WareHouseWithRobotMove_V3;		//Edited by Gamin in 2025//11/24
-	fbFeedInRoundBeltBoxToWareHouse 	: FB_FeedInRoundBeltBoxToWareHouse;
+    fbWareHouseWithRobotMove             : FB_WareHouseWithRobotMove_V3;		//Edited by Gamin in 2025//11/24
+	fbFeedInRoundBeltBoxToWareHouse 	 : FB_FeedInRoundBeltBoxToWareHouse;
 	fbWareHouseInnerPickToRoundBelt 	 : FB_WareHouseInnerPickToRoundBelt;
 	fbWareHouseInnerPickToRoundBeltBatch : FB_WareHouseInnerPickToRoundBeltBatch;
-	fbRobotSelfHoming					: FB_RobotSelfHoming;
+	fbFeedInRoundBeltBoxBatch			 : FB_FeedInRoundBeltBoxBatch;
+	fbRobotSelfHoming					 : FB_RobotSelfHoming;
 	
 	fbStorageHoming 					: FB_StorageHoming;
 	//UpCV
@@ -415,6 +416,16 @@ fbWareHouseInnerPickToRoundBeltBatch(
                                 WareHouse := fbWarehouse,
                                 Input 	:= Input,
                                 BatchInfo := Service.AutoMode_WareHouseInnerPickToRoundBeltBatch,
+                                Stop 	:= bStopMem);
+// 圓帶回倉/PullOut 批次服務
+fbFeedInRoundBeltBoxBatch(
+                                Abort 	:= THIS^.Abort OR _bAnyServiceError,
+                                ObjectName:= 'FeedIn round belt box batch',
+                                Robot 	:= FanucRobot,
+                                RoundBelt := DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl,
+                                WareHouse := fbWarehouse,
+                                Input 	:= Input,
+                                BatchInfo := Service.AutoMode_FeedInRoundBeltBoxBatch,
                                 Stop 	:= bStopMem);
 								
 //============================ Auto Mode Robot Warehouse Move =============================
@@ -1008,6 +1019,8 @@ M_StateComplete();]]></ST>
       <LineId Id="3598" Count="0" />
       <LineId Id="3621" Count="7" />
       <LineId Id="3620" Count="0" />
+      <LineId Id="3630" Count="8" />
+      <LineId Id="3629" Count="0" />
       <LineId Id="3619" Count="0" />
       <LineId Id="3451" Count="16" />
       <LineId Id="3511" Count="1" />
