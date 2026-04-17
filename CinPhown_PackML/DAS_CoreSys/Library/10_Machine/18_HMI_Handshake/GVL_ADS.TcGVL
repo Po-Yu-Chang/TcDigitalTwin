@@ -37,7 +37,7 @@ VAR_GLOBAL
     //AutoModeUse*-------空盒取料移動
     AutoMode_EmptyBoxMove : st_AutoMode_ClampingBoxesJob;
     //AutoModeUse*-------圓盤移動
-    AutoMode_TurnTableMOve : st_ads_OneAxisMoveWithPosition;
+    AutoMode_TurnTableMove : st_ads_OneAxisMoveWithPosition;
     //AutoModeUse--------配針
     AutoMode_AllocateMove : st_AutoMode_AllocatingJob;
 	 //AutoModeUse--------拔針

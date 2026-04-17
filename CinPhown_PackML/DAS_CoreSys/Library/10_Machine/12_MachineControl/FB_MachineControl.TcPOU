@@ -258,18 +258,18 @@ fbErrorHandler(
 	SystemStatus=> );
 	
 fbBuzzCtrl(
-	Execute:= Service_Handshake.BuzzCtrl.Command.Execute, 
-	Abort:= Service_Handshake.BuzzCtrl.Command.Abort, 
-	Reset:= Service_Handshake.BuzzCtrl.Command.Reset, 
+	Execute:= GVL_ADS.BuzzCtrl.Command.Execute, 
+	Abort:= GVL_ADS.BuzzCtrl.Command.Abort, 
+	Reset:= GVL_ADS.BuzzCtrl.Command.Reset, 
 	ObjectName:= , 
-	Busy=> Service_Handshake.BuzzCtrl.Status.Busy, 
-	Done=> Service_Handshake.BuzzCtrl.Status.Done, 
+	Busy=> GVL_ADS.BuzzCtrl.Status.Busy, 
+	Done=> GVL_ADS.BuzzCtrl.Status.Done, 
 	Aborted=> , 
-	Error=> Service_Handshake.BuzzCtrl.Status.Error, 
+	Error=> GVL_ADS.BuzzCtrl.Status.Error, 
 	ErrorID=> , 
-	Status=> Service_Handshake.BuzzCtrl.Status.Status, 
+	Status=> GVL_ADS.BuzzCtrl.Status.Status, 
 	UniqueErrorCode=> , 
-	Timer:=Service_Handshake.BuzzCtrl.BuzzTime, 
+	Timer:=GVL_ADS.BuzzCtrl.BuzzTime, 
 	Buzz=> BuzzCtrlUseBuzz);
 	
 fbBlink_05(ENABLE:= TRUE, TIMELOW:= T#0.25S, TIMEHIGH:= T#0.25S, OUT=> );
