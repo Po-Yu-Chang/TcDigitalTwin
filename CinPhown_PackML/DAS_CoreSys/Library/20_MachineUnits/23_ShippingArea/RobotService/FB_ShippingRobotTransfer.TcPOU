@@ -371,7 +371,7 @@ _UniqueErrorCode  := '0';
 bCompleteRequest := FALSE;
 
 IF Execute THEN
-	IF M_CheckMechanism THEN
+	IF M_CheckMechanism() THEN
 		eState := STATE_EXECUTING;
 	ELSE
 		eState := STATE_ERROR;
