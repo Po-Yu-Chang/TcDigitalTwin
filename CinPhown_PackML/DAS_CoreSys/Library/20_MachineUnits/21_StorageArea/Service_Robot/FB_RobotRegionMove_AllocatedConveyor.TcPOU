@@ -242,7 +242,13 @@ END_VAR
 				uiAbortingStep := 9999;
 			END_IF
 	9999:	_AbortCompleted:=TRUE;
-END_CASE]]></ST>
+END_CASE
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF _AbortCompleted THEN
+	eState := STATE_Aborted;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_STATE_DONE" Id="{995b98d7-79de-40b8-b4db-bcd57e12d7cd}" FolderPath="State\">
@@ -286,6 +292,9 @@ TON_CVmovedelay.IN := FALSE;
 _UniqueErrorCode :='0';
 PreviousStrStatus			 :='';
 PreviousErrorCode			 :='';
+_AbortCompleted := FALSE;
+_Abort := FALSE;
+uiAbortingStep := 0;
 _bRetry := FALSE;
 // Wait Execute command
 IF Execute AND NOT stop THEN
@@ -1195,6 +1204,11 @@ END_IF]]></ST>
     <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_ABORTING">
       <LineId Id="52" Count="35" />
       <LineId Id="5" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="95" Count="1" />
+      <LineId Id="94" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_AllocatedConveyor.M_STATE_DONE">
       <LineId Id="6" Count="3" />
@@ -1215,6 +1229,7 @@ END_IF]]></ST>
       <LineId Id="43" Count="0" />
       <LineId Id="48" Count="0" />
       <LineId Id="52" Count="0" />
+      <LineId Id="69" Count="2" />
       <LineId Id="65" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="16" Count="1" />
