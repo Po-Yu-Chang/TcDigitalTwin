@@ -8,7 +8,9 @@ TYPE
     (
         Undefined := 0,
         WareHouseA := 1,
-        WareHouseB := 2
+        WareHouseB := 2,
+		PullOutInner := 3,  // PullOutConveyor I3_Slide (左側,面對操作員)
+        PullOutOuter := 4   // PullOutConveyor I4_Slide (右側,面對操作員)
     )UINT;
 END_TYPE
 ]]></Declaration>

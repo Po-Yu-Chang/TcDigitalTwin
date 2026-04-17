@@ -213,6 +213,9 @@
     <Compile Include="Library\10_Machine\13_ErrorHandling\FB_ErrorHandler_V2.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\13_ErrorHandling\GVL_ErrorCode.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\DUTs\Allocated\ST_Auto_Allocated.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -1037,6 +1040,9 @@
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_FeedInRoundBeltBoxToWareHouse_Old.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_ReloadRoundBeltBoxWithRobot.TcPOU">
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
@@ -1078,9 +1084,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_FeedInEmptyBoxWithRobot_V3.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_FeedInRoundBeltBoxToWareHouse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Service_Robot\FB_ReloadRoundBeltBoxWithRobot_V2.TcPOU">
@@ -1168,6 +1171,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateMoveAutoBatchMode_Reverse.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_FeedInRoundBeltBoxBatch.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_FeedInRoundBeltBoxToWareHouse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_EmptyBoxMove.TcPOU">

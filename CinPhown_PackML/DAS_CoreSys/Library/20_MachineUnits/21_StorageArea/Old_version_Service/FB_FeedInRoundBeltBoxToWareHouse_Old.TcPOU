@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_FeedInRoundBeltBoxToWareHouse" Id="{a1b2c3d4-5555-4aaa-b555-555555555555}" SpecialFunc="None">
+  <POU Name="FB_FeedInRoundBeltBoxToWareHouse_Old" Id="{a1b2c3d4-5555-4aaa-b555-555555555555}" SpecialFunc="None">
     <Declaration><![CDATA[(*
 	FB_FeedInRoundBeltBoxToWareHouse
 	功能：從圓帶取盒子放回倉儲 (與 FB_ReloadRoundBeltBoxWithRobot_V2 反向操作)
 	流程：圓帶移動到站位 → 手臂 AbsMove 從圓帶取盒 → 手臂放盒到倉儲
 	安全卡控：手臂進入圓帶區域時，取得圓帶控制權，圓帶不可移動
 *)
-FUNCTION_BLOCK FB_FeedInRoundBeltBoxToWareHouse EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+FUNCTION_BLOCK FB_FeedInRoundBeltBoxToWareHouse_Old EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
 VAR_INPUT
     // ===== 外部元件參考 =====
     Robot         : REFERENCE TO FB_FanucRobot_Basic_V2; // Fanuc 手臂
@@ -920,7 +920,7 @@ IF _ResetCompleted THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old">
       <LineId Id="9" Count="0" />
       <LineId Id="4" Count="4" />
       <LineId Id="12" Count="0" />
@@ -928,31 +928,31 @@ END_IF]]></ST>
       <LineId Id="53" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.A00_BasicUnits">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.A00_BasicUnits">
       <LineId Id="1" Count="0" />
       <LineId Id="3" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckCommand">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_CheckCommand">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="12" Count="0" />
       <LineId Id="6" Count="5" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckUnitsNotBusy">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_CheckUnitsNotBusy">
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckUnitsReady">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_CheckUnitsReady">
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_SelectActionMode">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_SelectActionMode">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="32" Count="0" />
       <LineId Id="6" Count="25" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ABORTED">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_STATE_ABORTED">
       <LineId Id="39" Count="0" />
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
@@ -973,7 +973,7 @@ END_IF]]></ST>
       <LineId Id="22" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ABORTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_STATE_ABORTING">
       <LineId Id="16" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="21" Count="0" />
@@ -999,14 +999,14 @@ END_IF]]></ST>
       <LineId Id="42" Count="7" />
       <LineId Id="76" Count="1" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_DONE">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_STATE_DONE">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="8" Count="0" />
       <LineId Id="6" Count="1" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_DORMANT">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_STATE_DORMANT">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="29" Count="0" />
@@ -1027,7 +1027,7 @@ END_IF]]></ST>
       <LineId Id="25" Count="3" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ERROR">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_STATE_ERROR">
       <LineId Id="5" Count="0" />
       <LineId Id="11" Count="0" />
       <LineId Id="10" Count="0" />
@@ -1036,7 +1036,7 @@ END_IF]]></ST>
       <LineId Id="6" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_EXECUTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_STATE_EXECUTING">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="535" Count="0" />
@@ -1070,7 +1070,7 @@ END_IF]]></ST>
       <LineId Id="613" Count="0" />
       <LineId Id="555" Count="30" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_RESETTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_Old.M_STATE_RESETTING">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="21" Count="0" />

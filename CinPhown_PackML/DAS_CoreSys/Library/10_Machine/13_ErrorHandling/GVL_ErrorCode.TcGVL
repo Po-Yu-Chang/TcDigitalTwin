@@ -1,0 +1,495 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="GVL_ErrorCode" Id="{98f100cc-b98a-4d30-94c5-ab567f1d8424}">
+    <Declaration><![CDATA[
+(*
+=================================================================================
+    全域錯誤碼定義
+
+    [1] GC_ALARM_xxx — RegisterAlarm ID (DINT)，FB_MachineControl 使用，HMI 顯示
+    [2] GC_ERR_xxx   — FB 內部錯誤碼 (INT, AOOEE 編碼)，各 FB M_GetErrorMsg 使用
+
+    續作標記: [Hold]=暫停可恢復, [Abort]=必須停機
+    擴充原則: 每區段保留 50%+ 空位，新增從尾端往後排
+=================================================================================
+*)
+{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — Homing 服務 (10-99)
+    // =========================================================================
+    GC_ALARM_MACHINE_HOMING              : DINT := 10;    // [Hold] 機台回原點錯誤
+    GC_ALARM_STORAGE_HOMING              : DINT := 11;    // [Hold] 倉儲區回原點錯誤
+    GC_ALARM_ALLOCATE_HOMING             : DINT := 12;    // [Hold] 配針區回原點錯誤
+    GC_ALARM_SHIPPING_HOMING             : DINT := 13;    // [Hold] 出貨區回原點錯誤
+    GC_ALARM_TABLE_MOVE                  : DINT := 14;    // [Hold] TableMove 錯誤
+    GC_ALARM_MODBUS_RTU                  : DINT := 15;    // [Hold] Modbus RTU 通訊
+    // 16-99: 預留 Homing/通用服務擴充
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — 倉儲區服務 (100-199)
+    // =========================================================================
+    GC_ALARM_STO_RELOAD_BOX              : DINT := 100;   // [Hold] 補盒服務
+    GC_ALARM_STO_FEEDIN_BOX              : DINT := 101;   // [Hold] 進盒服務
+    GC_ALARM_STO_ADD_BOXES               : DINT := 102;   // [Hold] 加盒服務
+    GC_ALARM_STO_BOX_SUPPLY              : DINT := 103;   // [Hold] 供盒控制
+    GC_ALARM_STO_FEEDIN_EMPTY            : DINT := 104;   // [Hold] 空盒入倉
+    GC_ALARM_STO_RELOAD_ROUNDBELT        : DINT := 105;   // [Hold] 圓帶補盒
+    GC_ALARM_STO_ROBOT_ABS_MOVE          : DINT := 106;   // [Hold] 機器人絕對移動
+    GC_ALARM_STO_REGION_ALLOC_CV         : DINT := 107;   // [Hold] 區域移動-配針輸送帶
+    GC_ALARM_STO_REGION_BUFFER           : DINT := 108;   // [Hold] 區域移動-緩衝區
+    GC_ALARM_STO_REGION_FEEDIN_CV        : DINT := 109;   // [Hold] 區域移動-進料輸送帶
+    GC_ALARM_STO_REGION_PULLOUT_CV       : DINT := 110;   // [Hold] 區域移動-拔針輸送帶
+    GC_ALARM_STO_REGION_ROUNDBELT        : DINT := 111;   // [Hold] 區域移動-圓帶
+    GC_ALARM_STO_UPPER_FEEDIN_CV         : DINT := 112;   // [Hold] 上層進料輸送帶
+    GC_ALARM_STO_WAREHOUSE_ROBOT         : DINT := 113;   // [Hold] 倉儲機器人移動
+    GC_ALARM_STO_CABINET_FEEDIN          : DINT := 114;   // [Hold] 料櫃進盒
+    GC_ALARM_STO_CABINET_RELOAD          : DINT := 115;   // [Hold] 料櫃補盒
+    GC_ALARM_STO_FEEDIN_RB_TO_WH         : DINT := 116;   // [Hold] 圓帶盒入倉
+    GC_ALARM_STO_DIAMETER_MOVEMENT       : DINT := 117;   // [Hold] 直徑移動
+	GC_ALARM_STO_ROBOTSELFHOMING		 : DINT := 118;	  // [Hold] 倉儲區手臂單獨回原點
+	GC_AlARM_STO_ROBOTINNERPICK			 : DINT := 119;	  // [Hold] 倉儲分揀放置圓帶
+    // 119-199: 預留倉儲區服務擴充
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — 配針區服務 (200-299)
+    // =========================================================================
+    GC_ALARM_ALC_BATCH_MODE              : DINT := 200;   // [Hold] 批次配針
+    GC_ALARM_ALC_BATCH_REVERSE           : DINT := 201;   // [Hold] 批次配針反向
+    GC_ALARM_ALC_DIFF_CV_CAMERA          : DINT := 202;   // [Hold] 異徑CV相機
+    GC_ALARM_ALC_OUTROBOT_REVERSE        : DINT := 203;   // [Hold] OutRobot 反向移盒
+    GC_ALARM_ALC_OUTROBOT_EMPTY          : DINT := 204;   // [Hold] OutRobot 空盒移動
+    GC_ALARM_ALC_OUTROBOT_RARE           : DINT := 205;   // [Hold] OutRobot 稀有盒移動
+    GC_ALARM_ALC_PULLOUT_CV              : DINT := 206;   // [Hold] 拔針輸送帶
+    GC_ALARM_ALC_ROUNDBELT               : DINT := 207;   // [Hold] 圓帶控制
+    GC_ALARM_ALC_SAME_CV_CAMERA          : DINT := 208;   // [Hold] 同徑CV相機
+    GC_ALARM_ALC_SAME_CV_CAMERA_REVERSE  : DINT := 212;   // [Hold] 同徑CV相機(反向)
+    GC_ALARM_ALC_TURNTABLE               : DINT := 209;   // [Hold] 轉盤控制
+    GC_ALARM_ALC_OUTROBOT_TT_TO_RB       : DINT := 210;   // [Hold] OutRobot 轉盤→圓帶
+    GC_ALARM_ALC_NEEDLING_MOVE           : DINT := 211;   // [Hold] 配針移動
+    // 212-299: 預留配針區服務擴充
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — 出貨區服務 (300-399)
+    // =========================================================================
+    GC_ALARM_SHP_ROBOT_LEFT              : DINT := 300;   // [Hold] 出貨機器人左
+    GC_ALARM_SHP_ROBOT_RIGHT             : DINT := 301;   // [Hold] 出貨機器人右
+    GC_ALARM_SHP_ROBOT_TRANSMIT_END      : DINT := 302;   // [Hold] 出貨機器人傳送端
+    GC_ALARM_SHP_LEFT_TRANS_CV           : DINT := 303;   // [Hold] 左側傳送帶
+    GC_ALARM_SHP_RIGHT_TRANS_CV          : DINT := 304;   // [Hold] 右側傳送帶
+    GC_ALARM_SHP_ROBOT_BUFFER            : DINT := 305;   // [Hold] 出貨機器人緩衝
+    GC_ALARM_SHP_ROBOT_TRANSFER          : DINT := 306;   // [Hold] 出貨機器人轉移
+    // 307-399: 預留出貨區服務擴充
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — 倉儲區氣缸 (500-599) [Hold, Level2]
+    // =========================================================================
+    GC_ALARM_CYL_STO_UPCV_FEEDIN1       : DINT := 500;   // 上CV進料壓缸1
+    GC_ALARM_CYL_STO_UPCV_FEEDIN2       : DINT := 501;   // 上CV進料壓缸2
+    GC_ALARM_CYL_STO_UPCV_DIAMETER      : DINT := 502;   // 上CV量徑壓缸
+    GC_ALARM_CYL_STO_UPCV_CAM1          : DINT := 503;   // 上CV相機壓缸1
+    GC_ALARM_CYL_STO_UPCV_CAM2          : DINT := 504;   // 上CV相機壓缸2
+    GC_ALARM_CYL_STO_UPCV_CAM3          : DINT := 505;   // 上CV相機壓缸3
+    GC_ALARM_CYL_STO_UPCV_CAM4          : DINT := 506;   // 上CV相機壓缸4
+    GC_ALARM_CYL_STO_UPCV_BLOCK1        : DINT := 507;   // 上CV擋塊1
+    GC_ALARM_CYL_STO_UPCV_BLOCK2        : DINT := 508;   // 上CV擋塊2
+    GC_ALARM_CYL_STO_UPCV_BLOCK3        : DINT := 509;   // 上CV擋塊3
+    GC_ALARM_CYL_STO_UPCV_DIA_HORIZ     : DINT := 510;   // 上CV量徑水平
+    GC_ALARM_CYL_STO_UPCV_DIA_VERT      : DINT := 511;   // 上CV量徑垂直
+    GC_ALARM_CYL_STO_UPCV_DIA_CLAMP     : DINT := 512;   // 上CV量徑夾
+    GC_ALARM_CYL_STO_STACK_PUSH         : DINT := 513;   // 疊盒推缸
+    GC_ALARM_CYL_STO_LOWCV_PRESS1       : DINT := 514;   // 下CV壓缸1
+    GC_ALARM_CYL_STO_LOWCV_PRESS2       : DINT := 515;   // 下CV壓缸2
+    GC_ALARM_CYL_STO_LOWCV_PRESS3       : DINT := 516;   // 下CV壓缸3
+    GC_ALARM_CYL_STO_LOWCV_PRESS4       : DINT := 517;   // 下CV壓缸4
+    GC_ALARM_CYL_STO_LOWCV_BLOCK1       : DINT := 518;   // 下CV擋塊1
+    GC_ALARM_CYL_STO_LOWCV_BLOCK2       : DINT := 519;   // 下CV擋塊2
+    GC_ALARM_CYL_STO_SAME_BLOCK3        : DINT := 520;   // 同徑CV擋塊3
+    GC_ALARM_CYL_STO_SHIP_BUFFER        : DINT := 521;   // 出貨緩衝壓缸
+    // 522-599: 預留倉儲區氣缸擴充
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — 配針區氣缸 (600-699) [Hold, Level2]
+    // =========================================================================
+    GC_ALARM_CYL_ALC_ROBOT_LCLAMP1      : DINT := 600;   // AllocateRobot 左夾1
+    GC_ALARM_CYL_ALC_ROBOT_LCLAMP2      : DINT := 601;   // AllocateRobot 左夾2
+    GC_ALARM_CYL_ALC_ROBOT_LVERT1       : DINT := 602;   // AllocateRobot 左升降1
+    GC_ALARM_CYL_ALC_ROBOT_LVERT2       : DINT := 603;   // AllocateRobot 左升降2
+    GC_ALARM_CYL_ALC_ROBOT_RCLAMP1      : DINT := 604;   // AllocateRobot 右夾1
+    GC_ALARM_CYL_ALC_ROBOT_RCLAMP2      : DINT := 605;   // AllocateRobot 右夾2
+    GC_ALARM_CYL_ALC_ROBOT_RVERT1       : DINT := 606;   // AllocateRobot 右升降1
+    GC_ALARM_CYL_ALC_ROBOT_RVERT2       : DINT := 607;   // AllocateRobot 右升降2
+    GC_ALARM_CYL_ALC_DIFF_BLOCK1        : DINT := 608;   // 異徑CV擋塊1
+    GC_ALARM_CYL_ALC_RB_WORK_PRESS      : DINT := 609;   // 圓帶工作區壓缸
+    GC_ALARM_CYL_ALC_RB_WORK_PLUG       : DINT := 610;   // 圓帶工作區插銷
+    GC_ALARM_CYL_ALC_RB_CHARGE_PLUG     : DINT := 611;   // 圓帶充電區插銷
+    GC_ALARM_CYL_ALC_RB_TRANS_PLUG      : DINT := 612;   // 圓帶傳送區插銷
+    GC_ALARM_CYL_ALC_OUTROBOT_AVERT     : DINT := 613;   // OutRobot A側升降
+    GC_ALARM_CYL_ALC_OUTROBOT_BVERT     : DINT := 614;   // OutRobot B側升降
+    GC_ALARM_CYL_ALC_OUTROBOT_ACLAMP    : DINT := 615;   // OutRobot A側夾
+    GC_ALARM_CYL_ALC_OUTROBOT_BCLAMP    : DINT := 616;   // OutRobot B側夾
+    GC_ALARM_CYL_ALC_TRANS_CAMHORIZ     : DINT := 617;   // 傳送CV相機水平
+    GC_ALARM_CYL_ALC_DIFF_PRESS2        : DINT := 618;   // 異徑CV壓缸2
+    GC_ALARM_CYL_ALC_DIFF_PRESS1        : DINT := 619;   // 異徑CV壓缸1
+    GC_ALARM_CYL_ALC_DIFF_BLOCK1_2      : DINT := 620;   // 異徑CV擋塊1 (重複)
+    GC_ALARM_CYL_ALC_SAME_PRESS4        : DINT := 621;   // 同徑CV壓缸4
+    GC_ALARM_CYL_ALC_SAME_PRESS3        : DINT := 622;   // 同徑CV壓缸3
+    GC_ALARM_CYL_ALC_SAME_PRESS2        : DINT := 623;   // 同徑CV壓缸2
+    GC_ALARM_CYL_ALC_SAME_PRESS1        : DINT := 624;   // 同徑CV壓缸1
+    GC_ALARM_CYL_ALC_SAME_BLOCK2        : DINT := 625;   // 同徑CV擋塊2
+    GC_ALARM_CYL_ALC_SAME_BLOCK1        : DINT := 626;   // 同徑CV擋塊1
+    GC_ALARM_CYL_ALC_PULLOUT_APRESS1    : DINT := 627;   // 拔針CV A側壓缸1
+    GC_ALARM_CYL_ALC_PULLOUT_APRESS2    : DINT := 628;   // 拔針CV A側壓缸2
+    GC_ALARM_CYL_ALC_PULLOUT_ABLOCK     : DINT := 629;   // 拔針CV A側擋塊
+    GC_ALARM_CYL_ALC_PULLOUT_BPRESS1    : DINT := 630;   // 拔針CV B側壓缸1
+    GC_ALARM_CYL_ALC_PULLOUT_BPRESS2    : DINT := 631;   // 拔針CV B側壓缸2
+    GC_ALARM_CYL_ALC_PULLOUT_BBLOCK     : DINT := 632;   // 拔針CV B側擋塊
+    // 633-699: 預留配針區氣缸擴充
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — 伺服軸 (800-899) [Abort, Level6]
+    // =========================================================================
+    GC_ALARM_AXIS_TURNTABLE              : DINT := 800;   // [Abort] 轉盤軸錯誤
+    GC_ALARM_AXIS_ROUNDBELT              : DINT := 801;   // [Abort] 圓帶軸錯誤
+    GC_ALARM_AXIS_ALLOCATE_X             : DINT := 802;   // [Abort] 配針X軸錯誤
+    GC_ALARM_AXIS_ALLOCATE_Y             : DINT := 803;   // [Abort] 配針Y軸錯誤
+    GC_ALARM_AXIS_OUTROBOT_X             : DINT := 804;   // [Abort] OutRobot X軸錯誤
+    GC_ALARM_AXIS_OUTROBOT_Y             : DINT := 805;   // [Abort] OutRobot Y軸錯誤
+    GC_ALARM_AXIS_RACKMOTOR              : DINT := 806;   // [Abort] RackMotor軸錯誤
+    // 807-899: 預留伺服軸擴充
+
+    // =========================================================================
+    // [1] RegisterAlarm ID — 安全門 (900-999) [Hold, Level2]
+    // =========================================================================
+    GC_ALARM_SAFE_DOOR_BASE              : DINT := 900;   // 安全門基底 (實際用 +1 ~ +16)
+    // 917-999: 預留安全相關擴充
+
+    // =========================================================================
+    // [2] FB 內部錯誤碼 — 通用 (A=0, OO=00 一般)
+    // =========================================================================
+    GC_ERR_NONE                          : INT := 0;       // 無錯誤
+    GC_ERR_TIMEOUT                       : INT := 1;       // 逾時 [Hold]
+    GC_ERR_POSITION_INVALID              : INT := 3;       // 位置資料無效 [Hold]
+    GC_ERR_INDEX_INVALID                 : INT := 10;      // 索引無效 [Hold]
+    GC_ERR_WRONG_COMMAND                 : INT := 11;      // 錯誤指令 [Hold]
+    GC_ERR_ROBOT_NUMBER_INVALID          : INT := 12;      // 機器人編號無效 [Hold]
+
+    // -- 通用 氣缸 (A=0, OO=01) --
+    GC_ERR_CYLINDER_NOT_READY            : INT := 102;     // 氣缸未就緒 [Hold]
+
+    // -- 通用 馬達 (A=0, OO=02) --
+    GC_ERR_MOTOR_NOT_READY               : INT := 202;     // 馬達未就緒 [Hold]
+
+    // -- 通用 伺服軸 (A=0, OO=03) --
+    GC_ERR_AXIS_NOT_READY                : INT := 302;     // 軸未就緒 [Hold]
+    GC_ERR_AXIS_ERROR                    : INT := 310;     // 軸錯誤 [Abort]
+    GC_ERR_AXIS_POSITION_ERROR           : INT := 305;     // 軸位置錯誤 [Hold]
+    GC_ERR_AXIS_SAFETY_CALL_ERROR        : INT := 311;     // 呼叫軸安全檢查錯誤 [Abort]
+    GC_ERR_AXIS_SAFETY_CHECK_ERROR       : INT := 312;     // 軸安全檢查錯誤 [Abort]
+    GC_ERR_AXIS_OUTROBOT_X_ERROR        : INT := 313;     // OutRobot X軸錯誤 [Abort]
+    GC_ERR_AXIS_OUTROBOT_Y_ERROR        : INT := 314;     // OutRobot Y軸錯誤 [Abort]
+    GC_ERR_AXIS_ALLOCATE_X_ERROR        : INT := 315;     // 配針X軸錯誤 [Abort]
+    GC_ERR_AXIS_ALLOCATE_Y_ERROR        : INT := 316;     // 配針Y軸錯誤 [Abort]
+    GC_ERR_AXIS_ROUNDBELT_ERROR         : INT := 317;     // 圓帶軸錯誤 [Abort]
+    GC_ERR_AXIS_TURNTABLE_ERROR         : INT := 318;     // 轉盤軸錯誤 [Abort]
+    GC_ERR_RACKMOTOR_BTN_BLINK          : INT := 319;     // RackMotor按鈕閃爍 [Hold]
+    GC_ERR_AXIS_X_NOT_READY             : INT := 320;     // X軸未就緒 [Hold]
+    GC_ERR_AXIS_Y_NOT_READY             : INT := 321;     // Y軸未就緒 [Hold]
+
+    // -- 通用 機器人 (A=0, OO=04) --
+    GC_ERR_ROBOT_CANNOT_HOME             : INT := 410;     // 機器人無法回原點 [Abort]
+    GC_ERR_ROBOT_REBOOT_TIMEOUT          : INT := 411;     // 機器人重啟逾時 [Abort]
+    GC_ERR_ROBOT_CMD_NOT_BUSY            : INT := 412;     // 機器人指令未接受 [Hold]
+    GC_ERR_ROBOT_CMD_TIMEOUT             : INT := 413;     // 機器人指令完成逾時 [Abort]
+    GC_ERR_ROBOT_HOMING_ERROR            : INT := 414;     // 機器人回原點錯誤+訊息 [Abort]
+
+    // =========================================================================
+    // [2] FB 內部錯誤碼 — 倉儲區專用 (A=1)
+    // =========================================================================
+    GC_ERR_STO_ROBOT_FEEDOUT_NOT_BUSY    : INT := 10412;   // 倉儲機器人 FeedOut 未接受 [Hold]
+    GC_ERR_STO_ROBOT_FEEDOUT_TIMEOUT     : INT := 10413;   // 倉儲機器人 FeedOut 逾時 [Abort]
+    GC_ERR_STO_SERVICE_OCCUPIED          : INT := 10006;   // 倉儲服務佔用中 [Hold]
+
+    // -- 倉儲區 下CV輸送帶 (A=1, OO=05/01) --
+    GC_ERR_STO_LOWCV_BLOCK1_ERROR       : INT := 10110;   // 下CV擋塊1錯誤 [Hold]
+    GC_ERR_STO_LOWCV_BLOCK2_ERROR       : INT := 10111;   // 下CV擋塊2錯誤 [Hold]
+    GC_ERR_STO_LOWCV_PRESS1_ERROR       : INT := 10112;   // 下CV壓缸1錯誤 [Hold]
+    GC_ERR_STO_LOWCV_PRESS2_ERROR       : INT := 10113;   // 下CV壓缸2錯誤 [Hold]
+    GC_ERR_STO_LOWCV_PRESS3_ERROR       : INT := 10114;   // 下CV壓缸3錯誤 [Hold]
+    GC_ERR_STO_LOWCV_PRESS4_ERROR       : INT := 10115;   // 下CV壓缸4錯誤 [Hold]
+    GC_ERR_STO_LOWCV_BOX_TIMEOUT        : INT := 10501;   // 下CV盒子到位逾時 [Hold]
+    GC_ERR_STO_LOWCV_CYL_ERROR          : INT := 10116;   // 下CV氣缸錯誤 (CyclicAction) [Hold]
+    GC_ERR_STO_LOWCV_MOTOR_ERROR        : INT := 10201;   // 下CV馬達錯誤 (CyclicAction) [Hold]
+
+    // =========================================================================
+    // [2] FB 內部錯誤碼 — 配針區專用 (A=2)
+    // =========================================================================
+    GC_ERR_ALC_RB_NOT_READY              : INT := 20602;   // 圓帶軸未就緒 [Hold]
+    GC_ERR_ALC_RB_CYLINDER_ERROR         : INT := 20102;   // 圓帶氣缸錯誤 [Hold]
+    GC_ERR_ALC_RB_AXIS_ERROR             : INT := 20610;   // 圓帶軸錯誤 [Abort]
+    GC_ERR_ALC_RB_CHARGE_PLUG_ERROR      : INT := 20111;   // 充電區插銷錯誤 [Hold]
+    GC_ERR_ALC_RB_TRANSMITCV_PLUG_ERROR  : INT := 20511;   // 傳送帶插銷錯誤 [Hold]
+    GC_ERR_ALC_RB_WORKZONE_PLUG_ERROR    : INT := 20112;   // 工作區插銷錯誤 [Hold]
+    GC_ERR_ALC_RB_WORKZONE_PRESS_ERROR   : INT := 20113;   // 工作區壓缸錯誤 [Hold]
+    GC_ERR_ALC_SERVO_ERROR               : INT := 20310;   // 配針伺服軸錯誤 [Abort]
+
+    // -- 配針區 轉盤 (A=2, OO=07) --
+    GC_ERR_ALC_TT_TARGET_INVALID        : INT := 20703;   // 轉盤目標無效 [Hold]
+    GC_ERR_ALC_TT_AXIS_NOT_READY        : INT := 20702;   // 轉盤軸未就緒 [Hold]
+    GC_ERR_ALC_TT_AXIS_ERROR            : INT := 20710;   // 轉盤軸錯誤 [Abort]
+    GC_ERR_ALC_TT_CYLINDER_NOT_READY    : INT := 20701;   // 轉盤氣缸未就緒 [Hold]
+    GC_ERR_ALC_TT_PRESS_ERROR           : INT := 20711;   // 轉盤壓缸錯誤 [Hold]
+
+    // -- 配針區 同徑CV相機 (A=2) --
+    GC_ERR_ALC_SAMECV_BLOCK1_ERROR      : INT := 20120;   // 同徑CV Block1錯誤 [Hold]
+    GC_ERR_ALC_SAMECV_BLOCK2_ERROR      : INT := 20121;   // 同徑CV Block2錯誤 [Hold]
+    GC_ERR_ALC_SAMECV_PRESS1_ERROR      : INT := 20122;   // 同徑CV Press1錯誤 [Hold]
+    GC_ERR_ALC_SAMECV_PRESS2_ERROR      : INT := 20123;   // 同徑CV Press2錯誤 [Hold]
+    GC_ERR_ALC_SAMECV_CAMHORIZ_ERROR    : INT := 20124;   // 同徑CV CameraHoriz錯誤 [Hold]
+    GC_ERR_ALC_SAMECV_BOX_NOT_ARRIVED   : INT := 20515;   // 同徑CV 盒子未到逾時 [Hold]
+    GC_ERR_ALC_SAMECV_CYL_TIMEOUT       : INT := 20125;   // 同徑CV 氣缸逾時 [Hold]
+    GC_ERR_ALC_SAMECV_CAMERA_TIMEOUT    : INT := 20516;   // 同徑CV 拍照逾時 [Abort]
+    GC_ERR_ALC_SAMECV_BOX_CROSS_TIMEOUT : INT := 20517;   // 同徑CV 盒子通過逾時 [Hold]
+    GC_ERR_ALC_SAMECV_FULL              : INT := 20518;   // 同徑CV 滿載 [Hold]
+    GC_ERR_ALC_SAMECV_MOTOR_ERROR       : INT := 20225;   // 同徑CV 馬達錯誤 [Hold]
+
+    // -- 配針區 異徑CV相機 (A=2) --
+    GC_ERR_ALC_DIFFCV_BLOCK1_ERROR      : INT := 20130;   // 異徑CV Block1錯誤 [Hold]
+    GC_ERR_ALC_DIFFCV_PRESS1_ERROR      : INT := 20131;   // 異徑CV Press1錯誤 [Hold]
+    GC_ERR_ALC_DIFFCV_CAMHORIZ_ERROR    : INT := 20132;   // 異徑CV CamaraHoriz錯誤 [Hold]
+    GC_ERR_ALC_DIFFCV_NOT_READY         : INT := 20519;   // 異徑CV 未就緒 [Hold]
+    GC_ERR_ALC_DIFFCV_CYL_TIMEOUT       : INT := 20133;   // 異徑CV 氣缸逾時 [Hold]
+    GC_ERR_ALC_DIFFCV_BOX_NOT_ARRIVED   : INT := 20520;   // 異徑CV 盒子未到逾時 [Hold]
+    GC_ERR_ALC_DIFFCV_CYL_MOTOR_TIMEOUT : INT := 20134;   // 異徑CV 馬達/氣缸逾時 [Hold]
+    GC_ERR_ALC_DIFFCV_CAMERA_TIMEOUT    : INT := 20521;   // 異徑CV 拍照逾時 [Abort]
+    GC_ERR_ALC_DIFFCV_BOX_CROSS_TIMEOUT : INT := 20522;   // 異徑CV 盒子通過逾時 [Hold]
+    GC_ERR_ALC_DIFFCV_FULL              : INT := 20523;   // 異徑CV 滿載 [Hold]
+    GC_ERR_ALC_DIFFCV_MOTOR_ERROR       : INT := 20226;   // 異徑CV 馬達錯誤 [Hold]
+
+    // -- 配針區 逆向拍照批次入料 (A=2) --
+    GC_ERR_ALC_REVBATCH_PICKUP_TIMEOUT  : INT := 20530;   // 逆向批次 小手臂取放盒逾時 [Hold]
+    GC_ERR_ALC_REVBATCH_BIGARM_TIMEOUT  : INT := 20531;   // 逆向批次 大手臂搬運逾時 [Hold]
+    GC_ERR_ALC_REVBATCH_CONVEYOR_FULL   : INT := 20532;   // 逆向批次 軌道滿載 [Hold]
+    GC_ERR_ALC_REVBATCH_CONFIG_TIMEOUT  : INT := 20533;   // 逆向批次 等待C#配置逾時 [Hold]
+    GC_ERR_ALC_REVBATCH_CAMERA_TIMEOUT  : INT := 20534;   // 逆向批次 拍照逾時 [Hold]
+
+    // =========================================================================
+    // [2] FB 內部錯誤碼 — 出貨區專用 (A=3)
+    // =========================================================================
+    GC_ERR_SHP_ROBOT_FEEDOUT_NOT_BUSY    : INT := 30412;   // 出貨機器人 FeedOut 未接受 [Hold]
+    GC_ERR_SHP_ROBOT_FEEDOUT_TIMEOUT     : INT := 30413;   // 出貨機器人 FeedOut 逾時 [Abort]
+    GC_ERR_SHP_SERVICE_OCCUPIED          : INT := 30006;   // 出貨服務佔用中 [Hold]
+    GC_ERR_SHP_ROBOT_REBOOT_TIMEOUT      : INT := 30411;   // 出貨機器人重啟逾時 [Abort]
+
+    // -- 出貨區 雷射/傳送帶 (A=3) --
+    GC_ERR_SHP_LASER_ERROR              : INT := 30910;   // 雷射機台錯誤 [Hold]
+    GC_ERR_SHP_TRANSCV_NOT_IN_POS       : INT := 30511;   // 傳送帶未在目標位置 [Hold]
+
+    // =========================================================================
+    // [3] 服務唯一識別碼 — UniqueErrorCode (INT)
+    //     各 Service FB 的 ErrorID，用於錯誤追蹤定位
+    // =========================================================================
+    // -- 倉儲區機器人服務 --
+    GC_SVCID_STO_ROBOT_ABS_MOVE         : INT := 2200;   // 倉儲機器人絕對移動
+    GC_SVCID_STO_REGION_ALLOC_CV        : INT := 2210;   // 區域移動-配針輸送帶
+    GC_SVCID_STO_REGION_ROUNDBELT       : INT := 2220;   // 區域移動-圓帶
+    GC_SVCID_STO_REGION_PULLOUT_CV      : INT := 2230;   // 區域移動-拔針輸送帶
+    GC_SVCID_STO_REGION_FEEDIN_CV       : INT := 2240;   // 區域移動-進料輸送帶
+    GC_SVCID_STO_WAREHOUSE_ROBOT        : INT := 2400;   // 倉儲機器人移動
+    GC_SVCID_STO_ADD_BOXES              : INT := 2700;   // 加盒服務
+    GC_SVCID_STO_UPPER_FEEDIN_CV        : INT := 2710;   // 上層進料輸送帶
+    GC_SVCID_STO_BOX_SUPPLY             : INT := 2800;   // 供盒控制
+
+    // -- 配針區服務 --
+    GC_SVCID_ALC_PULLOUT_CV             : INT := 2750;   // 拔針輸送帶
+    GC_SVCID_ALC_BATCH_SIMPLE           : INT := 112;    // 批次配針(簡易模式)
+    GC_SVCID_ALC_BATCH_FULL             : INT := 108;    // 批次配針(完整模式)
+
+    // -- 出貨區機器人服務 --
+    GC_SVCID_SHP_ROBOT                  : INT := 2250;   // 出貨機器人
+
+
+    // =========================================================================
+    // [3] 中央化狀態訊息常數
+    // =========================================================================
+    GC_MSG_0001                      : STRING := 'Action Robot timeout';
+    GC_MSG_0002: STRING := 'BlockBox1 MoveForward or BlockBox2 MoveBackward or DiameterMeasurementPressBox MoveBackward timeout';
+    GC_MSG_0003           : STRING := 'Block 1 cylinder inrearPosition';
+    GC_MSG_0004           : STRING := 'Block 2 cylinder inrearPosition';
+    GC_MSG_0005             : STRING := 'Block box on conveyor timeout';
+    GC_MSG_0006                     : STRING := 'box1 diameter timeout';
+    GC_MSG_0007: STRING := 'Box not at Input.bUpCV_Block2Detect_Sensor';
+    GC_MSG_0008                      : STRING := 'Box not On Turntable';
+    GC_MSG_0009                      : STRING := 'Box Not on Turntable';
+    GC_MSG_0010                                 : STRING := 'Box on A1';
+    GC_MSG_0011                                 : STRING := 'Box on A2';
+    GC_MSG_0012                          : STRING := 'Box On Turntable';
+    GC_MSG_0013                           : STRING := 'Box still on A1';
+    GC_MSG_0014                           : STRING := 'Box still on A2';
+    GC_MSG_0015                     : STRING := 'Box still on conveyor';
+    GC_MSG_0016                    : STRING := 'Box still on Turntable';
+    GC_MSG_0017       : STRING := 'Check FirstBoxCamaraDone info retry';
+    GC_MSG_0018                        : STRING := 'ClampA Robot Error';
+    GC_MSG_0019                    : STRING := 'Clamp A Feedin timeout';
+    GC_MSG_0020                    : STRING := 'Clamp A reload timeout';
+    GC_MSG_0021                     : STRING := 'Clamp A robot timeout';
+    GC_MSG_0022                    : STRING := 'Clamp B Feedin timeout';
+    GC_MSG_0023                    : STRING := 'Clamp B reload timeout';
+    GC_MSG_0024                     : STRING := 'Clamp B Robot timeout';
+    GC_MSG_0025                   : STRING := 'Clip pick close timeout';
+    GC_MSG_0026                   : STRING := 'clip pick close timeout';
+    GC_MSG_0027                   : STRING := 'clip place open timeout';
+    GC_MSG_0028                   : STRING := 'Clip place open timeout';
+    GC_MSG_0029: STRING := 'Command error : Clamp A target layer out of range.';
+    GC_MSG_0030: STRING := 'Command error : Clamp A target slide out of range';
+    GC_MSG_0031: STRING := 'Command error : Clamp B target layer out of range.';
+    GC_MSG_0032: STRING := 'Command error : Clamp B target slide out of range';
+    GC_MSG_0033                   : STRING := 'Controller report error';
+    GC_MSG_0034: STRING := 'Conveyor not ready , please remove boxes in front';
+    GC_MSG_0035: STRING := 'Cylinder.List.fbUpCV_Block2 MoveForward timeout';
+    GC_MSG_0036       : STRING := 'Cylinder.List.fbUpCV_Block3 timeout';
+    GC_MSG_0037: STRING := 'Cylinder.List.fbUpCV_CamaraPress1.M_MoveForward timeout';
+    GC_MSG_0038: STRING := 'Cylinder.List.fbUpCV_CamaraPress1 or Cylinder.List.fbUpCV_Block3 InRearPosition timeout';
+    GC_MSG_0039: STRING := 'Cylinder.List.fbUpCV_DiameterClamp M_Extend Timeout';
+    GC_MSG_0040: STRING := 'Cylinder.List.fbUpCV_DiameterClamp M_Retract Timeout';
+    GC_MSG_0041: STRING := 'Cylinder.List.fbUpCV_DiameterHoriz M_Extend Timeout';
+    GC_MSG_0042: STRING := 'Cylinder.List.fbUpCV_DiameterHoriz M_Retract Timeout';
+    GC_MSG_0043: STRING := 'Cylinder.List.fbUpCV_DiameterPress MoveForward timeout';
+    GC_MSG_0044: STRING := 'Cylinder.List.fbUpCV_DiameterVert MoveForward Timeout';
+    GC_MSG_0045: STRING := 'Cylinder.List.fbUpCV_DiameterVert M_Extend Timeout';
+    GC_MSG_0046: STRING := 'Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
+    GC_MSG_0047: STRING := 'Cylinder.List.fbUpCV_FeedInPress1 or Cylinder.List.fbUpCV_FeedInPress2 MoveForward timeout';
+    GC_MSG_0048                : STRING := 'Cylinder pick down timeout';
+    GC_MSG_0049                  : STRING := 'Cylinder pick up timeout';
+    GC_MSG_0050                  : STRING := 'cylinder pick up timeout';
+    GC_MSG_0051               : STRING := 'Cylinder place down timeout';
+    GC_MSG_0052                 : STRING := 'Cylinder place up timeout';
+    GC_MSG_0053                 : STRING := 'cylinder place up timeout';
+    GC_MSG_0054       : STRING := 'C# DiameterMovement Pickdone timeout';
+    GC_MSG_0055   : STRING := 'C# FirstBoxCameraDiameterRequest timeout';
+    GC_MSG_0056              : STRING := 'C# FirstBoxCameraDone timeout';
+    GC_MSG_0057     : STRING := 'C# SecondBoxCameraDiameterDone timeout';
+    GC_MSG_0058                          : STRING := 'Data not correct';
+    GC_MSG_0059  : STRING := 'Destination: Left TransCV not in position';
+    GC_MSG_0060 : STRING := 'Destination: Right TransCV not in position';
+    GC_MSG_0061                    : STRING := 'Empty conveyor timeout';
+    GC_MSG_0062                    : STRING := 'Empty Conveyor timeout';
+    GC_MSG_0063                       : STRING := 'Empty Robot timeout';
+    GC_MSG_0064           : STRING := '_fbDiameterMovement Done timeout';
+    GC_MSG_0065        : STRING := 'FeedInBox1Detecting not have a box';
+    GC_MSG_0066: STRING := 'FeedInPressBox1Cylinder or FeedInPressBox2Cylinder or ReadCodePressBox2Cylinder MoveBackward timeout';
+    GC_MSG_0067                            : STRING := 'Feed box error';
+    GC_MSG_0068                          : STRING := 'Feed box timeout';
+    GC_MSG_0069                          : STRING := 'Feed Box timeout';
+    GC_MSG_0070                : STRING := 'First box diameter timeout';
+    GC_MSG_0071: STRING := 'First box still at Input.bUpCV_Block2Detect_Sensor';
+    GC_MSG_0072                  : STRING := 'FROM: Reset Robot timeout';
+    GC_MSG_0073                 : STRING := 'FROM: Robot action timeout';
+    GC_MSG_0074                : STRING := 'Get command, clamp have box';
+    GC_MSG_0075                : STRING := 'Get command , clamp have box';
+    GC_MSG_0076: STRING := 'Input.bUpCV_Block2Detect_Sensor not have box';
+    GC_MSG_0077: STRING := 'Input.bUpCV_Block3Detect_Sensor first box leave timeout';
+    GC_MSG_0078        : STRING := 'Lowerconveyor Reverse Stop timeout';
+    GC_MSG_0079             : STRING := 'Lowerconveyor Reverse timeout';
+    GC_MSG_0080                   : STRING := 'Modbus connection error';
+    GC_MSG_0081                      : STRING := 'Move box out timeout';
+    GC_MSG_0082    : STRING := 'Move Robot to picking position timeout';
+    GC_MSG_0083    : STRING := 'Move robot to picking position timeout';
+    GC_MSG_0084    : STRING := 'Move robot to placing position timeout';
+    GC_MSG_0085   : STRING := 'Move Robot to placing position time out';
+    GC_MSG_0086                              : STRING := 'No Box on A1';
+    GC_MSG_0087                              : STRING := 'No Box on A2';
+    GC_MSG_0088                        : STRING := 'No Box on conveyor';
+    GC_MSG_0089                                  : STRING := 'No Error';
+    GC_MSG_0090                                  : STRING := 'No error';
+    GC_MSG_0091                                  : STRING := 'no error';
+    GC_MSG_0092                         : STRING := 'no error , retrying';
+    GC_MSG_0093    : STRING := 'Pick Box ClampA from RoundBelt timeout';
+    GC_MSG_0094    : STRING := 'Pick Box ClampB from RoundBelt timeout';
+    GC_MSG_0095           : STRING := 'Pick Box from RoundBelt timeout';
+    GC_MSG_0096                          : STRING := 'Pick Box timeout';
+    GC_MSG_0097                         : STRING := 'Place Box timeout';
+    GC_MSG_0098            : STRING := 'Place Box to WareHouse timeout';
+    GC_MSG_0099          : STRING := 'Place command , clamp not have box';
+    GC_MSG_0100          : STRING := 'Place command, clamp not have box';
+    GC_MSG_0101    : STRING := 'Prepare Cylinder clear command timeout';
+    GC_MSG_0102: STRING := 'PullOutConveyorA FeedIn full box ,please remove box';
+    GC_MSG_0103: STRING := 'PullOutConveyorA FeedOut full box ,please remove';
+    GC_MSG_0104   : STRING := 'PullOutConveyorA full box ,please remove';
+    GC_MSG_0105: STRING := 'PullOutConveyorA none box ,please refill box';
+    GC_MSG_0106: STRING := 'PullOutConveyorB FeedIn full box ,please remove box';
+    GC_MSG_0107: STRING := 'PullOutConveyorB FeedOut full box ,please remove';
+    GC_MSG_0108   : STRING := 'PullOutConveyorB full box ,please remove';
+    GC_MSG_0109                  : STRING := 'Rackmotor moving timeout';
+    GC_MSG_0110              : STRING := 'RackPusher move back timeout';
+    GC_MSG_0111           : STRING := 'RackPusher move forward timeout';
+    GC_MSG_0112     : STRING := 'Rack occupied by user Push FeedButton';
+    GC_MSG_0113                       : STRING := 'Reset Robot timeout';
+    GC_MSG_0114: STRING := 'Robot A Clamp Get Box , Clamp has box or Clamp not Open';
+    GC_MSG_0115: STRING := 'Robot A Clamp Place Box , Clamp not has box or Clamp Open';
+    GC_MSG_0116: STRING := 'Robot both Clamp Get Box , Clamp has box or Clamp not has open';
+    GC_MSG_0117: STRING := 'Robot both Clamp Place Box , Clamp not has box or Clamp has open';
+    GC_MSG_0118: STRING := 'Robot B Clamp Get Box , Clamp has box or Clamp not has open';
+    GC_MSG_0119: STRING := 'Robot B Clamp Place Box , Clamp not has box or Clamp has open';
+    GC_MSG_0120: STRING := 'Robot do Only A Clamp Get Box , Clamp has box or Clamp not Open';
+    GC_MSG_0121: STRING := 'Robot do Only A Clamp Place Box , Clamp not has box or Clamp Open';
+    GC_MSG_0122: STRING := 'Robot do Only B Clamp Get Box , Clamp has box or Clamp not has open';
+    GC_MSG_0123: STRING := 'Robot do Only B Clamp Place Box , Clamp not has box or Clamp has open';
+    GC_MSG_0124                               : STRING := 'Robot Error';
+    GC_MSG_0125                           : STRING := 'Robot Has Fault';
+    GC_MSG_0126                        : STRING := 'Robot move timeout';
+    GC_MSG_0127                        : STRING := 'Robot Move timeout';
+    GC_MSG_0128    : STRING := 'Robot move to picking position timeout';
+    GC_MSG_0129    : STRING := 'robot move to placing position timeout';
+    GC_MSG_0130                           : STRING := 'RoundBelt Error';
+    GC_MSG_0131: STRING := 'Second box feedin to read code camera pos timeout';
+    GC_MSG_0132       : STRING := 'Source: Left TransCV not in position';
+    GC_MSG_0133      : STRING := 'Source: Right TransCV not in position';
+    GC_MSG_0134                         : STRING := 'Station get Error';
+    GC_MSG_0135                     : STRING := 'Stop Conveyor timeout';
+    GC_MSG_0136                     : STRING := 'Stop conveyor timeout';
+    GC_MSG_0137                        : STRING := 'Stop Robot timeout';
+    GC_MSG_0138: STRING := 'There is a box on Input.bUpCV_Block1Detect_Sensor';
+    GC_MSG_0139                    : STRING := 'TO: Reset Robot timeout';
+    GC_MSG_0140                   : STRING := 'TO: Robot action timeout';
+    GC_MSG_0141                 : STRING := 'Use bothClamp robot Error';
+    GC_MSG_0142            : STRING := 'Use ClampA Command Robot Error';
+    GC_MSG_0143            : STRING := 'Use ClampB Command Robot Error';
+    GC_MSG_0144                    : STRING := 'Use ClampB Robot Error';
+    GC_MSG_0145         : STRING := 'wait Box Arrived TransCV time out';
+    GC_MSG_0146                             : STRING := 'Wrong command';
+    GC_MSG_0147            : STRING := 'Wrong command ,Area_A not allow';
+    GC_MSG_0148  : STRING := 'Wrong command ,Area A not match to Area B';
+    GC_MSG_0149            : STRING := 'Wrong command ,Area_B not allow';
+    GC_MSG_0150            : STRING := 'Wrong command ,Both Area are 99';
+    GC_MSG_0151    : STRING := 'Wrong command , Both warehouses selected';
+    GC_MSG_0152: STRING := 'Wrong command, Buffer Position must be 1-55';
+    GC_MSG_0153: STRING := 'Wrong command ,Can Not Get box from FeedOut conveyor';
+    GC_MSG_0154: STRING := 'Wrong command ,Can Not Put box to FeedIn conveyor';
+    GC_MSG_0155   : STRING := 'Wrong command, check the command setting';
+    GC_MSG_0156             : STRING := 'Wrong command ,Clamp B has box';
+    GC_MSG_0157     : STRING := 'Wrong command: Clip A target not allow';
+    GC_MSG_0158     : STRING := 'Wrong command: Clip B target not allow';
+    GC_MSG_0159      : STRING := 'Wrong command ,GetA not match to GetB';
+    GC_MSG_0160: STRING := 'Wrong command, Left/Right Position must be 1-40';
+    GC_MSG_0161  : STRING := 'Wrong command, no clamp has Work behavior';
+    GC_MSG_0162       : STRING := 'Wrong command , No warehouse selected';
+    GC_MSG_0163      : STRING := 'Wrong command ,Position A Not allowed';
+    GC_MSG_0164        : STRING := 'Wrong command ,Position A Not allow';
+    GC_MSG_0165      : STRING := 'Wrong command ,Position B Not allowed';
+    GC_MSG_0166        : STRING := 'Wrong command ,Position B Not allow';
+    GC_MSG_0167     : STRING := 'Wrong command ,TransCV not In Position';
+    GC_MSG_0168: STRING := 'Wrong command, TransmitCVEnd Position must be 1-2';
+    GC_MSG_0169                : STRING := 'Wrong command, unknown Area';
+    GC_MSG_0170  : STRING := 'Wrong Command ,UseA and UseB both not use';
+    GC_MSG_0171   : STRING := 'Wrong command ,use Clamp Command invaild';
+    GC_MSG_0172   : STRING := 'Pick pos lost: OutRobot XY drifted before clip down';
+    GC_MSG_0173   : STRING := 'Place pos lost: OutRobot XY drifted before clip down';
+    GC_MSG_0174   : STRING := 'TurnTable interlock: must not move while clip down';
+    GC_MSG_0175   : STRING := 'TurnTable angle invalid: must be 0/90/180/270/360';
+
+END_VAR
+]]></Declaration>
+  </GVL>
+</TcPlcObject>

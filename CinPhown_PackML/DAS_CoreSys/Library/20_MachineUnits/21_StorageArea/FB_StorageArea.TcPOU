@@ -509,29 +509,6 @@ fbFeedInRoundBeltBoxToWareHouse(
 	Stop:= bStopMem, 
 	AClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.AClampMoveDone, 
 	BClampMoveDone=> Service.AutoMode_FeedInRoundBeltBoxToWareHouse.BClampMoveDone);
-
-fbFeedInRoundBeltBoxToWareHouse(
-	Execute:= , 
-	Abort:= , 
-	Reset:= , 
-	Pause:= , 
-	ObjectName:= , 
-	Busy=> , 
-	Done=> , 
-	Aborted=> , 
-	Error=> , 
-	Paused=> , 
-	ErrorID=> , 
-	Status=> , 
-	UniqueErrorCode=> , 
-	Robot:= FanucRobot, 
-	RoundBelt:= DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl, 
-	WareHouse:= fbWarehouse, 
-	Input:= Input, 
-	Info:= , 
-	Stop:= bStopMem, 
-	AClampMoveDone=> , 
-	BClampMoveDone=> );
 	
 fbRobotSelfHoming(
 	Execute:= Service.AutoMode_RobotSelfHoming.Command.Execute, 
@@ -1048,8 +1025,6 @@ M_StateComplete();]]></ST>
       <LineId Id="3530" Count="0" />
       <LineId Id="3532" Count="20" />
       <LineId Id="3531" Count="0" />
-      <LineId Id="3554" Count="21" />
-      <LineId Id="3553" Count="0" />
       <LineId Id="3577" Count="0" />
       <LineId Id="3579" Count="17" />
       <LineId Id="3578" Count="0" />

@@ -1,0 +1,1693 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_FeedInRoundBeltBoxToWareHouse" Id="{1f2b943d-7738-4ce7-a3be-f7c7bb14b70d}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	FB_FeedInRoundBeltBoxToWareHouse
+	功能：從圓帶取盒子放回倉儲 (與 FB_ReloadRoundBeltBoxWithRobot_V2 反向操作)
+	流程：圓帶移動到站位 → 手臂 AbsMove 從圓帶取盒 → 手臂放盒到倉儲
+	安全卡控：手臂進入圓帶區域時，取得圓帶控制權，圓帶不可移動
+*)
+FUNCTION_BLOCK FB_FeedInRoundBeltBoxToWareHouse EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    // ===== 外部元件參考 =====
+    Robot         : REFERENCE TO FB_FanucRobot_Basic_V2; // Fanuc 手臂
+	RoundBelt	  : REFERENCE TO FB_RoundBeltService;    // 圓帶服務
+    WareHouse     : REFERENCE TO FB_WareHouse;           // 倉儲區
+	Input         : ST_InputTable;                        // IO 輸入表
+    Info          : ST_FeedInToWareHouseBox_Info;         // C# ADS 餵入的動作參數 (A爪/B爪 取盒位置、放盒目標)
+    Stop          : BOOL;                                 // 停止訊號，暫停 Timeout 計時
+
+	// ===== Batch handshake mode (opt-in) =====
+	// 由 Batch FB 設為 TRUE 啟用 ActionRecord + FeedBack/ReadComplete 握手
+	// 預設 FALSE → 走原本流程,完成後直接 _Executed,不產生 ActionRecord (向後相容)
+	HandshakeMode : BOOL;
+	ReadComplete  : BOOL;	// (HandshakeMode 時) C# 讀取陣列完成確認
+END_VAR
+VAR_OUTPUT
+	AClampMoveDone	: BOOL;  // A爪動作完成旗標，供 C# 寫入 SQL
+	BClampMoveDone	: BOOL;  // B爪動作完成旗標，供 C# 寫入 SQL
+
+	// ===== Batch handshake outputs (僅 HandshakeMode=TRUE 時填入) =====
+	ActionRecords	: ARRAY[0..39] OF ST_FeedInRBActionRecord;	// 動作紀錄陣列
+	ActionIndex		: INT;		// 已記錄筆數 (0..40)
+	FeedBack		: BOOL;		// TRUE = 流程完成,陣列可讀取 (PLC → C#)
+END_VAR
+VAR
+    strStatus         : STRING;   // 錯誤/狀態訊息
+    tonTimeOut        : TON;      // 通用逾時計時器 (120s),由各 step 自行呼叫 (IN:=TRUE, PT:=)
+    tonReadComplete   : TON;      // (HandshakeMode) C# 讀取確認逾時 (15s)
+    _UniqueErrorCode  : STRING;
+    PreviousStrStatus : STRING;   // Resume 前的狀態訊息
+    PreviousErrorCode : STRING;   // Resume 前的錯誤碼
+    A2_Sensor         : BOOL;    // 圓帶 A2 位置感測器
+    A3_Sensor         : BOOL;    // 圓帶 A3 位置感測器
+
+	// ===== 爪工作旗標 =====
+	_AClampDoingWork	: BOOL;  // A爪正在執行
+	_BClampDoingWork	: BOOL;  // B爪正在執行
+
+	// ========== Resume 續做機制 ==========
+	uiResumeStep	: UDINT := 0;	// 錯誤發生時記錄的步驟，供續做使用
+
+	// =========== Aborted =================
+	_bRetry			: BOOL;
+
+	// Step 切換偵測 (timer 乾淨重置,避免 tonTimeOut.IN 殘留 TRUE 造成跨 step 不歸零)
+	uiExecutingStep_Last : UDINT;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
+A2_Sensor := Input.bRoundBelt_ChangeZoneA2Detect_Sensor;
+A3_Sensor := Input.bRoundBelt_ChangeZoneA3Detect_Sensor;
+
+(*============================================================
+Create Date : 2026/03/18
+Last Update	: 2026/03/23
+Change Log  : 2026/03/18，Initial version - Pick box from RoundBelt and place to WareHouse
+			  2026/03/23，修正續做，新增手臂先在aborting清除錯誤，
+============================================================*)]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{d4280eb9-ca7e-442a-b801-73dd87db9133}" />
+    <Folder Name="State" Id="{2ba17670-5465-45b9-92a0-c2faaeb8603f}" />
+    <Action Name="A00_BasicUnits" Id="{b27a6fc0-c6f3-44af-84ce-5b05e488069f}">
+      <Implementation>
+        <ST><![CDATA[// Timer 由各 step 自行呼叫並傳 IN/PT,此處不做 freerun call,
+// 避免「IN 殘留 TRUE」造成 step 切換後 timer 不歸零。
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{883a9d21-ff1b-4522-933d-ec389523c738}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+VAR_INST
+	CheckBehavior : BOOL;
+END_VAR
+VAR
+	I: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Memory clear
+CheckBehavior := FALSE;
+// Check command is correct
+IF info.ClampA_Setting.Behavior = E_ClampWork.Work OR info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	CheckBehavior := TRUE;
+ELSE
+	CheckBehavior := FALSE;
+END_IF
+
+M_CheckCommand := CheckBehavior;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{37c7dc09-25b4-4790-b072-dee8d7a259df}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{043ebb58-e4aa-4511-81e7-e7b4847fe158}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SelectActionMode" Id="{ecd434c5-e17f-492b-ab81-4dc9429caa3b}" FolderPath="Method\">
+      <Declaration><![CDATA[(* 根據 A爪/B爪 的 Behavior 和 PlaceArea 判斷動作模式
+   - 單爪A/B：從圓帶取盒後放到 WareHouseA 或 WareHouseB
+   - 雙爪：兩爪各自從圓帶取盒，放到指定的倉儲 (可同倉或不同倉)
+*)
+METHOD M_SelectActionMode : E_FeedInToWareHouseAction
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 判斷 A爪/B爪 是否有工作，以及放盒目標倉儲
+IF info.ClampA_Setting.Behavior <> E_ClampWork.Work AND info.ClampB_Setting.Behavior <> E_ClampWork.Work THEN
+	M_SelectActionMode := E_FeedInToWareHouseAction.Undefined;
+ELSIF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior <> E_ClampWork.Work THEN
+	IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+		M_SelectActionMode := E_FeedInToWareHouseAction.ClampA_WareHouseA;
+	ELSIF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+		M_SelectActionMode := E_FeedInToWareHouseAction.ClampA_WareHouseB;
+	END_IF
+ELSIF info.ClampA_Setting.Behavior <> E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+		M_SelectActionMode := E_FeedInToWareHouseAction.ClampB_WareHouseA;
+	ELSIF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+		M_SelectActionMode := E_FeedInToWareHouseAction.ClampB_WareHouseB;
+	END_IF
+ELSIF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+		IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+			M_SelectActionMode := E_FeedInToWareHouseAction.A_WareHouseA_B_WareHouseA;
+		ELSIF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+			M_SelectActionMode := E_FeedInToWareHouseAction.A_WareHouseA_B_WareHouseB;
+		END_IF
+	ELSIF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+		IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+			M_SelectActionMode := E_FeedInToWareHouseAction.A_WareHouseB_B_WareHouseA;
+		ELSIF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+			M_SelectActionMode := E_FeedInToWareHouseAction.A_WareHouseB_B_WareHouseB;
+		END_IF
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{86aa66d0-ba46-4f73-8b9a-521079759914}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy    := FALSE;
+	Error	:= TRUE;
+	Aborted := TRUE;
+	UniqueErrorCode := _UniqueErrorCode;
+	uiAbortingStep  := 0;
+	_AbortCompleted := FALSE;
+	Status := strStatus;
+END_IF
+
+IF reset THEN
+	_bRetry := TRUE;
+	Error	:= FALSE;
+	Aborted := FALSE;
+	_Abort  := FALSE;
+END_IF
+
+// ============================================================
+// Resume 續做機制：保持 Execute 並按 Reset 可從錯誤點繼續執行
+// ============================================================
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error AND NOT Robot.Halt THEN
+	// Resume 模式：確認 Robot 不在暫停且無錯誤，從儲存的步驟繼續執行
+	Status := '';
+	uiExecutingStep := uiResumeStep;
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	IF GVL_ADS.MachineState <>E_MachineState.Error THEN
+		eSTATE:=STATE_EXECUTING;
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{5005c81e-5d7d-4ccc-a955-d253ff2582d7}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF
+	0:
+			_Abort 				:= FALSE;
+			_bRetry				:= FALSE;
+			tonTimeOut(IN := FALSE);
+
+			// 清除 Robot DO handshake 和周邊狀態（不管 Robot 是 Error 還是 Held）
+	
+			(* 
+				comment edited By Gamin ，
+				1. 續做不能清除手臂命令，如果是做雙爪夾盒，A爪做完B爪報錯進入到續做流程，如果在此清除掉手臂命令
+					，後續回到executing 動作，此時的情境為A 已做完已夾完盒，等同於給手臂重新做的命令，，會有危險，
+				2. 在Service 執行期間進入到錯誤狀態也不能清除圓帶的使用權，以免被其他的Serivce 搶走，會有危險
+				3.  A、B done 不能清除，這旗標也可算是代表手臂該爪的動作完成，
+				   如果A爪完成，B爪報錯，續做只接續著做B爪，這樣Service 結束就只會有B done。
+			*)
+//			Robot.M_ResetAllCommand();
+//			WareHouse.M_ResetFeedInBox();
+//			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+//			DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+//			AClampMoveDone	 := FALSE;
+//			BClampMoveDone	 := FALSE;
+//			_AClampDoingWork := FALSE;
+//			_BClampDoingWork := FALSE;
+
+			uiAbortingStep := 100;
+    100:
+			IF Robot._DI1.Error THEN
+				uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+			
+	200:		
+			 IF DAS_CoreSys.MachineControl.M_RobotResetCmd() THEN
+				 uiAbortingStep := 300;
+			 END_IF
+			 
+	300:
+			IF DAS_CoreSys.MachineControl.M_RobotStartCmd() THEN
+				 uiAbortingStep := 400;
+			 END_IF 
+			 
+	400:
+			IF Robot._DI1.Error THEN
+		 		uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+			
+	9999:
+			_AbortCompleted := TRUE;
+END_CASE
+
+
+IF _AbortCompleted THEN
+    eState := STATE_Aborted;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{b2f2f184-e1b4-48e2-a30f-3afe45098a59}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{2ae95e8d-e07d-4b15-b717-c618eda3bc89}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 清除 FB 所有輸出與內部狀態
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+_Abort			:= FALSE;
+
+uiExecutingStep := 0;
+uiAbortingStep	:= 0;
+uiResettingStep := 0;
+uiResumeStep    := 0;
+uiExecutingStep_Last := 0;
+
+// Timer 完整歸零 (用實際 FB call,不是只設屬性)
+tonTimeOut(IN := FALSE);
+
+PreviousStrStatus := '';
+PreviousErrorCode := '';
+_UniqueErrorCode := '0';
+
+AClampMoveDone 	 := FALSE;
+BClampMoveDone 	 := FALSE;
+_AClampDoingWork := FALSE;
+_BClampDoingWork := FALSE;
+_AbortCompleted	 := FALSE;
+
+_bRetry			:= FALSE;
+
+// HandshakeMode: 清 ActionRecord / handshake 旗標
+FeedBack := FALSE;
+ActionIndex := 0;
+MEMSET(ADR(ActionRecords), 0, SIZEOF(ActionRecords));
+tonReadComplete(IN := FALSE);
+
+// 等待 Execute 命令啟動
+IF Execute AND NOT Stop THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{2039b6ba-197f-4c03-bcde-cb77a1b3f9f8}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[UniqueErrorCode	:= _UniqueErrorCode;
+Error			:= TRUE;
+Busy			:= FALSE;
+status			:= strStatus;
+
+
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{6520e113-6aa3-41db-a724-b73eaa9054b9}" FolderPath="State\">
+      <Declaration><![CDATA[(*
+	M_STATE_EXECUTING 主執行流程
+	Step 配置：
+	  0~1100    : 初始化、命令檢查、模式選擇
+	  10000~10080 : A爪單爪 - 從圓帶取盒
+	  20000~20080 : B爪單爪 - 從圓帶取盒
+	  30000~31080 : 雙爪 - 從圓帶取盒 (先A後B，支援同站/不同站)
+	  60000~61080 : A爪單爪 - 放盒到倉儲
+	  70000~71080 : B爪單爪 - 放盒到倉儲
+	  80000~81000 : 雙爪 - 放盒到倉儲 (支援同倉/不同倉)
+	  99000       : 流程完成
+*)
+METHOD M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+    ActionMode       : E_FeedInToWareHouseAction;   // 動作模式 (單爪A/B、雙爪 × 目標倉儲)
+	BoxReady_1st     : BOOL;  // 第一個盒子就緒 (A爪用)
+	BoxReady_2nd     : BOOL;  // 第二個盒子就緒 (B爪用)
+    CarrierReady_1st : BOOL;  // 第一個載具就緒
+    CarrierReady_2nd : BOOL;  // 第二個載具就緒
+    uiPickUpBothStep : UINT;  // 雙爪取盒子步驟
+    uiPlaceBothStep  : UINT;  // 雙爪放盒子步驟
+    ClampA_WareHouseCoordinates : ST_WareHouseCoordinates;  // A爪倉儲目標座標 (Layer/Slide)
+    ClampB_WareHouseCoordinates : ST_WareHouseCoordinates;  // B爪倉儲目標座標 (Layer/Slide)
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set status busy
+Busy := TRUE;
+
+// ============================================================
+// Step 切換 → Timer 完整歸零
+// 解決 tonTimeOut.IN 殘留 TRUE 造成跨 step 累計不歸零
+// 每個 step 只要呼叫 tonTimeOut(IN:=TRUE, PT:=...) 啟動計時,
+// step 切換瞬間 (uiExecutingStep <> uiExecutingStep_Last) 會被此區塊歸零
+// ============================================================
+IF uiExecutingStep <> uiExecutingStep_Last THEN
+	tonTimeOut(IN := FALSE);
+	uiExecutingStep_Last := uiExecutingStep;
+END_IF
+
+// Stop 信號: 暫停 timeout 計時 (不歸零, 解除後從停止時間繼續)
+IF THIS^.Stop THEN
+	tonTimeOut(IN := FALSE);
+END_IF
+
+CASE uiExecutingStep OF
+    0: // 初始化變數
+	// 非自動模式直接報錯 (避免軸控衝突)
+	IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
+		strStatus := 'Not in Auto mode';
+		_UniqueErrorCode := 'E_NOT_AUTO_MODE';
+		_Error := TRUE;
+	ELSE
+        ActionMode       := E_FeedInToWareHouseAction.Undefined;
+        CarrierReady_1st := FALSE;
+        CarrierReady_2nd := FALSE;
+        uiPickUpBothStep := 0;
+        uiPlaceBothStep  := 0;
+		BoxReady_1st := FALSE;
+		BoxReady_2nd := FALSE;
+        // 確認命令是否正確 (至少一個爪有 Work)
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 10;
+		ELSE
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0161);
+			Status := strStatus;
+			Error := TRUE;
+			_Error := TRUE;
+        END_IF
+	END_IF
+    10: // 確認各元件就緒
+        IF M_CheckUnitsReady() THEN
+            uiExecutingStep := 20;
+        END_IF
+    20: // 確認各元件未忙碌
+        IF M_CheckUnitsNotBusy() THEN
+            uiExecutingStep := 1000;
+        END_IF
+    1000: /// 動作模式改為直接判斷 Behavior 決定取盒路徑
+        //ActionMode      := M_SelectActionMode();
+        uiExecutingStep := 1100;
+    1100: // 取得圓帶控制權 (安全卡控：手臂進入圓帶區域，圓帶不可移動)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+        // 依動作模式跳轉對應步驟 (直接判斷工作旗標，相容所有 PlaceArea 目的地)
+		IF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior <> E_ClampWork.Work THEN
+			uiExecutingStep := 10000;  // A爪單爪取盒
+		ELSIF info.ClampA_Setting.Behavior <> E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+			uiExecutingStep := 20000;  // B爪單爪取盒
+		ELSIF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+			uiExecutingStep := 30000;  // 雙爪取盒
+		ELSE
+			_Abort := TRUE;
+			strStatus := 'Invalid Clamp Work Behavior at Step 1100';
+			Error := TRUE;
+			uiResumeStep := 1100;
+		END_IF
+
+{region '第一階段：從圓帶取盒'}
+	//=====================================================================
+	// 第一階段：從圓帶取盒 (Pick from RoundBelt)
+	//=====================================================================
+
+    10000: // A爪單爪 - 移動圓帶到目標站位 (照抄 V2 step 61000 模式)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+		IF RoundBelt.xDone AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			CarrierReady_1st := TRUE;
+			uiExecutingStep := 10010;
+		END_IF
+		IF RoundBelt.xError THEN
+			_Error := TRUE;
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0130);
+			Status := strStatus;
+			Error := TRUE;
+		END_IF
+	10010: // A爪從圓帶取盒 (使用 PickBoxFromRoundBelt，與 V2 MoveBoxToRoundBelt 對稱)
+		IF NOT Robot._DI1.Done THEN
+			Robot.M_StartPickBoxFromRoundBelt_ClampA(
+				CarrierSelect := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier,
+				A2_Sensor     := A2_Sensor,
+				A3_Sensor     := A3_Sensor,
+				RoundBeltSafe := CarrierReady_1st);
+			_AClampDoingWork := TRUE;
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 10010;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0095);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 10080;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 10010;
+			strStatus := CONCAT('Pick from RoundBelt ClampA Error: ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
+    10080: // A爪取盒完成，釋放圓帶控制權，清除手臂命令，依目的地跳到對應放盒階段
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+        Robot.M_ResetAllCommand();
+        IF NOT Robot._DI1.Done THEN
+			// 分流: WareHouse → 60000, PullOut → 65000
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner
+			OR info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
+				uiExecutingStep := 65000;	// PullOut 放盒
+			ELSE
+				uiExecutingStep := 60000;	// WareHouse 放盒
+			END_IF
+        END_IF
+
+    20000: // B爪單爪 - 移動圓帶到目標站位 (照抄 V2 模式)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampB_Setting.RoundBeltSetting.Station);
+		IF RoundBelt.xDone AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			CarrierReady_2nd := TRUE;
+			uiExecutingStep := 20010;
+		END_IF
+		IF RoundBelt.xError THEN
+			_Error := TRUE;
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0130);
+			Status := strStatus;
+			Error := TRUE;
+		END_IF
+	20010: // B爪從圓帶取盒 (使用 PickBoxFromRoundBelt)
+		IF NOT Robot._DI1.Done THEN
+			Robot.M_StartPickBoxFromRoundBelt_ClampB(
+				CarrierSelect := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier,
+				A2_Sensor     := A2_Sensor,
+				A3_Sensor     := A3_Sensor,
+				RoundBeltSafe := CarrierReady_2nd);
+			_BClampDoingWork := TRUE;
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 20010;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0095);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 20080;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 20010;
+			strStatus := CONCAT('Pick from RoundBelt ClampB Error: ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
+    20080: // B爪取盒完成，釋放圓帶控制權，清除手臂命令，依目的地跳到對應放盒階段
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+        Robot.M_ResetAllCommand();
+        IF NOT Robot._DI1.Done THEN
+			// 分流: WareHouse → 70000, PullOut → 75000
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner
+			OR info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
+				uiExecutingStep := 75000;	// PullOut 放盒
+			ELSE
+				uiExecutingStep := 70000;	// WareHouse 放盒
+			END_IF
+        END_IF
+
+    30000: // 雙爪取盒 - 先移動圓帶到 A爪站位 (照抄 V2 模式)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampA_Setting.RoundBeltSetting.Station);
+		IF RoundBelt.xDone AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			CarrierReady_1st := TRUE;
+			uiExecutingStep := 30010;
+		END_IF
+		IF RoundBelt.xError THEN
+			_Error := TRUE;
+			//DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0130);
+			Status := strStatus;
+			Error := TRUE;
+		END_IF
+	30010: // 雙爪 A爪從圓帶取盒 (使用 PickBoxFromRoundBelt)
+		IF NOT Robot._DI1.Done THEN
+			Robot.M_StartPickBoxFromRoundBelt_ClampA(
+				CarrierSelect := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier,
+				A2_Sensor     := A2_Sensor,
+				A3_Sensor     := A3_Sensor,
+				RoundBeltSafe := CarrierReady_1st);
+			_AClampDoingWork := TRUE;
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 30010;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0093);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 30080;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 30010;
+			strStatus := CONCAT('Pick from RoundBelt ClampA Error: ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
+	30080: // A爪取盒完成，清除手臂命令，準備 B爪取盒 (同站/不同站都重新移動圓帶)
+		Robot.M_ResetAllCommand();
+		IF NOT Robot._DI1.Done THEN
+			uiExecutingStep := 31000;
+		END_IF
+	31000: // 移動圓帶到 B爪目標站位 (照抄 V2 模式)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StartReloadRoundBeltAtion(ReloadStation := info.ClampB_Setting.RoundBeltSetting.Station);
+		IF RoundBelt.xDone AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			CarrierReady_2nd := TRUE;
+			uiExecutingStep := 31010;
+		END_IF
+		IF RoundBelt.xError THEN
+			_Error := TRUE;
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0130);
+			Status := strStatus;
+			Error := TRUE;
+		END_IF
+	31010: // 雙爪 B爪從圓帶取盒 (使用 PickBoxFromRoundBelt)
+		IF NOT Robot._DI1.Done THEN
+			Robot.M_StartPickBoxFromRoundBelt_ClampB(
+				CarrierSelect := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier,
+				A2_Sensor     := A2_Sensor,
+				A3_Sensor     := A3_Sensor,
+				RoundBeltSafe := CarrierReady_2nd);
+			_BClampDoingWork := TRUE;
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 31010;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0094);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 31080;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 31010;
+			strStatus := CONCAT('Pick from RoundBelt ClampB Error: ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
+	31080: // 雙爪取盒完成，釋放圓帶控制權，依 destination 分流
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		Robot.M_ResetAllCommand();
+		IF NOT Robot._DI1.Done THEN
+			// 雙爪都是 WareHouse → 走 80000 (有同/不同倉的同步優化路徑)
+			// 任一爪有 PullOut → 走 86000 sequential dispatch (先 A 後 B)
+			IF (info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+			 OR info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB)
+			AND (info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+			 OR info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB)
+			THEN
+				uiExecutingStep := 80000;
+			ELSE
+				uiExecutingStep := 86000;	// dual sequential (含 PullOut 或 mixed)
+			END_IF
+		END_IF
+{endregion}
+
+{region '第二階段：放盒到倉儲'}
+	//=====================================================================
+	// 第二階段：放盒到倉儲 (Place to WareHouse)
+	//=====================================================================
+
+    60000: // A爪單爪放盒 - 清除手臂命令，確認手臂閒置
+        Robot.M_ResetAllCommand();
+        // 確認手臂沒有在執行其他動作
+        IF NOT Robot._di1.Done AND
+            NOT (Robot._DI1.AbsMoveA OR
+            Robot._DI1.AbsMoveB OR
+            Robot._DI1.WarehouseA OR
+            Robot._DI1.WarehouseB) THEN
+            uiExecutingStep := 61000;
+        END_IF
+    61000: // A爪放盒到倉儲 (照抄 V2 模式：同時驅動倉儲 FeedIn + Robot Place，光電板 sensor 確認軌道空)
+		ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+        IF NOT Robot._DI1.Done THEN
+            IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+				IF WareHouse.bFeedInBox_Completed THEN
+					BoxReady_1st := TRUE;
+				END_IF
+                Robot.M_StartWareHousePlaceBox_ClampA(
+                    WareHouseSelect := E_WareHouse.WareHouseA,
+                    Info            := ClampA_WareHouseCoordinates,
+                    BoxReady_1st    := BoxReady_1st);
+            ELSIF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+				IF WareHouse.bFeedInBox_Completed THEN
+					BoxReady_1st := TRUE;
+				END_IF
+                Robot.M_StartWareHousePlaceBox_ClampA(
+                    WareHouseSelect := E_WareHouse.WareHouseB,
+                    Info            := ClampA_WareHouseCoordinates,
+                    BoxReady_1st    := BoxReady_1st);
+            END_IF
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 61000;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+        ELSE
+            uiExecutingStep := 61080;
+        END_IF
+    61080: // A爪放盒完成，設 AClampMoveDone，清除手臂命令
+		AClampMoveDone := TRUE;
+		// HandshakeMode: 寫一筆 ActionRecord (from 圓帶 → to WareHouse)
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampA_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 0;	// WareHouse
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+				ActionRecords[ActionIndex].WareHouse := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := 2;
+			END_IF
+			ActionRecords[ActionIndex].Layer := info.ClampA_Setting.WareHouseSetting.Layer;
+			ActionRecords[ActionIndex].Slide := info.ClampA_Setting.WareHouseSetting.Slide;
+			ActionRecords[ActionIndex].Clamp := 0;	// A
+			ActionIndex := ActionIndex + 1;
+		END_IF
+        Robot.M_ResetAllCommand();
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 62000;
+        END_IF
+	62000: // 等待倉儲 FeedIn 完成 → Reset → 訊號關
+		IF WareHouse.bFeedInBox_Completed THEN
+			WareHouse.M_ResetFeedInBox();
+			uiExecutingStep := 62010;
+		END_IF
+	62010:
+		IF NOT WareHouse.bFeedInBox_Completed THEN
+			uiExecutingStep := 99000;
+		END_IF
+
+    70000: // B爪單爪放盒 - 清除手臂命令，確認手臂閒置
+        Robot.M_ResetAllCommand();
+        IF NOT Robot._di1.Done AND
+            NOT (Robot._DI1.AbsMoveA OR
+            Robot._DI1.AbsMoveB OR
+            Robot._DI1.WarehouseA OR
+            Robot._DI1.WarehouseB) THEN
+            uiExecutingStep := 71000;
+        END_IF
+    71000: // B爪放盒到倉儲 (照抄 V2 模式：同時驅動倉儲 FeedIn + Robot Place)
+		ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+        IF NOT Robot._DI1.Done THEN
+            IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+				IF WareHouse.bFeedInBox_Completed THEN
+					BoxReady_2nd := TRUE;
+				END_IF
+                Robot.M_StartWareHousePlaceBox_ClampB(
+                    WareHouseSelect := E_WareHouse.WareHouseA,
+                    Info            := ClampB_WareHouseCoordinates,
+                    BoxReady_2nd    := BoxReady_2nd);
+            ELSIF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+				IF WareHouse.bFeedInBox_Completed THEN
+					BoxReady_2nd := TRUE;
+				END_IF
+                Robot.M_StartWareHousePlaceBox_ClampB(
+                    WareHouseSelect := E_WareHouse.WareHouseB,
+                    Info            := ClampB_WareHouseCoordinates,
+                    BoxReady_2nd    := BoxReady_2nd);
+            END_IF
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 71000;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+        ELSE
+            uiExecutingStep := 71080;
+        END_IF
+    71080: // B爪放盒完成，設 BClampMoveDone，清除手臂命令
+		BClampMoveDone := TRUE;
+		// HandshakeMode: 寫一筆 ActionRecord (from 圓帶 → to WareHouse)
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampB_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 0;	// WareHouse
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+				ActionRecords[ActionIndex].WareHouse := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := 2;
+			END_IF
+			ActionRecords[ActionIndex].Layer := info.ClampB_Setting.WareHouseSetting.Layer;
+			ActionRecords[ActionIndex].Slide := info.ClampB_Setting.WareHouseSetting.Slide;
+			ActionRecords[ActionIndex].Clamp := 1;	// B
+			ActionIndex := ActionIndex + 1;
+		END_IF
+        Robot.M_ResetAllCommand();
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 72000;
+        END_IF
+	72000: // 等待倉儲 FeedIn 完成 → Reset → 訊號關
+		IF WareHouse.bFeedInBox_Completed THEN
+			WareHouse.M_ResetFeedInBox();
+			uiExecutingStep := 72010;
+		END_IF
+	72010:
+		IF NOT WareHouse.bFeedInBox_Completed THEN
+			uiExecutingStep := 99000;
+		END_IF
+
+	//=====================================================================
+	// 第二階段 (PullOut 變體): 放盒到 PullOutConveyor (僅單爪 MVP)
+	// PlaceArea = PullOutInner (I3_Slide, Address=1) / PullOutOuter (I4_Slide, Address=2)
+	// 使用 Robot.M_StartRobotAbsMove(Area=PullOutConveyor, GetBox=FALSE)
+	// 走 fbAllocateArea 共用入口 (跟 FB_RobotRegionMove_PullOutConveyor 同 pattern)
+	//=====================================================================
+
+	65000: // A爪 PullOut 放盒 - 清手臂命令、確認手臂閒置、取得 PullOut 控制權
+		Robot.M_ResetAllCommand();
+		IF NOT Robot._DI1.Done AND
+			NOT (Robot._DI1.AbsMoveA OR Robot._DI1.AbsMoveB OR
+				 Robot._DI1.WarehouseA OR Robot._DI1.WarehouseB) THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+			uiExecutingStep := 65010;
+		END_IF
+
+	65010: // A爪 PullOut 放盒主步序
+		IF NOT Robot._DI1.Done THEN
+			// 啟動 PullOut Slide FeedOut (清空 slide 為新盒準備)
+			// PullOutInner (Address 1, I3_Slide) → SlideB_FeedOut_Ext
+			// PullOutOuter (Address 2, I4_Slide) → SlideA_FeedOut_Ext
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+				DAS_CoreSys.MachineControl.fbAllocateArea
+					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+												 CV_BackwardTIme := T#2S,
+												 CV_ForwardTime  := T#0S);
+				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
+										  UseClampA     := TRUE,
+										  UseClampB     := FALSE,
+										  Area          := E_RobotArea.PullOutConveyor,
+										  ClampA_Address := 1,	// I3_Slide
+										  ClampB_Address := 0,
+										  BoxReady_1    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done,
+										  BoxReady_2    := FALSE);
+			ELSIF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
+				DAS_CoreSys.MachineControl.fbAllocateArea
+					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+												 CV_BackwardTIme := T#2S,
+												 CV_ForwardTime  := T#0S);
+				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
+										  UseClampA     := TRUE,
+										  UseClampB     := FALSE,
+										  Area          := E_RobotArea.PullOutConveyor,
+										  ClampA_Address := 2,	// I4_Slide
+										  ClampB_Address := 0,
+										  BoxReady_1    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done,
+										  BoxReady_2    := FALSE);
+			END_IF
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 65010;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 65080;
+		END_IF
+		IF DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Error THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+			uiResumeStep := 65010;
+			_Abort := TRUE;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+		END_IF
+
+	65080: // A爪 PullOut 放盒完成
+		AClampMoveDone := TRUE;
+		// HandshakeMode: 寫 ActionRecord (from 圓帶 → to PullOut)
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampA_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 1;	// PullOut
+			ActionRecords[ActionIndex].WareHouse   := 0;
+			ActionRecords[ActionIndex].Layer       := 0;
+			ActionRecords[ActionIndex].Slide       := 0;
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+				ActionRecords[ActionIndex].PullOutSide := 0;	// Inner
+			ELSE
+				ActionRecords[ActionIndex].PullOutSide := 1;	// Outer
+			END_IF
+			ActionRecords[ActionIndex].Clamp := 0;	// A
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		Robot.M_ResetAllCommand();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+		// 釋放 PullOut 控制權,避免占用其他 service
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		IF NOT Robot._DI1.Done THEN
+			uiExecutingStep := 99000;
+		END_IF
+
+	75000: // B爪 PullOut 放盒 - 清手臂命令、確認手臂閒置、取得 PullOut 控制權
+		Robot.M_ResetAllCommand();
+		IF NOT Robot._DI1.Done AND
+			NOT (Robot._DI1.AbsMoveA OR Robot._DI1.AbsMoveB OR
+				 Robot._DI1.WarehouseA OR Robot._DI1.WarehouseB) THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+			uiExecutingStep := 75010;
+		END_IF
+
+	75010: // B爪 PullOut 放盒主步序
+		IF NOT Robot._DI1.Done THEN
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+				DAS_CoreSys.MachineControl.fbAllocateArea
+					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+												 CV_BackwardTIme := T#2S,
+												 CV_ForwardTime  := T#0S);
+				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
+										  UseClampA     := FALSE,
+										  UseClampB     := TRUE,
+										  Area          := E_RobotArea.PullOutConveyor,
+										  ClampA_Address := 0,
+										  ClampB_Address := 1,	// I3_Slide
+										  BoxReady_1    := FALSE,
+										  BoxReady_2    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done);
+			ELSIF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
+				DAS_CoreSys.MachineControl.fbAllocateArea
+					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+												 CV_BackwardTIme := T#2S,
+												 CV_ForwardTime  := T#0S);
+				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
+										  UseClampA     := FALSE,
+										  UseClampB     := TRUE,
+										  Area          := E_RobotArea.PullOutConveyor,
+										  ClampA_Address := 0,
+										  ClampB_Address := 2,	// I4_Slide
+										  BoxReady_1    := FALSE,
+										  BoxReady_2    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done);
+			END_IF
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 75010;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 75080;
+		END_IF
+		IF DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Error THEN
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+			uiResumeStep := 75010;
+			_Abort := TRUE;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+		END_IF
+
+	75080: // B爪 PullOut 放盒完成
+		BClampMoveDone := TRUE;
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampB_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 1;	// PullOut
+			ActionRecords[ActionIndex].WareHouse   := 0;
+			ActionRecords[ActionIndex].Layer       := 0;
+			ActionRecords[ActionIndex].Slide       := 0;
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+				ActionRecords[ActionIndex].PullOutSide := 0;
+			ELSE
+				ActionRecords[ActionIndex].PullOutSide := 1;
+			END_IF
+			ActionRecords[ActionIndex].Clamp := 1;	// B
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		Robot.M_ResetAllCommand();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+		// 釋放 PullOut 控制權
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		IF NOT Robot._DI1.Done THEN
+			uiExecutingStep := 99000;
+		END_IF
+
+	//=====================================================================
+	// 第二階段 (dual sequential): 雙爪混合 / 雙爪 PullOut 循序放盒
+	// 由 31080 進入,當任一爪 destination 是 PullOut 時走這條
+	// 策略: 先放 A 爪再放 B 爪,各自走自己的 destination 邏輯
+	//=====================================================================
+
+	86000: // [A 階段] 清手臂命令、確認手臂閒置
+		Robot.M_ResetAllCommand();
+		IF NOT Robot._DI1.Done AND
+			NOT (Robot._DI1.AbsMoveA OR Robot._DI1.AbsMoveB OR
+				 Robot._DI1.WarehouseA OR Robot._DI1.WarehouseB) THEN
+			uiExecutingStep := 86010;
+		ELSE
+			tonTimeOut(IN := TRUE, PT := T#60S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 86000;
+				_Abort := TRUE;
+				strStatus := 'Step 86000: Robot reset wait timeout';
+				_UniqueErrorCode := 'E_ROBOT_RESET_TIMEOUT';
+			END_IF
+		END_IF
+
+	86010: // [A 階段] 主放盒 — 依 PlaceArea 分 4 case (WHA/WHB/PullOutInner/PullOutOuter)
+		ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+		IF NOT Robot._DI1.Done THEN
+			CASE info.ClampA_Setting.PlaceArea OF
+				E_FeedInToWareHouse_PlaceArea.WareHouseA:
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+					IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+					Robot.M_StartWareHousePlaceBox_ClampA(
+						WareHouseSelect := E_WareHouse.WareHouseA,
+						Info            := ClampA_WareHouseCoordinates,
+						BoxReady_1st    := BoxReady_1st);
+				E_FeedInToWareHouse_PlaceArea.WareHouseB:
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+					IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+					Robot.M_StartWareHousePlaceBox_ClampA(
+						WareHouseSelect := E_WareHouse.WareHouseB,
+						Info            := ClampA_WareHouseCoordinates,
+						BoxReady_1st    := BoxReady_1st);
+				E_FeedInToWareHouse_PlaceArea.PullOutInner:
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+					DAS_CoreSys.MachineControl.fbAllocateArea
+						.M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+													 CV_BackwardTIme := T#2S, CV_ForwardTime := T#0S);
+					Robot.M_StartRobotAbsMove(GetBox := FALSE, UseClampA := TRUE, UseClampB := FALSE,
+						Area := E_RobotArea.PullOutConveyor,
+						ClampA_Address := 1, ClampB_Address := 0,
+						BoxReady_1 := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done,
+						BoxReady_2 := FALSE);
+				E_FeedInToWareHouse_PlaceArea.PullOutOuter:
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+					DAS_CoreSys.MachineControl.fbAllocateArea
+						.M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+													 CV_BackwardTIme := T#2S, CV_ForwardTime := T#0S);
+					Robot.M_StartRobotAbsMove(GetBox := FALSE, UseClampA := TRUE, UseClampB := FALSE,
+						Area := E_RobotArea.PullOutConveyor,
+						ClampA_Address := 2, ClampB_Address := 0,
+						BoxReady_1 := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done,
+						BoxReady_2 := FALSE);
+			END_CASE
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 86010;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 86020;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 86010;
+			strStatus := CONCAT('Step 86010 ClampA Place Error: ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
+
+	86020: // [A 階段完成] 寫 ActionRecord, AClampMoveDone, 清資源
+		AClampMoveDone := TRUE;
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampA_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].Clamp := 0;
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+			OR info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+				ActionRecords[ActionIndex].DestType := 0;
+				IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+					ActionRecords[ActionIndex].WareHouse := 1;
+				ELSE
+					ActionRecords[ActionIndex].WareHouse := 2;
+				END_IF
+				ActionRecords[ActionIndex].Layer := info.ClampA_Setting.WareHouseSetting.Layer;
+				ActionRecords[ActionIndex].Slide := info.ClampA_Setting.WareHouseSetting.Slide;
+				ActionRecords[ActionIndex].PullOutSide := 0;
+			ELSE
+				ActionRecords[ActionIndex].DestType := 1;
+				ActionRecords[ActionIndex].WareHouse := 0;
+				ActionRecords[ActionIndex].Layer := 0;
+				ActionRecords[ActionIndex].Slide := 0;
+				IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+					ActionRecords[ActionIndex].PullOutSide := 0;
+				ELSE
+					ActionRecords[ActionIndex].PullOutSide := 1;
+				END_IF
+			END_IF
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		// 清資源 (對應 destination) — 條件依 PlaceArea 分流避免 PullOut 路徑誤判
+		Robot.M_ResetAllCommand();
+		BoxReady_1st := FALSE;
+		IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+		OR info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+			// WareHouse 路徑: 等 WareHouse FeedIn 重置完 + Robot reset
+			IF WareHouse.bFeedInBox_Completed THEN
+				WareHouse.M_ResetFeedInBox();
+			END_IF
+			IF NOT Robot._DI1.Done AND NOT WareHouse.bFeedInBox_Completed THEN
+				tonTimeOut(IN := FALSE);
+				uiExecutingStep := 86030;
+			END_IF
+		ELSE
+			// PullOut 路徑: 只看 Robot reset (PullOut Stop 動作是 fire-and-forget)
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+			// 釋放 PullOut 控制權 (A 階段結束,即使 B 也可能用 PullOut,86040 會重新 Get)
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+			IF NOT Robot._DI1.Done THEN
+				tonTimeOut(IN := FALSE);
+				uiExecutingStep := 86030;
+			END_IF
+		END_IF
+
+	86030: // [B 階段] 清手臂命令、確認手臂閒置
+		Robot.M_ResetAllCommand();
+		IF NOT Robot._DI1.Done AND
+			NOT (Robot._DI1.AbsMoveA OR Robot._DI1.AbsMoveB OR
+				 Robot._DI1.WarehouseA OR Robot._DI1.WarehouseB) THEN
+			uiExecutingStep := 86040;
+		ELSE
+			tonTimeOut(IN := TRUE, PT := T#60S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 86030;
+				_Abort := TRUE;
+				strStatus := 'Step 86030: Robot reset wait timeout';
+				_UniqueErrorCode := 'E_ROBOT_RESET_TIMEOUT';
+			END_IF
+		END_IF
+
+	86040: // [B 階段] 主放盒
+		ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+		IF NOT Robot._DI1.Done THEN
+			CASE info.ClampB_Setting.PlaceArea OF
+				E_FeedInToWareHouse_PlaceArea.WareHouseA:
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+					IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+					Robot.M_StartWareHousePlaceBox_ClampB(
+						WareHouseSelect := E_WareHouse.WareHouseA,
+						Info            := ClampB_WareHouseCoordinates,
+						BoxReady_2nd    := BoxReady_2nd);
+				E_FeedInToWareHouse_PlaceArea.WareHouseB:
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+					IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+					Robot.M_StartWareHousePlaceBox_ClampB(
+						WareHouseSelect := E_WareHouse.WareHouseB,
+						Info            := ClampB_WareHouseCoordinates,
+						BoxReady_2nd    := BoxReady_2nd);
+				E_FeedInToWareHouse_PlaceArea.PullOutInner:
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+					DAS_CoreSys.MachineControl.fbAllocateArea
+						.M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
+													 CV_BackwardTIme := T#2S, CV_ForwardTime := T#0S);
+					Robot.M_StartRobotAbsMove(GetBox := FALSE, UseClampA := FALSE, UseClampB := TRUE,
+						Area := E_RobotArea.PullOutConveyor,
+						ClampA_Address := 0, ClampB_Address := 1,
+						BoxReady_1 := FALSE,
+						BoxReady_2 := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done);
+				E_FeedInToWareHouse_PlaceArea.PullOutOuter:
+					DAS_CoreSys.MachineControl.fbAllocateArea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+					DAS_CoreSys.MachineControl.fbAllocateArea
+						.M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+													 CV_BackwardTIme := T#2S, CV_ForwardTime := T#0S);
+					Robot.M_StartRobotAbsMove(GetBox := FALSE, UseClampA := FALSE, UseClampB := TRUE,
+						Area := E_RobotArea.PullOutConveyor,
+						ClampA_Address := 0, ClampB_Address := 2,
+						BoxReady_1 := FALSE,
+						BoxReady_2 := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done);
+			END_CASE
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 86040;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			uiExecutingStep := 86050;
+		END_IF
+		IF Robot.Error THEN
+			uiResumeStep := 86040;
+			strStatus := CONCAT('Step 86040 ClampB Place Error: ', Robot.ErrMsg);
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
+
+	86050: // [B 階段完成] 寫 ActionRecord, BClampMoveDone, 清資源
+		BClampMoveDone := TRUE;
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampB_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].Clamp := 1;
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+			OR info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+				ActionRecords[ActionIndex].DestType := 0;
+				IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+					ActionRecords[ActionIndex].WareHouse := 1;
+				ELSE
+					ActionRecords[ActionIndex].WareHouse := 2;
+				END_IF
+				ActionRecords[ActionIndex].Layer := info.ClampB_Setting.WareHouseSetting.Layer;
+				ActionRecords[ActionIndex].Slide := info.ClampB_Setting.WareHouseSetting.Slide;
+				ActionRecords[ActionIndex].PullOutSide := 0;
+			ELSE
+				ActionRecords[ActionIndex].DestType := 1;
+				ActionRecords[ActionIndex].WareHouse := 0;
+				ActionRecords[ActionIndex].Layer := 0;
+				ActionRecords[ActionIndex].Slide := 0;
+				IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+					ActionRecords[ActionIndex].PullOutSide := 0;
+				ELSE
+					ActionRecords[ActionIndex].PullOutSide := 1;
+				END_IF
+			END_IF
+			ActionIndex := ActionIndex + 1;
+		END_IF
+		// 清資源 (對應 destination) — 條件依 PlaceArea 分流避免 PullOut 路徑誤判
+		Robot.M_ResetAllCommand();
+		BoxReady_2nd := FALSE;
+		IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+		OR info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+			IF WareHouse.bFeedInBox_Completed THEN
+				WareHouse.M_ResetFeedInBox();
+			END_IF
+			IF NOT Robot._DI1.Done AND NOT WareHouse.bFeedInBox_Completed THEN
+				tonTimeOut(IN := FALSE);
+				uiExecutingStep := 99000;
+			END_IF
+		ELSE
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+			// 釋放 PullOut 控制權 (B 階段結束)
+			DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+			IF NOT Robot._DI1.Done THEN
+				tonTimeOut(IN := FALSE);
+				uiExecutingStep := 99000;
+			END_IF
+		END_IF
+
+    80000: // 雙爪放盒 - 清除手臂命令，準備放盒
+        Robot.M_ResetAllCommand();
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 81000;
+        END_IF
+    81000: // 雙爪放盒 - 判斷同倉或不同倉
+		ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+		ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+		CASE uiPlaceBothStep OF
+			0: // 判斷 A爪/B爪 是否放同一個倉儲
+				IF info.ClampA_Setting.PlaceArea = info.ClampB_Setting.PlaceArea THEN
+					uiPlaceBothStep := 10; // 同倉，雙爪同時放
+				ELSE
+					uiPlaceBothStep := 50; // 不同倉，依序放 (先A後B)
+				END_IF
+			10: // 同倉放盒 - FeedIn A Slide + Robot PlaceUpBox 同步 (照抄 V2 step 0→10→20 模式)
+				// FeedIn A 的 Slide
+				IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+				ELSE
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+				END_IF
+				IF WareHouse.bFeedInBox_Completed THEN
+					BoxReady_1st := TRUE;
+					uiPlaceBothStep := 11;
+				END_IF
+			11: // 等 Robot Notification (A 已放好) → 設 AClampMoveDone → Reset A FeedIn
+				IF Robot._DI1.Notification THEN
+					AClampMoveDone := TRUE;
+					WareHouse.M_ResetFeedInBox();
+					uiPlaceBothStep := 12;
+				END_IF
+			12: // 等 A FeedIn 訊號關掉
+				IF NOT WareHouse.bFeedInBox_Completed THEN
+					uiPlaceBothStep := 20;
+				END_IF
+			20: // FeedIn B 的 Slide
+				IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+				ELSE
+					WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+				END_IF
+				IF WareHouse.bFeedInBox_Completed THEN
+					BoxReady_2nd := TRUE;
+					uiPlaceBothStep := 30;
+				END_IF
+			30: // 等 Robot Done (B 也放好了) → 設 BClampMoveDone
+				IF Robot._DI1.Done THEN
+					BClampMoveDone := TRUE;
+					tonTimeOut(IN := FALSE);	// sub-step 完成,歸零讓下一 sub-step 重新計時
+					uiPlaceBothStep := 99;
+				END_IF
+			50: // 不同倉 - 先放 A爪 + FeedInBox
+				IF NOT Robot._DI1.Done THEN
+					IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+						WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+						IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+						Robot.M_StartWareHousePlaceBox_ClampA(
+							WareHouseSelect := E_WareHouse.WareHouseA,
+							Info            := ClampA_WareHouseCoordinates,
+							BoxReady_1st    := BoxReady_1st);
+					ELSE
+						WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+						IF WareHouse.bFeedInBox_Completed THEN BoxReady_1st := TRUE; END_IF
+						Robot.M_StartWareHousePlaceBox_ClampA(
+							WareHouseSelect := E_WareHouse.WareHouseB,
+							Info            := ClampA_WareHouseCoordinates,
+							BoxReady_1st    := BoxReady_1st);
+					END_IF
+				ELSE
+					AClampMoveDone := TRUE;
+					tonTimeOut(IN := FALSE);	// sub-step 完成,歸零
+					uiPlaceBothStep := 60;
+				END_IF
+			60: // A爪放盒完成，等 FeedIn 完成 → Reset → 訊號關 → 清手臂 → B爪
+				Robot.M_ResetAllCommand();
+				IF WareHouse.bFeedInBox_Completed THEN
+					WareHouse.M_ResetFeedInBox();
+				END_IF
+				IF NOT Robot._DI1.Done AND NOT WareHouse.bFeedInBox_Completed THEN
+					BoxReady_2nd := FALSE;
+					uiPlaceBothStep := 70;
+				END_IF
+			70: // B爪放盒到倉儲 + FeedInBox
+				IF NOT Robot._DI1.Done THEN
+					IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+						WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+						IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+						Robot.M_StartWareHousePlaceBox_ClampB(
+							WareHouseSelect := E_WareHouse.WareHouseA,
+							Info            := ClampB_WareHouseCoordinates,
+							BoxReady_2nd    := BoxReady_2nd);
+					ELSE
+						WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+						IF WareHouse.bFeedInBox_Completed THEN BoxReady_2nd := TRUE; END_IF
+						Robot.M_StartWareHousePlaceBox_ClampB(
+							WareHouseSelect := E_WareHouse.WareHouseB,
+							Info            := ClampB_WareHouseCoordinates,
+							BoxReady_2nd    := BoxReady_2nd);
+					END_IF
+				ELSE
+					BClampMoveDone := TRUE;
+					tonTimeOut(IN := FALSE);	// sub-step 完成,歸零
+					uiPlaceBothStep := 99;
+				END_IF
+			99: // 放盒完成，等待跳出
+		END_CASE
+
+		// Robot PlaceUpBox 在所有 sub-step 持續呼叫 (BoxReady 動態由 FeedIn 控制)
+		IF uiPlaceBothStep >= 10 AND uiPlaceBothStep <= 30 AND NOT Robot._DI1.Done THEN
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+				Robot.M_StartWareHousePlaceUpBox_ClampBoth(
+					WareHouseSelect := E_WareHouse.WareHouseA,
+					ClampA_Info     := ClampA_WareHouseCoordinates,
+					ClampB_Info     := ClampB_WareHouseCoordinates,
+					BoxReady_1st    := BoxReady_1st,
+					BoxReady_2nd    := BoxReady_2nd);
+			ELSIF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+				Robot.M_StartWareHousePlaceUpBox_ClampBoth(
+					WareHouseSelect := E_WareHouse.WareHouseB,
+					ClampA_Info     := ClampA_WareHouseCoordinates,
+					ClampB_Info     := ClampB_WareHouseCoordinates,
+					BoxReady_1st    := BoxReady_1st,
+					BoxReady_2nd    := BoxReady_2nd);
+			END_IF
+		END_IF
+
+		// 雙爪放盒逾時檢查與完成跳轉
+		IF uiPlaceBothStep <> 99 THEN
+			tonTimeOut(IN := TRUE, PT := T#120S);
+			IF tonTimeOut.Q THEN
+				uiResumeStep := 81000;
+				_Abort := TRUE;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_STO_FEEDIN_RB_TO_WH,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0098);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		ELSE
+			Robot.M_ResetAllCommand();
+			IF NOT Robot._DI1.Done THEN
+				uiExecutingStep := 82000;
+			END_IF
+		END_IF
+		IF Robot._DI1.Error THEN
+			_Abort 		 := TRUE;
+			uiResumeStep := 81000;
+			strStatus	 := CONCAT(STR1 := 'FB_FeedInRoundBeltBoxToWareHouse Step 81000: ',
+								   STR2	:= Robot.ErrMsg);
+		END_IF
+
+	82000: // 等待最後一個 FeedIn 完成 → Reset → 訊號關 (同倉=step10的, 不同倉=step70的B)
+		IF WareHouse.bFeedInBox_Completed THEN
+			WareHouse.M_ResetFeedInBox();
+			uiExecutingStep := 82010;
+		END_IF
+	82010:
+		IF NOT WareHouse.bFeedInBox_Completed THEN
+			uiExecutingStep := 99000;
+		END_IF
+
+    99000: // 流程完成 - 清除所有命令 (照抄 V2 pattern)
+		Robot.M_ResetAllCommand();
+		WareHouse.M_ResetFeedInBox();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		// PullOut 控制權釋放 (defensive: 即使前面 step 已 release,這裡再保險)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		// HandshakeMode: 進入握手等待 (FeedBack:=TRUE, 等 C# ack ReadComplete)
+		// 非 HandshakeMode: 直接結束 (向後相容)
+		IF HandshakeMode THEN
+			FeedBack := TRUE;
+			Status := 'Process completed, waiting for C# ReadComplete';
+			uiExecutingStep := 99100;
+		ELSE
+			Status := 'Process completed';
+			_Executed := TRUE;
+		END_IF
+
+	99100: // (HandshakeMode) 等待 C# 讀取完成
+		// 防呆: retry 路徑 (從 ABORTED resume 回 99100) FeedBack 可能已被清,確保它是 TRUE 讓 C# 看得到
+		IF NOT FeedBack THEN
+			FeedBack := TRUE;
+		END_IF
+		tonReadComplete(IN := TRUE, PT := T#15S);
+		IF ReadComplete THEN
+			FeedBack := FALSE;
+			tonReadComplete(IN := FALSE);
+			Status := 'Process completed';
+			_Executed := TRUE;
+		ELSIF tonReadComplete.Q THEN
+			// C# 讀取逾時 → Abort + resume 回 99100,Reset 後可續做
+			tonReadComplete(IN := FALSE);
+			strStatus := 'ReadComplete timeout (C# did not respond within 15s)';
+			_UniqueErrorCode := 'E_READ_COMPLETE_TIMEOUT';
+			uiResumeStep := 99100;
+			_Abort := TRUE;
+		END_IF
+{endregion}
+END_CASE
+
+// ========== 狀態轉移判斷 ==========
+IF _Executed AND NOT Robot.Halt THEN
+    eState := STATE_DONE;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+ELSIF Abort OR _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{799d8b74-d6f0-4c13-8cc7-923dbf1af041}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _Executed THEN Done :=TRUE; END_IF
+
+CASE uiResettingStep OF
+	0: // 清除所有旗標，釋放圓帶/PullOut 控制權，清除手臂命令
+		AClampMoveDone	:= FALSE;
+		BClampMoveDone	:= FALSE;
+		_AClampDoingWork	:= FALSE;
+		_BClampDoingWork	:= FALSE;
+		// HandshakeMode: 清 ActionRecord 與 handshake 旗標
+		FeedBack := FALSE;
+		ActionIndex := 0;
+		MEMSET(ADR(ActionRecords), 0, SIZEOF(ActionRecords));
+		tonReadComplete(IN := FALSE);
+		// 釋放外部資源 (含 PullOut 控制權, 防 abort 路徑漏 release 占住其他 service)
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		WareHouse.M_ResetFeedInBox();
+		Robot.M_ResetAllCommand();
+		uiResettingStep := 100;
+	100: // 復位完成
+		_ResetCompleted := TRUE;
+END_CASE
+IF _ResetCompleted THEN
+    eState := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse">
+      <LineId Id="9" Count="0" />
+      <LineId Id="4" Count="4" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckCommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="6" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_SelectActionMode">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="6" Count="25" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ABORTED">
+      <LineId Id="39" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="40" Count="1" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="29" Count="1" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="8" Count="7" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="19" Count="2" />
+      <LineId Id="42" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ABORTING">
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="27" Count="1" />
+      <LineId Id="82" Count="7" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="50" Count="5" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="56" Count="3" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="60" Count="3" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="64" Count="4" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="69" Count="1" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="42" Count="7" />
+      <LineId Id="76" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_DONE">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_DORMANT">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="6" Count="7" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="18" Count="2" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="21" Count="3" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="25" Count="3" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="45" Count="2" />
+      <LineId Id="41" Count="3" />
+      <LineId Id="48" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ERROR">
+      <LineId Id="5" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_EXECUTING">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="535" Count="0" />
+      <LineId Id="6" Count="41" />
+      <LineId Id="643" Count="11" />
+      <LineId Id="61" Count="473" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="536" Count="18" />
+      <LineId Id="611" Count="1" />
+      <LineId Id="614" Count="2" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="555" Count="30" />
+      <LineId Id="592" Count="5" />
+      <LineId Id="617" Count="0" />
+      <LineId Id="598" Count="12" />
+      <LineId Id="1126" Count="6" />
+      <LineId Id="618" Count="24" />
+      <LineId Id="1133" Count="11" />
+      <LineId Id="655" Count="470" />
+      <LineId Id="1145" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_RESETTING">
+      <LineId Id="5" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="6" Count="14" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="22" Count="7" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
