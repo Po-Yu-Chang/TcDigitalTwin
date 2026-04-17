@@ -219,11 +219,12 @@ TurnTableControl(
 	xAbort:= THIS^.Abort OR _bAnyServiceError,
 	iTurnTableTarget:= LREAL_TO_INT(_TurnTableMove.Position),
 	Cylinder:= Cylinder, 
-	TimeOut:= , 
+	//TimeOut:= , 
 	xAborted=> , 
 	iErrorID=> , 
 	ErrorMsg=> ,
-	bTurnTableMoveRequest=>);
+	bTurnTableMoveRequest=>,
+	Pause := bStopMem);
 	
 fb_AllocateBatchMode(
 	Execute:= AutoAllocateJobBatch_Ctrl.bExecute,
@@ -1250,6 +1251,7 @@ END_IF]]></ST>
       <LineId Id="47" Count="0" />
       <LineId Id="49" Count="15" />
       <LineId Id="374" Count="0" />
+      <LineId Id="475" Count="0" />
       <LineId Id="65" Count="9" />
       <LineId Id="76" Count="3" />
       <LineId Id="357" Count="1" />

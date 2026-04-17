@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FUN_CheckInPos" Id="{4f8bdb78-9542-4692-8b83-7020767f36a5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_CheckInPos : Bool
+VAR_INPUT
+	ActPos : LREAL;
+	TargetPos:LREAL;
+	ToleranceRange : LREAL;
+END_VAR
+VAR
+	MaxPos : LREAL;
+	MinPos : LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[MaxPos := TargetPos + ToleranceRange;
+MinPos := TargetPos - ToleranceRange;
+IF ActPos > MinPos AND ActPos < MaxPos THEN
+	FUN_CheckInPos := TRUE;
+ELSE
+	FUN_CheckInPos := FALSE;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_CheckInPos">
+      <LineId Id="16" Count="5" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
