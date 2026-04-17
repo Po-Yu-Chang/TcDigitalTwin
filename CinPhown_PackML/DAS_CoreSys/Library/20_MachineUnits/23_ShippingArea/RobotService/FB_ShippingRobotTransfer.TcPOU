@@ -69,7 +69,7 @@ VAR
 	tonErrorResetDelay	: TON;
 	bErrorBlinking		: BOOL;
 	
-	HasBufferArea		: BOOL := FALSE;
+	HasBufferArea		: BOOL := FALSE;		// 直接在這裡切換True/False 就能判斷程式內部是否有判斷緩衝區機構了。>> false 無機構，True 有機構
 END_VAR
 ]]></Declaration>
     <Implementation>

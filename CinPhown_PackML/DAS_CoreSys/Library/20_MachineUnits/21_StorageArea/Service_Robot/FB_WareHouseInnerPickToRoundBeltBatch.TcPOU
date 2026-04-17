@@ -1,71 +1,128 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
   <POU Name="FB_WareHouseInnerPickToRoundBeltBatch" Id="{21892e55-f568-4f5f-8fb9-16b544f599e2}" SpecialFunc="None">
-    <Declaration><![CDATA[// FB_WareHouseInnerPickToRoundBeltBatch
+    <Declaration><![CDATA[// ═══════════════════════════════════════════════════════════════════════════
+// FB_WareHouseInnerPickToRoundBeltBatch
 // 倉儲內層取盒放圓帶 — 批次服務 FB
-// 管理最多 40 筆流程，每筆由 FB_WareHouseInnerPickToRoundBelt 執行
+// ═══════════════════════════════════════════════════════════════════════════
 //
-// 設計模式：參照 FB_AllocateMoveAutoBatchMode
-//   - 迭代 FlowInfo[0..39]
-//   - 跳過無效項 (ID = -1 或 A/B 爪皆 NoWork)
-//   - 對每筆有效流程呼叫單筆 FB
-//   - 完成後記錄 WorkedID 供 HMI/C# 回報
+// 【用途】
+// 管理最多 40 筆「從倉儲內層取盒放上圓帶」流程,每筆由 FB_WareHouseInnerPickToRoundBelt
+// 逐筆執行。批次流程由 C# HMI 透過 ADS 寫入 BatchInfo 結構觸發,PLC 端負責
+// 驗證資料、迭代處理、handshake 同步動作紀錄給 C#。
+//
+// 【設計模式】
+// 參照 FB_AllocateMoveAutoBatchMode,以「單筆 FB 內嵌 + 批次迭代」架構:
+//   1. 收到 Execute → 驗證整批資料安全 (M_ValidateBatchData)
+//   2. 迭代 FlowInfo[0..NrOfFlow-1]
+//   3. 跳過無效項 (ID = -1 或 A/B 爪皆 NoWork)
+//   4. 對每筆有效流程配置並啟動 fbSingleFlow,等其完成/失敗
+//   5. 完成後記錄 WorkedID 供 HMI/C# 回報
+//   6. 跨迭代 handshake 清理,確保 C# 看到每筆 FeedBack 上升緣
+//
+// 【FeedBack / ReadComplete 握手協定】(關鍵,跨迭代正確性依賴)
+// 每筆 fbSingleFlow 完成時:
+//   PLC:   step 99000 → FeedBack := TRUE (通知 C# 陣列可讀)
+//   C#:    收到 FeedBack=TRUE → 讀 ActionRecords → set ReadComplete=TRUE
+//   PLC:   step 99100 看 ReadComplete=TRUE → 清 FeedBack → 進 DONE
+//   C#:    應在看到 FeedBack=FALSE 時清 ReadComplete=FALSE (維持協定)
+// 本 Batch FB 為了防 C# 忘記清 ReadComplete 造成下一迭代 skip handshake,
+// 在 Step 100 (新迭代開始) 與 Step 300 (迭代結束) 強制清 BatchInfo.ReadComplete。
+//
+// 【資料安全約束】
+// M_ValidateBatchData 在 Step 0 首次進入時呼叫,檢查:
+//   - 每個 Work clamp 的 Station 不可為 Undefined
+//   - 所有 Work clamp 的 (Station, ReloadCarrier) 不可重複 (同 flow A/B 兩爪也算)
+// 違規 → Error + uiResumeStep:=0 (不可續做,需 C# 修正資料重來)
+//
+// 【Resume / Pause】
+// Resume: 錯誤/逾時後 C# 按 Reset → RESETTING 等 fbSingleFlow 回 DORMANT
+//         → 若 _bRetry 直接回 EXECUTING 從 uiResumeStep 繼續
+//         uiResumeStep 映射固定為 100 (重新配置+啟動 fbSingleFlow),因 abort
+//         過程會清掉 fbSingleFlow 內部狀態,不能回原 step 200
+// Pause:  僅在「迭代邊界」生效 (step 0 或 310),不中斷單筆流程
+//         危險區段 (100~300) 繼續跑到下個邊界才凍結
 //
 // Create Date : 2026/04/01
 // Owner       : Copilot
+// ═══════════════════════════════════════════════════════════════════════════
 
 FUNCTION_BLOCK FB_WareHouseInnerPickToRoundBeltBatch EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
 
 VAR_INPUT
-	Robot			: REFERENCE TO FB_FanucRobot_Basic_V2;	// 倉儲區 Fanuc 手臂
-	RoundBelt		: REFERENCE TO FB_RoundBeltService;		// 圓帶服務
-	WareHouse		: REFERENCE TO FB_WareHouse;				// 倉儲 FB
-	Input			: ST_InputTable;						// IO 輸入表
-	BatchInfo		: REFERENCE TO ST_WareHouseInnerPickBatch;	// 批次資料 (由 C# HMI 透過 ADS 寫入)
-	Stop			: BOOL;									// 外部停止信號
+	// ----- 外部資源參照 (由上層 FB_StorageArea 綁定) -----
+	Robot			: REFERENCE TO FB_FanucRobot_Basic_V2;	// 倉儲區 Fanuc 手臂 (取放動作執行者)
+	RoundBelt		: REFERENCE TO FB_RoundBeltService;		// 圓帶服務 (目的地,換區偵測)
+	WareHouse		: REFERENCE TO FB_WareHouse;				// 倉儲 FB (ReloadBox / FeedInBox)
+	Input			: ST_InputTable;						// IO 輸入表 (sensor 等)
+
+	// ----- 批次資料 (C# HMI ↔ PLC 介面) -----
+	// BatchInfo 由 C# 透過 ADS 寫入;PLC 讀 FlowInfo[] 並回寫 WorkedID / ActionRecords
+	BatchInfo		: REFERENCE TO ST_WareHouseInnerPickBatch;
+
+	Stop			: BOOL;									// 外部停止信號 (DORMANT 時阻擋 Execute 觸發)
 END_VAR
 
 VAR_OUTPUT
+	// 無額外 output — 完成/錯誤/忙碌狀態透過 BatchInfo.HandShake 回傳 C#
 END_VAR
 
 VAR
-	strStatus			: STRING;			// 當前狀態描述
-	tonTimeOut			: TON;				// 批次全域逾時計時器
-	_UniqueErrorCode	: STRING;			// 錯誤代碼
-	uiResumeStep		: UDINT := 0;		// 逾時恢復步序
-	_bRetry				: BOOL;				// 恢復旗標
+	// ----- 狀態與錯誤追蹤 -----
+	strStatus			: STRING;			// 當前狀態/錯誤描述 (顯示給 HMI)
+	tonTimeOut			: TON;				// Per-iteration 逾時計時器 (PT=600s, step 310 推進時重置)
+	_UniqueErrorCode	: STRING;			// 錯誤代碼 (E_NOT_AUTO_MODE / E_BATCH_TIMEOUT / E_FLOW_FAILED /
+											// E_STATION_UNDEFINED / E_DUPLICATE_TARGET)
+	uiResumeStep		: UDINT := 0;		// 續做點步序 (0 = 不可續做, 其他 = RESETTING retry 回此 step)
+	_bRetry				: BOOL;				// 續做旗標 (ABORTED → RESETTING → EXECUTING 路徑標記)
 
-	// 批次迭代控制
-	iProcessingIndex	: INT := 0;		// 當前處理的流程索引 (0..39)
-	CurrentFlow			: ST_WareHouseInnerPickFlowInfo;	// 當前流程資料快取
+	// ----- 批次迭代控制 -----
+	iProcessingIndex	: INT := 0;		// 當前處理的流程索引 (0..NrOfFlow-1)
+										// 注意: 續做時保留不歸零 (僅 DORMANT 清),保證從中斷點繼續
+	CurrentFlow			: ST_WareHouseInnerPickFlowInfo;	// 當前流程資料快取 (避免 C# 改寫中讀取)
 
-	// 單筆 FB 實例 (內部持有，負責執行單筆流程)
+	// ----- 內嵌單筆 FB -----
+	// 每筆流程都透過這個實例執行;Step 100 配置參照+啟動,Step 310 等其回到 DORMANT
 	fbSingleFlow		: FB_WareHouseInnerPickToRoundBelt;
-	_bSingleFlowStarted	: BOOL;		// 單筆 FB 是否已啟動 (用於 Reset 時清理)
+	_bSingleFlowStarted	: BOOL;		// 追蹤 fbSingleFlow 是否有待清理的執行狀態 (用於 ABORTING)
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[SUPER^.A10_StateControl();
+      <ST><![CDATA[// ============================================================
+// 執行順序: input piping → A00 → A10 → output piping
+// 讓 state machine 內的 fbSingleFlow() 看到當前 scan 的 C# 輸入
+// (ReadComplete),避免 1 scan 延遲
+// ============================================================
+
+// 1. Input piping: C# → fbSingleFlow (在 state machine 前)
+IF __ISVALIDREF(BatchInfo) THEN
+	fbSingleFlow.ReadComplete := BatchInfo.ReadComplete;
+END_IF
+
+// 2. Timer PT setup
 A00_BasicUnits();
 
-// 每 cycle 透傳單筆 FB 的動作紀錄到 BatchInfo (供 C# ADS 讀取)
+// 3. State machine (含 fbSingleFlow() 呼叫)
+SUPER^.A10_StateControl();
+
+// 4. Output piping: fbSingleFlow → C#
 IF __ISVALIDREF(BatchInfo) THEN
 	BatchInfo.ActionRecords := fbSingleFlow.ActionRecords;
 	BatchInfo.ActionIndex := fbSingleFlow.ActionIndex;
 	BatchInfo.FeedBack := fbSingleFlow.FeedBack;
-	// C# 的 ReadComplete 透傳回 fbSingleFlow
-	fbSingleFlow.ReadComplete := BatchInfo.ReadComplete;
 	BatchInfo.HandShake.Done := Done;
 	BatchInfo.HandShake.Busy := Busy;
 	BatchInfo.HandShake.Error := Error;
 END_IF
-]]></ST>
+fbSingleFlow (Input := Input);]]></ST>
     </Implementation>
     <Folder Name="Method" Id="{6ec0929b-7dde-4408-9555-34099ecab55a}" />
     <Folder Name="State" Id="{ec823e1d-a384-45ea-8b3e-017749c1e96e}" />
     <Action Name="A00_BasicUnits" Id="{3704b7cd-2da4-4a87-90d4-b4fb68aec075}">
       <Implementation>
-        <ST><![CDATA[tonTimeOut(PT := T#300S);	// 批次可能耗時較長 (最多 40 筆)
+        <ST><![CDATA[// 每單筆流程上限 (per-iteration timeout,由 EXECUTING step 310 重置)
+// 最多 40 筆 x 600s 單筆 = 6.7hr 批次上限足夠
+tonTimeOut(PT := T#900S);
 ]]></ST>
       </Implementation>
     </Action>
@@ -123,7 +180,21 @@ M_FindNextValidFlow := FALSE;
       </Implementation>
     </Method>
     <Method Name="M_STATE_ABORTED" Id="{19c02117-5ff8-4fd9-b3dd-3ba17b5cb526}" FolderPath="State\">
-      <Declaration><![CDATA[// 已中止狀態 — 等待 Reset 信號
+      <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
+// M_STATE_ABORTED — 已中止 (可續做錯誤)
+// ───────────────────────────────────────────────────────────
+// 進入條件:
+//   M_STATE_ABORTING 完成清理 (_AbortCompleted=TRUE) 後進入
+//
+// 特性:
+//   - 顯示 Aborted=TRUE + Error=TRUE + strStatus
+//   - 等待 C# 透過 BatchInfo.HandShake.Reset 觸發續做或重來
+//
+// Reset 行為:
+//   - uiResumeStep > 0 → 設 _bRetry, uiExecutingStep := uiResumeStep
+//                        RESETTING 會等 fbSingleFlow 回 DORMANT 後直接跳 EXECUTING
+//                        (從中斷點續做,保留 iProcessingIndex)
+//   - uiResumeStep = 0 → 單純 RESETTING → DORMANT,下次 Execute 從頭跑
 METHOD M_STATE_ABORTED
 VAR_INPUT
 END_VAR
@@ -143,22 +214,33 @@ IF __ISVALIDREF(BatchInfo) THEN
 		END_IF
 		eState := STATE_RESETTING;
 	END_IF
-ELSIF Reset THEN
-	IF uiResumeStep > 0 THEN
-		uiExecutingStep := uiResumeStep;
-		_bRetry := TRUE;
-	END_IF
-	eState := STATE_RESETTING;
 END_IF
 ]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_STATE_ABORTING" Id="{7dc3221a-c4fc-4379-9ecb-d53d4909d304}" FolderPath="State\">
-      <Declaration><![CDATA[// 中止狀態 — 先停止單筆 FB，再清除手臂/倉儲命令
+      <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
+// M_STATE_ABORTING — 中止流程
+// ───────────────────────────────────────────────────────────
+// 職責:
+//   把正在執行的 fbSingleFlow 中止,等其自身 ABORTING → ABORTED
+//   跑完後設 _AbortCompleted 進入 STATE_ABORTED。
+//   fbSingleFlow 的 ABORTING 內部會處理 Robot/WareHouse/RoundBelt 的資源釋放。
+//
+// 進入條件:
+//   M_STATE_EXECUTING 設 _Abort := TRUE 時觸發
+//   (timeout, 單筆流程失敗, Auto mode 脫離等)
+//
 // 步序:
-//   0:    若 fbSingleFlow 執行中 → 發送 Abort, 跳 100
-//   100:  等待 fbSingleFlow 中止完成 (Aborted 或 !Busy), 跳 9999
-//   9999: 設定 _AbortCompleted := TRUE → 進入 STATE_ABORTED
+//   0:    若 _bSingleFlowStarted=TRUE → 發送 fbSingleFlow.Abort := TRUE, 跳 100
+//         (若單筆 FB 尚未啟動過,直接跳 9999 略過等待)
+//   100:  每 cycle 呼叫 fbSingleFlow() 推進其內部中止狀態機
+//         等待條件 (任一滿足): 未啟動 / fbSingleFlow.Aborted / fbSingleFlow 不忙碌
+//         → 清 fbSingleFlow.Abort := FALSE, 跳 9999
+//   9999: _AbortCompleted := TRUE → base class 轉入 STATE_ABORTED
+//
+// 注意:
+//   iProcessingIndex 不在此清除 (保留供續做),由 DORMANT 才清
 METHOD M_STATE_ABORTING
 VAR_INPUT
 END_VAR
@@ -189,7 +271,11 @@ END_CASE
       </Implementation>
     </Method>
     <Method Name="M_STATE_DONE" Id="{5a92cdb6-341d-4a7d-8336-0283fc6edb4e}" FolderPath="State\">
-      <Declaration><![CDATA[// 完成狀態 — 等待外部取消 Execute
+      <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
+// M_STATE_DONE — 批次完成等待
+// ───────────────────────────────────────────────────────────
+// 批次全部流程成功完成後進入此狀態,設 Done=TRUE 讓 C# 收到完成回報。
+// 等 C# 清 BatchInfo.HandShake.Execute (表示收到完成訊號) 後轉 RESETTING。
 METHOD M_STATE_DONE
 VAR_INPUT
 END_VAR
@@ -202,14 +288,29 @@ IF __ISVALIDREF(BatchInfo) THEN
 	IF NOT BatchInfo.HandShake.Execute THEN
 		eState := STATE_RESETTING;
 	END_IF
-ELSIF NOT Execute THEN
-	eState := STATE_RESETTING;
 END_IF
 ]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_STATE_DORMANT" Id="{7db8a234-aaa5-4802-b989-ebc195592a85}" FolderPath="State\">
-      <Declaration><![CDATA[// 休眠狀態 — 清除旗標，監聽 BatchInfo.HandShake.Execute 觸發
+      <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
+// M_STATE_DORMANT — 休眠 / 靜止就緒狀態
+// ───────────────────────────────────────────────────────────
+// 職責:
+//   1. 每 scan 重置所有 FB-level 輸出旗標與內部狀態至乾淨初值
+//   2. 清除上一輪殘留的 BatchInfo.WorkedID (避免 C# 誤讀舊資料)
+//   3. 監聽 BatchInfo.HandShake.Execute / Reset 握手信號
+//
+// 進入條件:
+//   - 從 M_STATE_RESETTING 完成時進入
+//   - 首次上電時的初始狀態
+//
+// 離開條件:
+//   - BatchInfo.HandShake.Execute=TRUE AND NOT Stop → STATE_EXECUTING
+//
+// 備註:
+//   每 scan 都跑 (PLC 狀態機性質),所以所有 reset 都必須冪等。
+//   M_RecoveryAllObjects 不放這裡,因 fbSingleFlow 的清理由 RESETTING 處理。
 METHOD M_STATE_DORMANT
 VAR_INPUT
 END_VAR
@@ -263,7 +364,16 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_ERROR" Id="{064e1cfc-b7d9-420a-848d-8ab91434f019}" FolderPath="State\">
-      <Declaration><![CDATA[// 錯誤狀態 — 顯示錯誤訊息
+      <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
+// M_STATE_ERROR — 不可續做錯誤顯示
+// ───────────────────────────────────────────────────────────
+// 進入條件:
+//   M_STATE_EXECUTING 設 _Error := TRUE (資料驗證失敗等)
+//
+// 特性:
+//   - 此狀態代表「不可續做」,必須 C# 修正資料後從頭重來
+//   - 可續做錯誤 (timeout / 單筆失敗) 走 STATE_ABORTING → STATE_ABORTED 路徑
+//   - 等 C# 清 BatchInfo.HandShake.Execute 後進 RESETTING
 METHOD M_STATE_ERROR
 VAR_INPUT
 END_VAR
@@ -284,24 +394,53 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_EXECUTING" Id="{1a2b6e5a-cca5-498c-9214-258c783f5062}" FolderPath="State\">
-      <Declaration><![CDATA[// 執行主狀態 — 迭代批次中每筆有效流程
-// ═══════════════════════════════════════════════════════════════
-// 步序總覽:
-//   0:      呼叫 M_FindNextValidFlow() 尋找下一筆有效流程
-//           → 無有效流程: 跳 99000 (全部完成)
-//           → 找到: 快取 CurrentFlow + 更新 strStatus, 跳 100
-//   100:    配置 fbSingleFlow 參照 (Robot/RoundBelt/WareHouse/Input/Info/Stop)
-//           → 啟動 fbSingleFlow.Execute := TRUE, 跳 200
-//   200:    每 cycle 呼叫 fbSingleFlow() 推進其內部狀態機
-//           → 透傳 AClampMoveDone / BClampMoveDone 給外部 HMI
-//           → fbSingleFlow.Done: 跳 300 (成功)
-//           → fbSingleFlow.Error/Aborted: 記錄錯誤碼, _Abort := TRUE (中止批次)
-//   300:    寫入 WorkedID[index] 供 HMI/C# 回報
-//           → 釋放 fbSingleFlow (Execute := FALSE), 跳 310
-//   310:    等待 fbSingleFlow 回到 DORMANT (Busy/Done/Error 皆 FALSE)
-//           → iProcessingIndex + 1 → 回 0 (處理下一筆)
-//   99000:  批次全部完成, 設定 _Executed := TRUE → 進入 STATE_DONE
-// ═══════════════════════════════════════════════════════════════
+      <Declaration><![CDATA[// ═══════════════════════════════════════════════════════════════════════════
+// M_STATE_EXECUTING — 批次迭代執行主狀態
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 【進入條件】
+//   M_STATE_DORMANT 看到 BatchInfo.HandShake.Execute=TRUE AND NOT Stop 後轉入
+//
+// 【每 cycle 前置檢查】(在 CASE 之前執行)
+//   A. Auto mode 檢查: 若不在 Auto → _Abort (避免軸控衝突)
+//   B. Pause gate: 僅在 step 0 / 310 (迭代邊界) 生效
+//                 危險區段 (100~300) 繼續跑到下個邊界才凍結
+//   C. Per-iteration timeout (600s): 超時 → _Abort, uiResumeStep := 100
+//
+// 【步序總覽】
+//   0:      首次進入: M_ValidateBatchData() 整批驗證 (Station 不為 Undefined, 無重複目的地)
+//           驗證失敗 → _Error + uiResumeStep:=0 (不可續做)
+//           M_FindNextValidFlow(): 從 iProcessingIndex 掃描下一筆有效 flow
+//           → 無: 跳 99000 (全部完成)
+//           → 找到: 快取 CurrentFlow, 跳 100
+//
+//   100:    新迭代起始 — 強制清 handshake 狀態 (BatchInfo.FeedBack/ReadComplete + fbSingleFlow.ReadComplete)
+//           確保 C# 一定看到本迭代的 FeedBack 上升緣,不被上一迭代的殘留 ack 誤判
+//           配置 fbSingleFlow.Robot/RoundBelt/WareHouse/Input/Info/Stop 參照
+//           啟動 fbSingleFlow.Execute := TRUE, 跳 200
+//
+//   200:    等待單筆 FB 完成 — 每 cycle 呼叫 fbSingleFlow() 推進其內部狀態機
+//           → fbSingleFlow.Done: 流程成功 → 跳 300
+//           → fbSingleFlow.Error/Aborted: 單筆流程失敗 → _Abort,
+//             uiResumeStep := 100 (必須回 100 重新配置,因 abort 會清掉 fbSingleFlow 狀態)
+//
+//   300:    記錄完成 — 寫入 BatchInfo.WorkedID[iProcessingIndex] := CurrentFlow.ID
+//           強制清 BatchInfo.ReadComplete (防 C# 遺忘)
+//           釋放 fbSingleFlow.Execute := FALSE (讓它進入 RESETTING → DORMANT)
+//           跳 310
+//
+//   310:    等待 fbSingleFlow 完成 RESETTING → DORMANT (Busy/Done/Error 皆 FALSE)
+//           避免下一筆配置時與單筆 FB 的清理步序衝突
+//           滿足 → iProcessingIndex + 1, 重置 tonTimeOut, 回 0 (處理下一筆)
+//
+//   99000:  批次全部完成 — _Executed := TRUE → STATE_DONE
+//
+// 【狀態轉換優先順序】(CASE 後檢查)
+//   _Error → STATE_ERROR      (資料驗證失敗等不可續做錯誤)
+//   _Abort → STATE_ABORTING   (timeout, 單筆流程失敗等可續做錯誤)
+//   _Executed → STATE_DONE    (批次完成)
+//
+// ═══════════════════════════════════════════════════════════════════════════
 METHOD M_STATE_EXECUTING
 VAR_INPUT
 END_VAR
@@ -318,27 +457,45 @@ IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Aut
 	RETURN;
 END_IF
 
-// 暫停: C# HMI 設定 BatchInfo.Pause = TRUE 時凍結批次迭代
-// 注意: 若 fbSingleFlow 正在執行中，單筆流程不會被暫停 (只暫停批次層級的步序推進)
+// ============================================================
+// Pause (Fix P1): 僅在「迭代邊界」生效,避免單筆流程被卡在半途
+// 安全 step: 0 (尋找下一筆) / 310 (等 fbSingleFlow 回 DORMANT)
+// 危險 step (100~300): 跑完當前這一筆才能凍結
+// ============================================================
 IF __ISVALIDREF(BatchInfo) AND BatchInfo.Pause THEN
-	strStatus := 'Paused';
-	RETURN;
+	IF uiExecutingStep = 0 OR uiExecutingStep = 310 THEN
+		strStatus := 'Paused (at iteration boundary)';
+		RETURN;
+	END_IF
+	// 非安全 step: 繼續跑直到下一個 iteration 邊界
 END_IF
 
-// 批次全域逾時 (300s): 整個批次從開始到完成的上限
-// 與單筆 FB 的每步逾時 (120s) 不同，這裡是批次層級的總時限
+// 批次逾時 (per-iteration, step 310 推進時會重置): 單筆上限 600s
+// Resume 映射: 無論 timeout 發生在哪個 step,都回 step 100 重新配置 fbSingleFlow
+// (abort 過程會清掉 fbSingleFlow 狀態,直接回原 step 沒用)
 IF tonTimeOut.Q THEN
-	strStatus := 'Batch timeout';
+	strStatus := 'Batch per-iteration timeout';
 	_UniqueErrorCode := 'E_BATCH_TIMEOUT';
-	uiResumeStep := uiExecutingStep;
+	uiResumeStep := 100;
 	_Abort := TRUE;
 	RETURN;
 END_IF
 
 CASE uiExecutingStep OF
 
-// ===== Step 0: 尋找下一筆有效流程 =====
+// ===== Step 0: 資料安全檢查 + 尋找下一筆有效流程 =====
 0:
+	// 首次進入 (iProcessingIndex=0 且非 retry) 時驗證整個 batch 資料
+	// retry 路徑 (_bRetry 由 RESETTING 清) 不重驗,避免重跑時 C# 結構已變
+	IF iProcessingIndex = 0 THEN
+		IF NOT M_ValidateBatchData() THEN
+			// 資料驗證失敗 → 直接報錯,不可續做 (需 C# 修正資料後重來)
+			uiResumeStep := 0;
+			_Error := TRUE;
+			RETURN;
+		END_IF
+	END_IF
+
 	IF NOT M_FindNextValidFlow() THEN
 		// 所有流程已處理完畢 → 跳到完成
 		uiExecutingStep := 99000;
@@ -349,6 +506,14 @@ CASE uiExecutingStep OF
 
 // ===== Step 100: 配置並啟動單筆 FB =====
 100:
+	// Safety: 新迭代開始,強制清 handshake 狀態,確保 C# 一定看到本迭代的 FeedBack 上升緣
+	// 即使 C# 上一迭代忘了清 ReadComplete,也不會被本迭代的 step 99100 誤認為已 ack
+	IF __ISVALIDREF(BatchInfo) THEN
+		BatchInfo.FeedBack := FALSE;
+		BatchInfo.ReadComplete := FALSE;
+	END_IF
+	fbSingleFlow.ReadComplete := FALSE;
+
 	// 將手臂/圓帶/倉儲參照及當前流程資料傳入 fbSingleFlow
 	fbSingleFlow.Robot REF= Robot;
 	fbSingleFlow.RoundBelt REF= RoundBelt;
@@ -364,16 +529,17 @@ CASE uiExecutingStep OF
 200:
 	// 每 cycle 呼叫 fbSingleFlow 推進其狀態機
 	fbSingleFlow();
-	// (AClampMoveDone/BClampMoveDone 已在主體每 cycle 透傳，此處不重複)
 
 	IF fbSingleFlow.Done THEN
 		// 流程成功完成 → 記錄並推進
 		uiExecutingStep := 300;
 	ELSIF fbSingleFlow.Error OR fbSingleFlow.Aborted THEN
 		// 流程失敗 → 中止批次
+		// Resume 必須回 step 100 重新配置 fbSingleFlow (abort 後 fbSingleFlow 狀態已被清)
+		// 不能回 step 200,因為 step 200 假設 fbSingleFlow 已在執行中
 		strStatus := CONCAT('Flow #', CONCAT(INT_TO_STRING(iProcessingIndex), ' failed'));
 		_UniqueErrorCode := 'E_FLOW_FAILED';
-		uiResumeStep := uiExecutingStep;
+		uiResumeStep := 100;
 		_Abort := TRUE;
 		RETURN;
 	END_IF
@@ -383,6 +549,8 @@ CASE uiExecutingStep OF
 	// 寫入 WorkedID 供 HMI/C# 回報
 	IF __ISVALIDREF(BatchInfo) THEN
 		BatchInfo.WorkedID[iProcessingIndex] := CurrentFlow.ID;
+		// Safety: 強制清 C# 的 ack,避免殘留 TRUE 讓下一迭代 skip handshake
+		BatchInfo.ReadComplete := FALSE;
 	END_IF
 
 	// 釋放單筆 FB: Execute := FALSE → 讓它進入 RESETTING → DORMANT
@@ -398,6 +566,8 @@ CASE uiExecutingStep OF
 	fbSingleFlow();
 	IF NOT fbSingleFlow.Busy AND NOT fbSingleFlow.Done AND NOT fbSingleFlow.Error THEN
 		iProcessingIndex := iProcessingIndex + 1;
+		// Per-iteration timeout reset: 下一筆重新計時 600s
+		tonTimeOut.IN := FALSE;
 		uiExecutingStep := 0;
 	END_IF
 
@@ -408,22 +578,45 @@ CASE uiExecutingStep OF
 END_CASE
 
 // ===== 狀態切換 (參照 FB_ObjectBase_V2 / FB_AllocateMoveAutoBatchMode 模式) =====
-IF _Error THEN
-	eState := STATE_ERROR;
-ELSIF _Abort THEN
-	eState := STATE_ABORTING;
-ELSIF _Executed THEN
-	eState := STATE_DONE;
+IF __ISVALIDREF(BatchInfo) THEN
+	IF NOT BatchInfo.HandShake.Execute THEN
+		eState := STATE_RESETTING;
+	ELSIF _Error THEN
+		eState := STATE_ERROR;
+	ELSIF _Abort THEN
+		eState := STATE_ABORTING;
+	ELSIF _Executed THEN
+		eState := STATE_DONE;
+	END_IF
 END_IF
 ]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_STATE_RESETTING" Id="{a2bbe2eb-b265-4a6a-8743-a1cb5daeda91}" FolderPath="State\">
-      <Declaration><![CDATA[// 重置狀態 — 釋放單筆 FB + 清除批次索引
+      <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
+// M_STATE_RESETTING — 重置流程 (含續做分流)
+// ───────────────────────────────────────────────────────────
+// 職責:
+//   從 ABORTED/ERROR/DONE 回到 DORMANT (或直接續做回 EXECUTING),
+//   並確保 fbSingleFlow 真的走完自己的 RESETTING → DORMANT,避免 race。
+//
+// 續做 vs 正常 reset 的差別:
+//   - 續做 (_bRetry=TRUE): 由 ABORTED state method 收到 Reset 且 uiResumeStep>0 時設旗標,
+//     此時 uiExecutingStep 已被寫回 uiResumeStep (通常是 100),步序 50 等 fbSingleFlow
+//     真的回 DORMANT 後,直接跳 STATE_EXECUTING,**不經 DORMANT**,
+//     所以 iProcessingIndex 保留、從中斷點繼續。
+//   - 正常 reset (_bRetry=FALSE): 步序 50 等 fbSingleFlow 回 DORMANT → 步序 100 → DORMANT,
+//     DORMANT 會完整清 iProcessingIndex 等狀態,下次 Execute 從頭跑。
+//
 // 步序:
-//   0:    清除旗標 + Reset fbSingleFlow
-//         → 若 _bRetry: 直接回 STATE_EXECUTING (從 uiResumeStep 繼續), 跳 100
-//   100:  釋放 Reset + 設定 _ResetCompleted := TRUE → 進入 STATE_DORMANT
+//   0:    清 Done/Error/Aborted/tonTimeOut.IN, 下 fbSingleFlow.Reset := TRUE 並呼叫一次
+//         無條件跳 50 (無論 _bRetry 真假都要等 fbSingleFlow 真的回 DORMANT)
+//   50:   每 cycle 呼叫 fbSingleFlow() 推進其 RESETTING,釋放 Reset
+//         等待條件: fbSingleFlow 的 Busy/Done/Error/Aborted 全 FALSE
+//         滿足後:
+//           _bRetry → 清旗標 + STATE_EXECUTING (續做路徑,跳過 100 與 DORMANT)
+//           否則    → 跳 100 (正常路徑)
+//   100:  _ResetCompleted := TRUE → base class 轉入 STATE_DORMANT
 METHOD M_STATE_RESETTING
 VAR_INPUT
 END_VAR
@@ -441,30 +634,127 @@ END_VAR
 	fbSingleFlow();
 
 	// _bRetry = TRUE: 由 ABORTED 狀態透過 Reset 觸發
-	// uiExecutingStep 已被設回 uiResumeStep (中斷時的步序)
-	// 跳過正常 Reset 流程，直接回到 STATE_EXECUTING 從中斷點繼續
-	IF _bRetry THEN
-		_bRetry := FALSE;
-		fbSingleFlow.Reset := FALSE;
-		eState := STATE_EXECUTING;
-		RETURN;
-	END_IF
-	uiResettingStep := 100;
+	// 無論 retry 或正常 reset,都要先等 fbSingleFlow 真的回到 DORMANT,
+	// 避免 fbSingleFlow 還在 RESETTING 時就被 EXECUTING 視為新迭代
+	uiResettingStep := 50;
 
-100:
+50:
+	// 等待 fbSingleFlow 完成 RESETTING → DORMANT (條件: 所有狀態 flag 都 FALSE)
 	fbSingleFlow.Reset := FALSE;
 	fbSingleFlow();
+	IF NOT fbSingleFlow.Busy AND NOT fbSingleFlow.Done AND NOT fbSingleFlow.Error AND NOT fbSingleFlow.Aborted THEN
+		IF _bRetry THEN
+			// 續做路徑: uiExecutingStep 已被設回 uiResumeStep,直接回 EXECUTING
+			_bRetry := FALSE;
+			eState := STATE_EXECUTING;
+			RETURN;
+		END_IF
+		uiResettingStep := 100;
+	END_IF
+
+100:
 	_ResetCompleted := TRUE;
 END_CASE
+IF _ResetCompleted THEN 
+	eState := STATE_DORMANT;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ValidateBatchData" Id="{d0000001-0000-0000-0000-000000000001}" FolderPath="Method\">
+      <Declaration><![CDATA[// 驗證批次資料安全性
+// 檢查項目:
+//   1. 同一個 (Station, ReloadCarrier) 目的地不能重複出現 (包括同 flow 內 A/B 兩爪)
+//   2. 有 Work 的 clamp,其 Station 不能是 Undefined
+// 若有任何違規 → 設 Error + strStatus + 回傳 FALSE
+// 通過 → 回傳 TRUE
+//
+// 掃描範圍: BatchInfo.FlowInfo[0..NrOfFlow-1],只檢查 ID<>-1 且 clamp Behavior=Work 的項目
+METHOD M_ValidateBatchData : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	i, j			: INT;
+	nTargets		: INT;					// 已收集的有效目的地數量
+	arTargets		: ARRAY[0..79] OF DINT;	// 40 flow x 2 clamp = 80 max. Pack 成 DINT: station*16 + carrier
+	nKey			: DINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT __ISVALIDREF(BatchInfo) THEN
+	M_ValidateBatchData := FALSE;
+	RETURN;
+END_IF
+
+nTargets := 0;
+
+FOR i := 0 TO UINT_TO_INT(BatchInfo.NrOfFlow) - 1 BY 1 DO
+	IF BatchInfo.FlowInfo[i].ID = -1 THEN
+		CONTINUE;
+	END_IF
+
+	// ----- A 爪 -----
+	IF BatchInfo.FlowInfo[i].ClampA_Setting.Behavior = E_ClampWork.Work THEN
+		IF BatchInfo.FlowInfo[i].ClampA_Setting.RoundBeltSetting.Station = E_RoundBeltStation.Undefined THEN
+			strStatus := CONCAT('Flow #', CONCAT(INT_TO_STRING(i), ' ClampA Station Undefined'));
+			_UniqueErrorCode := 'E_STATION_UNDEFINED';
+			M_ValidateBatchData := FALSE;
+			RETURN;
+		END_IF
+
+		// Pack (Station, ReloadCarrier) → DINT key
+		// Station: UINT enum (1..40), Carrier: INT enum (0..4)
+		nKey := UINT_TO_DINT(BatchInfo.FlowInfo[i].ClampA_Setting.RoundBeltSetting.Station) * 16
+			  + INT_TO_DINT(BatchInfo.FlowInfo[i].ClampA_Setting.RoundBeltSetting.ReloadCarrier);
+
+		// 檢查重複
+		FOR j := 0 TO nTargets - 1 BY 1 DO
+			IF arTargets[j] = nKey THEN
+				strStatus := CONCAT('Duplicate target at flow #', INT_TO_STRING(i));
+				_UniqueErrorCode := 'E_DUPLICATE_TARGET';
+				M_ValidateBatchData := FALSE;
+				RETURN;
+			END_IF
+		END_FOR
+		arTargets[nTargets] := nKey;
+		nTargets := nTargets + 1;
+	END_IF
+
+	// ----- B 爪 -----
+	IF BatchInfo.FlowInfo[i].ClampB_Setting.Behavior = E_ClampWork.Work THEN
+		IF BatchInfo.FlowInfo[i].ClampB_Setting.RoundBeltSetting.Station = E_RoundBeltStation.Undefined THEN
+			strStatus := CONCAT('Flow #', CONCAT(INT_TO_STRING(i), ' ClampB Station Undefined'));
+			_UniqueErrorCode := 'E_STATION_UNDEFINED';
+			M_ValidateBatchData := FALSE;
+			RETURN;
+		END_IF
+
+		nKey := UINT_TO_DINT(BatchInfo.FlowInfo[i].ClampB_Setting.RoundBeltSetting.Station) * 16
+			  + INT_TO_DINT(BatchInfo.FlowInfo[i].ClampB_Setting.RoundBeltSetting.ReloadCarrier);
+
+		FOR j := 0 TO nTargets - 1 BY 1 DO
+			IF arTargets[j] = nKey THEN
+				strStatus := CONCAT('Duplicate target at flow #', INT_TO_STRING(i));
+				_UniqueErrorCode := 'E_DUPLICATE_TARGET';
+				M_ValidateBatchData := FALSE;
+				RETURN;
+			END_IF
+		END_FOR
+		arTargets[nTargets] := nKey;
+		nTargets := nTargets + 1;
+	END_IF
+END_FOR
+
+M_ValidateBatchData := TRUE;
 ]]></ST>
       </Implementation>
     </Method>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch">
-      <LineId Id="3" Count="13" />
+      <LineId Id="3" Count="25" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.A00_BasicUnits">
-      <LineId Id="2" Count="0" />
+      <LineId Id="2" Count="2" />
       <LineId Id="1" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_FindNextValidFlow">
@@ -472,7 +762,8 @@ END_CASE
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_ABORTED">
-      <LineId Id="3" Count="20" />
+      <LineId Id="3" Count="13" />
+      <LineId Id="23" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_ABORTING">
@@ -480,7 +771,10 @@ END_CASE
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_DONE">
-      <LineId Id="3" Count="9" />
+      <LineId Id="3" Count="2" />
+      <LineId Id="21" Count="2" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="24" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_DORMANT">
@@ -492,11 +786,21 @@ END_CASE
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_EXECUTING">
-      <LineId Id="3" Count="107" />
+      <LineId Id="3" Count="131" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="135" Count="6" />
+      <LineId Id="196" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_RESETTING">
-      <LineId Id="3" Count="26" />
+      <LineId Id="3" Count="32" />
+      <LineId Id="63" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_ValidateBatchData">
+      <LineId Id="3" Count="64" />
       <LineId Id="2" Count="0" />
     </LineIds>
   </POU>

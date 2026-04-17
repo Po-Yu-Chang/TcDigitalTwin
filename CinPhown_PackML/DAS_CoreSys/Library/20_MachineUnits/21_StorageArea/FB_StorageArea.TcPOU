@@ -407,6 +407,15 @@ fbWareHouseInnerPickToRoundBelt(Execute	:= Service.AutoMode_WareHouseInnerPickTo
                                 ActionRecords=>Service.AutoMode_WareHouseInnerPickToRoundBelt.ActionRecords,
                                 ActionIndex=>Service.AutoMode_WareHouseInnerPickToRoundBelt.ActionIndex,
                                 FeedBack=>Service.AutoMode_WareHouseInnerPickToRoundBelt.FeedBack);
+fbWareHouseInnerPickToRoundBeltBatch(
+                                Abort 	:= THIS^.Abort OR _bAnyServiceError,
+                                ObjectName:= 'Warehouse inner pick batch',
+                                Robot 	:= FanucRobot,
+                                RoundBelt := DAS_CoreSys.MachineControl.fbAllocateArea.RoundBeltControl,
+                                WareHouse := fbWarehouse,
+                                Input 	:= Input,
+                                BatchInfo := Service.AutoMode_WareHouseInnerPickToRoundBeltBatch,
+                                Stop 	:= bStopMem);
 								
 //============================ Auto Mode Robot Warehouse Move =============================
 IF NOT bWarehouseMoveInternalAccess THEN
@@ -1020,6 +1029,8 @@ M_StateComplete();]]></ST>
       <LineId Id="3597" Count="0" />
       <LineId Id="3599" Count="19" />
       <LineId Id="3598" Count="0" />
+      <LineId Id="3621" Count="7" />
+      <LineId Id="3620" Count="0" />
       <LineId Id="3619" Count="0" />
       <LineId Id="3451" Count="16" />
       <LineId Id="3511" Count="1" />
