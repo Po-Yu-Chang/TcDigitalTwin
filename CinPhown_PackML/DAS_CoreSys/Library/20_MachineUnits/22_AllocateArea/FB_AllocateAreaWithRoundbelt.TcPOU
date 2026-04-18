@@ -1172,8 +1172,8 @@ VAR_INST
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT TransCV_Press THEN
-	Cylinder.List.fbSameSizeCV_Press2.M_Extend();
-	Cylinder.List.fbDifferentSizeCV_Press1.M_Extend();
+	//Cylinder.List.fbSameSizeCV_Press2.M_Extend();
+	//Cylinder.List.fbDifferentSizeCV_Press1.M_Extend();
 	TransCV_Press:=true;
 END_IF
 ]]></ST>
