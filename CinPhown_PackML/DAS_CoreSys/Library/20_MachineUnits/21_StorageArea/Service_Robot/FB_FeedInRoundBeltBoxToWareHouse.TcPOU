@@ -68,7 +68,7 @@ Create Date : 2026/03/18
 Last Update	: 2026/04/14
 Change Log  : 2026/03/18，Initial version - Pick box from RoundBelt and place to WareHouse
 			  2026/03/23，修正續做，新增手臂先在aborting清除錯誤，
-			  2026/04/14，新的FB新增回拔輸送帶放盒位置支援，ActionRecords功能，把這一隻舊的移除。
+			  2026/04/14，新的FB新增回拔輸送帶放盒位置支援，ActionRecords功能，把這一隻舊的移除至Old_version_Service 資料夾內。
 			  
 ============================================================*)]]></ST>
     </Implementation>

@@ -6,8 +6,9 @@ VAR_INPUT
     xExecute      : BOOL;
     xAbort        : BOOL;
     iTurnTableTarget : INT;			//1=A ,2=B ,3=C ,4=D
+	Pause		  : BOOL;
     Cylinder : REFERENCE TO UNI_CylinderList;
-    TimeOut  : LREAL := 30; // Unit : s
+    //TimeOut  : LREAL := 30; // Unit : s
 END_VAR
 VAR_OUTPUT
     xAborted : BOOL;
@@ -22,13 +23,20 @@ VAR
 	PosCmd			: INT;
 	
 	bPress_Extend	: BOOL;
+	
+	TON_ServiceTimeOut		: TON;
+	bServiceTimeOutIn		: BOOL;
+	
+	fNormAngle		: LREAL;	// 轉換過後的目標位置
+	fCurrentAngle	: LREAL;	// 轉盤軸實際位置
+	diTurns			: DINT;		// 計算轉盤軸走了多少圈數 >> 圈數
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.IBehaviourModel := StateBehavior;
 StateBehavior(xExecute := xExecute,
               xAbort := xAbort,
-              udiTimeOut := LREAL_TO_UDINT( TimeOut*1000000),
+              udiTimeOut := (*LREAL_TO_UDINT( TimeOut*1000000)*),
               xDone => xDone,
               xBusy => xBusy,
               xError => xError,
@@ -38,7 +46,7 @@ StateBehavior(xExecute := xExecute,
 iErrorID := StateBehavior._model.iErrorID;
 ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
 
-]]></ST>
+TON_ServiceTimeOut(IN := bServiceTimeOutIn AND NOT Pause ,PT := T#30S);]]></ST>
     </Implementation>
     <Folder Name="Action" Id="{a5765f18-10fd-4fc9-b3a9-88b0bdffd540}" />
     <Method Name="CleanupAction" Id="{ce35767d-b1db-45dc-aa8f-da5d40e8e7bb}" FolderPath="Action\">
@@ -53,7 +61,7 @@ VAR_OUTPUT
  	iErrorID : INT := iErrorIDProposed;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[bServiceTimeOutIn := false;]]></ST>
       </Implementation>
     </Method>
     <Method Name="CyclicAction" Id="{cc1f20f7-e0b1-460a-9e13-0e2b3f8dfa6d}" FolderPath="Action\">
@@ -77,29 +85,49 @@ AND NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error THEN
 	Cylinder.List.fbTurntable_Press.M_Extend();
 END_IF
 
+// Service Work Timer
+bServiceTimeOutIn := TRUE;
+IF TON_ServiceTimeOut.Q THEN
+	iErrorID := GVL_ErrorCode.GC_ERR_TIMEOUT;
+END_IF
+
 CASE uiCyclicStep OF
-    0:
+    0:	// 轉盤氣缸init
 		Cylinder.List.fbTurntable_Press.M_Retract();
 
         IF Cylinder.List.fbTurntable_Press.InRearPosition THEN
             uiCyclicStep := 100;
         END_IF
 		
-    100:
+    100:	// 給轉盤軸位置
         arAxisCtrl_gb[AxisNo.TurnTable].PosMode.Position := PosCmd;
 		uiCyclicStep := 125;
 		
-	125:
+	125:	// 給轉盤軸運動命令，檢查是否有移動或者是否在同一站。
 		bTurnTableMoveRequest := TRUE;
-		IF  arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Moving THEN
-				uiCyclicStep := 150;
+		
+		diTurns := TRUNC(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos / 360.0);
+		fNormAngle := arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos - DINT_TO_LREAL(diTurns) * 360.0;
+		
+		IF fNormAngle < 0.0 THEN
+			fNormAngle := fNormAngle + 360.0;
 		END_IF
-	150:
+				
+        IF arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Moving  
+			OR FUN_CheckInPos(ActPos  			:= fNormAngle,
+							  TargetPos 		:= PosCmd,
+							  ToleranceRange 	:= 0.1)
+		THEN
+            uiCyclicStep := 150;
+        END_IF
+		
+	150:	//檢查是否完成移動
         IF arAxisStatus_gb[AxisNo.TurnTable].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.TurnTable].Admin.CmdDone THEN
 			bTurnTableMoveRequest := FALSE;
             uiCyclicStep := 200;
         END_IF
-	200:
+		
+	200:	// 氣缸伸出
         bPress_Extend := TRUE;
 
         IF Cylinder.List.fbTurntable_Press.InFrontPosition THEN
@@ -130,7 +158,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[bServiceTimeOutIn := false;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_GetErrorMsg" Id="{716a5a99-61df-4633-9b52-c4c5677c75a7}">
@@ -170,7 +198,7 @@ VAR_OUTPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[bServiceTimeOutIn := false;]]></ST>
       </Implementation>
     </Method>
     <Method Name="StartAction" Id="{fc86e512-b248-440c-bfcc-c96402127e9c}" FolderPath="Action\">
@@ -184,6 +212,7 @@ END_VAR]]></Declaration>
 
 bPress_Extend		  := FALSE;
 bTurnTableMoveRequest := FALSE;
+bServiceTimeOutIn 	  := false;
 
 IF NOT (iTurnTableTarget >= 1 AND iTurnTableTarget <= 4) THEN
     iErrorID := 3; // Target Station invalid.
@@ -235,6 +264,8 @@ uiCyclicStep := 0;
       <LineId Id="140" Count="0" />
       <LineId Id="166" Count="4" />
       <LineId Id="165" Count="0" />
+      <LineId Id="208" Count="4" />
+      <LineId Id="207" Count="0" />
       <LineId Id="171" Count="0" />
       <LineId Id="87" Count="1" />
       <LineId Id="92" Count="1" />
@@ -244,12 +275,14 @@ uiCyclicStep := 0;
       <LineId Id="151" Count="0" />
       <LineId Id="163" Count="0" />
       <LineId Id="102" Count="0" />
-      <LineId Id="162" Count="0" />
-      <LineId Id="179" Count="1" />
-      <LineId Id="177" Count="1" />
+      <LineId Id="192" Count="14" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="213" Count="0" />
+      <LineId Id="178" Count="0" />
       <LineId Id="103" Count="0" />
       <LineId Id="175" Count="0" />
       <LineId Id="104" Count="1" />
+      <LineId Id="214" Count="0" />
       <LineId Id="127" Count="0" />
       <LineId Id="132" Count="1" />
       <LineId Id="137" Count="2" />
@@ -278,6 +311,7 @@ uiCyclicStep := 0;
       <LineId Id="76" Count="0" />
       <LineId Id="78" Count="0" />
       <LineId Id="75" Count="0" />
+      <LineId Id="84" Count="0" />
       <LineId Id="79" Count="0" />
       <LineId Id="19" Count="0" />
       <LineId Id="22" Count="5" />

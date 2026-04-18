@@ -1316,6 +1316,9 @@
     <Compile Include="Library\99_Utilities\FUNCTION\FUN_CheckAxisAllowMove.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\99_Utilities\FUNCTION\FUN_CheckInPos.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\99_Utilities\FUNCTION\FUN_GetPositionTableData.TcPOU">
       <SubType>Code</SubType>
     </Compile>
