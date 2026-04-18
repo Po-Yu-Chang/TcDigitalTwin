@@ -170,12 +170,12 @@ CASE AreaInfo.Area OF
 
 	E_RobotArea.ShippingFeedOutEmptyBox:
 		// 拔針排空盒位置固定 = 0
-		IF AreaInfo.Position <> 0 THEN
-			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, FeedOut Empty Box Position must be 0';
-			Status := strStatus;
-			Error := TRUE;
-			RETURN;
-		END_IF
+//		IF AreaInfo.Position <> 0 THEN
+//			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, FeedOut Empty Box Position must be 0';
+//			Status := strStatus;
+//			Error := TRUE;
+//			RETURN;
+//		END_IF
 
 ELSE
 	strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, Invalid Area';

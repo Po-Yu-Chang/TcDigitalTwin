@@ -2620,8 +2620,8 @@ END_IF
 IF fbShippingArea.fbShippingHoming.Homed THEN
 	bShippingRobotError := fanucrobot.List.ShippingRobot.Error;
 END_IF
-RegisterAlarm(Trigger := fanucrobot.List.StorageRobot.Error,					ID := 158,value := E_Severity.Level5,Message := fanucrobot.List.StorageRobot.ErrMsg,Category:=1);
-RegisterAlarm(Trigger := fanucrobot.List.ShippingRobot.Error,					ID := 159,value := E_Severity.Level5,Message := fanucrobot.List.ShippingRobot.ErrMsg,Category:=1);
+RegisterAlarm(Trigger := bStorageRobotError,					ID := 158,value := E_Severity.Level5,Message := fanucrobot.List.StorageRobot.ErrMsg,Category:=1);
+RegisterAlarm(Trigger := bShippingRobotError,					ID := 159,value := E_Severity.Level5,Message := fanucrobot.List.ShippingRobot.ErrMsg,Category:=1);
 
 
 // Servo Error
