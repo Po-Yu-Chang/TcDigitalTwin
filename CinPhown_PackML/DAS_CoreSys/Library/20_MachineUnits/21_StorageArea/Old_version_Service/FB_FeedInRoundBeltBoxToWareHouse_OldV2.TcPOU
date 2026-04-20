@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_FeedInRoundBeltBoxToWareHouse" Id="{fc38086c-6636-4ac8-9597-a8b217fa3f1a}" SpecialFunc="None">
+  <POU Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2" Id="{1f2b943d-7738-4ce7-a3be-f7c7bb14b70d}" SpecialFunc="None">
     <Declaration><![CDATA[(*
 	FB_FeedInRoundBeltBoxToWareHouse
 	功能：從圓帶取盒子放回倉儲 (與 FB_ReloadRoundBeltBoxWithRobot_V2 反向操作)
 	流程：圓帶移動到站位 → 手臂 AbsMove 從圓帶取盒 → 手臂放盒到倉儲
 	安全卡控：手臂進入圓帶區域時，取得圓帶控制權，圓帶不可移動
 *)
-FUNCTION_BLOCK FB_FeedInRoundBeltBoxToWareHouse EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+FUNCTION_BLOCK FB_FeedInRoundBeltBoxToWareHouse_OldV2 EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
 VAR_INPUT
     // ===== 外部元件參考 =====
     Robot         : REFERENCE TO FB_FanucRobot_Basic_V2; // Fanuc 手臂
@@ -65,103 +65,23 @@ A3_Sensor := Input.bRoundBelt_ChangeZoneA3Detect_Sensor;
 
 (*============================================================
 Create Date : 2026/03/18
-Last Update	: 2026/04/20
+Last Update	: 2026/04/14
 Change Log  : 2026/03/18，Initial version - Pick box from RoundBelt and place to WareHouse
 			  2026/03/23，修正續做，新增手臂先在aborting清除錯誤，
 			  2026/04/14，新的FB新增回拔輸送帶放盒位置支援，ActionRecords功能，把這一隻舊的移除至Old_version_Service 資料夾內。
-			  2026/04/20，更新版本，將舊的移至Old Service 資料夾內，修正ActionRecords 未上拋問題。
+			  
 ============================================================*)]]></ST>
     </Implementation>
-    <Folder Name="Method" Id="{e01c91e6-b6af-4c13-a3dc-23c4b37686cf}" />
-    <Folder Name="State" Id="{c5f46e5f-d773-41b0-9f7f-0160a30f1324}" />
-    <Action Name="A00_BasicUnits" Id="{e3dca2d9-60ec-49ef-8336-2cc84cb1c9af}">
+    <Folder Name="Method" Id="{d4280eb9-ca7e-442a-b801-73dd87db9133}" />
+    <Folder Name="State" Id="{2ba17670-5465-45b9-92a0-c2faaeb8603f}" />
+    <Action Name="A00_BasicUnits" Id="{b27a6fc0-c6f3-44af-84ce-5b05e488069f}">
       <Implementation>
         <ST><![CDATA[// Timer 由各 step 自行呼叫並傳 IN/PT,此處不做 freerun call,
 // 避免「IN 殘留 TRUE」造成 step 切換後 timer 不歸零。
 ]]></ST>
       </Implementation>
     </Action>
-    <Method Name="M_AppendActionRecord_ClampA" Id="{0d4c5bb8-6bb4-4a79-b483-3b0b6d7392b1}" FolderPath="Method\">
-      <Declaration><![CDATA[METHOD M_AppendActionRecord_ClampA
-VAR_INPUT
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF NOT HandshakeMode OR ActionIndex >= 40 THEN
-	RETURN;
-END_IF
-
-ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampA_Setting.RoundBeltSetting.Station);
-ActionRecords[ActionIndex].PickCarrier := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier;
-ActionRecords[ActionIndex].Clamp := 0;
-
-IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
-OR info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
-	ActionRecords[ActionIndex].DestType := 0;
-	IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
-		ActionRecords[ActionIndex].WareHouse := 1;
-	ELSE
-		ActionRecords[ActionIndex].WareHouse := 2;
-	END_IF
-	ActionRecords[ActionIndex].Layer := info.ClampA_Setting.WareHouseSetting.Layer;
-	ActionRecords[ActionIndex].Slide := info.ClampA_Setting.WareHouseSetting.Slide;
-	ActionRecords[ActionIndex].PullOutSide := 0;
-ELSE
-	ActionRecords[ActionIndex].DestType := 1;
-	ActionRecords[ActionIndex].WareHouse := 0;
-	ActionRecords[ActionIndex].Layer := 0;
-	ActionRecords[ActionIndex].Slide := 0;
-	IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
-		ActionRecords[ActionIndex].PullOutSide := 0;
-	ELSE
-		ActionRecords[ActionIndex].PullOutSide := 1;
-	END_IF
-END_IF
-
-ActionIndex := ActionIndex + 1;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_AppendActionRecord_ClampB" Id="{1cf24c0d-ec7a-4a24-81ef-e4583c6fd2a1}" FolderPath="Method\">
-      <Declaration><![CDATA[METHOD M_AppendActionRecord_ClampB
-VAR_INPUT
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF NOT HandshakeMode OR ActionIndex >= 40 THEN
-	RETURN;
-END_IF
-
-ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampB_Setting.RoundBeltSetting.Station);
-ActionRecords[ActionIndex].PickCarrier := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier;
-ActionRecords[ActionIndex].Clamp := 1;
-
-IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
-OR info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
-	ActionRecords[ActionIndex].DestType := 0;
-	IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
-		ActionRecords[ActionIndex].WareHouse := 1;
-	ELSE
-		ActionRecords[ActionIndex].WareHouse := 2;
-	END_IF
-	ActionRecords[ActionIndex].Layer := info.ClampB_Setting.WareHouseSetting.Layer;
-	ActionRecords[ActionIndex].Slide := info.ClampB_Setting.WareHouseSetting.Slide;
-	ActionRecords[ActionIndex].PullOutSide := 0;
-ELSE
-	ActionRecords[ActionIndex].DestType := 1;
-	ActionRecords[ActionIndex].WareHouse := 0;
-	ActionRecords[ActionIndex].Layer := 0;
-	ActionRecords[ActionIndex].Slide := 0;
-	IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
-		ActionRecords[ActionIndex].PullOutSide := 0;
-	ELSE
-		ActionRecords[ActionIndex].PullOutSide := 1;
-	END_IF
-END_IF
-
-ActionIndex := ActionIndex + 1;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="M_CheckCommand" Id="{6249d66b-d7c1-4b7f-b9ee-18247bb7221f}" FolderPath="Method\">
+    <Method Name="M_CheckCommand" Id="{883a9d21-ff1b-4522-933d-ec389523c738}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_CheckCommand : BOOL
 VAR_INPUT
 END_VAR
@@ -184,7 +104,7 @@ END_IF
 M_CheckCommand := CheckBehavior;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CheckUnitsNotBusy" Id="{e49a674a-5713-4d2e-92ba-809d33036419}" FolderPath="Method\">
+    <Method Name="M_CheckUnitsNotBusy" Id="{37c7dc09-25b4-4790-b072-dee8d7a259df}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
 VAR_INPUT
 END_VAR
@@ -193,7 +113,7 @@ END_VAR
         <ST><![CDATA[M_CheckUnitsNotBusy := true;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CheckUnitsReady" Id="{e653cda0-b5a8-495f-8006-44ce1d7fd400}" FolderPath="Method\">
+    <Method Name="M_CheckUnitsReady" Id="{043ebb58-e4aa-4511-81e7-e7b4847fe158}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
 VAR_INPUT
 END_VAR
@@ -202,7 +122,7 @@ END_VAR
         <ST><![CDATA[M_CheckUnitsReady := true;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_SelectActionMode" Id="{7607e288-4fa4-4183-843c-cdd54ff4bfc9}" FolderPath="Method\">
+    <Method Name="M_SelectActionMode" Id="{ecd434c5-e17f-492b-ab81-4dc9429caa3b}" FolderPath="Method\">
       <Declaration><![CDATA[(* 根據 A爪/B爪 的 Behavior 和 PlaceArea 判斷動作模式
    - 單爪A/B：從圓帶取盒後放到 WareHouseA 或 WareHouseB
    - 雙爪：兩爪各自從圓帶取盒，放到指定的倉儲 (可同倉或不同倉)
@@ -244,7 +164,7 @@ ELSIF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Be
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTED" Id="{70330499-d424-4b60-b9c1-bb9166e47ec0}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTED" Id="{86aa66d0-ba46-4f73-8b9a-521079759914}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTED
 VAR_INPUT
 END_VAR
@@ -284,7 +204,7 @@ ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error AND NOT Robot.Halt THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTING" Id="{6e70cde4-59ab-4f98-8b09-9f79ee9b3a52}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTING" Id="{5005c81e-5d7d-4ccc-a955-d253ff2582d7}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTING
 VAR_INPUT
 END_VAR
@@ -350,7 +270,7 @@ IF _AbortCompleted THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DONE" Id="{fb8cc1cd-b272-4587-b30a-fff2f721f638}" FolderPath="State\">
+    <Method Name="M_STATE_DONE" Id="{b2f2f184-e1b4-48e2-a30f-3afe45098a59}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_DONE
 VAR_INPUT
 END_VAR
@@ -364,7 +284,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DORMANT" Id="{999d3d44-c18f-41e7-bb6d-628cae13b60c}" FolderPath="State\">
+    <Method Name="M_STATE_DORMANT" Id="{2ae95e8d-e07d-4b15-b717-c618eda3bc89}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_DORMANT
 VAR_INPUT
 END_VAR
@@ -415,7 +335,7 @@ IF Execute AND NOT Stop THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ERROR" Id="{e06e4799-441b-48bb-b6e3-652368626a3c}" FolderPath="State\">
+    <Method Name="M_STATE_ERROR" Id="{2039b6ba-197f-4c03-bcde-cb77a1b3f9f8}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_ERROR
 VAR_INPUT
 END_VAR
@@ -432,7 +352,7 @@ IF NOT Execute THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_EXECUTING" Id="{51da6174-b16b-4734-aec6-0bf4cfa17b02}" FolderPath="State\">
+    <Method Name="M_STATE_EXECUTING" Id="{6520e113-6aa3-41db-a724-b73eaa9054b9}" FolderPath="State\">
       <Declaration><![CDATA[(*
 	M_STATE_EXECUTING 主執行流程
 	Step 配置：
@@ -821,9 +741,21 @@ CASE uiExecutingStep OF
             uiExecutingStep := 61080;
         END_IF
     61080: // A爪放盒完成，設 AClampMoveDone，清除手臂命令
-		IF NOT AClampMoveDone THEN
-			AClampMoveDone := TRUE;
-			M_AppendActionRecord_ClampA();
+		AClampMoveDone := TRUE;
+		// HandshakeMode: 寫一筆 ActionRecord (from 圓帶 → to WareHouse)
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampA_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 0;	// WareHouse
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+				ActionRecords[ActionIndex].WareHouse := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := 2;
+			END_IF
+			ActionRecords[ActionIndex].Layer := info.ClampA_Setting.WareHouseSetting.Layer;
+			ActionRecords[ActionIndex].Slide := info.ClampA_Setting.WareHouseSetting.Slide;
+			ActionRecords[ActionIndex].Clamp := 0;	// A
+			ActionIndex := ActionIndex + 1;
 		END_IF
         Robot.M_ResetAllCommand();
         IF NOT Robot._DI1.Done THEN
@@ -884,9 +816,21 @@ CASE uiExecutingStep OF
             uiExecutingStep := 71080;
         END_IF
     71080: // B爪放盒完成，設 BClampMoveDone，清除手臂命令
-		IF NOT BClampMoveDone THEN
-			BClampMoveDone := TRUE;
-			M_AppendActionRecord_ClampB();
+		BClampMoveDone := TRUE;
+		// HandshakeMode: 寫一筆 ActionRecord (from 圓帶 → to WareHouse)
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampB_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 0;	// WareHouse
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+				ActionRecords[ActionIndex].WareHouse := 1;
+			ELSE
+				ActionRecords[ActionIndex].WareHouse := 2;
+			END_IF
+			ActionRecords[ActionIndex].Layer := info.ClampB_Setting.WareHouseSetting.Layer;
+			ActionRecords[ActionIndex].Slide := info.ClampB_Setting.WareHouseSetting.Slide;
+			ActionRecords[ActionIndex].Clamp := 1;	// B
+			ActionIndex := ActionIndex + 1;
 		END_IF
         Robot.M_ResetAllCommand();
         IF NOT Robot._DI1.Done THEN
@@ -973,9 +917,22 @@ CASE uiExecutingStep OF
 		END_IF
 
 	65080: // A爪 PullOut 放盒完成
-		IF NOT AClampMoveDone THEN
-			AClampMoveDone := TRUE;
-			M_AppendActionRecord_ClampA();
+		AClampMoveDone := TRUE;
+		// HandshakeMode: 寫 ActionRecord (from 圓帶 → to PullOut)
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampA_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 1;	// PullOut
+			ActionRecords[ActionIndex].WareHouse   := 0;
+			ActionRecords[ActionIndex].Layer       := 0;
+			ActionRecords[ActionIndex].Slide       := 0;
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+				ActionRecords[ActionIndex].PullOutSide := 0;	// Inner
+			ELSE
+				ActionRecords[ActionIndex].PullOutSide := 1;	// Outer
+			END_IF
+			ActionRecords[ActionIndex].Clamp := 0;	// A
+			ActionIndex := ActionIndex + 1;
 		END_IF
 		Robot.M_ResetAllCommand();
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
@@ -1046,9 +1003,21 @@ CASE uiExecutingStep OF
 		END_IF
 
 	75080: // B爪 PullOut 放盒完成
-		IF NOT BClampMoveDone THEN
-			BClampMoveDone := TRUE;
-			M_AppendActionRecord_ClampB();
+		BClampMoveDone := TRUE;
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampB_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].DestType    := 1;	// PullOut
+			ActionRecords[ActionIndex].WareHouse   := 0;
+			ActionRecords[ActionIndex].Layer       := 0;
+			ActionRecords[ActionIndex].Slide       := 0;
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+				ActionRecords[ActionIndex].PullOutSide := 0;
+			ELSE
+				ActionRecords[ActionIndex].PullOutSide := 1;
+			END_IF
+			ActionRecords[ActionIndex].Clamp := 1;	// B
+			ActionIndex := ActionIndex + 1;
 		END_IF
 		Robot.M_ResetAllCommand();
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
@@ -1141,9 +1110,34 @@ CASE uiExecutingStep OF
 		END_IF
 
 	86020: // [A 階段完成] 寫 ActionRecord, AClampMoveDone, 清資源
-		IF NOT AClampMoveDone THEN
-			AClampMoveDone := TRUE;
-			M_AppendActionRecord_ClampA();
+		AClampMoveDone := TRUE;
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampA_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampA_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].Clamp := 0;
+			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+			OR info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+				ActionRecords[ActionIndex].DestType := 0;
+				IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+					ActionRecords[ActionIndex].WareHouse := 1;
+				ELSE
+					ActionRecords[ActionIndex].WareHouse := 2;
+				END_IF
+				ActionRecords[ActionIndex].Layer := info.ClampA_Setting.WareHouseSetting.Layer;
+				ActionRecords[ActionIndex].Slide := info.ClampA_Setting.WareHouseSetting.Slide;
+				ActionRecords[ActionIndex].PullOutSide := 0;
+			ELSE
+				ActionRecords[ActionIndex].DestType := 1;
+				ActionRecords[ActionIndex].WareHouse := 0;
+				ActionRecords[ActionIndex].Layer := 0;
+				ActionRecords[ActionIndex].Slide := 0;
+				IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+					ActionRecords[ActionIndex].PullOutSide := 0;
+				ELSE
+					ActionRecords[ActionIndex].PullOutSide := 1;
+				END_IF
+			END_IF
+			ActionIndex := ActionIndex + 1;
 		END_IF
 		// 清資源 (對應 destination) — 條件依 PlaceArea 分流避免 PullOut 路徑誤判
 		Robot.M_ResetAllCommand();
@@ -1246,9 +1240,34 @@ CASE uiExecutingStep OF
 		END_IF
 
 	86050: // [B 階段完成] 寫 ActionRecord, BClampMoveDone, 清資源
-		IF NOT BClampMoveDone THEN
-			BClampMoveDone := TRUE;
-			M_AppendActionRecord_ClampB();
+		BClampMoveDone := TRUE;
+		IF HandshakeMode AND ActionIndex < 40 THEN
+			ActionRecords[ActionIndex].PickStation := UINT_TO_INT(info.ClampB_Setting.RoundBeltSetting.Station);
+			ActionRecords[ActionIndex].PickCarrier := info.ClampB_Setting.RoundBeltSetting.ReloadCarrier;
+			ActionRecords[ActionIndex].Clamp := 1;
+			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA
+			OR info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseB THEN
+				ActionRecords[ActionIndex].DestType := 0;
+				IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.WareHouseA THEN
+					ActionRecords[ActionIndex].WareHouse := 1;
+				ELSE
+					ActionRecords[ActionIndex].WareHouse := 2;
+				END_IF
+				ActionRecords[ActionIndex].Layer := info.ClampB_Setting.WareHouseSetting.Layer;
+				ActionRecords[ActionIndex].Slide := info.ClampB_Setting.WareHouseSetting.Slide;
+				ActionRecords[ActionIndex].PullOutSide := 0;
+			ELSE
+				ActionRecords[ActionIndex].DestType := 1;
+				ActionRecords[ActionIndex].WareHouse := 0;
+				ActionRecords[ActionIndex].Layer := 0;
+				ActionRecords[ActionIndex].Slide := 0;
+				IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
+					ActionRecords[ActionIndex].PullOutSide := 0;
+				ELSE
+					ActionRecords[ActionIndex].PullOutSide := 1;
+				END_IF
+			END_IF
+			ActionIndex := ActionIndex + 1;
 		END_IF
 		// 清資源 (對應 destination) — 條件依 PlaceArea 分流避免 PullOut 路徑誤判
 		Robot.M_ResetAllCommand();
@@ -1300,10 +1319,7 @@ CASE uiExecutingStep OF
 				END_IF
 			11: // 等 Robot Notification (A 已放好) → 設 AClampMoveDone → Reset A FeedIn
 				IF Robot._DI1.Notification THEN
-					IF NOT AClampMoveDone THEN
-						AClampMoveDone := TRUE;
-						M_AppendActionRecord_ClampA();
-					END_IF
+					AClampMoveDone := TRUE;
 					WareHouse.M_ResetFeedInBox();
 					uiPlaceBothStep := 12;
 				END_IF
@@ -1323,10 +1339,7 @@ CASE uiExecutingStep OF
 				END_IF
 			30: // 等 Robot Done (B 也放好了) → 設 BClampMoveDone
 				IF Robot._DI1.Done THEN
-					IF NOT BClampMoveDone THEN
-						BClampMoveDone := TRUE;
-						M_AppendActionRecord_ClampB();
-					END_IF
+					BClampMoveDone := TRUE;
 					tonTimeOut(IN := FALSE);	// sub-step 完成,歸零讓下一 sub-step 重新計時
 					uiPlaceBothStep := 99;
 				END_IF
@@ -1348,10 +1361,7 @@ CASE uiExecutingStep OF
 							BoxReady_1st    := BoxReady_1st);
 					END_IF
 				ELSE
-					IF NOT AClampMoveDone THEN
-						AClampMoveDone := TRUE;
-						M_AppendActionRecord_ClampA();
-					END_IF
+					AClampMoveDone := TRUE;
 					tonTimeOut(IN := FALSE);	// sub-step 完成,歸零
 					uiPlaceBothStep := 60;
 				END_IF
@@ -1382,10 +1392,7 @@ CASE uiExecutingStep OF
 							BoxReady_2nd    := BoxReady_2nd);
 					END_IF
 				ELSE
-					IF NOT BClampMoveDone THEN
-						BClampMoveDone := TRUE;
-						M_AppendActionRecord_ClampB();
-					END_IF
+					BClampMoveDone := TRUE;
 					tonTimeOut(IN := FALSE);	// sub-step 完成,歸零
 					uiPlaceBothStep := 99;
 				END_IF
@@ -1499,7 +1506,7 @@ ELSIF _Error THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_RESETTING" Id="{2132ae54-faed-4906-94e2-e15eb301c652}" FolderPath="State\">
+    <Method Name="M_STATE_RESETTING" Id="{799d8b74-d6f0-4c13-8cc7-923dbf1af041}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_RESETTING
 VAR_INPUT
 END_VAR
@@ -1534,48 +1541,41 @@ IF _ResetCompleted THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2">
       <LineId Id="9" Count="0" />
       <LineId Id="4" Count="4" />
       <LineId Id="12" Count="0" />
       <LineId Id="10" Count="1" />
       <LineId Id="53" Count="0" />
-      <LineId Id="109" Count="1" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="109" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.A00_BasicUnits">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.A00_BasicUnits">
       <LineId Id="1" Count="0" />
       <LineId Id="3" Count="1" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_AppendActionRecord_ClampA">
-      <LineId Id="3" Count="30" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_AppendActionRecord_ClampB">
-      <LineId Id="3" Count="30" />
-      <LineId Id="2" Count="0" />
-    </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckCommand">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_CheckCommand">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="12" Count="0" />
       <LineId Id="6" Count="5" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckUnitsNotBusy">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_CheckUnitsNotBusy">
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_CheckUnitsReady">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_CheckUnitsReady">
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_SelectActionMode">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_SelectActionMode">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="32" Count="0" />
       <LineId Id="6" Count="25" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ABORTED">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_STATE_ABORTED">
       <LineId Id="39" Count="0" />
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
@@ -1596,7 +1596,7 @@ END_IF]]></ST>
       <LineId Id="22" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ABORTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_STATE_ABORTING">
       <LineId Id="16" Count="0" />
       <LineId Id="18" Count="0" />
       <LineId Id="21" Count="0" />
@@ -1622,14 +1622,14 @@ END_IF]]></ST>
       <LineId Id="42" Count="7" />
       <LineId Id="76" Count="1" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_DONE">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_STATE_DONE">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="8" Count="0" />
       <LineId Id="6" Count="1" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_DORMANT">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_STATE_DORMANT">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="29" Count="0" />
@@ -1653,7 +1653,7 @@ END_IF]]></ST>
       <LineId Id="41" Count="3" />
       <LineId Id="48" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_ERROR">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_STATE_ERROR">
       <LineId Id="5" Count="0" />
       <LineId Id="11" Count="1" />
       <LineId Id="10" Count="0" />
@@ -1663,7 +1663,7 @@ END_IF]]></ST>
       <LineId Id="6" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_EXECUTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_STATE_EXECUTING">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="535" Count="0" />
@@ -1682,9 +1682,10 @@ END_IF]]></ST>
       <LineId Id="1126" Count="6" />
       <LineId Id="618" Count="24" />
       <LineId Id="1133" Count="11" />
-      <LineId Id="655" Count="384" />
+      <LineId Id="655" Count="470" />
+      <LineId Id="1145" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse.M_STATE_RESETTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxToWareHouse_OldV2.M_STATE_RESETTING">
       <LineId Id="5" Count="0" />
       <LineId Id="4" Count="0" />
       <LineId Id="21" Count="0" />
