@@ -2510,6 +2510,7 @@ RegisterAlarm(Trigger := fbStorageArea.fbStorageHoming.xError,	ID := 12,value :=
 RegisterAlarm(Trigger := fballocateArea.fballocateHome.xError,	ID := 13,value := E_Severity.Level4,Message := fballocateArea.fballocateHome.ErrorMsg,Category := 2);
 RegisterAlarm(Trigger := fbShippingArea.fbShippingHoming.xError,ID := 14,value := E_Severity.Level4,Message :=fbShippingArea.fbShippingHoming.ErrorMsg,Category := 3);
 //Machine Area Service
+RegisterAlarm(Trigger := TableMove.xError , 					ID := 15,value := E_Severity.Level4,Message := TableMove.ErrorMsg,Category := 2);
 
 
 //Storage Area Service
@@ -4392,7 +4393,9 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="19307" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_General_AlarmRegister">
-      <LineId Id="3058" Count="35" />
+      <LineId Id="3058" Count="18" />
+      <LineId Id="3279" Count="0" />
+      <LineId Id="3077" Count="16" />
       <LineId Id="3263" Count="2" />
       <LineId Id="3268" Count="0" />
       <LineId Id="3261" Count="0" />
