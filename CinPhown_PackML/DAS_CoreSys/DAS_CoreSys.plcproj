@@ -1040,12 +1040,16 @@
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_FeedInRoundBeltBoxBatch_Old.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_FeedInRoundBeltBoxToWareHouse_Old.TcPOU">
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_FeedInRoundBeltBoxToWareHouse_OldV2.TcPOU">
       <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Old_version_Service\FB_ReloadRoundBeltBoxWithRobot.TcPOU">
       <SubType>Code</SubType>

@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_FeedInRoundBeltBoxBatch" Id="{9b9e568b-fb69-4c0f-87b8-6a279862cd82}" SpecialFunc="None">
+  <POU Name="FB_FeedInRoundBeltBoxBatch_Old" Id="{b1c2d3e4-aaaa-4444-bbbb-cccccccccccc}" SpecialFunc="None">
     <Declaration><![CDATA[// ═══════════════════════════════════════════════════════════════════════════
 // FB_FeedInRoundBeltBoxBatch
 // 圓帶回倉 — 批次服務 FB
@@ -31,7 +31,7 @@
 // Create Date : 2026/04/14
 // ═══════════════════════════════════════════════════════════════════════════
 
-FUNCTION_BLOCK FB_FeedInRoundBeltBoxBatch EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+FUNCTION_BLOCK FB_FeedInRoundBeltBoxBatch_Old EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
 
 VAR_INPUT
 	// ----- 外部資源參照 -----
@@ -71,7 +71,7 @@ END_VAR
 // 執行順序: input piping → A00 → A10 → output piping
 // ============================================================
 
-// 1. Input piping: C# → fbSingleFlow (只轉 ReadComplete,不碰 Execute/Reset)
+// 1. Input piping: C# → fbSingleFlow
 IF __ISVALIDREF(BatchInfo) THEN
 	fbSingleFlow.ReadComplete := BatchInfo.ReadComplete;
 	Execute := BatchInfo.HandShake.Execute;
@@ -95,18 +95,17 @@ IF __ISVALIDREF(BatchInfo) THEN
 END_IF
 ]]></ST>
     </Implementation>
-    <Folder Name="Method" Id="{bcf6e31a-0b4a-49fa-930f-f298c119ba23}" />
-    <Folder Name="State" Id="{1f125fda-f195-4211-bb27-6199695b2a05}" />
-    <Action Name="A00_BasicUnits" Id="{99f47e79-d693-49c4-b25a-087a24c433d5}">
+    <Folder Name="Method" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000001}" />
+    <Folder Name="State" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000002}" />
+    <Action Name="A00_BasicUnits" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000003}">
       <Implementation>
         <ST><![CDATA[// Per-iteration timeout, step 310 推進時重置
 tonTimeOut(PT := T#600S);
-// 每 scan 更新 Input (IO 輸入表),確保 fbSingleFlow 內部讀到最新 sensor
-// 只設屬性不呼叫 FB — fbSingleFlow() 呼叫只在 M_STATE_EXECUTING step 200/300/310
-fbSingleFlow.Input := Input;]]></ST>
+
+fbSingleFlow(Input := Input);]]></ST>
       </Implementation>
     </Action>
-    <Method Name="M_FindNextValidFlow" Id="{89659bfe-662d-4012-89a7-dd253dd6a309}" FolderPath="Method\">
+    <Method Name="M_FindNextValidFlow" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000010}" FolderPath="Method\">
       <Declaration><![CDATA[// 尋找下一筆有效流程
 // 從 iProcessingIndex 開始往後掃描 BatchInfo.FlowInfo[]
 // 有效條件: ID <> -1 且至少一爪為 Work
@@ -155,7 +154,7 @@ M_FindNextValidFlow := FALSE;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTED" Id="{15dea3c8-5945-4cca-a79b-a31b5ba5a20b}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTED" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000070}" FolderPath="State\">
       <Declaration><![CDATA[// 已中止狀態 — 等待 Reset 信號
 METHOD M_STATE_ABORTED
 VAR_INPUT
@@ -167,8 +166,8 @@ END_VAR
 	Aborted := TRUE;
 	Error 	:= TRUE;
 	Status 	:= strStatus;
+	uiAbortingStep := 0;
 	_AbortCompleted := FALSE;
-	uiAbortingStep  := 0;
 END_IF
 // 判斷內部Serivce 已經在aborted 狀態等著才能讓 FB reset
 IF fbSingleFlow.eState = STATE_Aborted THEN
@@ -186,7 +185,7 @@ END_IF
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
 ELSIF Execute AND _bRetry THEN
-	IF fbSingleFlow.eState = STATE_EXECUTING THEN
+	IF fbSingleFlow.eState = STATE_EXECUTING OR fbSingleFlow.eState = STATE_DONE THEN
 		fbSingleFlow.Reset := FALSE;
 		IF uiResumeStep > 0 THEN
 			status			:= '';
@@ -215,7 +214,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTING" Id="{a894ad75-a49b-4141-b3fa-c427d30c70f4}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTING" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000060}" FolderPath="State\">
       <Declaration><![CDATA[// 中止狀態 — 先停止單筆 FB
 METHOD M_STATE_ABORTING
 VAR_INPUT
@@ -224,7 +223,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
 	0:
-		_Abort  := FALSE;
+		_Abort := FALSE;
 		_bRetry := FALSE;
 		tonTimeOut.IN := FALSE;
 		IF _bSingleFlowStarted THEN
@@ -252,7 +251,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DONE" Id="{bbb75afc-44d5-40f3-af36-6b5cb357146f}" FolderPath="State\">
+    <Method Name="M_STATE_DONE" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000040}" FolderPath="State\">
       <Declaration><![CDATA[// 完成狀態 — 等待外部取消 Execute
 METHOD M_STATE_DONE
 VAR_INPUT
@@ -272,7 +271,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DORMANT" Id="{5ad707d9-ebdf-4005-aefc-b9f352ee9835}" FolderPath="State\">
+    <Method Name="M_STATE_DORMANT" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000020}" FolderPath="State\">
       <Declaration><![CDATA[// 休眠狀態 — 清除旗標,監聽 BatchInfo.HandShake.Execute 觸發
 METHOD M_STATE_DORMANT
 VAR_INPUT
@@ -323,7 +322,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ERROR" Id="{0fdd54bb-07a8-47dd-9585-07fa078a81c7}" FolderPath="State\">
+    <Method Name="M_STATE_ERROR" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000050}" FolderPath="State\">
       <Declaration><![CDATA[// 錯誤狀態 — 顯示錯誤訊息
 METHOD M_STATE_ERROR
 VAR_INPUT
@@ -348,7 +347,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_EXECUTING" Id="{aa4b95de-2221-406a-add9-79e6e2b53af6}" FolderPath="State\">
+    <Method Name="M_STATE_EXECUTING" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000030}" FolderPath="State\">
       <Declaration><![CDATA[// 執行主狀態 — 迭代批次中每筆有效流程
 // 步序:
 //   0:      M_FindNextValidFlow → 找到跳 100 / 沒找到跳 99000
@@ -370,14 +369,12 @@ IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Aut
 	strStatus := 'Not in Auto mode';
 	_UniqueErrorCode := 'E_NOT_AUTO_MODE';
 	_Abort := TRUE;
-	RETURN;
 END_IF
 
 // Pause: 僅在迭代邊界 (step 0/310) 生效
 IF __ISVALIDREF(BatchInfo) AND BatchInfo.Pause THEN
 	IF uiExecutingStep = 0 OR uiExecutingStep = 310 THEN
 		strStatus := 'Paused (at iteration boundary)';
-		RETURN;
 	END_IF
 END_IF
 
@@ -387,7 +384,6 @@ IF tonTimeOut.Q THEN
 	_UniqueErrorCode := 'E_BATCH_TIMEOUT';
 	uiResumeStep := 100;
 	_Abort := TRUE;
-	RETURN;
 END_IF
 
 CASE uiExecutingStep OF
@@ -474,7 +470,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_RESETTING" Id="{d589f409-ed86-4469-a211-793663d46796}" FolderPath="State\">
+    <Method Name="M_STATE_RESETTING" Id="{b1c2d3e4-aaaa-4444-bbbb-000000000080}" FolderPath="State\">
       <Declaration><![CDATA[// 重置狀態 — 等待 fbSingleFlow 回 DORMANT 後決定走 retry 或正常路徑
 METHOD M_STATE_RESETTING
 VAR_INPUT
@@ -493,10 +489,10 @@ END_VAR
 		uiResettingStep := 50;
 	
 	50:
-//		// 每 scan call fbSingleFlow 推進其內部 RESETTING → DORMANT
-//		// (移除 A00 的 freerun call 後,這裡是 RESETTING 期間唯一的驅動點)
+		// 等 fbSingleFlow 真的回 DORMANT, 避免 race
+//		fbSingleFlow.Reset := FALSE;
 //		fbSingleFlow();
-//		IF fbSingleFlow.eState = STATE_DORMANT THEN
+//		IF NOT fbSingleFlow.Busy AND NOT fbSingleFlow.Done AND NOT fbSingleFlow.Error AND NOT fbSingleFlow.Aborted THEN
 //			IF _bRetry THEN
 //				_bRetry := FALSE;
 //				eState := STATE_EXECUTING;
@@ -519,22 +515,21 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old">
       <LineId Id="3" Count="6" />
-      <LineId Id="93" Count="1" />
       <LineId Id="91" Count="1" />
-      <LineId Id="10" Count="15" />
+      <LineId Id="10" Count="16" />
+      <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.A00_BasicUnits">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.A00_BasicUnits">
       <LineId Id="2" Count="2" />
       <LineId Id="1" Count="0" />
-      <LineId Id="6" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_FindNextValidFlow">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_FindNextValidFlow">
       <LineId Id="3" Count="30" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_STATE_ABORTED">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_STATE_ABORTED">
       <LineId Id="41" Count="0" />
       <LineId Id="44" Count="2" />
       <LineId Id="6" Count="0" />
@@ -566,7 +561,7 @@ END_IF
       <LineId Id="7" Count="15" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_STATE_ABORTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_STATE_ABORTING">
       <LineId Id="3" Count="1" />
       <LineId Id="36" Count="1" />
       <LineId Id="31" Count="0" />
@@ -578,41 +573,44 @@ END_IF
       <LineId Id="27" Count="1" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_STATE_DONE">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_STATE_DONE">
       <LineId Id="3" Count="9" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_STATE_DORMANT">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_STATE_DORMANT">
       <LineId Id="3" Count="26" />
       <LineId Id="44" Count="3" />
       <LineId Id="30" Count="9" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_STATE_ERROR">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_STATE_ERROR">
       <LineId Id="3" Count="2" />
       <LineId Id="18" Count="3" />
       <LineId Id="6" Count="7" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_STATE_EXECUTING">
-      <LineId Id="3" Count="70" />
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_STATE_EXECUTING">
+      <LineId Id="3" Count="7" />
+      <LineId Id="12" Count="5" />
+      <LineId Id="19" Count="8" />
+      <LineId Id="29" Count="44" />
       <LineId Id="75" Count="28" />
       <LineId Id="122" Count="1" />
       <LineId Id="104" Count="6" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_FeedInRoundBeltBoxBatch.M_STATE_RESETTING">
+    <LineIds Name="FB_FeedInRoundBeltBoxBatch_Old.M_STATE_RESETTING">
       <LineId Id="3" Count="6" />
       <LineId Id="11" Count="0" />
       <LineId Id="39" Count="0" />
       <LineId Id="12" Count="13" />
-      <LineId Id="47" Count="2" />
       <LineId Id="40" Count="2" />
       <LineId Id="26" Count="2" />
       <LineId Id="38" Count="0" />
       <LineId Id="29" Count="0" />
       <LineId Id="37" Count="0" />
-      <LineId Id="34" Count="0" />
+      <LineId Id="34" Count="2" />
+      <LineId Id="2" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>
