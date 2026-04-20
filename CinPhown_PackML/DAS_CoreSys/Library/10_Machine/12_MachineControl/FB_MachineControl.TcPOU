@@ -2527,32 +2527,39 @@ RegisterAlarm(Trigger := fbStorageArea.fbRobotRegionMove_PullOutConveyor.Error ,
 RegisterAlarm(Trigger := fbStorageArea.fbRobotRegionMove_RoundBelt.Error ,			ID := 32,value := E_Severity.Level4,Message := fbStorageArea.fbRobotRegionMove_RoundBelt.Status,		Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbUpperFeedInConveyor.Error ,				ID := 33,value := E_Severity.Level4,Message := fbStorageArea.fbUpperFeedInConveyor.Status,				Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbWareHouseWithRobotMove.Error ,				ID := 34,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseWithRobotMove.Status,			Category := 1);
+RegisterAlarm(Trigger := fbStorageArea.fbWareHouseInnerPickToRoundBelt.Error ,		ID := 35,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseInnerPickToRoundBelt.Status,	Category := 1);
+RegisterAlarm(Trigger := fbStorageArea.fbWareHouseInnerPickToRoundBeltBatch.Error ,	ID := 36,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseInnerPickToRoundBeltBatch.Status,Category := 1);
+RegisterAlarm(Trigger := fbStorageArea.fbWareHouseWithRobotMove.Error ,				ID := 37,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseWithRobotMove.Status,			Category := 1);
+RegisterAlarm(Trigger := fbStorageArea.fbRobotSelfHoming.Error ,					ID := 38,value := E_Severity.Level4,Message := fbStorageArea.fbRobotSelfHoming.Status,					Category := 1);
 
-//Storage Cabinet Internal Service
-RegisterAlarm(Trigger := fbStorageArea.fbWarehouse.fbFeedInBox.Error, 				ID := 70,value := E_Severity.Level3,Message := fbStorageArea.fbWarehouse.fbFeedInBox.Status,			Category := 1);
-RegisterAlarm(Trigger := fbStorageArea.fbWarehouse.fbReloadBox.Error, 				ID := 71,value := E_Severity.Level3,Message := fbStorageArea.fbWarehouse.fbReloadBox.Status,			Category := 1);
 
 //Allocate Area Service
-RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode.Error ,				ID := 35,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode.Status,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode_Reverse.Error ,		ID := 36,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode_Reverse.Status,	Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbDifferentCVCamera.xError ,				ID := 37,value := E_Severity.Level3,Message := fbAllocateArea.fbDifferentCVCamera.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_BoxMoveReverse.Error ,			ID := 38,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_BoxMoveReverse.Status,		Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_EmptyBoxMove.Error ,				ID := 39,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_EmptyBoxMove.Status,		Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_RareBoxMove.Error ,				ID := 40,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_RareBoxMove.Status,		Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbPulloutCV.Error ,							ID := 41,value := E_Severity.Level3,Message := fbAllocateArea.fbPulloutCV.Status,					Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.RoundBeltControl.xError ,					ID := 42,value := E_Severity.Level3,Message := fbAllocateArea.RoundBeltControl.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbSameSizeCVCamera.xError ,					ID := 43,value := E_Severity.Level3,Message := fbAllocateArea.fbSameSizeCVCamera.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.TurnTableControl.xError ,					ID := 44,value := E_Severity.Level3,Message := fbAllocateArea.TurnTableControl.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Error ,		ID := 45,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Status,Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbAllocateRobotNeedlingMove.xError, 		id:= 46,value:= E_Severity.Level3,Message:=fbAllocateArea.fbAllocateRobotNeedlingMove.ErrorMsg,				Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode.Error ,				ID := 50,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode.Status,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode_Reverse.Error ,		ID := 51,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode_Reverse.Status,	Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbDifferentCVCamera.xError ,				ID := 52,value := E_Severity.Level3,Message := fbAllocateArea.fbDifferentCVCamera.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_BoxMoveReverse.Error ,			ID := 53,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_BoxMoveReverse.Status,		Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_EmptyBoxMove.Error ,				ID := 54,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_EmptyBoxMove.Status,		Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_RareBoxMove.Error ,				ID := 55,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_RareBoxMove.Status,		Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbPulloutCV.Error ,							ID := 56,value := E_Severity.Level3,Message := fbAllocateArea.fbPulloutCV.Status,					Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.RoundBeltControl.xError ,					ID := 57,value := E_Severity.Level3,Message := fbAllocateArea.RoundBeltControl.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbSameSizeCVCamera.xError ,					ID := 58,value := E_Severity.Level3,Message := fbAllocateArea.fbSameSizeCVCamera.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.TurnTableControl.xError ,					ID := 59,value := E_Severity.Level3,Message := fbAllocateArea.TurnTableControl.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Error ,		ID := 60,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Status,Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbAllocateRobotNeedlingMove.xError, 		ID := 61,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbAllocateRobotNeedlingMove.ErrorMsg,	Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fbSameSizeCVCamera_Reverse.xError, 			ID := 62,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbSameSizeCVCamera_Reverse.ErrorMsg,	Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fbReverseBoxToWareHouse.Error, 				ID := 63,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbReverseBoxToWareHouse.Status,		Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fbReverseBatchPickAndPhoto.Error, 			ID := 64,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbReverseBatchPickAndPhoto.Status,	Category :=2);
+
 
 //Shipping Area Service
-RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_Left.Error ,			ID := 47,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_Left.Status,Category := 3);
-RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_Right.Error ,			ID := 48,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_Right.Status,Category := 3);
-RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_TransmitCVEnd.Error ,	ID := 49,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_TransmitCVEnd.Status,Category := 3);
-RegisterAlarm(Trigger := fbShippingArea.fbShippingLeftSideTransCV.xError ,		ID := 50,value := E_Severity.Level3,Message := fbShippingArea.fbShippingLeftSideTransCV.ErrorMsg,Category := 3);
-RegisterAlarm(Trigger := fbShippingArea.fbShippingRightSideTransCV.xError ,		ID := 51,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRightSideTransCV.ErrorMsg,Category := 3);
-
+RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_Left.Error ,			ID := 80,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_Left.Status,				Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_Right.Error ,			ID := 81,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_Right.Status,				Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_TransmitCVEnd.Error ,	ID := 82,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_TransmitCVEnd.Status,		Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingLeftSideTransCV.xError ,		ID := 83,value := E_Severity.Level3,Message := fbShippingArea.fbShippingLeftSideTransCV.ErrorMsg,		Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingRightSideTransCV.xError ,		ID := 84,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRightSideTransCV.ErrorMsg,		Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingRobotTransfer.Error ,			ID := 85,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobotTransfer.Status,			Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_Buffer.Error ,			ID := 86,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_Buffer.Status,			Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_PhotoStandByPos.Error ,	ID := 87,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_PhotoStandByPos.Status,	Category := 3);
 
 
 // Cylinder Allocate Area component
@@ -2564,7 +2571,6 @@ RegisterAlarm(Trigger := Cylinder.List.fbAllocateRobot_RightClamp1.xError,		ID :
 RegisterAlarm(Trigger := Cylinder.List.fbAllocateRobot_RightClamp2.xError,		ID := 106,value := E_Severity.Level2,Message := Cylinder.List.fbAllocateRobot_RightClamp2.ErrorMsg,Category := 2);
 RegisterAlarm(Trigger := Cylinder.List.fbAllocateRobot_RightVert1.xError,		ID := 107,value := E_Severity.Level2,Message := Cylinder.List.fbAllocateRobot_RightVert1.ErrorMsg,Category := 2);
 RegisterAlarm(Trigger := Cylinder.List.fbAllocateRobot_RightVert2.xError,		ID := 108,value := E_Severity.Level2,Message := Cylinder.List.fbAllocateRobot_RightVert2.ErrorMsg,Category := 2);
-RegisterAlarm(Trigger := Cylinder.List.fbDifferentSizeCV_Block1.xError,			ID := 109,value := E_Severity.Level2,Message := Cylinder.List.fbDifferentSizeCV_Block1.ErrorMsg,Category := 2);
 RegisterAlarm(Trigger := Cylinder.List.fbRoundBelt_WorkZone_Press.xError,		ID := 110,value := E_Severity.Level2,Message := Cylinder.List.fbRoundBelt_WorkZone_Press.ErrorMsg,Category := 2);
 RegisterAlarm(Trigger := Cylinder.List.fbRoundBelt_WorkZone_Plug.xError,		ID := 111,value := E_Severity.Level2,Message := Cylinder.List.fbRoundBelt_WorkZone_Plug.ErrorMsg,Category := 2);
 RegisterAlarm(Trigger := Cylinder.List.fbRoundBelt_ChargeZone_Plug.xError,		ID := 112,value := E_Severity.Level2,Message := Cylinder.List.fbRoundBelt_ChargeZone_Plug.ErrorMsg,Category := 2);
@@ -4382,47 +4388,18 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="19307" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_General_AlarmRegister">
-      <LineId Id="2767" Count="6" />
-      <LineId Id="2941" Count="0" />
-      <LineId Id="2940" Count="0" />
-      <LineId Id="2923" Count="0" />
-      <LineId Id="2922" Count="0" />
-      <LineId Id="2920" Count="1" />
-      <LineId Id="2774" Count="22" />
-      <LineId Id="2906" Count="2" />
-      <LineId Id="2912" Count="0" />
-      <LineId Id="2797" Count="18" />
-      <LineId Id="3017" Count="1" />
-      <LineId Id="2816" Count="57" />
-      <LineId Id="2880" Count="0" />
-      <LineId Id="3037" Count="0" />
-      <LineId Id="2935" Count="0" />
-      <LineId Id="2937" Count="0" />
-      <LineId Id="3040" Count="4" />
-      <LineId Id="3038" Count="0" />
-      <LineId Id="2938" Count="1" />
-      <LineId Id="2936" Count="0" />
-      <LineId Id="2879" Count="0" />
-      <LineId Id="2881" Count="5" />
-      <LineId Id="2874" Count="0" />
-      <LineId Id="27" Count="0" />
-      <LineId Id="2931" Count="0" />
-      <LineId Id="120" Count="0" />
-      <LineId Id="3000" Count="0" />
-      <LineId Id="3005" Count="2" />
-      <LineId Id="2999" Count="0" />
-      <LineId Id="2895" Count="3" />
-      <LineId Id="2951" Count="0" />
-      <LineId Id="2996" Count="2" />
-      <LineId Id="2952" Count="1" />
-      <LineId Id="3045" Count="0" />
-      <LineId Id="2954" Count="15" />
-      <LineId Id="3046" Count="3" />
-      <LineId Id="3028" Count="0" />
-      <LineId Id="2970" Count="0" />
-      <LineId Id="2972" Count="15" />
-      <LineId Id="2894" Count="0" />
-      <LineId Id="121" Count="0" />
+      <LineId Id="3058" Count="35" />
+      <LineId Id="3263" Count="2" />
+      <LineId Id="3268" Count="0" />
+      <LineId Id="3261" Count="0" />
+      <LineId Id="3094" Count="13" />
+      <LineId Id="3257" Count="1" />
+      <LineId Id="3260" Count="0" />
+      <LineId Id="3259" Count="0" />
+      <LineId Id="3108" Count="6" />
+      <LineId Id="3251" Count="1" />
+      <LineId Id="3256" Count="0" />
+      <LineId Id="3115" Count="135" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_GetCylinderError">
