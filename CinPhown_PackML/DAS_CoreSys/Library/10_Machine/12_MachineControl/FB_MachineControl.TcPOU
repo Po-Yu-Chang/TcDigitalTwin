@@ -2622,9 +2622,13 @@ RegisterAlarm(Trigger := Cylinder.List.fbLowCV_Block2.xError,					ID := 153,valu
 // Robot Error
 IF fbStorageArea.fbStorageHoming.Homed THEN
 	bStorageRobotError := fanucrobot.List.StorageRobot.Error;
+ELSE
+	bStorageRobotError := FALSE;
 END_IF
 IF fbShippingArea.fbShippingHoming.Homed THEN
 	bShippingRobotError := fanucrobot.List.ShippingRobot.Error;
+ELSE
+	bShippingRobotError := FALSE;
 END_IF
 RegisterAlarm(Trigger := bStorageRobotError,					ID := 158,value := E_Severity.Level5,Message := fanucrobot.List.StorageRobot.ErrMsg,Category:=1);
 RegisterAlarm(Trigger := bShippingRobotError,					ID := 159,value := E_Severity.Level5,Message := fanucrobot.List.ShippingRobot.ErrMsg,Category:=1);
@@ -4399,7 +4403,9 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="3108" Count="6" />
       <LineId Id="3251" Count="1" />
       <LineId Id="3256" Count="0" />
-      <LineId Id="3115" Count="135" />
+      <LineId Id="3115" Count="59" />
+      <LineId Id="3269" Count="8" />
+      <LineId Id="3180" Count="70" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_GetCylinderError">
