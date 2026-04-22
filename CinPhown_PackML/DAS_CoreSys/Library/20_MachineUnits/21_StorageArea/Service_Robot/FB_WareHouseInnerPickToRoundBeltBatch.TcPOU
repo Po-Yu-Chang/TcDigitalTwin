@@ -204,6 +204,8 @@ END_VAR
 Aborted := TRUE;
 Error := TRUE;
 Status := strStatus;
+_AbortCompleted := FALSE;
+uiAbortingStep :=0;
 
 // Support retry/resume on Reset
 IF __ISVALIDREF(BatchInfo) THEN
@@ -267,6 +269,10 @@ END_VAR
 9999:
 	_AbortCompleted := TRUE;
 END_CASE
+IF _AbortCompleted THEN
+	eState := STATE_Aborted;
+END_IF
+
 ]]></ST>
       </Implementation>
     </Method>
@@ -454,7 +460,6 @@ IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Aut
 	strStatus := 'Not in Auto mode';
 	_UniqueErrorCode := 'E_NOT_AUTO_MODE';
 	_Abort := TRUE;
-	RETURN;
 END_IF
 
 // ============================================================
@@ -465,7 +470,6 @@ END_IF
 IF __ISVALIDREF(BatchInfo) AND BatchInfo.Pause THEN
 	IF uiExecutingStep = 0 OR uiExecutingStep = 310 THEN
 		strStatus := 'Paused (at iteration boundary)';
-		RETURN;
 	END_IF
 	// 非安全 step: 繼續跑直到下一個 iteration 邊界
 END_IF
@@ -478,7 +482,6 @@ IF tonTimeOut.Q THEN
 	_UniqueErrorCode := 'E_BATCH_TIMEOUT';
 	uiResumeStep := 100;
 	_Abort := TRUE;
-	RETURN;
 END_IF
 
 CASE uiExecutingStep OF
@@ -541,7 +544,6 @@ CASE uiExecutingStep OF
 		_UniqueErrorCode := 'E_FLOW_FAILED';
 		uiResumeStep := 100;
 		_Abort := TRUE;
-		RETURN;
 	END_IF
 
 // ===== Step 300: 記錄完成 + 釋放單筆 FB =====
@@ -762,12 +764,16 @@ M_ValidateBatchData := TRUE;
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_ABORTED">
-      <LineId Id="3" Count="13" />
+      <LineId Id="3" Count="3" />
+      <LineId Id="42" Count="1" />
+      <LineId Id="7" Count="9" />
       <LineId Id="23" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_ABORTING">
       <LineId Id="3" Count="20" />
+      <LineId Id="50" Count="2" />
+      <LineId Id="49" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_DONE">
@@ -786,7 +792,11 @@ M_ValidateBatchData := TRUE;
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_EXECUTING">
-      <LineId Id="3" Count="131" />
+      <LineId Id="3" Count="7" />
+      <LineId Id="12" Count="9" />
+      <LineId Id="23" Count="11" />
+      <LineId Id="36" Count="61" />
+      <LineId Id="99" Count="35" />
       <LineId Id="194" Count="0" />
       <LineId Id="193" Count="0" />
       <LineId Id="192" Count="0" />
