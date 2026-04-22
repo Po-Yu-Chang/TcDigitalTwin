@@ -2532,6 +2532,8 @@ RegisterAlarm(Trigger := fbStorageArea.fbWareHouseInnerPickToRoundBelt.Error ,		
 RegisterAlarm(Trigger := fbStorageArea.fbWareHouseInnerPickToRoundBeltBatch.Error ,	ID := 36,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseInnerPickToRoundBeltBatch.Status,Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbWareHouseWithRobotMove.Error ,				ID := 37,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseWithRobotMove.Status,			Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbRobotSelfHoming.Error ,					ID := 38,value := E_Severity.Level4,Message := fbStorageArea.fbRobotSelfHoming.Status,					Category := 1);
+RegisterAlarm(Trigger := fbStorageArea.fbFeedInRoundBeltBoxBatch.Error ,			ID := 39,value := E_Severity.Level4,Message := fbStorageArea.fbFeedInRoundBeltBoxBatch.Status,			Category := 1);
+RegisterAlarm(Trigger := fbStorageArea.fbFeedInRoundBeltBoxToWareHouse.Error ,		ID := 40,value := E_Severity.Level4,Message := fbStorageArea.fbFeedInRoundBeltBoxToWareHouse.Status,	Category := 1);
 
 
 //Allocate Area Service
@@ -4398,6 +4400,7 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="3077" Count="16" />
       <LineId Id="3263" Count="2" />
       <LineId Id="3268" Count="0" />
+      <LineId Id="3288" Count="1" />
       <LineId Id="3261" Count="0" />
       <LineId Id="3094" Count="13" />
       <LineId Id="3257" Count="1" />
