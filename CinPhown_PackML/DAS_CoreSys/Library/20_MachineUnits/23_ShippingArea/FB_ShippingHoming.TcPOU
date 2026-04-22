@@ -63,7 +63,7 @@ TON_RobotFeedOutCommand(PT:= T#5S);		//Robot FeedOut Command TimeOut
 TON_RobotTimeOut(PT := T#60S);			//Robot FeedOut Service Done Time
 TON_RobotRSR01_Delay(PT :=T#3S);
 TON_RebootPowerDelay(PT :=T#1S);
-TON_ConnectionTimeout(PT :=T#30S);
+TON_ConnectionTimeout(PT :=T#60S);
 
 
 _fbShippingRobot_TransmitCVEnd(
@@ -124,7 +124,7 @@ CASE uiShippingHomingStep OF
 			uiShippingHomingStep 	    := 10;
 			
 	10:		// 檢查機械手臂 錯誤狀態
-			IF FanucRobot._Status = 'Robot Disconnect' THEN
+			IF fanucrobot._EIPConnectionState = 8195 THEN
 				Output.bShipping_FanucRobotPower := TRUE;
 				uiShippingHomingStep := 20;
 			ELSIF fanucrobot.Error THEN
@@ -147,7 +147,7 @@ CASE uiShippingHomingStep OF
 				// 超時 30 秒，連線失敗
 				TON_ConnectionTimeout.IN := FALSE;
 				iErrorID := 30;
-			ELSIF FanucRobot._Status <> 'Robot Disconnect' THEN
+			ELSIF fanucrobot._EIPConnectionState <> 8195 THEN
 				// 已重新連線，繼續檢查錯誤
 				TON_ConnectionTimeout.IN := FALSE;
 				uiShippingHomingStep := 50;

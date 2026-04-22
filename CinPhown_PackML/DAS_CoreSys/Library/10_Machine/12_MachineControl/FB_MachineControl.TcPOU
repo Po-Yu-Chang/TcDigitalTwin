@@ -1458,7 +1458,7 @@ tofStartDelay(PT:=T#1S);
 GVL_ADS.OpPannel_Status.EStopBtnStatus := Machine_Estop;
 GVL_ADS.OpPannel_Status.ResetBtnStatus := tofResetDelay.Q;
 GVL_ADS.OpPannel_Status.StartBtnStatus := tofStartDelay.Q;
-GVL_ADS.OpPannel_Status.StopBtnStatus  := tofStopDelay.Q;
+GVL_ADS.OpPannel_Status.StopBtnStatus  := tofStopDelay.Q OR bStopMem;
 
 
 fb_AllocateSignalTower(

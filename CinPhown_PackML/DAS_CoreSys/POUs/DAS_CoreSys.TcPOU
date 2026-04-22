@@ -1224,10 +1224,10 @@ ELSIF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
     END_IF
 END_IF
 
-GVL_ADS.OpPannel_Status.EStopBtnStatus := CoreSys_Estop;
-GVL_ADS.OpPannel_Status.ResetBtnStatus := CoreSys_Reset;
-GVL_ADS.OpPannel_Status.StartBtnStatus := CoreSys_Start;
-GVL_ADS.OpPannel_Status.StopBtnStatus := CoreSys_Stop;
+//GVL_ADS.OpPannel_Status.EStopBtnStatus := CoreSys_Estop;
+//GVL_ADS.OpPannel_Status.ResetBtnStatus := CoreSys_Reset;
+//GVL_ADS.OpPannel_Status.StartBtnStatus := CoreSys_Start;
+//GVL_ADS.OpPannel_Status.StopBtnStatus := CoreSys_Stop;
 // Start
 IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
 	CASE PackTags[0].Status.StateCurrent OF
