@@ -234,31 +234,27 @@ VAR
 	theb: INT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy    := FALSE;
+	Error	:= TRUE;
+	Aborted := TRUE;
+	UniqueErrorCode := _UniqueErrorCode;
+	uiAbortingStep  := 0;
+	_AbortCompleted := FALSE;
+	Status := strStatus;
+END_IF
 
-Busy := FALSE;
-Aborted := TRUE;
-Error := TRUE;
-Status := strStatus;
-_AbortCompleted := FALSE;
-uiAbortingStep := 0;
-	tonReadComplete.IN  := FALSE;
-	tonTimeOut.IN		:= FALSE;
-
+IF reset THEN
+	_bRetry := TRUE;
+	Error	:= FALSE;
+	Aborted := FALSE;
+	_Abort  := FALSE;
+END_IF
 
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
-END_IF
-
-IF Reset THEN
-	Busy := FALSE;
-	Aborted := FALSE;
-	Error := FALSE;
-	IF uiResumeStep > 0 THEN
-		uiExecutingStep := uiResumeStep;
-		_bRetry := TRUE;
-	END_IF
-	
+ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
+	Status := '';
 	eState := STATE_EXECUTING;
 END_IF
 ]]></ST>
@@ -275,29 +271,55 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
-0:
-	_Abort := FALSE;
-	//Robot.M_ResetAllCommand();
-	WareHouse.M_ResetReloadBox();
-	WareHouse.M_ResetFeedInBox();
-	tonReadComplete.IN  := FALSE;
-	tonTimeOut.IN		:= FALSE;
-	_bAbortWaitStarted := FALSE;
-	uiAbortingStep := 100;
-100:
-	// 先等一個 cycle 讓 Robot 處理 Reset，避免 Done 殘留直接通過
+	0:
+		_Abort := FALSE;
+		//Robot.M_ResetAllCommand();
+		WareHouse.M_ResetReloadBox();
+		WareHouse.M_ResetFeedInBox();
+		tonReadComplete.IN  := FALSE;
+		tonTimeOut.IN		:= FALSE;
+		_bAbortWaitStarted := FALSE;
+		uiAbortingStep := 100;
+//100:
+//	// 先等一個 cycle 讓 Robot 處理 Reset，避免 Done 殘留直接通過
 //	IF NOT _bAbortWaitStarted THEN
 //		_bAbortWaitStarted := TRUE;
 //	ELSIF Robot._DI1.Done THEN
 //		_bAbortWaitStarted := FALSE;
 //		uiAbortingStep := 9999;
 //	END_IF
-	uiAbortingStep := 9999;
-9999:
-	_AbortCompleted := TRUE;
+//	uiAbortingStep := 9999;
+    100:
+			IF Robot._DI1.Error THEN
+				uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+			
+	200:		
+			 IF DAS_CoreSys.MachineControl.M_RobotResetCmd() THEN
+				 uiAbortingStep := 300;
+			 END_IF
+			 
+	300:
+			IF DAS_CoreSys.MachineControl.M_RobotStartCmd() THEN
+				 uiAbortingStep := 400;
+			 END_IF 
+			 
+	400:
+			IF Robot._DI1.Error THEN
+		 		uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	9999:
+		_AbortCompleted := TRUE;
 END_CASE
-IF _AbortCompleted THEN	
-	eSTATE :=STATE_ABORTED;
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND _AbortCompleted THEN
+	eState := STATE_Aborted;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -2569,11 +2591,11 @@ CASE uiResettingStep OF
 	strStatus := '';
 	_UniqueErrorCode := '0';
 
-	IF _bRetry THEN
-		_bRetry := FALSE;
-		eState := STATE_EXECUTING;
-		RETURN;
-	END_IF
+//	IF _bRetry THEN
+//		_bRetry := FALSE;
+//		eState := STATE_EXECUTING;
+//		RETURN;
+//	END_IF
 	uiResettingStep := 100;
 100:
 	_ResetCompleted := TRUE;
@@ -2606,33 +2628,11 @@ END_IF
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_ABORTED">
-      <LineId Id="42" Count="1" />
-      <LineId Id="3" Count="3" />
-      <LineId Id="38" Count="1" />
-      <LineId Id="51" Count="0" />
-      <LineId Id="41" Count="0" />
-      <LineId Id="40" Count="0" />
-      <LineId Id="37" Count="0" />
-      <LineId Id="20" Count="0" />
-      <LineId Id="26" Count="0" />
-      <LineId Id="22" Count="0" />
-      <LineId Id="7" Count="1" />
-      <LineId Id="28" Count="1" />
-      <LineId Id="27" Count="0" />
-      <LineId Id="9" Count="3" />
-      <LineId Id="19" Count="0" />
-      <LineId Id="13" Count="1" />
+      <LineId Id="59" Count="22" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_ABORTING">
-      <LineId Id="3" Count="1" />
-      <LineId Id="30" Count="0" />
-      <LineId Id="5" Count="2" />
-      <LineId Id="38" Count="1" />
-      <LineId Id="8" Count="9" />
-      <LineId Id="40" Count="0" />
-      <LineId Id="18" Count="2" />
-      <LineId Id="28" Count="1" />
+      <LineId Id="48" Count="49" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_DONE">
