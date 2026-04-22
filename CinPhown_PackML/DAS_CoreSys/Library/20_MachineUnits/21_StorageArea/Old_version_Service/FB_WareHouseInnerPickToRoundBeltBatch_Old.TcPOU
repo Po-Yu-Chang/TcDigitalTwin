@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_WareHouseInnerPickToRoundBeltBatch" Id="{abfea267-03e7-4a5d-bcbc-6d9ba04b3272}" SpecialFunc="None">
+  <POU Name="FB_WareHouseInnerPickToRoundBeltBatch_Old" Id="{21892e55-f568-4f5f-8fb9-16b544f599e2}" SpecialFunc="None">
     <Declaration><![CDATA[// ═══════════════════════════════════════════════════════════════════════════
 // FB_WareHouseInnerPickToRoundBeltBatch
 // 倉儲內層取盒放圓帶 — 批次服務 FB
@@ -47,7 +47,7 @@
 // Owner       : Copilot
 // ═══════════════════════════════════════════════════════════════════════════
 
-FUNCTION_BLOCK FB_WareHouseInnerPickToRoundBeltBatch EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+FUNCTION_BLOCK FB_WareHouseInnerPickToRoundBeltBatch_Old EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
 
 VAR_INPUT
 	// ----- 外部資源參照 (由上層 FB_StorageArea 綁定) -----
@@ -97,8 +97,6 @@ END_VAR
 // 1. Input piping: C# → fbSingleFlow (在 state machine 前)
 IF __ISVALIDREF(BatchInfo) THEN
 	fbSingleFlow.ReadComplete := BatchInfo.ReadComplete;
-	Execute := BatchInfo.HandShake.Execute;
-	Reset	:=BatchInfo.HandShake.Reset ;
 END_IF
 
 // 2. Timer PT setup
@@ -118,9 +116,9 @@ IF __ISVALIDREF(BatchInfo) THEN
 END_IF
 fbSingleFlow (Input := Input);]]></ST>
     </Implementation>
-    <Folder Name="Method" Id="{19bec0b9-2d33-43da-9f07-45e33e764d1b}" />
-    <Folder Name="State" Id="{26644d37-4624-49b7-84c2-ebabde1d90bc}" />
-    <Action Name="A00_BasicUnits" Id="{331eb9a4-29a5-4c83-80c1-087d5aa8619a}">
+    <Folder Name="Method" Id="{6ec0929b-7dde-4408-9555-34099ecab55a}" />
+    <Folder Name="State" Id="{ec823e1d-a384-45ea-8b3e-017749c1e96e}" />
+    <Action Name="A00_BasicUnits" Id="{3704b7cd-2da4-4a87-90d4-b4fb68aec075}">
       <Implementation>
         <ST><![CDATA[// 每單筆流程上限 (per-iteration timeout,由 EXECUTING step 310 重置)
 // 最多 40 筆 x 600s 單筆 = 6.7hr 批次上限足夠
@@ -128,7 +126,7 @@ tonTimeOut(PT := T#900S);
 ]]></ST>
       </Implementation>
     </Action>
-    <Method Name="M_FindNextValidFlow" Id="{e6bcb361-1d14-4d8d-b984-1628af83d508}" FolderPath="Method\">
+    <Method Name="M_FindNextValidFlow" Id="{092ab12a-b0bd-4823-89ac-8b4b440c26fe}" FolderPath="Method\">
       <Declaration><![CDATA[// 尋找下一筆有效流程
 // 從 iProcessingIndex 開始往後掃描 BatchInfo.FlowInfo[]
 // 有效條件: ID <> -1 且至少一爪為 Work
@@ -181,7 +179,7 @@ M_FindNextValidFlow := FALSE;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTED" Id="{72e4c2b9-6709-4692-b588-608a46ff7419}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTED" Id="{19c02117-5ff8-4fd9-b3dd-3ba17b5cb526}" FolderPath="State\">
       <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
 // M_STATE_ABORTED — 已中止 (可續做錯誤)
 // ───────────────────────────────────────────────────────────
@@ -202,43 +200,27 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF NOT _bRetry THEN
-	Busy 	:= FALSE;
-	Aborted := TRUE;
-	Error 	:= TRUE;
-	Status 	:= strStatus;
-	_AbortCompleted := FALSE;
-	uiAbortingStep  := 0;
-END_IF
-// 判斷內部Serivce 已經在aborted 狀態等著才能讓 FB reset
-IF fbSingleFlow.eState = STATE_Aborted THEN
-	IF reset THEN
-		fbSingleFlow();
-		fbSingleFlow.Reset := TRUE;
+        <ST><![CDATA[Busy := FALSE;
+Aborted := TRUE;
+Error := TRUE;
+Status := strStatus;
+_AbortCompleted := FALSE;
+uiAbortingStep :=0;
 
-		_bRetry := TRUE;
-		Aborted	:= FALSE;
-		Error	:= FALSE;
-	END_IF
-END_IF
-
-// 狀態機切換
-IF NOT Execute THEN
-	eState := STATE_RESETTING;
-ELSIF Execute AND _bRetry THEN
-	IF fbSingleFlow.eState = STATE_EXECUTING THEN
-		fbSingleFlow.Reset := FALSE;
+// Support retry/resume on Reset
+IF __ISVALIDREF(BatchInfo) THEN
+	IF BatchInfo.HandShake.Reset THEN
 		IF uiResumeStep > 0 THEN
-			status			:= '';
 			uiExecutingStep := uiResumeStep;
-			eState 			:= STATE_EXECUTING;
+			_bRetry := TRUE;
 		END_IF
+		eState := STATE_RESETTING;
 	END_IF
 END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTING" Id="{f0374331-c3ff-41bb-ab06-c0cdaaf93f3f}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTING" Id="{7dc3221a-c4fc-4379-9ecb-d53d4909d304}" FolderPath="State\">
       <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
 // M_STATE_ABORTING — 中止流程
 // ───────────────────────────────────────────────────────────
@@ -268,8 +250,6 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
 0:
-	_Abort:= FALSE;
-	_bRetry := false;
 	// Abort single-flow FB if running
 	IF _bSingleFlowStarted THEN
 		fbSingleFlow.Abort := TRUE;
@@ -281,7 +261,7 @@ END_VAR
 	// 每 cycle 呼叫 fbSingleFlow() 推進其內部中止狀態機 (ABORTING → ABORTED)
 	// 等待條件: 未啟動 / 已中止 / 不在忙碌 → 任一滿足即視為中止完成
 	fbSingleFlow();
-	IF fbSingleFlow.Aborted OR NOT fbSingleFlow.Busy THEN
+	IF NOT _bSingleFlowStarted OR fbSingleFlow.Aborted OR NOT fbSingleFlow.Busy THEN
 		fbSingleFlow.Abort := FALSE;
 		uiAbortingStep := 9999;
 	END_IF
@@ -289,16 +269,14 @@ END_VAR
 9999:
 	_AbortCompleted := TRUE;
 END_CASE
-
-IF NOT Execute THEN
-	eState := STATE_RESETTING;
-ELSIF Execute AND _AbortCompleted THEN
+IF _AbortCompleted THEN
 	eState := STATE_Aborted;
 END_IF
+
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DONE" Id="{c2fa69d9-8c53-4275-9961-9b488c8fe716}" FolderPath="State\">
+    <Method Name="M_STATE_DONE" Id="{5a92cdb6-341d-4a7d-8336-0283fc6edb4e}" FolderPath="State\">
       <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
 // M_STATE_DONE — 批次完成等待
 // ───────────────────────────────────────────────────────────
@@ -316,13 +294,11 @@ IF __ISVALIDREF(BatchInfo) THEN
 	IF NOT BatchInfo.HandShake.Execute THEN
 		eState := STATE_RESETTING;
 	END_IF
-ELSIF NOT Execute THEN
-	eState := STATE_RESETTING;
 END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DORMANT" Id="{2bbac5d8-c010-49c2-9477-8291faf98966}" FolderPath="State\">
+    <Method Name="M_STATE_DORMANT" Id="{7db8a234-aaa5-4802-b989-ebc195592a85}" FolderPath="State\">
       <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
 // M_STATE_DORMANT — 休眠 / 靜止就緒狀態
 // ───────────────────────────────────────────────────────────
@@ -393,7 +369,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ERROR" Id="{1392b385-5568-427a-b71d-18999e0aa337}" FolderPath="State\">
+    <Method Name="M_STATE_ERROR" Id="{064e1cfc-b7d9-420a-848d-8ab91434f019}" FolderPath="State\">
       <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
 // M_STATE_ERROR — 不可續做錯誤顯示
 // ───────────────────────────────────────────────────────────
@@ -413,13 +389,17 @@ END_VAR
 Error := TRUE;
 Status := strStatus;
 
-IF NOT Execute THEN
+IF __ISVALIDREF(BatchInfo) THEN
+	IF NOT BatchInfo.HandShake.Execute THEN
+		eState := STATE_RESETTING;
+	END_IF
+ELSIF NOT Execute THEN
 	eState := STATE_RESETTING;
 END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_EXECUTING" Id="{a87cec14-e642-41c5-b733-963535ec8600}" FolderPath="State\">
+    <Method Name="M_STATE_EXECUTING" Id="{1a2b6e5a-cca5-498c-9214-258c783f5062}" FolderPath="State\">
       <Declaration><![CDATA[// ═══════════════════════════════════════════════════════════════════════════
 // M_STATE_EXECUTING — 批次迭代執行主狀態
 // ═══════════════════════════════════════════════════════════════════════════
@@ -515,6 +495,7 @@ CASE uiExecutingStep OF
 			// 資料驗證失敗 → 直接報錯,不可續做 (需 C# 修正資料後重來)
 			uiResumeStep := 0;
 			_Error := TRUE;
+			RETURN;
 		END_IF
 	END_IF
 
@@ -613,7 +594,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_RESETTING" Id="{4e58b48c-cfca-4be4-9e63-97953846dda1}" FolderPath="State\">
+    <Method Name="M_STATE_RESETTING" Id="{a2bbe2eb-b265-4a6a-8743-a1cb5daeda91}" FolderPath="State\">
       <Declaration><![CDATA[// ───────────────────────────────────────────────────────────
 // M_STATE_RESETTING — 重置流程 (含續做分流)
 // ───────────────────────────────────────────────────────────
@@ -645,16 +626,14 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiResettingStep OF
 0:
-	//Done := FALSE;	//done 留到dormant 關閉。
+	Done := FALSE;
 	Error := FALSE;
 	Aborted := FALSE;
 	tonTimeOut.IN := FALSE;
 
 	// Reset single-flow FB
-	//fbSingleFlow.Reset := TRUE;
+	fbSingleFlow.Reset := TRUE;
 	fbSingleFlow();
-	fbSingleFlow.Execute := FALSE;
-	
 
 	// _bRetry = TRUE: 由 ABORTED 狀態透過 Reset 觸發
 	// 無論 retry 或正常 reset,都要先等 fbSingleFlow 真的回到 DORMANT,
@@ -663,19 +642,15 @@ END_VAR
 
 50:
 	// 等待 fbSingleFlow 完成 RESETTING → DORMANT (條件: 所有狀態 flag 都 FALSE)
-//	fbSingleFlow.Reset := FALSE;
-//	fbSingleFlow();
-//	IF NOT fbSingleFlow.Busy AND NOT fbSingleFlow.Done AND NOT fbSingleFlow.Error AND NOT fbSingleFlow.Aborted THEN
-//		IF _bRetry THEN
-//			// 續做路徑: uiExecutingStep 已被設回 uiResumeStep,直接回 EXECUTING
-//			_bRetry := FALSE;
-//			eState := STATE_EXECUTING;
-//			RETURN;
-//		END_IF
-//		uiResettingStep := 100;
-//	END_IF
+	fbSingleFlow.Reset := FALSE;
 	fbSingleFlow();
-	IF fbSingleFlow.eState = STATE_DORMANT THEN
+	IF NOT fbSingleFlow.Busy AND NOT fbSingleFlow.Done AND NOT fbSingleFlow.Error AND NOT fbSingleFlow.Aborted THEN
+		IF _bRetry THEN
+			// 續做路徑: uiExecutingStep 已被設回 uiResumeStep,直接回 EXECUTING
+			_bRetry := FALSE;
+			eState := STATE_EXECUTING;
+			RETURN;
+		END_IF
 		uiResettingStep := 100;
 	END_IF
 
@@ -688,7 +663,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_ValidateBatchData" Id="{b69c8d80-ddb6-4661-b043-150da88e78e7}" FolderPath="Method\">
+    <Method Name="M_ValidateBatchData" Id="{d0000001-0000-0000-0000-000000000001}" FolderPath="Method\">
       <Declaration><![CDATA[// 驗證批次資料安全性
 // 檢查項目:
 //   1. 同一個 (Station, ReloadCarrier) 目的地不能重複出現 (包括同 flow 內 A/B 兩爪)
@@ -776,60 +751,51 @@ M_ValidateBatchData := TRUE;
 ]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch">
-      <LineId Id="3" Count="8" />
-      <LineId Id="114" Count="1" />
-      <LineId Id="12" Count="16" />
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old">
+      <LineId Id="3" Count="25" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.A00_BasicUnits">
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.A00_BasicUnits">
       <LineId Id="2" Count="2" />
       <LineId Id="1" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_FindNextValidFlow">
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_FindNextValidFlow">
       <LineId Id="3" Count="34" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_ABORTED">
-      <LineId Id="63" Count="31" />
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_STATE_ABORTED">
+      <LineId Id="3" Count="3" />
+      <LineId Id="42" Count="1" />
+      <LineId Id="7" Count="9" />
       <LineId Id="23" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_ABORTING">
-      <LineId Id="3" Count="1" />
-      <LineId Id="53" Count="1" />
-      <LineId Id="5" Count="9" />
-      <LineId Id="80" Count="3" />
-      <LineId Id="19" Count="4" />
-      <LineId Id="50" Count="0" />
-      <LineId Id="84" Count="4" />
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_STATE_ABORTING">
+      <LineId Id="3" Count="20" />
+      <LineId Id="50" Count="2" />
+      <LineId Id="49" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_DONE">
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_STATE_DONE">
       <LineId Id="3" Count="2" />
       <LineId Id="21" Count="2" />
       <LineId Id="9" Count="0" />
-      <LineId Id="34" Count="1" />
-      <LineId Id="33" Count="0" />
+      <LineId Id="24" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_DORMANT">
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_STATE_DORMANT">
       <LineId Id="3" Count="43" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_ERROR">
-      <LineId Id="3" Count="3" />
-      <LineId Id="27" Count="1" />
-      <LineId Id="13" Count="0" />
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_STATE_ERROR">
+      <LineId Id="3" Count="10" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_EXECUTING">
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_STATE_EXECUTING">
       <LineId Id="3" Count="7" />
       <LineId Id="12" Count="9" />
       <LineId Id="23" Count="11" />
-      <LineId Id="36" Count="12" />
-      <LineId Id="50" Count="46" />
-      <LineId Id="247" Count="0" />
+      <LineId Id="36" Count="61" />
       <LineId Id="99" Count="35" />
       <LineId Id="194" Count="0" />
       <LineId Id="193" Count="0" />
@@ -838,17 +804,12 @@ M_ValidateBatchData := TRUE;
       <LineId Id="196" Count="0" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_STATE_RESETTING">
-      <LineId Id="3" Count="8" />
-      <LineId Id="125" Count="0" />
-      <LineId Id="93" Count="0" />
-      <LineId Id="12" Count="19" />
-      <LineId Id="94" Count="3" />
-      <LineId Id="32" Count="3" />
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_STATE_RESETTING">
+      <LineId Id="3" Count="32" />
       <LineId Id="63" Count="2" />
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch.M_ValidateBatchData">
+    <LineIds Name="FB_WareHouseInnerPickToRoundBeltBatch_Old.M_ValidateBatchData">
       <LineId Id="3" Count="64" />
       <LineId Id="2" Count="0" />
     </LineIds>
