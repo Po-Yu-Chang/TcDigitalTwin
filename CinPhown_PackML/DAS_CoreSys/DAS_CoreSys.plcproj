@@ -1183,6 +1183,12 @@
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\FUNs\FUN_GetSyncGroup_AllocationJob.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_PullOutConveyorAction_OLD.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_PullOutConveyorBtnCtrl_OLD.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateRobotNeedlingMove.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -1474,6 +1480,7 @@
     <Folder Include="Library\20_MachineUnits\22_AllocateArea\Duts" />
     <Folder Include="Library\20_MachineUnits\22_AllocateArea\Duts\Enums" />
     <Folder Include="Library\20_MachineUnits\22_AllocateArea\FUNs" />
+    <Folder Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service" />
     <Folder Include="Library\20_MachineUnits\22_AllocateArea\Service" />
     <Folder Include="Library\20_MachineUnits\23_ShippingArea" />
     <Folder Include="Library\20_MachineUnits\23_ShippingArea\Duts" />
