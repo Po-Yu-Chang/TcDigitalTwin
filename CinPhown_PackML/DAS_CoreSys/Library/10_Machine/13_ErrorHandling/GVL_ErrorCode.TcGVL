@@ -522,6 +522,26 @@ VAR_GLOBAL CONSTANT
     GC_MSG_0202   : STRING := 'Allocate_Electrical_Cabinet_SafetyDoor  Opened';
     GC_MSG_0203   : STRING := 'bShippingRobot_ElectricalCabinet_SafetyDoor  Opened';
 
+    // === FanucRobot runtime status (0204-0221) ===
+    GC_MSG_0204   : STRING := 'EStop has been trigged.';
+    GC_MSG_0205   : STRING := 'Get but Has Sensor no Respond';
+    GC_MSG_0206   : STRING := 'Get But Jaw Has';
+    GC_MSG_0207   : STRING := 'illegal value in tool offset';
+    GC_MSG_0208   : STRING := 'Jaw Sensor no Respond';
+    GC_MSG_0209   : STRING := 'Laser detected';
+    GC_MSG_0210   : STRING := 'Read All offset data failue';
+    GC_MSG_0211   : STRING := 'Retry too many times, Need Robot Homing';
+    GC_MSG_0212   : STRING := 'Robot Disconnect';
+    GC_MSG_0213   : STRING := 'Robot has Battary alarm';
+    GC_MSG_0214   : STRING := 'Robot has fatal alarm';
+    GC_MSG_0215   : STRING := 'Robot in Halt State';
+    GC_MSG_0216   : STRING := 'Robot Not in Home Pos, Home First';
+    GC_MSG_0217   : STRING := 'RSR1 has error when RSR1 active.Restart Robot Power.';
+    GC_MSG_0218   : STRING := 'RSR3 has error when RSR3 active.';
+    GC_MSG_0219   : STRING := 'TP has got contol';
+    GC_MSG_0220   : STRING := 'Upper data Overload';
+    GC_MSG_0221   : STRING := 'Vision fault';
+
 END_VAR
 ]]></Declaration>
   </GVL>
