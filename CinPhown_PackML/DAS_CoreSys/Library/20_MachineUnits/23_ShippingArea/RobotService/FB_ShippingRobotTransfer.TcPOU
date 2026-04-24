@@ -190,15 +190,17 @@ END_CASE
 
  //檢查爪子狀態
 IF AreaInfo.Get THEN
+	// Get (取盒): 爪必須打開才能夾
 	IF NOT Robot._DI1.ClampA_Open THEN
-		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA is not open';
+		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA must be open to Get';
 		Status := strStatus;
 		Error := TRUE;
 		RETURN;
 	END_IF
 ELSE
+	// Put (放盒): 爪必須關閉 (夾著盒) 才能放
 	IF Robot._DI1.ClampA_Open THEN
-		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA is not open';
+		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA must be closed to Put';
 		Status := strStatus;
 		Error := TRUE;
 		RETURN;
@@ -369,6 +371,12 @@ TON_ServiceWatchDog.IN       := FALSE;
 bMoveConveyorForward  := FALSE;
 bMoveConveyorBackward := FALSE;
 BoxReady_1st := FALSE;
+
+// Buzz / Lamp 閃爍預設次數 (各 3 次 = 約 1.8 秒警示)
+BlinkInfo.MaxBuzzCount  := 3;
+BlinkInfo.MaxLightCount := 3;
+BlinkInfo.BuzzCount     := 0;
+BlinkInfo.LightCount    := 0;
 
 Status := '';
 Error := FALSE;
@@ -1133,36 +1141,36 @@ CASE uiResettingStep OF
 		Motor.List.TransmitDifferentSideCV.M_MotorStop();
 		Motor.List.TransmitSameSideCV.M_MotorStop();
 
-//		// 判斷手臂是否還在流程中
-//		IF Robot._UO1.UO03_PrgRunning OR NOT Robot._DI1.Done THEN
-//			// 手臂還在跑 → 切 RSR2 回原點
-//			uiResettingStep := 50;
-//		ELSE
-//			// 手臂已經閒置 → 直接清 command
-//			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
-//			uiResettingStep := 100;
-//		END_IF
+		// 判斷手臂是否還在流程中
+		IF Robot._UO1.UO03_PrgRunning OR NOT Robot._DI1.Done THEN
+			// 手臂還在跑 → 切 RSR2 回原點
+			uiResettingStep := 50;
+		ELSE
+			// 手臂已經閒置 → 直接清 command
+			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+			uiResettingStep := 100;
+		END_IF
 
-//	50: // 切 RSR2，讓 Fanuc 中斷目前程式並回原點
-//		Robot.OpMode := E_FanucRobotOpMode.RSR02;
-//		IF Robot._RSR2_Completed THEN
-//			uiResettingStep := 60;
-//		END_IF
+	50: // 切 RSR2，讓 Fanuc 中斷目前程式並回原點
+		Robot.OpMode := E_FanucRobotOpMode.RSR02;
+		IF Robot._RSR2_Completed THEN
+			uiResettingStep := 60;
+		END_IF
 
-//	60: // RSR2 完成，切回 RSR1 工作模式
-//		Robot.OpMode := E_FanucRobotOpMode.RSR01;
-//		IF Robot._RSR1_Ready THEN
-//			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
-//			uiResettingStep := 100;
-//		END_IF
+	60: // RSR2 完成，切回 RSR1 工作模式
+		Robot.OpMode := E_FanucRobotOpMode.RSR01;
+		IF Robot._RSR1_Ready THEN
+			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+			uiResettingStep := 100;
+		END_IF
 
-//	100:
-//		// Buffer 氣缸確認縮回
-//		IF __ISVALIDREF(Cylinder) THEN
-//			IF NOT Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
-//				Cylinder.List.fbShippingBuffer_Press.M_Retract();
-//			END_IF
-//		END_IF
+	100:
+		// Buffer 氣缸確認縮回
+		IF __ISVALIDREF(Cylinder) THEN
+			IF NOT Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
+				Cylinder.List.fbShippingBuffer_Press.M_Retract();
+			END_IF
+		END_IF
 		uiResettingStep := 200;
 
 	200:
