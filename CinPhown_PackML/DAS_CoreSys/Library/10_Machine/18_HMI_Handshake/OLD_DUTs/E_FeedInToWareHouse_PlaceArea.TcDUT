@@ -9,8 +9,8 @@ TYPE
         Undefined := 0,
         WareHouseA := 1,
         WareHouseB := 2,
-		PullOutInner := 3,  // PullOutConveyor I3_Slide (左側,面對操作員)
-        PullOutOuter := 4   // PullOutConveyor I4_Slide (右側,面對操作員)
+		PullOutInner := 3,  // PullOutConveyor I4_Slide (右側,面對操作員 / 機台內側)
+        PullOutOuter := 4   // PullOutConveyor I3_Slide (左側,面對操作員 / 機台外側)
     )UINT;
 END_TYPE
 ]]></Declaration>

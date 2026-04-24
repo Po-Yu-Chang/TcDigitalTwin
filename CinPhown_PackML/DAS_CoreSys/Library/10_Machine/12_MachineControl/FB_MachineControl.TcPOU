@@ -2530,7 +2530,6 @@ RegisterAlarm(Trigger := fbStorageArea.fbUpperFeedInConveyor.Error ,				ID := 33
 RegisterAlarm(Trigger := fbStorageArea.fbWareHouseWithRobotMove.Error ,				ID := 34,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseWithRobotMove.Status,			Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbWareHouseInnerPickToRoundBelt.Error ,		ID := 35,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseInnerPickToRoundBelt.Status,	Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbWareHouseInnerPickToRoundBeltBatch.Error ,	ID := 36,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseInnerPickToRoundBeltBatch.Status,Category := 1);
-RegisterAlarm(Trigger := fbStorageArea.fbWareHouseWithRobotMove.Error ,				ID := 37,value := E_Severity.Level4,Message := fbStorageArea.fbWareHouseWithRobotMove.Status,			Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbRobotSelfHoming.Error ,					ID := 38,value := E_Severity.Level4,Message := fbStorageArea.fbRobotSelfHoming.Status,					Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbFeedInRoundBeltBoxBatch.Error ,			ID := 39,value := E_Severity.Level4,Message := fbStorageArea.fbFeedInRoundBeltBoxBatch.Status,			Category := 1);
 RegisterAlarm(Trigger := fbStorageArea.fbFeedInRoundBeltBoxToWareHouse.Error ,		ID := 40,value := E_Severity.Level4,Message := fbStorageArea.fbFeedInRoundBeltBoxToWareHouse.Status,	Category := 1);
