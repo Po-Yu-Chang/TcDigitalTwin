@@ -489,6 +489,39 @@ VAR_GLOBAL CONSTANT
     GC_MSG_0174   : STRING := 'TurnTable interlock: must not move while clip down';
     GC_MSG_0175   : STRING := 'TurnTable angle invalid: must be 0/90/180/270/360';
 
+    // === MachineControl central alarms (0176-0203) ===
+    // EStop / AirPressure
+    GC_MSG_0176   : STRING := 'Allocate Estop has trig';
+    GC_MSG_0177   : STRING := 'Storage Estop has trig';
+    GC_MSG_0178   : STRING := 'Storage robot Estop has trig';
+    GC_MSG_0179   : STRING := 'Shipping robot Estop has trig';
+    GC_MSG_0180   : STRING := 'Low AirPressure ';
+    // Axis errors
+    GC_MSG_0181   : STRING := 'TurnTable axis has Error';
+    GC_MSG_0182   : STRING := 'Roundbelt axis has Error';
+    GC_MSG_0183   : STRING := 'Allocate_X axis has Error';
+    GC_MSG_0184   : STRING := 'Allocate_Y axis has Error';
+    GC_MSG_0185   : STRING := 'OutRobot_X axis has Error';
+    GC_MSG_0186   : STRING := 'OutRobot_Y axis has Error';
+    GC_MSG_0187   : STRING := 'RackMotor axis has Error';
+    // Safe doors (1-14, preserving existing typos/spacing)
+    GC_MSG_0188   : STRING := 'Safe door1  Opened';
+    GC_MSG_0189   : STRING := 'Safe door2  Opened';
+    GC_MSG_0190   : STRING := 'Safe door3  Opened';
+    GC_MSG_0191   : STRING := 'Safe door4  Opened';
+    GC_MSG_0192   : STRING := 'Safe door5  Opened';
+    GC_MSG_0193   : STRING := 'Safe door6  Opened';
+    GC_MSG_0194   : STRING := 'Safe door7  Opened';
+    GC_MSG_0195   : STRING := 'Safe door8  Opened';
+    GC_MSG_0196   : STRING := 'Safe door9  Opened';
+    GC_MSG_0197   : STRING := 'Safe door10  Opened';
+    GC_MSG_0198   : STRING := 'Safe door11  Opened';
+    GC_MSG_0199   : STRING := 'Safe doo12  Opened';
+    GC_MSG_0200   : STRING := 'Safe doo13  Opened';
+    GC_MSG_0201   : STRING := 'Safe door14  Opened';
+    GC_MSG_0202   : STRING := 'Allocate_Electrical_Cabinet_SafetyDoor  Opened';
+    GC_MSG_0203   : STRING := 'bShippingRobot_ElectricalCabinet_SafetyDoor  Opened';
+
 END_VAR
 ]]></Declaration>
   </GVL>

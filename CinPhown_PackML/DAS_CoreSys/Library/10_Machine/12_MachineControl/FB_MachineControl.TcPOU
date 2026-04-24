@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
   <POU Name="FB_MachineControl" Id="{e3b1bb4d-882f-4a96-a73d-3761a8a6d18d}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_MachineControl EXTENDS FB_ModeBase_V2 IMPLEMENTS I_UnitState
@@ -2494,14 +2494,14 @@ END_VAR]]></Declaration>
         <ST><![CDATA[/////  Category ==> 0 :machine Area ,1: StorageArea ,2: AllocateArea ,3: ShippingArea 
 
 // E-Stop
-RegisterAlarm(Trigger := Allocate_Estop, 								ID := 001,value := E_Severity.Level7, Message := 'Allocate Estop has trig', Category := 2);
-RegisterAlarm(Trigger := Storage_EStop, 								ID := 002,value := E_Severity.Level7, Message := 'Storage Estop has trig', Category := 1);
-RegisterAlarm(Trigger := FanucRobot.List.StorageRobot.E_Stop_Output,	ID := 003,value := E_Severity.Level7,Message := 'Storage robot Estop has trig',Category := 1);
-RegisterAlarm(Trigger := FanucRobot.List.ShippingRobot.E_Stop_Output,	ID := 004,value := E_Severity.Level7,Message := 'Shipping robot Estop has trig',Category := 1);
+RegisterAlarm(Trigger := Allocate_Estop, 								ID := 001,value := E_Severity.Level7, Message := GVL_ErrorCode.GC_MSG_0176, Category := 2);
+RegisterAlarm(Trigger := Storage_EStop, 								ID := 002,value := E_Severity.Level7, Message := GVL_ErrorCode.GC_MSG_0177, Category := 1);
+RegisterAlarm(Trigger := FanucRobot.List.StorageRobot.E_Stop_Output,	ID := 003,value := E_Severity.Level7,Message := GVL_ErrorCode.GC_MSG_0178,Category := 1);
+RegisterAlarm(Trigger := FanucRobot.List.ShippingRobot.E_Stop_Output,	ID := 004,value := E_Severity.Level7,Message := GVL_ErrorCode.GC_MSG_0179,Category := 1);
 
 //AirPressure
 bStorage_AirPressure := NOT( BIT_TO_BOOL( INPUT.bStorage_AirPressure_Ready) ) OR  bTest2;
-RegisterAlarm(Trigger := bStorage_AirPressure,							ID := 005,value := E_Severity.Level7,Message := 'Low AirPressure ',Category := 1);
+RegisterAlarm(Trigger := bStorage_AirPressure,							ID := 005,value := E_Severity.Level7,Message := GVL_ErrorCode.GC_MSG_0180,Category := 1);
 
 
 //Homing Service
@@ -2638,13 +2638,13 @@ RegisterAlarm(Trigger := bShippingRobotError,					ID := 159,value := E_Severity.
 
 
 // Servo Error
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error,ID := 201,value := E_Severity.Level6,Message := 'TurnTable axis has Error',Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error,ID := 202,value := E_Severity.Level6,Message := 'Roundbelt axis has Error',Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error,ID := 203,value := E_Severity.Level6,Message := 'Allocate_X axis has Error',Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error,ID := 204,value := E_Severity.Level6,Message := 'Allocate_Y axis has Error',Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error,ID := 205,value := E_Severity.Level6,Message := 'OutRobot_X axis has Error',Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error,ID := 206,value := E_Severity.Level6,Message := 'OutRobot_Y axis has Error',Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Error,ID := 207,value := E_Severity.Level6,Message := 'RackMotor axis has Error',Category := 1);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error,ID := 201,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0181,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error,ID := 202,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0182,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error,ID := 203,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0183,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error,ID := 204,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0184,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error,ID := 205,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0185,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error,ID := 206,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0186,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Error,ID := 207,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0187,Category := 1);
 
 // ModbusRTU 
 bByPassModBusRTU[1] := MAIN2_RS485.RS485_V2[1].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_1;
@@ -2685,22 +2685,22 @@ ELSE
 	END_FOR
 END_IF
 
-	RegisterAlarm(Trigger := SafeDoorsOpen[1],  ID := 401, value := E_Severity.Level2, Message := 'Safe door1  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[2],  ID := 402, value := E_Severity.Level2, Message := 'Safe door2  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[3],  ID := 403, value := E_Severity.Level2, Message := 'Safe door3  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[4],  ID := 404, value := E_Severity.Level2, Message := 'Safe door4  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[5],  ID := 405, value := E_Severity.Level2, Message := 'Safe door5  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[6],  ID := 406, value := E_Severity.Level2, Message := 'Safe door6  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[7],  ID := 407, value := E_Severity.Level2, Message := 'Safe door7  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[8],  ID := 408, value := E_Severity.Level2, Message := 'Safe door8  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[9],	ID := 409, value := E_Severity.Level2, Message := 'Safe door9  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[10],	ID := 410, value := E_Severity.Level2, Message := 'Safe door10  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[11],	ID := 411, value := E_Severity.Level2, Message := 'Safe door11  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[12],	ID := 412, value := E_Severity.Level2, Message := 'Safe doo12  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[13],	ID := 413, value := E_Severity.Level2, Message := 'Safe doo13  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[14],	ID := 414, value := E_Severity.Level2, Message := 'Safe door14  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[15],	ID := 415, value := E_Severity.Level2, Message := 'Allocate_Electrical_Cabinet_SafetyDoor  Opened',  Category := 1); 
-	RegisterAlarm(Trigger := SafeDoorsOpen[16],	ID := 416, value := E_Severity.Level2, Message := 'bShippingRobot_ElectricalCabinet_SafetyDoor  Opened',  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[1],  ID := 401, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0188,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[2],  ID := 402, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0189,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[3],  ID := 403, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0190,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[4],  ID := 404, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0191,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[5],  ID := 405, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0192,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[6],  ID := 406, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0193,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[7],  ID := 407, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0194,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[8],  ID := 408, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0195,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[9],	ID := 409, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0196,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[10],	ID := 410, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0197,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[11],	ID := 411, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0198,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[12],	ID := 412, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0199,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[13],	ID := 413, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0200,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[14],	ID := 414, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0201,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[15],	ID := 415, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0202,  Category := 1); 
+	RegisterAlarm(Trigger := SafeDoorsOpen[16],	ID := 416, value := E_Severity.Level2, Message := GVL_ErrorCode.GC_MSG_0203,  Category := 1); 
 
 
 M_General_AlarmRegister := TRUE;]]></ST>
