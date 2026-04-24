@@ -38,6 +38,8 @@ VAR
 	TON_CheckRobotDoneTimeOut	: TON;
 	TON_BlinkDelay				: TON;
 	tonBoxArriveDelay			: TON;
+	TON_MechTimeOut				: TON;	// 機構(氣缸/輸送帶/sensor)前置動作逾時 (30s)
+	TON_ServiceWatchDog			: TON;	// 整個 Service 執行總時間看門狗 (3min)
 
 	// TransmitCVEnd
 	SensorToBeCheck		: BIT;
@@ -85,6 +87,8 @@ SUPER^.A10_StateControl();
 TON_CheckRobotDoneTimeOut(PT := T#30S);
 TON_BlinkDelay(PT := T#1S);
 tonBoxArriveDelay(PT := T#1S);
+TON_MechTimeOut(PT := T#30S);
+TON_ServiceWatchDog(PT := T#180S);	// 3 分鐘總 Service 看門狗
 
 // TransCV InPosition sensor 回饋 (左/右分開)
 IF GVL_HMI.Setup.ShippingRobot_DockTestSignal THEN
@@ -268,6 +272,8 @@ END_VAR
 			Abort  := FALSE;
 			TON_RobotActionTimeOut.IN    := FALSE;
 			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			TON_MechTimeOut.IN           := FALSE;
+			TON_ServiceWatchDog.IN       := FALSE;
 			bMoveConveyorForward  := FALSE;
 			bMoveConveyorBackward := FALSE;
 			IF __ISVALIDREF(ConveyorMotor) THEN
@@ -357,6 +363,8 @@ TON_RobotActionTimeOut.IN    := FALSE;
 TON_CheckRobotDoneTimeOut.IN := FALSE;
 TON_BlinkDelay.IN            := FALSE;
 tonBoxArriveDelay.IN         := FALSE;
+TON_MechTimeOut.IN           := FALSE;
+TON_ServiceWatchDog.IN       := FALSE;
 
 bMoveConveyorForward  := FALSE;
 bMoveConveyorBackward := FALSE;
@@ -445,10 +453,24 @@ IF Pause THEN
 	RETURN;
 END_IF
 
+// Service watchdog (3 分鐘總執行時間) — 持續跑到 99000 或 Abort / Stop
+TON_ServiceWatchDog.IN := TRUE;
+
 // Stop 時暫停 Timeout
 IF THIS^.Stop THEN
 	TON_RobotActionTimeOut.IN    := FALSE;
 	TON_CheckRobotDoneTimeOut.IN := FALSE;
+	TON_MechTimeOut.IN           := FALSE;
+	TON_ServiceWatchDog.IN       := FALSE;
+END_IF
+
+// Service watchdog 逾時 → 整個 FB Abort + 報警
+IF TON_ServiceWatchDog.Q THEN
+	uiResumeStep := uiExecutingStep;
+	strStatus    := 'FB_ShippingRobotTransfer: Service watchdog timeout (3 min)';
+	Status       := strStatus;
+	Error        := TRUE;
+	_Abort       := TRUE;
 END_IF
 
 CASE uiExecutingStep OF
@@ -598,6 +620,7 @@ CASE uiExecutingStep OF
 		END_CASE
 
 	1100: // Buffer Get 前置 - 氣缸處理
+		TON_MechTimeOut.IN := TRUE;
 		CASE uiGetStep OF
 			0:
 				CASE Address_A OF
@@ -618,20 +641,46 @@ CASE uiExecutingStep OF
 				END_IF
 			400:
 				BoxReady_1st := TRUE;
+				TON_MechTimeOut.IN := FALSE;
 				uiExecutingStep := 5000;
 		END_CASE
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 1100;
+			strStatus := 'FB_ShippingRobotTransfer Step 1100: Buffer cylinder timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
 
 	1200: // Buffer Put 前置 - 確認氣缸縮回
+		TON_MechTimeOut.IN := TRUE;
 		IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
 			BoxReady_1st := TRUE;
+			TON_MechTimeOut.IN := FALSE;
 			uiExecutingStep := 5000;
 		ELSE
 			Cylinder.List.fbShippingBuffer_Press.M_Retract();
 		END_IF
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 1200;
+			strStatus := 'FB_ShippingRobotTransfer Step 1200: Buffer cylinder retract timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
 
 	1300: // TransmitCVEnd Put 前置 - 等反轉 + sensor 清除
+		TON_MechTimeOut.IN := TRUE;
 		IF ConveyorMotor.InBackWard AND NOT SensorToBeCheck THEN
+			TON_MechTimeOut.IN := FALSE;
 			uiExecutingStep := 5000;
+		END_IF
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 1300;
+			strStatus := 'FB_ShippingRobotTransfer Step 1300: TransmitCV reverse / sensor clear timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
 		END_IF
 
 	// ============================================================
@@ -789,6 +838,7 @@ CASE uiExecutingStep OF
 		END_CASE
 
 	10100: // TO Buffer Get 前置
+		TON_MechTimeOut.IN := TRUE;
 		CASE uiGetStep OF
 			0:
 				CASE Address_A OF
@@ -809,21 +859,47 @@ CASE uiExecutingStep OF
 				END_IF
 			400:
 				BoxReady_1st := TRUE;
+				TON_MechTimeOut.IN := FALSE;
 				uiExecutingStep := 15000;
 		END_CASE
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 10100;
+			strStatus := 'FB_ShippingRobotTransfer Step 10100: Buffer cylinder timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
 
 	10200: // TO Buffer Put 前置
+		TON_MechTimeOut.IN := TRUE;
 		IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
 			BoxReady_1st := TRUE;
+			TON_MechTimeOut.IN := FALSE;
 			uiExecutingStep := 15000;
 		ELSE
 			Cylinder.List.fbShippingBuffer_Press.M_Retract();
 		END_IF
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 10200;
+			strStatus := 'FB_ShippingRobotTransfer Step 10200: Buffer cylinder retract timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
+		END_IF
 
 	10300: // TO TransmitCVEnd Put 前置
+		TON_MechTimeOut.IN := TRUE;
 		M_SensorUpdate(_toPos);
 		IF ConveyorMotor.InBackWard AND NOT SensorToBeCheck THEN
+			TON_MechTimeOut.IN := FALSE;
 			uiExecutingStep := 15000;
+		END_IF
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 10300;
+			strStatus := 'FB_ShippingRobotTransfer Step 10300: TransmitCV reverse / sensor clear timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort := TRUE;
 		END_IF
 
 	// ============================================================
@@ -968,6 +1044,8 @@ CASE uiExecutingStep OF
 	// ============================================================
 	99000:
 		TON_BlinkDelay.IN := FALSE;
+		TON_MechTimeOut.IN := FALSE;
+		TON_ServiceWatchDog.IN := FALSE;
 		bMoveConveyorForward  := FALSE;
 		bMoveConveyorBackward := FALSE;
 		Status    := 'Process completed';
