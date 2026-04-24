@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
   <POU Name="FB_FanucRobot_Basic_V2" Id="{cb73f1fe-6ec3-4c6c-8f86-ed9d19b8966c}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_FanucRobot_Basic_V2 IMPLEMENTS IBasicElement
@@ -282,7 +282,7 @@ CASE eState OF
 					uiRobotExecutingStep := 400;
 				ELSIF GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Error THEN
 					_Error := TRUE;
-					_Status := 'Read All offset data failue';
+					_Status := GVL_ErrorCode.GC_MSG_0210;
 				END_IF
 			400:
                 _UI1.UI09_RSR1 := TRUE;
@@ -681,7 +681,7 @@ CASE eState OF
                     uiRobotExecutingStep := 400;
                 ELSIF Error OR Ton_SetProgTimeOut.Q THEN
                     _Error  := TRUE;
-                    _Status := 'RSR1 has error when RSR1 active.Restart Robot Power.';
+                    _Status := GVL_ErrorCode.GC_MSG_0217;
 					bINP := TRUE; 
                 END_IF
 				//Edited by Jidien Kachu in 2025/10/27
@@ -735,7 +735,7 @@ CASE eState OF
 	        //_Abort := TRUE;
 
 //			_Error  := TRUE;
-//			_Status := 'Robot has fatal alarm';
+//			_Status := GVL_ErrorCode.GC_MSG_0214;
 //			eState  := E_MethodStatus_Basic.STATE_ERROR;
         END_IF
     E_MethodStatus_Basic.STATE_DONE:
@@ -807,7 +807,7 @@ CASE eState OF
 
         IF _UO1.UO04_PrgPaused AND NOT _UO1.UO03_PrgRunning THEN
             Halt    := TRUE;
-            _Status := 'Robot in Halt State';
+            _Status := GVL_ErrorCode.GC_MSG_0215;
             eState  := E_MethodStatus_Basic.STATE_Held;
         END_IF
 //		IF reset THEN
@@ -834,25 +834,25 @@ CASE eState OF
         END_IF
 		RobotErrId := M_GetErrorCode();//Edited by Jidien Kachu in 2025/10/13
 //		IF iRetryCnt > 3 THEN
-//			_Status := 'Retry too many times, Need Robot Homing';
+//			_Status := GVL_ErrorCode.GC_MSG_0211;
 //		ELSE
 			CASE RobotErrId OF
 				1:
-				_Status := 'Upper data Overload';
+				_Status := GVL_ErrorCode.GC_MSG_0220;
 				2:
-				_Status := 'Jaw Sensor no Respond';
+				_Status := GVL_ErrorCode.GC_MSG_0208;
 				3:
-				_Status := 'Vision fault';
+				_Status := GVL_ErrorCode.GC_MSG_0221;
 				4:
-				_Status := 'Get but Has Sensor no Respond';
+				_Status := GVL_ErrorCode.GC_MSG_0205;
 				5:
-				_Status := 'Get But Jaw Has';
+				_Status := GVL_ErrorCode.GC_MSG_0206;
 				6:
-				_Status := 'illegal value in tool offset';
+				_Status := GVL_ErrorCode.GC_MSG_0207;
 				7:
-				_Status := 'Laser detected';
+				_Status := GVL_ErrorCode.GC_MSG_0209;
 				8:		
-				_Status := 'Robot Not in Home Pos, Home First';
+				_Status := GVL_ErrorCode.GC_MSG_0216;
 			END_CASE
 //		END_IF
 		
@@ -893,15 +893,15 @@ END_CASE
 
 IF Estop THEN
    // _Error  := TRUE;
-    _Status := 'EStop has been trigged.';
+    _Status := GVL_ErrorCode.GC_MSG_0204;
 	eState  := E_MethodStatus_Basic.STATE_ERROR;
 ELSIF _UO1.UO08_TPEnabled THEN
     _Error  := TRUE;
-    _Status := 'TP has got contol';
+    _Status := GVL_ErrorCode.GC_MSG_0219;
 	eState  := E_MethodStatus_Basic.STATE_ERROR;
 ELSIF _UO1.UO09_BattAlarm THEN
     _Error  := TRUE;
-    _Status := 'Robot has Battary alarm';
+    _Status := GVL_ErrorCode.GC_MSG_0213;
 	eState  := E_MethodStatus_Basic.STATE_ERROR;
 END_IF]]></ST>
       </Implementation>
@@ -1019,7 +1019,7 @@ END_CASE
 IF Estop OR _UO1.UO08_TPEnabled THEN
 	eState := E_MethodStatus_Basic.STATE_ERROR;
 	_Error := TRUE;
-	_Status := 'EStop has been trigged.';
+	_Status := GVL_ErrorCode.GC_MSG_0204;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -1129,7 +1129,7 @@ CASE eState OF
                     uiRobotExecutingStep := 400;
 				ELSIF Error THEN
 					_Error := TRUE;
-					_Status:='RSR3 has error when RSR3 active.';
+					_Status:=GVL_ErrorCode.GC_MSG_0218;
                 END_IF
 			400:
 				// Allow Read / Write offset data
@@ -1166,7 +1166,7 @@ END_CASE
 IF Estop OR _UO1.UO08_TPEnabled THEN
 	eState := E_MethodStatus_Basic.STATE_ERROR;
 	_Error := TRUE;
-	_Status := 'EStop has been trigged.';
+	_Status := GVL_ErrorCode.GC_MSG_0204;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -3733,7 +3733,7 @@ IF TonHeartBeat.Q THEN
 END_IF
 
 IF Fault() AND iTestCnt >= 10 THEN
-	_Status := 'Robot Disconnect';
+	_Status := GVL_ErrorCode.GC_MSG_0212;
 END_IF
 
 _rawOut_DO[33].5 := bStorageA_LaserSwitch;

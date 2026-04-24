@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_PullOutConveyorAction" Id="{09cc3138-3ad4-4f8e-97a2-e615d30e8365}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_PullOutConveyorAction EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+  <POU Name="FB_PullOutConveyorAction_OLD" Id="{dcc4f7cd-de6f-4e9c-9bfe-7538df1fe65a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PullOutConveyorAction_OLD EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
 VAR_INPUT
     FixCylinderA1    : REFERENCE TO FB_Cylinder; // Conveyor A-side 1st cylinder
     FixCylinderA2    : REFERENCE TO FB_Cylinder; // Conveyor A-side 2nd cylinder
@@ -35,23 +35,20 @@ VAR
 	TON_FeedInsensorADelay	:TON;
 	TON_betweenboxReverse 	:TON;
 	TON_PullOutTimeOut		:TON;
-//	_Abort           : BOOL;
+	//_Abort           : BOOL;
 	bError			 : BOOL;
 	strStatus	     : STRING;
 	_UniqueErrorCode : STRING;
 	PreviousStrStatus : STRING;
 	PreviousErrorCode : STRING;
-	
-	uiResumeStep	: UINT;
-	_bRetry	: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[A00_BasicUnits();
 A10_StateControl();]]></ST>
     </Implementation>
-    <Folder Name="State" Id="{ea414ec6-c5ab-499b-bbcd-7f34969a3087}" />
-    <Action Name="A00_BasicUnits" Id="{b9da5a81-742c-4961-94ee-19813317ee43}">
+    <Folder Name="State" Id="{67752009-782a-4af9-ad5d-43c91017a6a5}" />
+    <Action Name="A00_BasicUnits" Id="{79b070df-4e72-4c51-a0de-6c987b669b1c}">
       <Implementation>
         <ST><![CDATA[TON_MotorRun		(PT	:= PullOutInfo.ConveyorRunningTime);
 TON_MotorReverse	(PT	:= PullOutInfo.ConveyorReverseTime);
@@ -70,10 +67,10 @@ TON_PullOutTimeOut (PT :=T#20.0S);
 
 
 
-ErrorID := GVL_ErrorCode.GC_SVCID_ALC_PULLOUT_CV;]]></ST>
+ErrorID :=2750;]]></ST>
       </Implementation>
     </Action>
-    <Action Name="A01_clcExecuting" Id="{554be4be-946f-41e7-8dab-b0630e51520e}">
+    <Action Name="A01_clcExecuting" Id="{27f53e1a-f758-427c-a6cf-bee25213779b}">
       <Implementation>
         <ST><![CDATA[FeedInSensor_A  :=INPUT.bPullOutCV_AsideEntry_Sensor;
 FeedOutSensor_A  :=INPUT.bPullOutCV_AsideExit_Sensor;
@@ -83,7 +80,7 @@ FeedOutSensor_B  := INPUT.bPullOutCV_BsideExit_Sensor;
 DetactSensor_B   := INPUT.bPullOutCV_Bside2ndBoxGap_Sensor;]]></ST>
       </Implementation>
     </Action>
-    <Method Name="M_CheckCommand" Id="{27ee4527-00a3-40ad-9697-c8fb5eb13aac}">
+    <Method Name="M_CheckCommand" Id="{3d7fb33e-603f-4106-b74e-13722331a1a5}">
       <Declaration><![CDATA[METHOD M_CheckCommand : BOOL
 VAR_INPUT
 END_VAR
@@ -92,7 +89,7 @@ END_VAR
         <ST><![CDATA[M_CheckCommand := true;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_ResetCylinder" Id="{7d0a7423-b959-4639-9a90-9ca00b1b7f5e}">
+    <Method Name="M_ResetCylinder" Id="{51bb542b-a7f6-4332-ba73-916b9474dbb7}">
       <Declaration><![CDATA[METHOD M_ResetCylinder : BOOL
 VAR_INPUT
 END_VAR
@@ -101,41 +98,49 @@ END_VAR
         <ST><![CDATA[]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTED" Id="{f6012fcf-8c9b-442b-ae59-a0199fe480c0}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTED" Id="{cc58d1fd-b4b8-4c3b-a1cc-249aeddb1506}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTED
 VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF NOT _bRetry THEN
-	Busy 	:= FALSE;
-	Aborted := TRUE;
-	Error 	:= TRUE;
-	Status	:= strStatus;
-	uiAbortingStep  := 0;
-	_AbortCompleted := FALSE;
-	UniqueErrorCode := _UniqueErrorCode;
-END_IF
-IF reset THEN 
-	Aborted := FALSE;
-	Error	:= FALSE;
-	_bRetry := TRUE;
-END_IF
-
-
+        <ST><![CDATA[uiAbortingStep := 0;
+Busy := FALSE;
+Aborted := TRUE;
+_Abort := FALSE;
+Error :=TRUE;
+Status:= strStatus;
+UniqueErrorCode:=_UniqueErrorCode;
 IF NOT Execute THEN
-	eState := STATE_RESETTING;
-ELSIF Execute AND _bRetry  THEN
-	status := '';
-	uiExecutingStep := uiResumeStep ;
-	eState 			:= STATE_EXECUTING;
+		eState := STATE_RESETTING;
+ELSIF reset AND Execute (*AND NOT error*) THEN
+	
+	CASE uiExecutingStep OF 
+		50000:	//SlideA_FeedIn_Ext Resume step
+				error :=FALSE;
+				uiExecutingStep := 11000;	
+	
+	END_CASE
+	eState := STATE_EXECUTING;
 END_IF
 
 
-]]></ST>
+
+//IF NOT Execute THEN
+//	eState := STATE_RESETTING;
+//ELSIF reset THEN
+//	PreviousStrStatus := strStatus;
+//	PreviousErrorCode := _UniqueErrorCode;
+//	IF (uiExecutingStep = 1030) OR
+//		(uiExecutingStep = 2030) OR
+//		(uiExecutingStep = 3030)
+// 	THEN
+//		eState := STATE_EXECUTING;
+//	END_IF
+//END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTING" Id="{65c48942-6aa3-4bb7-9276-8c00d9151a34}" FolderPath="State\">
+    <Method Name="M_STATE_ABORTING" Id="{0fcf58f4-3d58-4e30-a0cb-9da0ba6564d5}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTING
 VAR_INPUT
 END_VAR
@@ -143,38 +148,29 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
 	0:
-		_Abort  := FALSE;
-		_bRetry := FALSE;
-		TON_MotorRun.IN 		:= FALSE;
-		tonMotorBReverse.IN 	:= FALSE;
-		TON_MotorStopDelay.IN 	:= FALSE;
-		
+		IF strStatus = PreviousStrStatus THEN
+			_UniqueErrorCode :=PreviousErrorCode;
+		END_IF
+		TON_MotorRun.IN := FALSE;
 		ConveyorMotorA.M_MotorStop();// .M_StopMotor('Aborting');
-		ConveyorMotorB.M_MotorStop();
-
+		TON_MotorStopDelay.IN := TRUE;
 		uiAbortingStep := 100;
 	100:
-		IF ConveyorMotorA.InStopped AND ConveyorMotorB.InStopped THEN
+		_Abort :=FALSE;
+		IF ConveyorMotorA.InStopped AND TON_MotorStopDelay.Q THEN
 			uiAbortingStep := 200;
 		END_IF
-		
 	200:
+		TON_MotorStopDelay.IN := FALSE;
+	//DAS.fbStorageArea.M_InactivePulloutConveyorInternCtrl();
 		uiAbortingStep := 300;
-		
 	300:
-		_AbortCompleted := TRUE;
-
+		eState := STATE_Aborted;
 END_CASE
-
-IF NOT Execute THEN
-	eState := STATE_RESETTING;
-ELSIF Execute AND _AbortCompleted THEN
-	eState := STATE_Aborted;
-END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DONE" Id="{5df18d2f-6a7a-47ae-a785-d41d22aeb92e}" FolderPath="State\">
+    <Method Name="M_STATE_DONE" Id="{dfd1bfc0-e2e6-4839-b3e0-8db346908ae8}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_DONE
 VAR_INPUT
 END_VAR
@@ -188,7 +184,7 @@ IF NOT Execute THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DORMANT" Id="{2e41ddc7-96e3-41d9-b8d9-8284ccba85c6}" FolderPath="State\">
+    <Method Name="M_STATE_DORMANT" Id="{887b1d46-845d-4f83-9133-4ce0da74b097}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_DORMANT
 VAR_INPUT
 END_VAR
@@ -221,10 +217,6 @@ TON_betweenboxReverse.IN :=FALSE;
 TON_PullOutTimeOut.IN :=FALSE;
 PreviousStrStatus			 :='';
 PreviousErrorCode			 :='';
-uiResumeStep 	:= 0;
-uiAbortingStep  := 0;
-_AbortCompleted := FALSE;
-_bRetry 		:= false;
 //DAS.fbStorageArea.M_InactivePulloutConveyorInternCtrl();
 IF Execute THEN
 	eState := STATE_EXECUTING;
@@ -232,7 +224,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ERROR" Id="{703791f3-9084-4d52-8d55-83d2b2c920ab}" FolderPath="State\">
+    <Method Name="M_STATE_ERROR" Id="{2caece84-1911-44f9-8bfd-7a2573c7cd18}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_ERROR
 VAR_INPUT
 END_VAR
@@ -251,7 +243,7 @@ IF NOT Execute THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_EXECUTING" Id="{c6c7cedd-4c6a-473a-ba78-a48a9b28b9fa}" FolderPath="State\">
+    <Method Name="M_STATE_EXECUTING" Id="{3ef24f61-68d7-400f-a1fa-e5ca87a1e826}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
 VAR_INPUT
 END_VAR
@@ -262,18 +254,11 @@ END_VAR]]></Declaration>
 A01_clcExecuting();
 CASE uiExecutingStep OF
     0:
-        // 非自動模式直接報錯 (避免軸控衝突)
-        IF GVL_Machine.PackTags[UnitNo.Allocate].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-            strStatus := 'Not in Auto mode';
-            _UniqueErrorCode := 'E_NOT_AUTO_MODE';
-            _Error := TRUE;
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 100;
         ELSE
-            IF M_CheckCommand() THEN
-                uiExecutingStep := 100;
-            ELSE
-                Status := 'Wrong command, check the command setting';
-                _Error := TRUE;
-            END_IF
+            Status := 'Wrong command, check the command setting';
+            _Error := TRUE;
         END_IF
     100:
         FixCylinderA1.M_Retract();// .M_Retract();//('Clear command');
@@ -665,7 +650,20 @@ CASE uiExecutingStep OF
 
 {region "SlideA_FeedOut_Ext"}
 //	9000: // SlideA_FeedOut_Ext
-
+//		ConveyorMotor.M_MoveBackward();//('');
+//		TON_BoxArrivedDelay.IN := TRUE;
+//		IF NOT FeedInSensor_A THEN
+//			TON_MotorStopDelay.IN := TRUE;
+//			IF TON_MotorStopDelay.Q THEN
+//				ConveyorMotor.M_MotorStop();//('');
+//				TON_BoxArrivedDelay.IN := FALSE;
+//				uiExecutingStep := 99000;
+//			END_IF
+//		END_IF
+//		IF TON_BoxArrivedDelay.Q THEN
+//			Status := 'SlideA box is still there';
+//			_Error := TRUE;
+//		END_IF
 	9000: //SlideA FeedOut_Ext
 			ConveyorMotorA.M_MoveBackward();//('');
 			tonMotorBReverse.IN :=TRUE;
@@ -675,23 +673,36 @@ CASE uiExecutingStep OF
 			END_IF
 	9100:	//check sensor make sure full box behide
 			IF ConveyorMotorA.InStopped  THEN
-				IF (NOT FeedInSensor_A) AND	(NOT DetactSensor_A) THEN
+				IF (NOT FeedInSensor_A) AND 
+					(NOT DetactSensor_A) THEN
 					uiExecutingStep :=99000;
-				ELSIF FeedInSensor_A OR	DetactSensor_A THEN
-						 uiResumeStep := 9000;
-						_Abort :=TRUE;
-						strStatus := M_FormatManagedStatus(
-							AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-							InnerMessage := GVL_ErrorCode.GC_MSG_0103);
+				ELSIF FeedInSensor_A OR
+						DetactSensor_A THEN
+						_Error :=TRUE;
+						strStatus :='PullOutConveyorA FeedOut full box ,please remove ';
 				END_IF
 			END_IF
 {endregion}
 
 {region "SlideB_FeedOut_Ext"}
 //	10000: // SlideB_FeedOut_Ext
+	
+//		ConveyorMotorB.M_MoveBackward();//('');
+//		TON_BoxArrivedDelay.IN := TRUE;
+//		IF NOT FeedInSensor_B THEN
+//			TON_MotorStopDelay.IN := TRUE;
+//			IF TON_MotorStopDelay.Q THEN
+//				ConveyorMotorB.M_MotorStop();//('');
+//				TON_BoxArrivedDelay.IN := FALSE;
+//				uiExecutingStep := 99000;
+//			END_IF
+//		END_IF
+//		IF TON_BoxArrivedDelay.Q THEN
+//			Status := 'SlideB box is still there';
+//			_Error := TRUE;
+//		END_IF
 
-
-	//======================	SlideB_FeedOut_Ext =====================
+	//======================	SlideA FeedOut_Ext
 	10000: 
 			ConveyorMotorB.M_MoveBackward();//('');
 			tonMotorBReverse.IN :=TRUE;
@@ -701,14 +712,13 @@ CASE uiExecutingStep OF
 			END_IF
 	10100:	//check sensor make sure full box behide
 			IF ConveyorMotorB.InStopped  THEN
-				IF (NOT FeedInSensor_B) AND (NOT DetactSensor_B) THEN
+				IF (NOT FeedInSensor_B) AND 
+					(NOT DetactSensor_B) THEN
 					uiExecutingStep :=99000;
-				ELSIF FeedInSensor_B OR	DetactSensor_B THEN
-						 uiResumeStep := 10000;
-						_Abort 		  := TRUE;
-						strStatus := M_FormatManagedStatus(
-							AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-							InnerMessage := GVL_ErrorCode.GC_MSG_0107);
+				ELSIF FeedInSensor_B OR
+						DetactSensor_B THEN
+						_Error :=TRUE;
+						strStatus :='PullOutConveyorB FeedOut full box ,please remove ';
 				END_IF
 			END_IF
 {endregion}
@@ -742,11 +752,7 @@ CASE uiExecutingStep OF
 	11120:	//check two sensor
 		IF DetactSensor_A OR FeedInSensor_A THEN
 			//_Error :=TRUE;
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0104);
-			Status := strStatus;
-			Error := TRUE;
+			strStatus :='PullOutConveyorA full box ,please remove';
 			uiExecutingStep :=50000;	//abort step
 		ELSE 
 			uiExecutingStep :=11800;
@@ -789,11 +795,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_betweenboxReverse.Q THEN
 				//_Error :=TRUE;
-				strStatus := M_FormatManagedStatus(
-					AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-					InnerMessage := GVL_ErrorCode.GC_MSG_0102);
-				Status := strStatus;
-				Error := TRUE;
+				strStatus :='PullOutConveyorA FeedIn full box ,please remove box';
 				uiExecutingStep :=50000;
 			END_IF
 	11440:	//wait motor stop
@@ -818,11 +820,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_PullOutTimeOut.Q THEN
 				//_Error :=TRUE;
-				strStatus := M_FormatManagedStatus(
-					AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-					InnerMessage := GVL_ErrorCode.GC_MSG_0105);
-				Status := strStatus;
-				Error := TRUE;
+				strStatus :='PullOutConveyorA none box ,please refill box';
 				uiExecutingStep := 50000;
 			END_IF
 	11820:	//wait PressboxA2 forward and Blockbox backward 
@@ -856,6 +854,109 @@ CASE uiExecutingStep OF
 			IF FixCylinderA1.InRearPosition AND FixCylinderA2.InRearPosition THEN
 				uiExecutingStep :=99000;
 			END_IF
+//	11100:
+//		// SlideA has two box in the front position
+//		// Fix the frontmost box
+//		FixCylinderA1.M_Extend();//('');
+//		IF FixCylinderA1.InFrontPosition THEN
+//			uiExecutingStep := 11110;
+//		END_IF
+//	11110:
+//		// PulloutConveyor reverse to separate two boxes
+//		ConveyorMotor.M_MoveBackward();//('');
+//		TON_BoxArrivedDelay.IN := TRUE;
+//		IF TON_BoxArrivedDelay.Q OR NOT DetactSensor_A THEN
+//			uiExecutingStep := 11120;
+//		END_IF
+//	11120:
+//		ConveyorMotor.M_MotorStop();//('');
+//		TON_MotorStopDelay.IN := TRUE;
+//		IF TON_MotorStopDelay.Q THEN
+//			uiExecutingStep := 11130;
+//		END_IF
+//	11130:
+//		FixCylinderA1.M_Retract();//('');
+//		IF FixCylinderA1.InRearPosition// THEN
+//			uiExecutingStep := 99000;
+//		END_IF
+//	11200:
+//		// SlidA has a box in the front position, and not detact then second box
+//		BarrierCylinderA.M_Extend();//('');
+//		IF BarrierCylinderA.In_FrontPosition THEN
+//			uiExecutingStep := 11210;
+//		END_IF
+//	11210:
+//		// Check the front box arrived
+//		ConveyorMotor.M_Extend();//;//('');
+//		TON_BoxArrivedDelay.IN := TRUE;
+//		IF TON_BoxArrivedDelay.Q THEN
+//			uiExecutingStep := 11220;
+//		END_IF
+//	11220:
+//		ConveyorMotor.M_MotorStop();//('');
+//		TON_MotorStopDelay.IN := TRUE;
+//		IF TON_MotorStopDelay.Q THEN
+//			uiExecutingStep := 11230;
+//		END_IF
+//	11230:
+//		FixCylinderA1.M_Extend();//('');
+//		IF FixCylinderA1.InFrontPosition THEN
+//			uiExecutingStep := 11240;
+//		END_IF
+//	11240:
+//		FixCylinderA1.M_Retract();//('');
+//		IF FixCylinderA1.InRearPosition// THEN
+//			uiExecutingStep := 99000;
+//		END_IF
+//	11400:
+//		// SlideA has no boxex in the front position
+//		// Rise the barrier
+//		BarrierCylinderA.M_Extend();//('');
+//		IF BarrierCylinderA.In_FrontPosition THEN
+//			uiExecutingStep := 11410;
+//		END_IF
+//	11410:
+//		ConveyorMotor.M_Extend();//;//('');
+		
+//		IF DetactSensor_A THEN
+//			uiExecutingStep := 11420;
+//		END_IF
+////		IF TON_BoxArrivedDelay.Q THEN
+////			Status:= 'SlideA FeedIn error';
+////			_Error := TRUE;
+////		END_IF
+//	11420:
+//		FixCylinderA2.M_Extend();//('');
+//		TON_BoxArrivedDelay.IN := FALSE;
+//		uiExecutingStep := 11430;
+//	11430:
+//		BarrierCylinderA.M_Retract();//('');
+//		IF BarrierCylinderA.In_RearPosition THEN
+//			uiExecutingStep := 11440;
+//		END_IF
+//	11440:
+//		TON_BoxArrivedDelay.IN := TRUE;
+//		IF FeedInSensor_A AND TON_BoxArrivedDelay.Q THEN
+//			ConveyorMotor.M_MotorStop();//('');
+//			uiExecutingStep := 11450;
+//		END_IF
+////		IF TON_BoxArrivedDelay.Q THEN
+////			Status := 'SlideA FeedIn no box';
+////			_Error := TRUE;
+////		END_IF
+//	11450:
+//		FixCylinderA1.M_Extend();//('');
+//		//TON_BoxArrivedDelay.IN := TRUE;
+//		IF FixCylinderA1.InFrontPosition  THEN
+//			uiExecutingStep := 11460;
+//		END_IF
+//	11460:
+//		TON_BarryDelay.IN := TRUE;
+//		IF TON_BarryDelay.Q THEN
+//			FixCylinderA1.M_Retract();//('');
+//			FixCylinderA2.M_Retract();//('');
+//			uiExecutingStep := 99000;
+//		END_IF
 {endregion}
 
 {region "SlideB_FeedIn_Ext"}
@@ -888,11 +989,7 @@ CASE uiExecutingStep OF
 	12120:	//check two sensor
 		IF DetactSensor_B OR FeedInSensor_B THEN
 			_Error :=TRUE;
-			strStatus := M_FormatManagedStatus(
-				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-				InnerMessage := GVL_ErrorCode.GC_MSG_0108);
-			Status := strStatus;
-			Error := TRUE;
+			strStatus :='PullOutConveyorB full box ,please remove';
 		ELSE 
 			uiExecutingStep :=12800;
 		END_IF
@@ -934,11 +1031,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_betweenboxReverse.Q THEN
 				_Error :=TRUE;
-				strStatus := M_FormatManagedStatus(
-					AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-					InnerMessage := GVL_ErrorCode.GC_MSG_0106);
-				Status := strStatus;
-				Error := TRUE;
+				strStatus :='PullOutConveyorB FeedIn full box ,please remove box';
 			END_IF
 	12440:	//wait motor stop
 			IF ConveyorMotorB.InStopped  THEN
@@ -962,11 +1055,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_PullOutTimeOut.Q THEN
 				_Error :=TRUE;
-				strStatus := M_FormatManagedStatus(
-					AlarmId := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,
-					InnerMessage := GVL_ErrorCode.GC_MSG_0105);
-				Status := strStatus;
-				Error := TRUE;
+				strStatus :='PullOutConveyorA none box ,please refill box';
 			END_IF
 	12820:	//wait PressboxB2 forward & Blockbox backward 
 			IF FixCylinderB2.InFrontPosition THEN
@@ -999,6 +1088,75 @@ CASE uiExecutingStep OF
 			IF FixCylinderB1.InRearPosition AND FixCylinderB2.InRearPosition THEN
 				uiExecutingStep :=99000;
 			END_IF
+//	12000: 	
+//			//check FeedinSensor & DetactSensor
+//			tonMotorBReverse.IN :=TRUE;
+//			ConveyorMotorb.M_MoveBackward();//('');				
+//			IF tonMotorBReverse.Q  THEN
+//					tonMotorBReverse.IN :=FALSE;
+//					ConveyorMotorb.M_MotorStop();//('');
+//					uiExecutingStep :=12005;
+//			END_IF
+//	12005: 	//check box leave sensor 
+//			IF FeedInSensor_B OR DetactSensor_B THEN
+//				_Error :=TRUE;
+//				strStatus :='PullOutConveyorB full box ,please remove box';
+//			ELSE
+//				uiExecutingStep :=12010;
+//			END_IF
+	
+//	12010:	//wait conveyorB stop
+//			IF ConveyorMotorB.InStopped  THEN
+//				uiExecutingStep := 12050;
+//			END_IF
+//	12050: 
+//			//block forward 
+//		BarrierCylinderB.M_Extend();//('');
+//		IF BarrierCylinderB.In_FrontPosition THEN
+//			uiExecutingStep := 12100;
+//		END_IF
+//	12100:	// motor forward & check detactsensor
+//		ConveyorMotorB.M_Extend();//;//('');
+//		TON_BoxArrivedDelay.IN := TRUE;
+//		IF DetactSensor_B  THEN
+//			uiExecutingStep := 12200;
+//		END_IF
+//		IF TON_BoxArrivedDelay.Q THEN
+//			Status := 'SlideB FeedIn no box';
+//			_Error := TRUE;
+//		END_IF
+//	12200:
+//		tonSensorDetectDelay.IN :=TRUE;
+//		IF tonSensorDetectDelay.Q THEN
+//			FixCylinderB2.M_Extend();//('');
+//			uiExecutingStep := 12300;
+//		END_IF
+//	12300:
+//		tonSensorDetectDelay.IN :=FALSE;
+//		BarrierCylinderB.M_Retract();//('');
+//		IF BarrierCylinderB.In_RearPosition THEN
+//			uiExecutingStep := 12400;
+//		END_IF
+//	12400:
+//		TON_BoxArrivedDelay.IN := TRUE;
+//		IF FeedInSensor_B THEN
+//			ConveyorMotorB.M_MotorStop();//('');
+//			uiExecutingStep := 12500;
+//		END_IF
+//		IF TON_BoxArrivedDelay.Q THEN
+//			Status := 'SlideB FeedIn no box';
+//			_Error := TRUE;
+//		END_IF
+//	12500:
+//		FixCylinderB1.M_Extend();//('');
+//		uiExecutingStep := 12510;
+//	12510:
+//		TON_BarryDelay.IN := TRUE;
+//		IF TON_BarryDelay.Q THEN
+//			FixCylinderB1.M_Retract();//('');
+//			FixCylinderB2.M_Retract();//('');
+//			uiExecutingStep := 99000;
+//		END_IF
 {endregion}
 
 	50000:	//SlideA FeedIn Ext Resume step
@@ -1012,7 +1170,6 @@ CASE uiExecutingStep OF
 				FixCylinderA2.InRearPosition AND 
 				BarrierCylinderA.InRearPosition AND 
 				ConveyorMotorA.InStopped THEN
-				uiResumeStep := 11000;
 				_Abort :=TRUE;
 			END_IF
 			
@@ -1033,7 +1190,7 @@ ELSIF _Error THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_RESETTING" Id="{d6359d89-0bb4-4001-8994-60c6b62edc56}" FolderPath="State\">
+    <Method Name="M_STATE_RESETTING" Id="{8bae2d3e-f19b-40fb-bebe-bff153b6e4e6}" FolderPath="State\">
       <Declaration><![CDATA[METHOD  M_STATE_RESETTING
 VAR_INPUT
 END_VAR
@@ -1077,11 +1234,11 @@ IF _ResetCompleted THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_PullOutConveyorAction">
+    <LineIds Name="FB_PullOutConveyorAction_OLD">
       <LineId Id="35" Count="0" />
       <LineId Id="9" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.A00_BasicUnits">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.A00_BasicUnits">
       <LineId Id="1" Count="0" />
       <LineId Id="3" Count="0" />
       <LineId Id="2" Count="0" />
@@ -1097,68 +1254,57 @@ END_IF]]></ST>
       <LineId Id="11" Count="0" />
       <LineId Id="8" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.A01_clcExecuting">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.A01_clcExecuting">
       <LineId Id="1" Count="5" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_CheckCommand">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_CheckCommand">
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_ResetCylinder">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_ResetCylinder">
       <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_STATE_ABORTED">
-      <LineId Id="80" Count="0" />
-      <LineId Id="32" Count="1" />
-      <LineId Id="35" Count="1" />
-      <LineId Id="77" Count="1" />
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_STATE_ABORTED">
+      <LineId Id="31" Count="5" />
       <LineId Id="38" Count="0" />
-      <LineId Id="79" Count="0" />
-      <LineId Id="81" Count="1" />
-      <LineId Id="84" Count="1" />
-      <LineId Id="83" Count="0" />
-      <LineId Id="87" Count="0" />
-      <LineId Id="86" Count="0" />
       <LineId Id="57" Count="0" />
       <LineId Id="60" Count="0" />
       <LineId Id="62" Count="0" />
       <LineId Id="69" Count="0" />
+      <LineId Id="63" Count="1" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="66" Count="0" />
       <LineId Id="65" Count="0" />
       <LineId Id="68" Count="0" />
       <LineId Id="61" Count="0" />
       <LineId Id="58" Count="1" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="39" Count="2" />
+      <LineId Id="51" Count="1" />
+      <LineId Id="42" Count="5" />
       <LineId Id="10" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_STATE_ABORTING">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_STATE_ABORTING">
       <LineId Id="9" Count="0" />
       <LineId Id="13" Count="0" />
-      <LineId Id="54" Count="1" />
+      <LineId Id="36" Count="1" />
+      <LineId Id="35" Count="0" />
       <LineId Id="27" Count="0" />
-      <LineId Id="50" Count="2" />
-      <LineId Id="15" Count="0" />
-      <LineId Id="49" Count="0" />
-      <LineId Id="16" Count="5" />
-      <LineId Id="56" Count="0" />
-      <LineId Id="22" Count="0" />
-      <LineId Id="24" Count="0" />
-      <LineId Id="57" Count="0" />
-      <LineId Id="25" Count="0" />
-      <LineId Id="42" Count="0" />
-      <LineId Id="26" Count="0" />
+      <LineId Id="15" Count="3" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="19" Count="4" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="24" Count="2" />
       <LineId Id="14" Count="0" />
-      <LineId Id="44" Count="0" />
-      <LineId Id="43" Count="0" />
-      <LineId Id="45" Count="0" />
-      <LineId Id="47" Count="1" />
-      <LineId Id="46" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_STATE_DONE">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_STATE_DONE">
       <LineId Id="5" Count="1" />
       <LineId Id="8" Count="0" />
       <LineId Id="7" Count="0" />
       <LineId Id="9" Count="1" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_STATE_DORMANT">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_STATE_DORMANT">
       <LineId Id="18" Count="3" />
       <LineId Id="61" Count="0" />
       <LineId Id="22" Count="1" />
@@ -1175,20 +1321,19 @@ END_IF]]></ST>
       <LineId Id="56" Count="1" />
       <LineId Id="66" Count="0" />
       <LineId Id="65" Count="0" />
-      <LineId Id="71" Count="3" />
       <LineId Id="47" Count="0" />
       <LineId Id="24" Count="0" />
       <LineId Id="26" Count="1" />
       <LineId Id="10" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_STATE_ERROR">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_STATE_ERROR">
       <LineId Id="9" Count="4" />
       <LineId Id="19" Count="0" />
       <LineId Id="23" Count="1" />
       <LineId Id="14" Count="1" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_STATE_EXECUTING">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_STATE_EXECUTING">
       <LineId Id="939" Count="55" />
       <LineId Id="2038" Count="1" />
       <LineId Id="2046" Count="72" />
@@ -1252,6 +1397,10 @@ END_IF]]></ST>
       <LineId Id="1296" Count="0" />
       <LineId Id="1555" Count="5" />
       <LineId Id="1567" Count="0" />
+      <LineId Id="1561" Count="5" />
+      <LineId Id="1553" Count="1" />
+      <LineId Id="1854" Count="3" />
+      <LineId Id="1859" Count="0" />
       <LineId Id="1858" Count="0" />
       <LineId Id="1860" Count="0" />
       <LineId Id="1867" Count="0" />
@@ -1260,23 +1409,23 @@ END_IF]]></ST>
       <LineId Id="1864" Count="0" />
       <LineId Id="1868" Count="3" />
       <LineId Id="1865" Count="0" />
+      <LineId Id="1309" Count="0" />
       <LineId Id="1861" Count="0" />
       <LineId Id="2223" Count="0" />
-      <LineId Id="2299" Count="0" />
+      <LineId Id="1862" Count="0" />
       <LineId Id="1310" Count="0" />
       <LineId Id="1543" Count="0" />
-      <LineId Id="1311" Count="1" />
-      <LineId Id="1315" Count="1" />
+      <LineId Id="1311" Count="5" />
       <LineId Id="1568" Count="0" />
-      <LineId Id="1317" Count="2" />
-      <LineId Id="1882" Count="8" />
+      <LineId Id="1317" Count="6" />
+      <LineId Id="1907" Count="0" />
+      <LineId Id="1906" Count="0" />
+      <LineId Id="1874" Count="16" />
       <LineId Id="1873" Count="0" />
       <LineId Id="2225" Count="1" />
       <LineId Id="2224" Count="0" />
-      <LineId Id="1324" Count="1" />
-      <LineId Id="2294" Count="0" />
-      <LineId Id="1327" Count="3" />
-      <LineId Id="1333" Count="0" />
+      <LineId Id="1539" Count="0" />
+      <LineId Id="1324" Count="9" />
       <LineId Id="1724" Count="0" />
       <LineId Id="1781" Count="0" />
       <LineId Id="1726" Count="0" />
@@ -1362,8 +1511,13 @@ END_IF]]></ST>
       <LineId Id="1775" Count="1" />
       <LineId Id="1767" Count="1" />
       <LineId Id="1777" Count="3" />
-      <LineId Id="1334" Count="26" />
-      <LineId Id="1930" Count="102" />
+      <LineId Id="1334" Count="102" />
+      <LineId Id="1719" Count="0" />
+      <LineId Id="2228" Count="0" />
+      <LineId Id="2227" Count="0" />
+      <LineId Id="1609" Count="0" />
+      <LineId Id="2033" Count="0" />
+      <LineId Id="1908" Count="124" />
       <LineId Id="1718" Count="0" />
       <LineId Id="1574" Count="0" />
       <LineId Id="1590" Count="0" />
@@ -1382,12 +1536,30 @@ END_IF]]></ST>
       <LineId Id="1572" Count="0" />
       <LineId Id="1438" Count="14" />
       <LineId Id="1708" Count="0" />
-      <LineId Id="2259" Count="12" />
-      <LineId Id="2293" Count="0" />
-      <LineId Id="2272" Count="16" />
-      <LineId Id="2" Count="0" />
+      <LineId Id="1453" Count="0" />
+      <LineId Id="1709" Count="0" />
+      <LineId Id="1454" Count="0" />
+      <LineId Id="1710" Count="0" />
+      <LineId Id="1455" Count="0" />
+      <LineId Id="1711" Count="0" />
+      <LineId Id="1456" Count="23" />
+      <LineId Id="2229" Count="0" />
+      <LineId Id="2231" Count="0" />
+      <LineId Id="1905" Count="0" />
+      <LineId Id="2233" Count="2" />
+      <LineId Id="2241" Count="0" />
+      <LineId Id="2249" Count="1" />
+      <LineId Id="2236" Count="1" />
+      <LineId Id="2239" Count="0" />
+      <LineId Id="2242" Count="0" />
+      <LineId Id="2240" Count="0" />
+      <LineId Id="2238" Count="0" />
+      <LineId Id="2230" Count="0" />
+      <LineId Id="1480" Count="11" />
+      <LineId Id="1891" Count="0" />
+      <LineId Id="1492" Count="1" />
     </LineIds>
-    <LineIds Name="FB_PullOutConveyorAction.M_STATE_RESETTING">
+    <LineIds Name="FB_PullOutConveyorAction_OLD.M_STATE_RESETTING">
       <LineId Id="41" Count="19" />
       <LineId Id="83" Count="0" />
       <LineId Id="61" Count="2" />

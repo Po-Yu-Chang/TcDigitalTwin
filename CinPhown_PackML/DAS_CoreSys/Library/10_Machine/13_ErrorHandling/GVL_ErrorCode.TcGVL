@@ -489,6 +489,59 @@ VAR_GLOBAL CONSTANT
     GC_MSG_0174   : STRING := 'TurnTable interlock: must not move while clip down';
     GC_MSG_0175   : STRING := 'TurnTable angle invalid: must be 0/90/180/270/360';
 
+    // === MachineControl central alarms (0176-0203) ===
+    // EStop / AirPressure
+    GC_MSG_0176   : STRING := 'Allocate Estop has trig';
+    GC_MSG_0177   : STRING := 'Storage Estop has trig';
+    GC_MSG_0178   : STRING := 'Storage robot Estop has trig';
+    GC_MSG_0179   : STRING := 'Shipping robot Estop has trig';
+    GC_MSG_0180   : STRING := 'Low AirPressure ';
+    // Axis errors
+    GC_MSG_0181   : STRING := 'TurnTable axis has Error';
+    GC_MSG_0182   : STRING := 'Roundbelt axis has Error';
+    GC_MSG_0183   : STRING := 'Allocate_X axis has Error';
+    GC_MSG_0184   : STRING := 'Allocate_Y axis has Error';
+    GC_MSG_0185   : STRING := 'OutRobot_X axis has Error';
+    GC_MSG_0186   : STRING := 'OutRobot_Y axis has Error';
+    GC_MSG_0187   : STRING := 'RackMotor axis has Error';
+    // Safe doors (1-14, preserving existing typos/spacing)
+    GC_MSG_0188   : STRING := 'Safe door1  Opened';
+    GC_MSG_0189   : STRING := 'Safe door2  Opened';
+    GC_MSG_0190   : STRING := 'Safe door3  Opened';
+    GC_MSG_0191   : STRING := 'Safe door4  Opened';
+    GC_MSG_0192   : STRING := 'Safe door5  Opened';
+    GC_MSG_0193   : STRING := 'Safe door6  Opened';
+    GC_MSG_0194   : STRING := 'Safe door7  Opened';
+    GC_MSG_0195   : STRING := 'Safe door8  Opened';
+    GC_MSG_0196   : STRING := 'Safe door9  Opened';
+    GC_MSG_0197   : STRING := 'Safe door10  Opened';
+    GC_MSG_0198   : STRING := 'Safe door11  Opened';
+    GC_MSG_0199   : STRING := 'Safe doo12  Opened';
+    GC_MSG_0200   : STRING := 'Safe doo13  Opened';
+    GC_MSG_0201   : STRING := 'Safe door14  Opened';
+    GC_MSG_0202   : STRING := 'Allocate_Electrical_Cabinet_SafetyDoor  Opened';
+    GC_MSG_0203   : STRING := 'bShippingRobot_ElectricalCabinet_SafetyDoor  Opened';
+
+    // === FanucRobot runtime status (0204-0221) ===
+    GC_MSG_0204   : STRING := 'EStop has been trigged.';
+    GC_MSG_0205   : STRING := 'Get but Has Sensor no Respond';
+    GC_MSG_0206   : STRING := 'Get But Jaw Has';
+    GC_MSG_0207   : STRING := 'illegal value in tool offset';
+    GC_MSG_0208   : STRING := 'Jaw Sensor no Respond';
+    GC_MSG_0209   : STRING := 'Laser detected';
+    GC_MSG_0210   : STRING := 'Read All offset data failue';
+    GC_MSG_0211   : STRING := 'Retry too many times, Need Robot Homing';
+    GC_MSG_0212   : STRING := 'Robot Disconnect';
+    GC_MSG_0213   : STRING := 'Robot has Battary alarm';
+    GC_MSG_0214   : STRING := 'Robot has fatal alarm';
+    GC_MSG_0215   : STRING := 'Robot in Halt State';
+    GC_MSG_0216   : STRING := 'Robot Not in Home Pos, Home First';
+    GC_MSG_0217   : STRING := 'RSR1 has error when RSR1 active.Restart Robot Power.';
+    GC_MSG_0218   : STRING := 'RSR3 has error when RSR3 active.';
+    GC_MSG_0219   : STRING := 'TP has got contol';
+    GC_MSG_0220   : STRING := 'Upper data Overload';
+    GC_MSG_0221   : STRING := 'Vision fault';
+
 END_VAR
 ]]></Declaration>
   </GVL>
