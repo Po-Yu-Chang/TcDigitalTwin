@@ -904,7 +904,7 @@ CASE uiExecutingStep OF
 
 	//=====================================================================
 	// 第二階段 (PullOut 變體): 放盒到 PullOutConveyor (僅單爪 MVP)
-	// PlaceArea = PullOutInner (I3_Slide, Address=1) / PullOutOuter (I4_Slide, Address=2)
+	// PlaceArea = PullOutInner (I3_Slide, Address=1, 機台內側/左) / PullOutOuter (I4_Slide, Address=2, 機台外側/右)
 	// 使用 Robot.M_StartRobotAbsMove(Area=PullOutConveyor, GetBox=FALSE)
 	// 走 fbAllocateArea 共用入口 (跟 FB_RobotRegionMove_PullOutConveyor 同 pattern)
 	//=====================================================================
@@ -921,22 +921,9 @@ CASE uiExecutingStep OF
 	65010: // A爪 PullOut 放盒主步序
 		IF NOT Robot._DI1.Done THEN
 			// 啟動 PullOut Slide FeedOut (清空 slide 為新盒準備)
-			// PullOutInner (Address 1, I3_Slide) → SlideB_FeedOut_Ext
-			// PullOutOuter (Address 2, I4_Slide) → SlideA_FeedOut_Ext
+			// PullOutInner (Address 1, I3_Slide, 內側/左) → SlideB_FeedOut_Ext
+			// PullOutOuter (Address 2, I4_Slide, 外側/右) → SlideA_FeedOut_Ext
 			IF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
-				DAS_CoreSys.MachineControl.fbAllocateArea
-					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
-												 CV_BackwardTIme := T#2S,
-												 CV_ForwardTime  := T#0S);
-				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
-										  UseClampA     := TRUE,
-										  UseClampB     := FALSE,
-										  Area          := E_RobotArea.PullOutConveyor,
-										  ClampA_Address := 2,	// I4_Slide (內側)
-										  ClampB_Address := 0,
-										  BoxReady_1    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done,
-										  BoxReady_2    := FALSE);
-			ELSIF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
 				DAS_CoreSys.MachineControl.fbAllocateArea
 					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
 												 CV_BackwardTIme := T#2S,
@@ -945,7 +932,20 @@ CASE uiExecutingStep OF
 										  UseClampA     := TRUE,
 										  UseClampB     := FALSE,
 										  Area          := E_RobotArea.PullOutConveyor,
-										  ClampA_Address := 1,	// I3_Slide (外側)
+										  ClampA_Address := 1,	// I3_Slide (內側/左)
+										  ClampB_Address := 0,
+										  BoxReady_1    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done,
+										  BoxReady_2    := FALSE);
+			ELSIF info.ClampA_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
+				DAS_CoreSys.MachineControl.fbAllocateArea
+					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+												 CV_BackwardTIme := T#2S,
+												 CV_ForwardTime  := T#0S);
+				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
+										  UseClampA     := TRUE,
+										  UseClampB     := FALSE,
+										  Area          := E_RobotArea.PullOutConveyor,
+										  ClampA_Address := 2,	// I4_Slide (外側/右)
 										  ClampB_Address := 0,
 										  BoxReady_1    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done,
 										  BoxReady_2    := FALSE);
@@ -998,19 +998,6 @@ CASE uiExecutingStep OF
 		IF NOT Robot._DI1.Done THEN
 			IF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutInner THEN
 				DAS_CoreSys.MachineControl.fbAllocateArea
-					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
-												 CV_BackwardTIme := T#2S,
-												 CV_ForwardTime  := T#0S);
-				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
-										  UseClampA     := FALSE,
-										  UseClampB     := TRUE,
-										  Area          := E_RobotArea.PullOutConveyor,
-										  ClampA_Address := 0,
-										  ClampB_Address := 2,	// I4_Slide (內側)
-										  BoxReady_1    := FALSE,
-										  BoxReady_2    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done);
-			ELSIF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
-				DAS_CoreSys.MachineControl.fbAllocateArea
 					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideB_FeedOut_Ext,
 												 CV_BackwardTIme := T#2S,
 												 CV_ForwardTime  := T#0S);
@@ -1019,7 +1006,20 @@ CASE uiExecutingStep OF
 										  UseClampB     := TRUE,
 										  Area          := E_RobotArea.PullOutConveyor,
 										  ClampA_Address := 0,
-										  ClampB_Address := 1,	// I3_Slide (外側)
+										  ClampB_Address := 1,	// I3_Slide (內側/左)
+										  BoxReady_1    := FALSE,
+										  BoxReady_2    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done);
+			ELSIF info.ClampB_Setting.PlaceArea = E_FeedInToWareHouse_PlaceArea.PullOutOuter THEN
+				DAS_CoreSys.MachineControl.fbAllocateArea
+					.M_StartStoragePulloutAction(CommandType    := E_PullOutConveyorCommandType.SlideA_FeedOut_Ext,
+												 CV_BackwardTIme := T#2S,
+												 CV_ForwardTime  := T#0S);
+				Robot.M_StartRobotAbsMove(GetBox        := FALSE,
+										  UseClampA     := FALSE,
+										  UseClampB     := TRUE,
+										  Area          := E_RobotArea.PullOutConveyor,
+										  ClampA_Address := 0,
+										  ClampB_Address := 2,	// I4_Slide (外側/右)
 										  BoxReady_1    := FALSE,
 										  BoxReady_2    := DAS_CoreSys.MachineControl.fbAllocateArea.fbPulloutCv.Done);
 			END_IF
