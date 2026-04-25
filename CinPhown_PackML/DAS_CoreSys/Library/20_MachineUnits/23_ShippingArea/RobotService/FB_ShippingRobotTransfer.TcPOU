@@ -65,6 +65,7 @@ VAR
 	PreviousErrorCode	: STRING;
 	
 	_bRetry			: BOOL;
+	_bAbsMoveStarted	: BOOL;	// 真的呼叫過 M_StartRobotAbsMove 才置 TRUE，防 stale Done 造成 ghost completion
 
 	// Error blinking 閃爍邏輯
 	trigErrorReset		: R_TRIG;
@@ -373,6 +374,7 @@ _HoldingCompleted    := FALSE;
 _HeldCompleted       := FALSE;
 _UnholdCompleted     := FALSE;
 _bRetry              := FALSE;
+_bAbsMoveStarted     := FALSE;
 
 uiExecutingStep  := 0;
 uiResettingStep  := 0;
@@ -720,6 +722,7 @@ CASE uiExecutingStep OF
 	5000: // Robot AbsMove
 		TON_RobotActionTimeOut.IN := TRUE;
 		IF NOT Robot._DI1.Done THEN
+			// 正常路徑：robot 還在動 → 持續送 AbsMove 命令
 			// TransmitCVEnd Get 時需要等 sensor
 			IF Area = E_RobotArea.TransmitCV_End AND _fromGet THEN
 				M_SensorUpdate(_fromPos);
@@ -764,9 +767,16 @@ CASE uiExecutingStep OF
 					BoxReady_1   := BoxReady_1st,
 					BoxReady_2   := FALSE);
 			END_IF
+			_bAbsMoveStarted := TRUE;	// 標記真的有送過 Start 命令
+		ELSIF NOT _bAbsMoveStarted THEN
+			// Done=TRUE 但從未送過 Start → stale 狀態（續做 / 上次殘留）
+			// 先清掉 robot 命令，等 Done 變 FALSE 才能進入正常流程，避免 ghost completion
+			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		ELSE
+			// 真的完成（Done 從 FALSE → TRUE）→ 轉 5100
 			TON_RobotActionTimeOut.IN := FALSE;
 			tonBoxArriveDelay.IN      := FALSE;
+			_bAbsMoveStarted          := FALSE;
 			uiExecutingStep := 5100;
 		END_IF
 
@@ -777,7 +787,7 @@ CASE uiExecutingStep OF
 			Error := TRUE;
 			_Abort       := TRUE;
 		END_IF
-		IF Robot.Error THEN
+		IF Robot._DI1.Error THEN
 			uiResumeStep := 5000;
 			strStatus    := CONCAT('FROM: Robot Error ', Robot.ErrMsg);
 			Status := strStatus;
@@ -816,6 +826,7 @@ CASE uiExecutingStep OF
 		// 重置變數準備 TO phase
 		BoxReady_1st := FALSE;
 		uiGetStep    := 0;
+		_bAbsMoveStarted := FALSE;	// Phase 1 結束，重置 flag 給 Phase 2 step 15000 使用
 		TON_RobotActionTimeOut.IN    := FALSE;
 		TON_CheckRobotDoneTimeOut.IN := FALSE;
 		uiExecutingStep := 7000;
@@ -939,6 +950,7 @@ CASE uiExecutingStep OF
 	15000: // TO Robot AbsMove
 		TON_RobotActionTimeOut.IN := TRUE;
 		IF NOT Robot._DI1.Done THEN
+			// 正常路徑：robot 還在動 → 持續送 AbsMove 命令
 			IF Area = E_RobotArea.TransmitCV_End AND _toGet THEN
 				M_SensorUpdate(_toPos);
 				tonBoxArriveDelay.IN := SensorToBeCheck;
@@ -991,9 +1003,16 @@ CASE uiExecutingStep OF
 					BoxReady_1   := BoxReady_1st,
 					BoxReady_2   := FALSE);
 			END_IF
+			_bAbsMoveStarted := TRUE;	// 標記真的有送過 Start 命令
+		ELSIF NOT _bAbsMoveStarted THEN
+			// Done=TRUE 但從未送過 Start → stale 狀態（續做 / Phase 1 殘留）
+			// 先清掉 robot 命令，等 Done 變 FALSE 才能進入正常流程，避免 ghost completion
+			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		ELSE
+			// 真的完成（Done 從 FALSE → TRUE）→ 轉 15100
 			TON_RobotActionTimeOut.IN := FALSE;
 			tonBoxArriveDelay.IN      := FALSE;
+			_bAbsMoveStarted          := FALSE;
 			uiExecutingStep := 15100;
 		END_IF
 
@@ -1004,7 +1023,7 @@ CASE uiExecutingStep OF
 			Error := TRUE;
 			_Abort       := TRUE;
 		END_IF
-		IF Robot.Error THEN
+		IF Robot._DI1.Error THEN
 			uiResumeStep := 15000;
 			strStatus    := CONCAT('TO: Robot Error ', Robot.ErrMsg);
 			Status := strStatus;
@@ -1124,6 +1143,7 @@ CASE uiExecutingStep OF
 		Address_A        := 0;
 		uiGetStep        := 0;
 		_bRetry          := FALSE;
+		_bAbsMoveStarted := FALSE;
 		bCompleteRequest := FALSE;
 
 		Status    := 'Process completed';
