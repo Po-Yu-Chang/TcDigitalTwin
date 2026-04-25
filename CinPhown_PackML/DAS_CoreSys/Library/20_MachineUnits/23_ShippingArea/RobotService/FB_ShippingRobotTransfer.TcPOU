@@ -58,7 +58,7 @@ VAR
 	BlinkInfo		: ST_BlinkInfo;
 
 	// Resume
-	uiResumeStep	: UINT;
+	uiResumeStep	: UDINT;	// 與 uiExecutingStep 同型別，避免 step 98000 / 99000 等大數字溢位
 	strStatus		: STRING;
 	_UniqueErrorCode	: STRING;
 	PreviousStrStatus	: STRING;
@@ -257,6 +257,7 @@ ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
 	Status := 'no error';
+	_bRetry := FALSE;	// retry 已啟動，清掉旗標讓下次 Abort 能正常標記 Error/Aborted
 	eState := STATE_EXECUTING;
 END_IF
 ]]></ST>
@@ -281,8 +282,21 @@ END_VAR
 			IF __ISVALIDREF(ConveyorMotor) THEN
 				ConveyorMotor.M_MotorStop();
 			END_IF
-			uiAbortingStep := 100;
-			
+			// 中斷 robot AbsMove 命令，避免 abort 期間 robot 還在跑舊軌跡
+			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+			uiAbortingStep := 50;
+
+	50:	// 等 robot 命令真的被 reset 掉再進入錯誤檢查
+			TON_CheckRobotDoneTimeOut.IN := TRUE;
+			IF NOT Robot._DI1.Done THEN
+				TON_CheckRobotDoneTimeOut.IN := FALSE;
+				uiAbortingStep := 100;
+			ELSIF TON_CheckRobotDoneTimeOut.Q THEN
+				// Reset 超時也繼續，後續 step 100 會處理 Robot.Error 路徑
+				TON_CheckRobotDoneTimeOut.IN := FALSE;
+				uiAbortingStep := 100;
+			END_IF
+
 	100:
 			IF Robot._DI1.Error THEN
 				uiAbortingStep := 200;
@@ -322,6 +336,13 @@ END_VAR
       <Implementation>
         <ST><![CDATA[Busy := FALSE;
 Done := TRUE;
+
+// Done 期間持續壓住所有輸出，防止任何旗標被 A00_BasicUnits 重新驅動
+bMoveConveyorForward  := FALSE;
+bMoveConveyorBackward := FALSE;
+Buzz    := FALSE;
+RedLamp := FALSE;
+
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
 END_IF
@@ -351,6 +372,7 @@ _AbortCompleted      := FALSE;
 _HoldingCompleted    := FALSE;
 _HeldCompleted       := FALSE;
 _UnholdCompleted     := FALSE;
+_bRetry              := FALSE;
 
 uiExecutingStep  := 0;
 uiResettingStep  := 0;
@@ -679,6 +701,7 @@ CASE uiExecutingStep OF
 
 	1300: // TransmitCVEnd Put 前置 - 等反轉 + sensor 清除
 		TON_MechTimeOut.IN := TRUE;
+		M_SensorUpdate(_fromPos);	// 每 scan 重新採樣 sensor，避免使用 step 1000 的舊值
 		IF ConveyorMotor.InBackWard AND NOT SensorToBeCheck THEN
 			TON_MechTimeOut.IN := FALSE;
 			uiExecutingStep := 5000;
@@ -1022,7 +1045,7 @@ CASE uiExecutingStep OF
 			AND bCompleteRequest THEN
 			uiExecutingStep := 25000;
 		ELSE
-			uiExecutingStep := 99000;
+			uiExecutingStep := 98000;
 		END_IF
 
 	// ============================================================
@@ -1043,27 +1066,82 @@ CASE uiExecutingStep OF
 		IF BlinkInfo.BuzzCount >= BlinkInfo.MaxBuzzCOunt AND BlinkInfo.LightCount >= BlinkInfo.MaxLightCount THEN
 			TON_BlinkDelay.IN := TRUE;
 			IF TON_BlinkDelay.Q THEN
-				uiExecutingStep := 99000;
+				uiExecutingStep := 98000;
 			END_IF
 		END_IF
 
 	// ============================================================
 	// 完成
 	// ============================================================
-	99000:
-		TON_BlinkDelay.IN := FALSE;
-		TON_MechTimeOut.IN := FALSE;
-		TON_ServiceWatchDog.IN := FALSE;
+	98000:	// 完成前驗證 — 機構靜止 + 警示輸出歸零後才允許進 99000
+		// 主動下停止指令
 		bMoveConveyorForward  := FALSE;
 		bMoveConveyorBackward := FALSE;
+		IF __ISVALIDREF(ConveyorMotor) THEN
+			ConveyorMotor.M_MotorStop();
+		END_IF
+		// 強制關 Buzz / RedLamp，避免 step 25000 離開時殘留 HIGH
+		BuzzBlinker(ENABLE := FALSE, OUT => Buzz);
+		LightBlinker(ENABLE := FALSE, OUT => RedLamp);
+		Buzz    := FALSE;
+		RedLamp := FALSE;
+
+		// 等輸送帶真的停下來
+		TON_MechTimeOut.IN := TRUE;
+		IF NOT __ISVALIDREF(ConveyorMotor)
+		   OR (NOT ConveyorMotor.InForWard AND NOT ConveyorMotor.InBackWard) THEN
+			TON_MechTimeOut.IN := FALSE;
+			uiExecutingStep := 99000;
+		ELSIF TON_MechTimeOut.Q THEN
+			uiResumeStep := 98000;
+			strStatus := 'FB_ShippingRobotTransfer Step 98000: Conveyor settle timeout';
+			Status    := strStatus;
+			Error     := TRUE;
+			_Abort    := TRUE;
+		END_IF
+
+	99000:
+		// Timer 全清
+		TON_BlinkDelay.IN            := FALSE;
+		TON_MechTimeOut.IN           := FALSE;
+		TON_ServiceWatchDog.IN       := FALSE;
+		TON_RobotActionTimeOut.IN    := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		tonBoxArriveDelay.IN         := FALSE;
+
+		// 警示旗標歸零
+		BlinkInfo.BuzzCount  := 0;
+		BlinkInfo.LightCount := 0;
+		Buzz    := FALSE;
+		RedLamp := FALSE;
+
+		// 動作旗標歸零
+		bMoveConveyorForward  := FALSE;
+		bMoveConveyorBackward := FALSE;
+
+		// 暫存狀態歸零，確保下次 Execute 從乾淨狀態開始
+		BoxReady_1st     := FALSE;
+		Address_A        := 0;
+		uiGetStep        := 0;
+		_bRetry          := FALSE;
+		bCompleteRequest := FALSE;
+
 		Status    := 'Process completed';
-		_Executed := TRUE;
+		_Executed := TRUE;	// ★ 必須最後設，確保旗標已全部清乾淨才宣告 Done
 
 END_CASE
 
 // 狀態機切換
 IF NOT Execute THEN
-	eState := STATE_RESETTING;
+	IF uiExecutingStep > 0 AND uiExecutingStep < 99000 THEN
+		// 動作進行中被拉低 Execute → 強制走 Abort 流程把 robot/conveyor/cylinder 收乾淨
+		strStatus := 'FB_ShippingRobotTransfer: Execute deasserted mid-operation';
+		Status    := strStatus;
+		_Abort    := TRUE;
+		eState    := STATE_ABORTING;
+	ELSE
+		eState := STATE_RESETTING;
+	END_IF
 ELSIF _Error THEN
 	eState := STATE_ERROR;
 ELSIF _Abort OR Abort THEN
@@ -1104,8 +1182,12 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiHoldingStep OF
 	0:
+		// Pause 期間把所有計時器停掉，避免 watchdog 在暫停時跑滿後 resume 立刻誤觸發 Abort
 		TON_RobotActionTimeOut.IN    := FALSE;
 		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		TON_MechTimeOut.IN           := FALSE;
+		TON_ServiceWatchDog.IN       := FALSE;
+		tonBoxArriveDelay.IN         := FALSE;
 		uiHoldingStep := 9999;
 	9999:
 		_HoldingCompleted := TRUE;
