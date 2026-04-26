@@ -2489,6 +2489,8 @@ END_VAR
 VAR_INST
 	bTest 		  : ARRAY[1..200] OF BOOL;
 	bByPassModBusRTU	: ARRAY[1..4] OF BOOL;
+	bFanucStoTrig		: ARRAY[1..17] OF BOOL;	// 大手臂 detail alarm trigger 160-176 (RegisterAlarm.Trigger 是 VAR_IN_OUT 不能塞表達式)
+	bFanucShpTrig		: ARRAY[1..17] OF BOOL;	// 小手臂 detail alarm trigger 180-196
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[/////  Category ==> 0 :machine Area ,1: StorageArea ,2: AllocateArea ,3: ShippingArea 
@@ -2637,48 +2639,82 @@ RegisterAlarm(Trigger := bShippingRobotError,					ID := 159,value := E_Severity.
 
 
 // =========================================================================
-// Fanuc 倉儲大手臂 (StorageRobot) 細項 alarm 160-176
-// 17 條 alarm 對應 FB_FanucRobot_Basic_V2 內所有 _Status 字串
-// 用 ErrMsg 字串比對 trigger，與 158 catch-all 同時並存 (158 = 任何錯誤; 160-176 = 細分)
+// Fanuc 大手臂 (StorageRobot) 細項 alarm 160-176
+// 17 條 alarm 對應 FB_FanucRobot_Basic_V2 內所有 _Status 字串。
+// trigger 寫法：先算到 bFanucStoTrig[N] (RegisterAlarm.Trigger 是 VAR_IN_OUT，不能塞表達式)
 // =========================================================================
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0220, ID := 160, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0220, Category := 1); // Upper data Overload
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0208, ID := 161, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0208, Category := 1); // Jaw Sensor no Respond
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0221, ID := 162, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0221, Category := 1); // Vision fault
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0205, ID := 163, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0205, Category := 1); // Get but Has Sensor no Respond
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0206, ID := 164, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0206, Category := 1); // Get But Jaw Has
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0207, ID := 165, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0207, Category := 1); // illegal value in tool offset
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0209, ID := 166, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0209, Category := 1); // Laser detected
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0216, ID := 167, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0216, Category := 1); // Not in Home Pos
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0210, ID := 168, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0210, Category := 1); // Read All offset data failue
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0211, ID := 169, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0211, Category := 1); // Retry too many times
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0212, ID := 170, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0212, Category := 1); // Robot Disconnect
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0213, ID := 171, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0213, Category := 1); // Battary alarm
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0214, ID := 172, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0214, Category := 1); // fatal alarm
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0215, ID := 173, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0215, Category := 1); // Halt State
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0217, ID := 174, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0217, Category := 1); // RSR1 error
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0218, ID := 175, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0218, Category := 1); // RSR3 error
-RegisterAlarm(Trigger := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0219, ID := 176, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0219, Category := 1); // TP got control
+bFanucStoTrig[1]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0220; // Upper data Overload
+RegisterAlarm(Trigger := bFanucStoTrig[1],  ID := 160, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0220, Category := 1);
+bFanucStoTrig[2]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0208; // Jaw Sensor no Respond
+RegisterAlarm(Trigger := bFanucStoTrig[2],  ID := 161, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0208, Category := 1);
+bFanucStoTrig[3]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0221; // Vision fault
+RegisterAlarm(Trigger := bFanucStoTrig[3],  ID := 162, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0221, Category := 1);
+bFanucStoTrig[4]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0205; // Get but Has Sensor no Respond
+RegisterAlarm(Trigger := bFanucStoTrig[4],  ID := 163, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0205, Category := 1);
+bFanucStoTrig[5]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0206; // Get But Jaw Has
+RegisterAlarm(Trigger := bFanucStoTrig[5],  ID := 164, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0206, Category := 1);
+bFanucStoTrig[6]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0207; // illegal value in tool offset
+RegisterAlarm(Trigger := bFanucStoTrig[6],  ID := 165, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0207, Category := 1);
+bFanucStoTrig[7]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0209; // Laser detected
+RegisterAlarm(Trigger := bFanucStoTrig[7],  ID := 166, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0209, Category := 1);
+bFanucStoTrig[8]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0216; // Not in Home Pos
+RegisterAlarm(Trigger := bFanucStoTrig[8],  ID := 167, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0216, Category := 1);
+bFanucStoTrig[9]  := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0210; // Read All offset data failue
+RegisterAlarm(Trigger := bFanucStoTrig[9],  ID := 168, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0210, Category := 1);
+bFanucStoTrig[10] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0211; // Retry too many times
+RegisterAlarm(Trigger := bFanucStoTrig[10], ID := 169, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0211, Category := 1);
+bFanucStoTrig[11] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0212; // Robot Disconnect
+RegisterAlarm(Trigger := bFanucStoTrig[11], ID := 170, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0212, Category := 1);
+bFanucStoTrig[12] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0213; // Battary alarm
+RegisterAlarm(Trigger := bFanucStoTrig[12], ID := 171, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0213, Category := 1);
+bFanucStoTrig[13] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0214; // fatal alarm
+RegisterAlarm(Trigger := bFanucStoTrig[13], ID := 172, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0214, Category := 1);
+bFanucStoTrig[14] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0215; // Halt State
+RegisterAlarm(Trigger := bFanucStoTrig[14], ID := 173, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0215, Category := 1);
+bFanucStoTrig[15] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0217; // RSR1 error
+RegisterAlarm(Trigger := bFanucStoTrig[15], ID := 174, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0217, Category := 1);
+bFanucStoTrig[16] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0218; // RSR3 error
+RegisterAlarm(Trigger := bFanucStoTrig[16], ID := 175, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0218, Category := 1);
+bFanucStoTrig[17] := bStorageRobotError AND fanucrobot.List.StorageRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0219; // TP got control
+RegisterAlarm(Trigger := bFanucStoTrig[17], ID := 176, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0219, Category := 1);
 
 // =========================================================================
-// Fanuc 出貨小手臂 (ShippingRobot) 細項 alarm 180-196
+// Fanuc 小手臂 (ShippingRobot) 細項 alarm 180-196
 // =========================================================================
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0220, ID := 180, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0220, Category := 1); // Upper data Overload
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0208, ID := 181, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0208, Category := 1); // Jaw Sensor no Respond
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0221, ID := 182, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0221, Category := 1); // Vision fault
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0205, ID := 183, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0205, Category := 1); // Get but Has Sensor no Respond
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0206, ID := 184, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0206, Category := 1); // Get But Jaw Has
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0207, ID := 185, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0207, Category := 1); // illegal value in tool offset
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0209, ID := 186, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0209, Category := 1); // Laser detected
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0216, ID := 187, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0216, Category := 1); // Not in Home Pos
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0210, ID := 188, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0210, Category := 1); // Read All offset data failue
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0211, ID := 189, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0211, Category := 1); // Retry too many times
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0212, ID := 190, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0212, Category := 1); // Robot Disconnect
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0213, ID := 191, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0213, Category := 1); // Battary alarm
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0214, ID := 192, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0214, Category := 1); // fatal alarm
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0215, ID := 193, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0215, Category := 1); // Halt State
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0217, ID := 194, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0217, Category := 1); // RSR1 error
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0218, ID := 195, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0218, Category := 1); // RSR3 error
-RegisterAlarm(Trigger := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0219, ID := 196, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0219, Category := 1); // TP got control
+bFanucShpTrig[1]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0220; // Upper data Overload
+RegisterAlarm(Trigger := bFanucShpTrig[1],  ID := 180, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0220, Category := 1);
+bFanucShpTrig[2]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0208; // Jaw Sensor no Respond
+RegisterAlarm(Trigger := bFanucShpTrig[2],  ID := 181, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0208, Category := 1);
+bFanucShpTrig[3]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0221; // Vision fault
+RegisterAlarm(Trigger := bFanucShpTrig[3],  ID := 182, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0221, Category := 1);
+bFanucShpTrig[4]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0205; // Get but Has Sensor no Respond
+RegisterAlarm(Trigger := bFanucShpTrig[4],  ID := 183, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0205, Category := 1);
+bFanucShpTrig[5]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0206; // Get But Jaw Has
+RegisterAlarm(Trigger := bFanucShpTrig[5],  ID := 184, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0206, Category := 1);
+bFanucShpTrig[6]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0207; // illegal value in tool offset
+RegisterAlarm(Trigger := bFanucShpTrig[6],  ID := 185, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0207, Category := 1);
+bFanucShpTrig[7]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0209; // Laser detected
+RegisterAlarm(Trigger := bFanucShpTrig[7],  ID := 186, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0209, Category := 1);
+bFanucShpTrig[8]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0216; // Not in Home Pos
+RegisterAlarm(Trigger := bFanucShpTrig[8],  ID := 187, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0216, Category := 1);
+bFanucShpTrig[9]  := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0210; // Read All offset data failue
+RegisterAlarm(Trigger := bFanucShpTrig[9],  ID := 188, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0210, Category := 1);
+bFanucShpTrig[10] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0211; // Retry too many times
+RegisterAlarm(Trigger := bFanucShpTrig[10], ID := 189, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0211, Category := 1);
+bFanucShpTrig[11] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0212; // Robot Disconnect
+RegisterAlarm(Trigger := bFanucShpTrig[11], ID := 190, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0212, Category := 1);
+bFanucShpTrig[12] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0213; // Battary alarm
+RegisterAlarm(Trigger := bFanucShpTrig[12], ID := 191, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0213, Category := 1);
+bFanucShpTrig[13] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0214; // fatal alarm
+RegisterAlarm(Trigger := bFanucShpTrig[13], ID := 192, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0214, Category := 1);
+bFanucShpTrig[14] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0215; // Halt State
+RegisterAlarm(Trigger := bFanucShpTrig[14], ID := 193, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0215, Category := 1);
+bFanucShpTrig[15] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0217; // RSR1 error
+RegisterAlarm(Trigger := bFanucShpTrig[15], ID := 194, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0217, Category := 1);
+bFanucShpTrig[16] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0218; // RSR3 error
+RegisterAlarm(Trigger := bFanucShpTrig[16], ID := 195, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0218, Category := 1);
+bFanucShpTrig[17] := bShippingRobotError AND fanucrobot.List.ShippingRobot.ErrMsg = GVL_ErrorCode.GC_MSG_0219; // TP got control
+RegisterAlarm(Trigger := bFanucShpTrig[17], ID := 196, value := E_Severity.Level5, Message := GVL_ErrorCode.GC_MSG_0219, Category := 1);
 
 
 // Servo Error
