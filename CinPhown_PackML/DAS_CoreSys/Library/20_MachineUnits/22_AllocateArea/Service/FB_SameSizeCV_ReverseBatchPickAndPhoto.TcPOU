@@ -226,19 +226,19 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF _UniqueErrorCode = 'E_PICKUP_TIMEOUT' THEN
-	M_GetErrorMsg := 'ReverseBatch: ShippingRobot pickup timeout';
+	M_GetErrorMsg := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: ShippingRobot pickup timeout';
 ELSIF _UniqueErrorCode = 'E_BIGARM_TIMEOUT' THEN
-	M_GetErrorMsg := 'ReverseBatch: BigArm transport timeout';
+	M_GetErrorMsg := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: BigArm transport timeout';
 ELSIF _UniqueErrorCode = 'E_CONVEYOR_FULL' THEN
-	M_GetErrorMsg := 'ReverseBatch: Conveyor full (queue overflow)';
+	M_GetErrorMsg := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: Conveyor full (queue overflow)';
 ELSIF _UniqueErrorCode = 'E_CONFIG_TIMEOUT' THEN
-	M_GetErrorMsg := 'ReverseBatch: Waiting C# plate config timeout';
+	M_GetErrorMsg := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: Waiting C# plate config timeout';
 ELSIF _UniqueErrorCode = 'E_CAMERA_TIMEOUT' THEN
-	M_GetErrorMsg := 'ReverseBatch: Camera timeout';
+	M_GetErrorMsg := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: Camera timeout';
 ELSIF _UniqueErrorCode = 'E_CAMERA_CLEAR_TIMEOUT' THEN
-	M_GetErrorMsg := 'ReverseBatch: C# did not clear BoxCameraDone';
+	M_GetErrorMsg := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: C# did not clear BoxCameraDone';
 ELSIF _UniqueErrorCode = 'E_BATCH_TIMEOUT' THEN
-	M_GetErrorMsg := 'ReverseBatch: Batch global timeout';
+	M_GetErrorMsg := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: Batch global timeout';
 ELSIF _UniqueErrorCode = '' THEN
 	M_GetErrorMsg := 'No Error';
 ELSE
@@ -281,7 +281,7 @@ IF Execute
 	AND NOT StorageRobot.Halt
 	AND NOT StorageRobot.Halt
 THEN
-	status := 'Retry Complete';
+	status := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: Retry Complete';
 	// 恢復三軌步驟
 	uiPickStep := uiResumePickStep;
 	uiCameraStep := uiResumeCameraStep;
@@ -491,7 +491,7 @@ tonTimeOut.IN := TRUE;
 
 // 外部中止 (由 FB_AllocateAreaWithRoundbelt 傳入 Abort)
 IF Abort THEN
-	strStatus := 'Aborted';
+	strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: Aborted';
 	_UniqueErrorCode := 'E_ABORT';
 	_Abort := TRUE;
 	RETURN;
@@ -499,7 +499,7 @@ END_IF
 
 // 批次全域逾時
 IF tonTimeOut.Q THEN
-	strStatus := 'Batch timeout';
+	strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto: Batch timeout';
 	_UniqueErrorCode := 'E_BATCH_TIMEOUT';
 	// 保存所有 Track 的 Resume 步驟
 	uiResumePickStep := uiPickStep;
@@ -631,7 +631,7 @@ CASE uiExecutingStep OF
 					uiResumePickStep := uiPickStep;
 					uiResumeCameraStep := uiCameraStep;
 					uiResumeTransportStep := uiTransportStep;
-					strStatus := 'Waiting C# plate config timeout';
+					strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto Step 100: Waiting C# plate config timeout';
 					_UniqueErrorCode := 'E_CONFIG_TIMEOUT';
 					_Abort := TRUE;
 					RETURN;
@@ -689,7 +689,7 @@ CASE uiExecutingStep OF
 				uiResumePickStep := 300;
 				uiResumeCameraStep := uiCameraStep;
 				uiResumeTransportStep := uiTransportStep;
-				strStatus := 'ShippingRobot pickup failed';
+				strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto Step 100: ShippingRobot pickup failed';
 				_UniqueErrorCode := 'E_PICKUP_TIMEOUT';
 				_Abort := TRUE;
 				RETURN;
@@ -699,7 +699,7 @@ CASE uiExecutingStep OF
 				uiResumePickStep := 300;
 				uiResumeCameraStep := uiCameraStep;
 				uiResumeTransportStep := uiTransportStep;
-				strStatus := 'ShippingRobot pickup timeout';
+				strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto Step 100: ShippingRobot pickup timeout';
 				_UniqueErrorCode := 'E_PICKUP_TIMEOUT';
 				_Abort := TRUE;
 				RETURN;
@@ -767,7 +767,7 @@ CASE uiExecutingStep OF
 				uiResumePickStep := uiPickStep;
 				uiResumeCameraStep := uiCameraStep;
 				uiResumeTransportStep := uiTransportStep;
-				strStatus := 'Camera timeout';
+				strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto Step 100: Camera timeout';
 				_UniqueErrorCode := 'E_CAMERA_TIMEOUT';
 				_Abort := TRUE;
 				RETURN;
@@ -804,7 +804,7 @@ CASE uiExecutingStep OF
 				uiResumePickStep := uiPickStep;
 				uiResumeCameraStep := uiCameraStep;
 				uiResumeTransportStep := uiTransportStep;
-				strStatus := 'Conveyor full (queue overflow)';
+				strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto Step 100: Conveyor full (queue overflow)';
 				_UniqueErrorCode := 'E_CONVEYOR_FULL';
 				_Abort := TRUE;
 				RETURN;
@@ -820,7 +820,7 @@ CASE uiExecutingStep OF
 				uiResumePickStep := uiPickStep;
 				uiResumeCameraStep := uiCameraStep;
 				uiResumeTransportStep := uiTransportStep;
-				strStatus := 'C# did not clear BoxCameraDone';
+				strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto Step 100: C# did not clear BoxCameraDone';
 				_UniqueErrorCode := 'E_CAMERA_CLEAR_TIMEOUT';
 				_Abort := TRUE;
 				RETURN;
@@ -902,7 +902,7 @@ CASE uiExecutingStep OF
 				uiResumePickStep := uiPickStep;
 				uiResumeCameraStep := uiCameraStep;
 				uiResumeTransportStep := 200;
-				strStatus := 'BigArm transport failed';
+				strStatus := 'FB_SameSizeCV_ReverseBatchPickAndPhoto Step 100: BigArm transport failed';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 				RETURN;

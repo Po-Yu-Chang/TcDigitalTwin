@@ -264,14 +264,14 @@ CASE uiExecutingStep OF
     0:
         // 非自動模式直接報錯 (避免軸控衝突)
         IF GVL_Machine.PackTags[UnitNo.Allocate].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-            strStatus := 'Not in Auto mode';
+            strStatus := 'FB_PullOutConveyorAction Step 0: Not in Auto mode';
             _UniqueErrorCode := 'E_NOT_AUTO_MODE';
             _Error := TRUE;
         ELSE
             IF M_CheckCommand() THEN
                 uiExecutingStep := 100;
             ELSE
-                Status := 'Wrong command, check the command setting';
+                Status := 'FB_PullOutConveyorAction Step 0: Wrong command, check the command setting';
                 _Error := TRUE;
             END_IF
         END_IF
@@ -318,7 +318,7 @@ CASE uiExecutingStep OF
 			E_PullOutConveyorCommandType.SlideB_FeedIn_Ext:
 				uiExecutingStep := 12000;
         ELSE
-            Status := 'Command type out of range.';
+            Status := 'FB_PullOutConveyorAction Step 500: Command type out of range.';
             _Error := TRUE;
         END_CASE
 		
@@ -356,7 +356,7 @@ CASE uiExecutingStep OF
         IF TON_BoxArrivedDelay.Q THEN
             uiExecutingStep := 1100;
         ELSIF TON_MotorRun.Q THEN
-            Status := 'SideA FeedIn no box.';
+            Status := 'FB_PullOutConveyorAction Step 1030: SideA FeedIn no box.';
             _Abort := TRUE;
         END_IF
     1100:
@@ -432,7 +432,7 @@ CASE uiExecutingStep OF
         IF TON_BoxArrivedDelay.Q THEN
             uiExecutingStep := 2100;
         ELSIF TON_MotorRun.Q THEN
-            Status := 'SideB FeedIn no box.';
+            Status := 'FB_PullOutConveyorAction Step 2030: SideB FeedIn no box.';
             _Abort := TRUE;
         END_IF
     2100:
@@ -514,7 +514,7 @@ CASE uiExecutingStep OF
         IF  TON_BoxArrivedDelay.Q THEN
             uiExecutingStep := 3100;
         ELSIF TON_MotorRun.Q THEN
-            Status := 'SideA or SideB FeedIn no box.';
+            Status := 'FB_PullOutConveyorAction Step 3030: SideA or SideB FeedIn no box.';
             _Abort := TRUE;
         END_IF
     3100:

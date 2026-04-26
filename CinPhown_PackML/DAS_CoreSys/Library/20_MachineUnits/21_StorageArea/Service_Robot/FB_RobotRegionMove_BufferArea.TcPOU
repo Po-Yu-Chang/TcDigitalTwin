@@ -57,7 +57,7 @@ END_VAR
 
 IF NOT UseA AND NOT UseB THEN
 	M_CheckClampStatus 	:= FALSE;
-	strStatus 			:= 'FB_RobotRegionMove_BufferArea ,Wrong Command , Both Clammp not used';
+	strStatus 			:= 'FB_RobotRegionMove_BufferArea: Wrong Command , Both Clammp not used';
 	RETURN;
 END_IF
 
@@ -65,13 +65,13 @@ IF UseA THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_BufferArea ,Robot Use A Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_BufferArea: Robot Use A Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_BufferArea ,Robot Use A Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_BufferArea: Robot Use A Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -80,13 +80,13 @@ IF UseB THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_BufferArea ,Robot Use B Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_BufferArea: Robot Use B Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_BufferArea ,Robot Use B Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_BufferArea: Robot Use B Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -111,13 +111,13 @@ UseB := Info.UseB;
 //Buffer area
 		
 IF UseA AND ( Info.A_Position<1 OR  Info.A_Position>40) THEN
-	strStatus:='Wrong command ,Position A Not allow';
+	strStatus:='FB_RobotRegionMove_BufferArea: Wrong command ,Position A Not allow';
 	M_CheckCommand:=FALSE;
 	RETURN;			
 END_IF		
 
 IF UseB AND( Info.B_Position<1 OR  Info.B_Position>40 )THEN
-	strStatus:='Wrong command ,Position B Not allow';
+	strStatus:='FB_RobotRegionMove_BufferArea: Wrong command ,Position B Not allow';
 	M_CheckCommand:=FALSE;
 	RETURN;			
 END_IF
@@ -384,13 +384,13 @@ CASE uiExecutingStep OF
 			IF tonTimeOut.Q=TRUE THEN
 				tonTimeOut.IN:=FALSE;			
 				uiResumeStep := 10000;			
-				strStatus 	 := 'FB_RobotRegionMove_BuuferArea Step 10000: Robot Move Timeout';
+				strStatus 	 := 'FB_RobotRegionMove_BufferArea Step 10000: Robot Move Timeout';
 				_Abort:=TRUE;
 			END_IF	
 			IF Robot.Error THEN
 				tonTimeOut.IN:=FALSE;
 				uiResumeStep := 10000;
-				strStatus := 'FB_RobotRegionMove_BuuferArea Step 10000: ClampA Robot Error';
+				strStatus := 'FB_RobotRegionMove_BufferArea Step 10000: ClampA Robot Error';
 
 
 				_Abort := TRUE;
@@ -403,7 +403,7 @@ CASE uiExecutingStep OF
             uiExecutingStep := 99000; 
         END_IF
     	IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Reset Robot timeout';
+			strStatus :='FB_RobotRegionMove_BufferArea Step 10080: Reset Robot timeout';
 
 
 
@@ -431,13 +431,13 @@ CASE uiExecutingStep OF
 			IF tonTimeOut.Q=TRUE THEN
 				tonTimeOut.IN:=FALSE;			
 				uiResumeStep := 20000;		
-				strStatus := 'FB_RobotRegionMove_BuuferArea Step 20000: Robot Move Timeout';
+				strStatus := 'FB_RobotRegionMove_BufferArea Step 20000: Robot Move Timeout';
 				_Abort:=TRUE;
 			END_IF	
 			IF Robot.Error THEN
 				tonTimeOut.IN:=FALSE;
 				uiResumeStep := 20000;
-				strStatus := 'FB_RobotRegionMove_BuuferArea Step 20000: Use ClampB Robot Error';
+				strStatus := 'FB_RobotRegionMove_BufferArea Step 20000: Use ClampB Robot Error';
 
 
 				_Abort := TRUE;
@@ -450,7 +450,7 @@ CASE uiExecutingStep OF
 				END_IF
 				tonTimeOut.IN:=TRUE;
 				IF tonTimeOut.Q=TRUE THEN
-					strStatus :='FB_RobotRegionMove_BuuferArea Step 20080: Reset Robot timeout';
+					strStatus :='FB_RobotRegionMove_BufferArea Step 20080: Reset Robot timeout';
 
 
 
@@ -504,14 +504,14 @@ CASE uiExecutingStep OF
         END_IF
 		IF tonTimeOut.Q  THEN
 			tonTimeOut.IN:=FALSE;			
-			strStatus := 'FB_RobotRegionMove_BuuferArea Step 30000: Robot Move Timeout';
+			strStatus := 'FB_RobotRegionMove_BufferArea Step 30000: Robot Move Timeout';
 			uiResumeStep     := 30000;
 			_Abort:=TRUE;
 		END_IF	
 		IF Robot.Error THEN
 			uiResumeStep     := 30000;
 			_Abort := TRUE;
-			strStatus :='FB_RobotRegionMove_BuuferArea Step 30000: Use bothClamp robot Error';
+			strStatus :='FB_RobotRegionMove_BufferArea Step 30000: Use bothClamp robot Error';
 
 
 		END_IF
@@ -527,12 +527,12 @@ CASE uiExecutingStep OF
         END_IF    
    		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='FB_RobotRegionMove_BuuferArea Step 30080: Stop Robot timeout';
+			strStatus :='FB_RobotRegionMove_BufferArea Step 30080: Stop Robot timeout';
 			_Error:=TRUE;
 		END_IF	
    
     99000: // process done
-                Status    := 'Process completed';
+                Status    := 'FB_RobotRegionMove_BufferArea Step 99000: Process completed';
         _Executed := TRUE;
 END_CASE
 

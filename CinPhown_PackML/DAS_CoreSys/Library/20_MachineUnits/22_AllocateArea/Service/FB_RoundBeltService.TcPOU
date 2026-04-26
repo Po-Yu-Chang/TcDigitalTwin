@@ -218,25 +218,25 @@ END_VAR]]></Declaration>
 	0:
 		M_GetErrorMsg := 'No Error';
 	1:
-		M_GetErrorMsg := 'Action time out';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 1: Action time out';
 	2:
-		M_GetErrorMsg := 'Position Data invalid';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 2: Position Data invalid';
 	3:
-		M_GetErrorMsg := 'Index invalid';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 3: Index invalid';
 	4:
-		M_GetErrorMsg := 'Axis roundbelt not ready has Error';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 4: Axis roundbelt not ready has Error';
 	5:
-		M_GetErrorMsg := 'Cylinder not ready has Error';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 5: Cylinder not ready has Error';
 	6:
-		M_GetErrorMsg := 'Axis RoundBelt has Error';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 6: Axis RoundBelt has Error';
 	7:
-		M_GetErrorMsg := 'ChargeZone_Plug has Error';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 7: ChargeZone_Plug has Error';
 	8:
-		M_GetErrorMsg := 'TransmitCVZone_Plug has Error';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 8: TransmitCVZone_Plug has Error';
 	9:
-		M_GetErrorMsg := 'WorkZone_Plug has Error';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 9: WorkZone_Plug has Error';
 	10:
-		M_GetErrorMsg := 'WorkZone_Press has Error';
+		M_GetErrorMsg := 'FB_RoundBeltService ErrorID 10: WorkZone_Press has Error';
 END_CASE]]></ST>
       </Implementation>
     </Method>

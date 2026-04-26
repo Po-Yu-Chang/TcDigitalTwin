@@ -243,12 +243,12 @@ IF Pause THEN
 	eState    			:= STATE_Holding;
 END_IF
 IF TON_ServiceTimeOut.Q THEN
-	status	:= 'FB_RobotSelfHoming Service TimeOut';
+	status	:= 'FB_RobotSelfHoming: Service TimeOut';
 	_Error	:= TRUE;
 END_IF
 IF GVL_HMI.Setup.StorageRobot.RobotVelocity = 0 THEN
 	_Error := TRUE;
-	status := 'FB_RobotSelfHoming Step 1100 : Robot Speed cannot be 0 ';
+	status := 'FB_RobotSelfHoming: Robot Speed cannot be 0 ';
 	eState := STATE_ERROR;
 	RETURN;
 END_IF
@@ -258,7 +258,7 @@ CASE uiExecutingStep OF
 	
 	0:		
 			IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-				Status := 'FB_RobotSelfHoming : Not in Auto mode';
+				Status := 'FB_RobotSelfHoming Step 0: Not in Auto mode';
 				_Error := TRUE;
 			ELSE
 				uiExecutingStep := 50;
@@ -274,7 +274,7 @@ CASE uiExecutingStep OF
 			IF M_CheckCommand() THEN
 				uiExecutingStep := 100;
 			ELSE
-				status := 'FB_RobotSelfHoming Step 0 : Wrong Command : another Robot Service Executing';
+				status := 'FB_RobotSelfHoming Step 50: Wrong Command : another Robot Service Executing';
 				_Error := TRUE;
 			END_IF
 	
@@ -338,7 +338,7 @@ CASE uiExecutingStep OF
 				uiExecutingStep := 9999;
 			END_IF
 		
-	2000:	// Both Clamp , not open and sensor detect	
+	2000:	// Both Clamp , not open and sensor detect
 			TON_RobotFeedOutCommand.IN := TRUE;
 			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := TRUE,
 												UseB := TRUE);
@@ -346,23 +346,23 @@ CASE uiExecutingStep OF
 				uiExecutingStep := 2100;
 			END_IF
 			IF TON_RobotFeedOutCommand.Q THEN
-				status := 'Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
+				status := 'FB_RobotSelfHoming Step 2000: Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
 				_Error := TRUE;
 			END_IF
-		
-	2100:	// FeedOut done clear command 
-			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+
+	2100:	// FeedOut done clear command
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command
 			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
 			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
 				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
 				uiExecutingStep := 0;
 			END_IF
 			IF TON_RobotTimeOut.Q THEN
-				status := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+				status := 'FB_RobotSelfHoming Step 2100: Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
 				_Error := TRUE;
 			END_IF
 		
-	3000:	//Clamp A 
+	3000:	//Clamp A
 			TON_RobotFeedOutCommand.IN := TRUE;
 			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := TRUE,
 												useB := FALSE);
@@ -370,22 +370,22 @@ CASE uiExecutingStep OF
 				uiExecutingStep := 3100;
 			END_IF
 			IF TON_RobotFeedOutCommand.Q THEN
-				status := 'Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
+				status := 'FB_RobotSelfHoming Step 3000: Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
 				_Error := TRUE;
 			END_IF
-		
+
 	3100:	//FeedOut Done clear command
-			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command
 			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
 			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
 				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
 				uiExecutingStep := 0;
 			END_IF
 			IF TON_RobotTimeOut.Q THEN
-				status := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+				status := 'FB_RobotSelfHoming Step 3100: Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
 				_Error := TRUE;
 			END_IF
-		
+
 	4000:	//Clamp B
 			TON_RobotFeedOutCommand.IN := TRUE;
 			_fbRobotRegionMove_FeedInConveyor.M_StartHomingFeedOut(UseA := FALSE,
@@ -394,24 +394,24 @@ CASE uiExecutingStep OF
 				uiExecutingStep := 4100;
 			END_IF
 			IF TON_RobotFeedOutCommand.Q THEN
-				status := 'Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
+				status := 'FB_RobotSelfHoming Step 4000: Storage FanucRobot FeedOut TO NG Conveyor NOT busy';
 				_Error := TRUE;
 			END_IF
-		
+
 	4100:	//FeedOut Done clear command
-			TON_RobotFeedOutCommand.IN  := FALSE;		//check command 
+			TON_RobotFeedOutCommand.IN  := FALSE;		//check command
 			TON_RobotTimeOut.IN 		:= TRUE;		//Robot FeeOut Timer
 			IF _fbRobotRegionMove_FeedInConveyor.Done THEN
 				_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
 				uiExecutingStep := 0;
 			END_IF
 			IF TON_RobotTimeOut.Q THEN
-				status := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+				status := 'FB_RobotSelfHoming Step 4100: Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
 				_Error := TRUE;
 			END_IF
 			
 	9999:
-			status		:= 'Process done';
+			status		:= 'FB_RobotSelfHoming Step 9999: Process done';
 			_Executed 	:= TRUE;		
 end_case
 

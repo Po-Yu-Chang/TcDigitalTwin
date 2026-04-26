@@ -257,7 +257,7 @@ _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
 _Abort	 :=FALSE;
-strStatus :='No Error';
+strStatus :='FB_OutRobot_EmptyBoxMove: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 tonTimeOut.IN :=TRUE;
 _UniqueErrorCode:='0';
@@ -344,7 +344,7 @@ CASE uiExecutingStep OF
 
 	IF (UseA AND INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND INPUT.bTurnTable_R2Detect_Sensor) THEN
 		_Abort:=TRUE;
-		strStatus :='Box On Turntable';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 200: Box On Turntable';
 	ELSE
 		IF UseA THEN
 			iWorkingIndex :=0;
@@ -382,7 +382,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='No Box on conveyor';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 1100: No Box on conveyor';
 	END_IF
 
 1200: //Press seconde box
@@ -396,7 +396,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='Block box on conveyor timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 1200: Block box on conveyor timeout';
 	END_IF
 	
 1300: // Stop conveyor
@@ -419,7 +419,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Error := TRUE;
-		strStatus :='Move robot to picking position timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 1400: Move robot to picking position timeout';
 	END_IF
 	
 1500: //Clip Down Pick
@@ -433,7 +433,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='Cylinder pick down timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 1500: Cylinder pick down timeout';
 	END_IF
 	
 1700: // Clip close Pick
@@ -447,7 +447,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='clip pick close timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 1700: clip pick close timeout';
 	END_IF
 
 1800: // Clip Up Pick
@@ -462,7 +462,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='cylinder pick up timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 1800: cylinder pick up timeout';
 	END_IF
 1850: //Check box leave
 		IF NOT SensorOnConveyor THEN
@@ -470,7 +470,7 @@ CASE uiExecutingStep OF
 			uiExecutingStep:=1900;
 		else
 			_Error := TRUE;
-			strStatus :='Box still on conveyor';
+			strStatus :='FB_OutRobot_EmptyBoxMove Step 1850: Box still on conveyor';
 		END_IF
 		
 1900: // If Next pick
@@ -504,7 +504,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Error := TRUE;
-		strStatus :='Move robot to placing position timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 2100: Move robot to placing position timeout';
 	END_IF
 	
 2200: //Cllp Down place
@@ -525,7 +525,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='Cylinder place down timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 2200: Cylinder place down timeout';
 	END_IF
 	
 2300: // Clip open Place
@@ -546,7 +546,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='clip place open timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 2300: clip place open timeout';
 	END_IF
 	  
 2400: // Clip up Placing
@@ -566,7 +566,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN :=FALSE;
 		_Abort := TRUE;
-		strStatus :='cylinder place up timeout';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 2400: cylinder place up timeout';
 	END_IF
 	
 2500: // If Next place
@@ -581,7 +581,7 @@ CASE uiExecutingStep OF
 
 	IF (UseA AND NOT INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND NOT INPUT.bTurnTable_R2Detect_Sensor) THEN
 		_Error:=TRUE;
-		strStatus :='Box not On Turntable';
+		strStatus :='FB_OutRobot_EmptyBoxMove Step 2600: Box not On Turntable';
 	ELSE
 		uiExecutingStep:=3000;
 	END_IF

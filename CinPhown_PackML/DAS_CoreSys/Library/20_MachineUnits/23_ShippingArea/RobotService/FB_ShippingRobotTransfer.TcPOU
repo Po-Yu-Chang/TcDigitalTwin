@@ -128,7 +128,7 @@ END_IF
 IF (info.Destination.Area = E_RobotArea.BufferArea) OR
    (info.Source.Position = E_RobotArea.BufferArea) THEN
 	M_CheckMechanism := FALSE;
-	strStatus := 'FB_ShippingRobotTransfer, Wrong Command: no BufferArea';
+	strStatus := 'FB_ShippingRobotTransfer: Wrong Command, no BufferArea';
 	RETURN;
 END_IF
 
@@ -148,7 +148,7 @@ CASE AreaInfo.Area OF
 	E_RobotArea.ShippingRobotLeft,
 	E_RobotArea.ShippingRobotRight:
 		IF AreaInfo.Position < 1 OR AreaInfo.Position > 40 THEN
-			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, Left/Right Position must be 1-40';
+			strStatus := 'FB_ShippingRobotTransfer Step 100/7000: Wrong command, Left/Right Position must be 1-40';
 			Status := strStatus;
 			Error := TRUE;
 			RETURN;
@@ -156,7 +156,7 @@ CASE AreaInfo.Area OF
 
 	E_RobotArea.ShippingBufferArea:
 		IF AreaInfo.Position < 1 OR AreaInfo.Position > 55 THEN
-			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, Buffer Area Position must be 1-55';
+			strStatus := 'FB_ShippingRobotTransfer Step 100/7000: Wrong command, Buffer Area Position must be 1-55';
 			Status := strStatus;
 			Error := TRUE;
 			RETURN;
@@ -164,7 +164,7 @@ CASE AreaInfo.Area OF
 
 	E_RobotArea.TransmitCV_End:
 		IF AreaInfo.Position < 1 OR AreaInfo.Position > 2 THEN
-			strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, TransmitCV_End Position must be 1-2';
+			strStatus := 'FB_ShippingRobotTransfer Step 100/7000: Wrong command, TransmitCV_End Position must be 1-2';
 			Status := strStatus;
 			Error := TRUE;
 			RETURN;
@@ -183,7 +183,7 @@ CASE AreaInfo.Area OF
 //		END_IF
 
 ELSE
-	strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, Invalid Area';
+	strStatus := 'FB_ShippingRobotTransfer Step 100/7000: Wrong command, Invalid Area';
 	Status := strStatus;
 	Error := TRUE;
 	RETURN;
@@ -193,7 +193,7 @@ END_CASE
 IF AreaInfo.Get THEN
 	// Get (取盒): 爪必須打開才能夾
 	IF NOT Robot._DI1.ClampA_Open THEN
-		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA must be open to Get';
+		strStatus := 'FB_ShippingRobotTransfer Step 100/7000: Wrong command, ClampA must be open to Get';
 		Status := strStatus;
 		Error := TRUE;
 		RETURN;
@@ -201,7 +201,7 @@ IF AreaInfo.Get THEN
 ELSE
 	// Put (放盒): 爪必須關閉 (夾著盒) 才能放
 	IF Robot._DI1.ClampA_Open THEN
-		strStatus := 'FB_ShippingRobotTransfer Step 100/7000 : Wrong command, ClampA must be closed to Put';
+		strStatus := 'FB_ShippingRobotTransfer Step 100/7000: Wrong command, ClampA must be closed to Put';
 		Status := strStatus;
 		Error := TRUE;
 		RETURN;
@@ -257,7 +257,7 @@ ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
 	uiExecutingStep := uiResumeStep;
 	PreviousStrStatus := strStatus;
 	PreviousErrorCode := _UniqueErrorCode;
-	Status := 'no error';
+	Status := 'FB_ShippingRobotTransfer: no error';
 	_bRetry := FALSE;	// retry 已啟動，清掉旗標讓下次 Abort 能正常標記 Error/Aborted
 	eState := STATE_EXECUTING;
 END_IF
@@ -513,7 +513,7 @@ CASE uiExecutingStep OF
 	0:
 		// 非自動模式直接報錯 (避免軸控衝突)
 		IF GVL_Machine.PackTags[UnitNo.Shipping].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-			strStatus := 'Not in Auto mode';
+			strStatus := 'FB_ShippingRobotTransfer Step 0: Not in Auto mode';
 			_UniqueErrorCode := 'E_NOT_AUTO_MODE';
 			_Error := TRUE;
 		ELSE
@@ -540,15 +540,15 @@ CASE uiExecutingStep OF
 	25: // 指令邏輯驗證
 		// 限制 1：來源 (Source) 必須是取件 (Get)，目的地 (Destination) 必須是放件 (Put)
 		IF NOT _fromGet OR _toGet THEN
-			strStatus := 'Error: Source must be "Get", Destination must be "Put"';
+			strStatus := 'FB_ShippingRobotTransfer Step 25: Source must be "Get", Destination must be "Put"';
 			_Error := TRUE;
 		// 限制 2：ShippingFeedOutEmptyBox 不可作為來源 (Source)
 		ELSIF _fromArea = E_RobotArea.ShippingFeedOutEmptyBox THEN
-			strStatus := 'Error: ShippingFeedOutEmptyBox cannot be used as Source';
+			strStatus := 'FB_ShippingRobotTransfer Step 25: ShippingFeedOutEmptyBox cannot be used as Source';
 			_Error := TRUE;
 		// 限制 3：目的地為 ShippingFeedOutEmptyBox 時，來源必須是 TransmitCV_End
 		ELSIF _toArea = E_RobotArea.ShippingFeedOutEmptyBox AND _fromArea <> E_RobotArea.TransmitCV_End THEN
-			strStatus := 'Error: ShippingFeedOutEmptyBox destination requires TransmitCV_End as source';
+			strStatus := 'FB_ShippingRobotTransfer Step 25: ShippingFeedOutEmptyBox destination requires TransmitCV_End as source';
 			_Error := TRUE;
 		END_IF
 
@@ -1146,7 +1146,7 @@ CASE uiExecutingStep OF
 		_bAbsMoveStarted := FALSE;
 		bCompleteRequest := FALSE;
 
-		Status    := 'Process completed';
+		Status    := 'FB_ShippingRobotTransfer Step 99000: Process completed';
 		_Executed := TRUE;	// ★ 必須最後設，確保旗標已全部清乾淨才宣告 Done
 
 END_CASE

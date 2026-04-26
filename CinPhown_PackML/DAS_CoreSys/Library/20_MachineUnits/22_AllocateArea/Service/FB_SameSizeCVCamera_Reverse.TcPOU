@@ -289,29 +289,29 @@ END_VAR]]></Declaration>
 	1:
 		M_GetErrorMsg := 'No Error';
 	2:
-		M_GetErrorMsg := 'Action time out';
+		M_GetErrorMsg := 'FB_SameSizeCVCamera_Reverse ErrorID 2: Action time out';
 	3:
-		M_GetErrorMsg := 'Position Data invalid';
+		M_GetErrorMsg := 'FB_SameSizeCVCamera_Reverse ErrorID 3: Position Data invalid';
 	4:
-		M_GetErrorMsg := 'Block1 cylinder not ready';
+		M_GetErrorMsg := 'FB_SameSizeCVCamera_Reverse ErrorID 4: Block1 cylinder not ready';
 	5:
-		M_GetErrorMsg := 'Block2 cylinder not ready';
+		M_GetErrorMsg := 'FB_SameSizeCVCamera_Reverse ErrorID 5: Block2 cylinder not ready';
 	6:
-		M_GetErrorMsg := 'Press1 cylinder not ready';
+		M_GetErrorMsg := 'FB_SameSizeCVCamera_Reverse ErrorID 6: Press1 cylinder not ready';
 	7:
-		M_GetErrorMsg := 'Press2 cylinder not ready';
+		M_GetErrorMsg := 'FB_SameSizeCVCamera_Reverse ErrorID 7: Press2 cylinder not ready';
 	8:
-		M_GetErrorMsg := 'CameraHoriz cylinder not ready';
+		M_GetErrorMsg := 'FB_SameSizeCVCamera_Reverse ErrorID 8: CameraHoriz cylinder not ready';
 	9:
-		M_GetErrorMsg :=' Box not arrived ';
+		M_GetErrorMsg :='FB_SameSizeCVCamera_Reverse ErrorID 9:  Box not arrived ';
 	10:
-		M_GetErrorMsg :='Cylinder timeout';
+		M_GetErrorMsg :='FB_SameSizeCVCamera_Reverse ErrorID 10: Cylinder timeout';
 	11:
-		M_GetErrorMsg :='C# BoxCameraDone timeout';
+		M_GetErrorMsg :='FB_SameSizeCVCamera_Reverse ErrorID 11: C# BoxCameraDone timeout';
 	12:
-		M_GetErrorMsg :='Box cross sensor timeout';
+		M_GetErrorMsg :='FB_SameSizeCVCamera_Reverse ErrorID 12: Box cross sensor timeout';
 	13:
-		M_GetErrorMsg :='SameSizeConveyor full box infront ';
+		M_GetErrorMsg :='FB_SameSizeCVCamera_Reverse ErrorID 13: SameSizeConveyor full box infront ';
 END_CASE]]></ST>
       </Implementation>
     </Method>

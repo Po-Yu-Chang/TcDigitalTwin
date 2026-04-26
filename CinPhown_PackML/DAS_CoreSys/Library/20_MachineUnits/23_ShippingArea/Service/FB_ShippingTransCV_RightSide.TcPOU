@@ -142,12 +142,12 @@ END_VAR]]></Declaration>
 	0:
 		M_GetErrorMsg := 'No Error';
 	1:
-		M_GetErrorMsg := 'Action time out';
+		M_GetErrorMsg := 'FB_ShippingTransCV_RightSide ErrorID 1: Action time out';
 ///
 	10:
-		M_GetErrorMsg := 'HansLaser Machine Error';
+		M_GetErrorMsg := 'FB_ShippingTransCV_RightSide ErrorID 10: HansLaser Machine Error';
 	11:
-		M_GetErrorMsg := 'Wrong Command , TransCV not IntargetPosition';
+		M_GetErrorMsg := 'FB_ShippingTransCV_RightSide ErrorID 11: Wrong Command , TransCV not IntargetPosition';
 END_CASE]]></ST>
       </Implementation>
     </Method>

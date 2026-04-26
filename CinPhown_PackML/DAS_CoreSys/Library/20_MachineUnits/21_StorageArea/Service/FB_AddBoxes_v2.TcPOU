@@ -208,27 +208,27 @@ CASE uiExecutingStep OF
 	100:
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 100;
-			strStatus := 'no error , retrying';
+			strStatus := 'FB_AddBoxes_v2 Step 100: no error , retrying';
 			
 	210:
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 200;
-			strStatus := 'no error , retrying';
+			strStatus := 'FB_AddBoxes_v2 Step 210: no error , retrying';
 			
 	300:
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 300;
-			strStatus := 'no error , retrying';
+			strStatus := 'FB_AddBoxes_v2 Step 300: no error , retrying';
 			
 	500:
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 400;
-			strStatus := 'no error , retrying';
+			strStatus := 'FB_AddBoxes_v2 Step 500: no error , retrying';
 			
 	610:
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 600;
-			strStatus := 'no error , retrying';
+			strStatus := 'FB_AddBoxes_v2 Step 610: no error , retrying';
 END_CASE
 
 IF NOT Execute THEN
@@ -326,7 +326,7 @@ _UniqueErrorCode :='0';
 IF Execute  THEN 
 	IF eRackState = E_RackState.FeedBox THEN
 		eState:= STATE_ERROR;
-		strStatus :='Rack occupied by user Push FeedButton';
+		strStatus :='FB_AddBoxes_v2: Rack occupied by user Push FeedButton';
 		
 	ELSIF  Input.bUpCV_ReLoadDetect_Sensor THEN
 		_Executed :=TRUE;
@@ -390,7 +390,7 @@ CASE uiExecutingStep OF
 				uiExecutingStep	:= 10 ;
 			END_IF
 		ELSE
-			strStatus := 'Wrong command, check the command setting';
+			strStatus := 'FB_AddBoxes_v2 Step 0: Wrong command, check the command setting';
 			_Error := TRUE;
 		END_IF
 	10:
@@ -412,7 +412,7 @@ CASE uiExecutingStep OF
 				1,2,3,4,5,6,7,8,9 :
 					uiTargetStation :=CurrStation;	
 				ELSE // Error
-					strStatus := 'Station get Error';
+					strStatus := 'FB_AddBoxes_v2 Step 100: Station get Error';
                     _Abort := TRUE;
 			 END_CASE
 			 
@@ -423,7 +423,7 @@ CASE uiExecutingStep OF
 		END_IF
 		
 		IF tonAddBoxTimeOut.Q THEN
-			strStatus := 'RackPusher move back timeout';
+			strStatus := 'FB_AddBoxes_v2 Step 100: RackPusher move back timeout';
 			uiResumeStep:=100;
             _Abort := TRUE;
 		END_IF
@@ -449,7 +449,7 @@ CASE uiExecutingStep OF
 			uiExecutingStep := 300;	
 		END_IF
 		IF tonAddBoxTimeOut.Q THEN
-			strStatus := 'Rackmotor moving timeout';
+			strStatus := 'FB_AddBoxes_v2 Step 210: Rackmotor moving timeout';
             _Abort := TRUE;
 		END_IF
 		
@@ -465,7 +465,7 @@ CASE uiExecutingStep OF
 			END_IF
 		END_IF
 		IF tonAddBoxTimeOut.Q THEN
-			strStatus := 'RackPusher move forward timeout';
+			strStatus := 'FB_AddBoxes_v2 Step 300: RackPusher move forward timeout';
 			uiResumeStep:=300;
             _Abort := TRUE;
 		END_IF
@@ -497,7 +497,7 @@ CASE uiExecutingStep OF
 		
 		
 		IF tonAddBoxTimeOut.Q THEN
-			strStatus := 'RackPusher move back timeout';
+			strStatus := 'FB_AddBoxes_v2 Step 500: RackPusher move back timeout';
 			uiResumeStep:=400;
             _Abort := TRUE;
 		END_IF
@@ -518,7 +518,7 @@ CASE uiExecutingStep OF
 			uiExecutingStep:=1000;
 		END_IF
  		IF tonAddBoxTimeOut.Q THEN
-			strStatus := 'RackPusher move back timeout';
+			strStatus := 'FB_AddBoxes_v2 Step 610: RackPusher move back timeout';
 			uiResumeStep:=400;
             _Abort := TRUE;
 		END_IF

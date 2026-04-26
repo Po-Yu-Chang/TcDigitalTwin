@@ -81,30 +81,30 @@ END_VAR]]></Declaration>
 	 //FeedIn/Out conveyor
 	 	IF UseA THEN	 
 			IF  (Info.A_Position<1 OR  Info.A_Position>3 )THEN
-				strStatus:='Wrong command ,Position A Not allow';
+				strStatus:='FB_RobotRegionMove_FeedInConveyor_V2: Wrong command ,Position A Not allow';
 				M_CheckCommand:=FALSE;
 				RETURN;	
 			ELSIF  Info.A_Position=3 AND Get THEN
-				strStatus:='Wrong command ,Can Not Get box from FeedOut conveyor ';
+				strStatus:='FB_RobotRegionMove_FeedInConveyor_V2: Wrong command ,Can Not Get box from FeedOut conveyor ';
 				M_CheckCommand:=FALSE;
 				RETURN;
 			ELSIF 	Info.A_Position <>3 AND NOT Get THEN
-				strStatus:='Wrong command ,Can Not Put box to FeedIn conveyor ';
+				strStatus:='FB_RobotRegionMove_FeedInConveyor_V2: Wrong command ,Can Not Put box to FeedIn conveyor ';
 				M_CheckCommand:=FALSE;
 				RETURN;				
 			END_IF
 		END_IF
 		
 		IF UseB AND ( Info.B_Position<1 OR  Info.B_Position>3 )THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotRegionMove_FeedInConveyor_V2: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSIF UseB AND Info.B_Position=3 AND Get THEN
-			strStatus:='Wrong command ,Can Not Get box from FeedOut conveyor ';
+			strStatus:='FB_RobotRegionMove_FeedInConveyor_V2: Wrong command ,Can Not Get box from FeedOut conveyor ';
 			M_CheckCommand:=FALSE;
 			RETURN;		
 		ELSIF UseB AND Info.B_Position <>3 AND NOT Get THEN
-			strStatus:='Wrong command ,Can Not Put box to FeedIn conveyor ';
+			strStatus:='FB_RobotRegionMove_FeedInConveyor_V2: Wrong command ,Can Not Put box to FeedIn conveyor ';
 			M_CheckCommand:=FALSE;
 			RETURN;		
 		END_IF
@@ -296,7 +296,7 @@ _Executed       := FALSE;
 tonDelay.IN := FALSE;
 bTimeOutIN:=FALSE;
 bRobotTimeOutIN := FALSE;
-strStatus :='No Error';
+strStatus :='FB_RobotRegionMove_FeedInConveyor_V2: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 uiBothStep			:= 0; 
 uiSingleClampStep 	:= 0;
@@ -558,7 +558,7 @@ CASE uiExecutingStep OF
 					uiExecutingStep := 21000;
 				ELSE
 					_Error	  := TRUE;
-					strStatus := ' FB_RobotRegionMove_FeedInConveyor_V2 Step 20000: BClamp is open';
+					strStatus := 'FB_RobotRegionMove_FeedInConveyor_V2 Step 20000: BClamp is open';
 				END_IF
 			END_IF
 		
@@ -1004,7 +1004,7 @@ CASE uiExecutingStep OF
 			END_IF		
 					
     99000: 	  // process done
-          Status    := 'Process completed';
+          Status    := 'FB_RobotRegionMove_FeedInConveyor_V2 Step 99000: Process completed';
       	  _Executed := TRUE;
 		  uiBothStep:= 0; //Edited by Jidien Kachu in 2025/10/14
 		  uiSingleClampStep := 0;//Edited by Jidien Kachu in 2025/10/14

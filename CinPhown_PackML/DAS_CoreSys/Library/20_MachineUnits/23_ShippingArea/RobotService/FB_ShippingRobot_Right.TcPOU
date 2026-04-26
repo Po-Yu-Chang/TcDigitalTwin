@@ -55,26 +55,26 @@ UseB := Info.UseB;
 //Buffer area
 		
 IF UseA AND ( Info.A_Position<1 OR  Info.A_Position>40) THEN
-	strStatus:='Wrong command ,Position A Not allow';
+	strStatus:='FB_ShippingRobot_Right: Wrong command ,Position A Not allow';
 	M_CheckCommand:=FALSE;
 	RETURN;			
 END_IF		
 
 IF UseB AND( Info.B_Position<1 OR  Info.B_Position>40 )THEN
-	strStatus:='Wrong command ,Position B Not allow';
+	strStatus:='FB_ShippingRobot_Right: Wrong command ,Position B Not allow';
 	M_CheckCommand:=FALSE;
 	RETURN;			
 END_IF
 		
 IF Get THEN
 	IF NOT Robot._DI1.ClampA_Open THEN
-		strStatus := 'Get command , clamp have box ';
+		strStatus := 'FB_ShippingRobot_Right: Get command , clamp have box ';
 		M_CheckCommand := FALSE;
 		RETURN;
 	END_IF
 ELSE
 	IF Robot._DI1.ClampA_Open THEN 
-		strStatus := 'Place command , clamp not have box ';
+		strStatus := 'FB_ShippingRobot_Right: Place command , clamp not have box ';
 		M_CheckCommand := FALSE;
 		RETURN;
 	END_IF
@@ -187,7 +187,7 @@ _Executed       := FALSE;
 bCompleteRequest := false;
 TON_BlinkDelay.IN := FALSE;
 tonTimeOut.IN:=FALSE;
-strStatus :='No Error';
+strStatus :='FB_ShippingRobot_Right: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 PreviousStrStatus			 :='';
 PreviousErrorCode			 :='';
@@ -197,7 +197,7 @@ _UniqueErrorCode	:='0';
 IF Execute AND bTransCVInPosition THEN
     eState := STATE_EXECUTING;
 ELSE
-	strStatus :='Wrong command ,TransCV not In Position ';
+	strStatus :='FB_ShippingRobot_Right: Wrong command ,TransCV not In Position ';
 	_ERROR := TRUE;
 END_IF]]></ST>
       </Implementation>
@@ -307,13 +307,13 @@ CASE uiExecutingStep OF
 		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
 			tonTimeOut.IN:=FALSE;			
-			strStatus :='Action Robot timeout';
+			strStatus :='FB_ShippingRobot_Right Step 10000: Action Robot timeout';
 			_Abort:=TRUE;
 			uiResettingStep := 10000;
 		END_IF	
 		IF Robot.Error THEN
 			_Abort := TRUE;
-			strStatus := 'FB_ShippingRobot place box to right Plate , Robot Error';
+			strStatus := 'FB_ShippingRobot_Right Step 10000: FB_ShippingRobot place box to right Plate , Robot Error';
 			uiResettingStep := 10000;
 		END_IF
 		
@@ -325,10 +325,10 @@ CASE uiExecutingStep OF
             uiExecutingStep := 90000; 
         END_IF
     	IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Reset Robot timeout';
+			strStatus :='FB_ShippingRobot_Right Step 10080: Reset Robot timeout';
 			uiResettingStep := 10080;
 			_Abort:=TRUE;
-		END_IF	
+		END_IF
     
    20000: // Only ClampB
         IF NOT Robot._DI1.Done THEN           		
@@ -348,10 +348,10 @@ CASE uiExecutingStep OF
         END_IF
 		tonTimeOut.IN:=TRUE;
 			IF tonTimeOut.Q=TRUE THEN
-				tonTimeOut.IN:=FALSE;			
-				strStatus :='Reset Robot timeout';
+				tonTimeOut.IN:=FALSE;
+				strStatus :='FB_ShippingRobot_Right Step 20000: Reset Robot timeout';
 				_Error:=TRUE;
-			END_IF	
+			END_IF
     20080:
        Robot.M_ResetRobotAbsMove(UseA,UseB);; // Clear command 
 
@@ -360,9 +360,9 @@ CASE uiExecutingStep OF
         END_IF
 		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Reset Robot timeout';
+			strStatus :='FB_ShippingRobot_Right Step 20080: Reset Robot timeout';
 			_Error:=TRUE;
-		END_IF	
+		END_IF
     30000: // Both Clamps
         		
 		
@@ -409,10 +409,10 @@ CASE uiExecutingStep OF
             uiExecutingStep := 30080;
         END_IF
 		IF tonTimeOut.Q=TRUE THEN
-				tonTimeOut.IN:=FALSE;			
-				strStatus :='Reset Robot timeout';
+				tonTimeOut.IN:=FALSE;
+				strStatus :='FB_ShippingRobot_Right Step 30000: Reset Robot timeout';
 				_Error:=TRUE;
-			END_IF	
+			END_IF
     30080: // Check robot command is clear
         
         Robot.M_ResetRobotAbsMove(UseA,UseB);
@@ -423,9 +423,9 @@ CASE uiExecutingStep OF
         END_IF    
    		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='Stop Robot timeout';
+			strStatus :='FB_ShippingRobot_Right Step 30080: Stop Robot timeout';
 			_Error:=TRUE;
-		END_IF	
+		END_IF
    
 	90000:
 			IF bCompleteRequest THEN
@@ -456,7 +456,7 @@ CASE uiExecutingStep OF
 		
     99000: // process done
 		TON_BlinkDelay.IN := FALSE;
-        Status    := 'Process completed';
+        Status    := 'FB_ShippingRobot_Right Step 99000: Process completed';
         _Executed := TRUE;
 END_CASE
 

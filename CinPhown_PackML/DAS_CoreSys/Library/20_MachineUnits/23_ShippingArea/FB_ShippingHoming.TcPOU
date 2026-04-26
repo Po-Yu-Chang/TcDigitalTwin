@@ -257,21 +257,21 @@ END_VAR]]></Declaration>
     0:
         M_GetErrorMsg := 'No Error';
     1:
-        M_GetErrorMsg := 'Action time out';
+        M_GetErrorMsg := 'FB_ShippingHoming ErrorID 1: Action time out';
     2:
-        M_GetErrorMsg := 'Cylinder not ready';
+        M_GetErrorMsg := 'FB_ShippingHoming ErrorID 2: Cylinder not ready';
     3:
-        M_GetErrorMsg := 'Motor not ready';
+        M_GetErrorMsg := 'FB_ShippingHoming ErrorID 3: Motor not ready';
     4:
-		M_GetErrorMsg := 'FanucRobot can not homing';
+		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 4: FanucRobot can not homing';
 	10:
-		M_GetErrorMsg := 'Shipping FanucRobot FeedOut to SameSizeConveyor not busy';
+		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 10: Shipping FanucRobot FeedOut to SameSizeConveyor not busy';
 	11:
-		M_GetErrorMsg := 'Shipping FanucRobot FeedOut to SameSizeConveyor Done Timeout';
+		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 11: Shipping FanucRobot FeedOut to SameSizeConveyor Done Timeout';
 	20:
-		M_GetErrorMsg := 'Occupid , AutoMode_ShippingRobot_TransmitCVEnd in Executing ';
+		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 20: Occupid , AutoMode_ShippingRobot_TransmitCVEnd in Executing ';
 	30:
-		M_GetErrorMsg := 'Reboot ShippingArea FanucRobot Connect TimeOut';
+		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 30: Reboot ShippingArea FanucRobot Connect TimeOut';
 
 END_CASE]]></ST>
       </Implementation>

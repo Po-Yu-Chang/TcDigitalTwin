@@ -139,7 +139,7 @@ END_VAR
         <ST><![CDATA[_Executed:=FALSE;
 _Error	:=FALSE;
 _Abort :=FALSE;
-strStatus :='No Error';
+strStatus :='FB_DiameterMovement: No Error';
 uiResettingStep:=0;
 uiExecutingStep :=0;
 tonDiameterTimeoutTwo.IN:=FALSE;
@@ -237,7 +237,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterVert MoveForward Timeout';
+		strStatus:='FB_DiameterMovement Step 1100: Cylinder.List.fbUpCV_DiameterVert MoveForward Timeout';
 	END_IF
 	
 1200: // Clamp close
@@ -252,7 +252,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterClamp M_Extend Timeout';
+		strStatus:='FB_DiameterMovement Step 1300: Cylinder.List.fbUpCV_DiameterClamp M_Extend Timeout';
 	END_IF
 1400 : //Clamp up
 	Cylinder.List.fbUpCV_DiameterVert.M_Retract();
@@ -266,7 +266,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
+		strStatus:='FB_DiameterMovement Step 1500: Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
 	END_IF
 1600: //Move horizontal
 	Cylinder.List.fbUpCV_DiameterHoriz.M_Extend();
@@ -280,7 +280,7 @@ CASE uiExecutingStep OF
 	END_IF
 		IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterHoriz M_Extend Timeout';
+		strStatus:='FB_DiameterMovement Step 1700: Cylinder.List.fbUpCV_DiameterHoriz M_Extend Timeout';
 	END_IF
 
 1800://Move down to diameter camera position
@@ -292,10 +292,10 @@ CASE uiExecutingStep OF
 	IF 	Cylinder.List.fbUpCV_DiameterVert.InFrontPosition THEN
 		tonDiameterTimeoutTwo.IN :=FALSE;
 		uiExecutingStep:=2000;
-	END_IF	
+	END_IF
 	IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Extend Timeout';
+		strStatus:='FB_DiameterMovement Step 1900: Cylinder.List.fbUpCV_DiameterVert M_Extend Timeout';
 	END_IF
 
 2000: 
@@ -317,7 +317,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
+		strStatus:='FB_DiameterMovement Step 5100: Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
 	END_IF
 	
 5200: 
@@ -332,7 +332,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterHoriz M_Retract Timeout';
+		strStatus:='FB_DiameterMovement Step 5300: Cylinder.List.fbUpCV_DiameterHoriz M_Retract Timeout';
 		END_IF
 5400 : 
 		Cylinder.List.fbUpCV_DiameterVert.M_Extend();
@@ -346,7 +346,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Extend Timeout';
+		strStatus:='FB_DiameterMovement Step 5500: Cylinder.List.fbUpCV_DiameterVert M_Extend Timeout';
 		END_IF
 5600: 
 		Cylinder.List.fbUpCV_DiameterClamp.M_Retract();
@@ -359,7 +359,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterClamp M_Retract Timeout';
+		strStatus:='FB_DiameterMovement Step 5700: Cylinder.List.fbUpCV_DiameterClamp M_Retract Timeout';
 		END_IF
 5800:
 		Cylinder.List.fbUpCV_DiameterVert.M_Retract();
@@ -372,7 +372,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonDiameterTimeoutTwo.Q THEN
 		_Error :=TRUE;
-		strStatus:='Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
+		strStatus:='FB_DiameterMovement Step 5900: Cylinder.List.fbUpCV_DiameterVert M_Retract Timeout';
 		END_IF
 6000:
 		_Executed:= TRUE;

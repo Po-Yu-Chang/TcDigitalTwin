@@ -207,7 +207,7 @@ END_VAR]]></Declaration>
 	0:
 		M_GetErrorMsg := 'No Error';
 	1:
-		M_GetErrorMsg := 'Action time out';
+		M_GetErrorMsg := 'FB_AllocateAreaHome ErrorID 1: Action time out';
 //	2:
 //		M_GetErrorMsg := 'Position Data invalid';
 //	3:

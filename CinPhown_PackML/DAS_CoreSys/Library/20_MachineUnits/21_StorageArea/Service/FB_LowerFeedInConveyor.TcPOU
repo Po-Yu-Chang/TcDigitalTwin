@@ -224,27 +224,27 @@ END_VAR]]></Declaration>
 	0:
 		M_GetErrorMsg := 'No Error';
 	1:
-		M_GetErrorMsg := 'Action time out';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 1: Action time out';
 	2:
-		M_GetErrorMsg := 'Position Data invalid';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 2: Position Data invalid';
 	3:
-		M_GetErrorMsg := 'LowCV_Block1 has Error in StartAction ';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 3: LowCV_Block1 has Error in StartAction ';
 	4:
-		M_GetErrorMsg := 'LowCV_Block2 has Error in StartAction';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 4: LowCV_Block2 has Error in StartAction';
 	5:
-		M_GetErrorMsg := 'LowCV_Press1 has Error in StartAction';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 5: LowCV_Press1 has Error in StartAction';
 	6:
-		M_GetErrorMsg := 'LowCV_Press2 has Error in StartAction';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 6: LowCV_Press2 has Error in StartAction';
 	7:
-		M_GetErrorMsg := 'fbLowCV_Press3 has Error in StartAction';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 7: fbLowCV_Press3 has Error in StartAction';
 	8:
-		M_GetErrorMsg := 'fbLowCV_Press4 has Error in StartAction';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 8: fbLowCV_Press4 has Error in StartAction';
 	9:
-		M_GetErrorMsg := 'Box Arrived Time out not on LowCVBlock2' ;
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 9: Box Arrived Time out not on LowCVBlock2' ;
 	10:
-		M_GetErrorMsg := 'Cylinder Error in CyclicAction';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 10: Cylinder Error in CyclicAction';
 	11:
-		M_GetErrorMsg := 'Motor Error in CyclicAction';
+		M_GetErrorMsg := 'FB_LowerFeedInConveyor ErrorID 11: Motor Error in CyclicAction';
 									
 		
 		

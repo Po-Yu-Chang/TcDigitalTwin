@@ -273,30 +273,30 @@ END_VAR]]></Declaration>
 	0:
 		M_GetErrorMsg := 'No Error';
 	1:
-		M_GetErrorMsg := 'Action time out';
+		M_GetErrorMsg := 'FB_DifferentCVCamera ErrorID 1: Action time out';
 	2:
-		M_GetErrorMsg := 'Position Data invalid';
+		M_GetErrorMsg := 'FB_DifferentCVCamera ErrorID 2: Position Data invalid';
 	3:
-		M_GetErrorMsg := 'Block1 cylinder not ready';
+		M_GetErrorMsg := 'FB_DifferentCVCamera ErrorID 3: Block1 cylinder not ready';
 	4:
-		M_GetErrorMsg := 'Press1 cylinder not ready';
+		M_GetErrorMsg := 'FB_DifferentCVCamera ErrorID 4: Press1 cylinder not ready';
 	5:
-		M_GetErrorMsg := 'CamaraHoriz cylinder not ready';
+		M_GetErrorMsg := 'FB_DifferentCVCamera ErrorID 5: CamaraHoriz cylinder not ready';
 	6:
-		M_GetErrorMsg := 'DifferentCV not ready ';
+		M_GetErrorMsg := 'FB_DifferentCVCamera ErrorID 6: DifferentCV not ready ';
 	7:
-		M_GetErrorMsg := 'Cylinder timeout';
+		M_GetErrorMsg := 'FB_DifferentCVCamera ErrorID 7: Cylinder timeout';
 	8:
-		M_GetErrorMsg :='photo area have not box timeout';
+		M_GetErrorMsg :='FB_DifferentCVCamera ErrorID 8: photo area have not box timeout';
 	9:
-		M_GetErrorMsg :='motor & cylinder timeout';
+		M_GetErrorMsg :='FB_DifferentCVCamera ErrorID 9: motor & cylinder timeout';
 	10:
-		M_GetErrorMsg :='C# BoxCameraDone timeout';
+		M_GetErrorMsg :='FB_DifferentCVCamera ErrorID 10: C# BoxCameraDone timeout';
 	11:
-		M_GetErrorMsg :='Box cross sensor not detact timeout';
+		M_GetErrorMsg :='FB_DifferentCVCamera ErrorID 11: Box cross sensor not detact timeout';
 		
 	20:
-		M_GetErrorMsg :='Differnet conveyor full box infront';
+		M_GetErrorMsg :='FB_DifferentCVCamera ErrorID 20: Differnet conveyor full box infront';
 END_CASE]]></ST>
       </Implementation>
     </Method>

@@ -483,7 +483,7 @@ CASE uiExecutingStep OF
     0: // 初始化變數
 	// 非自動模式直接報錯 (避免軸控衝突)
 	IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-		strStatus := 'Not in Auto mode';
+		strStatus := 'FB_FeedInRoundBeltBoxToWareHouse Step 0: Not in Auto mode';
 		_UniqueErrorCode := 'E_NOT_AUTO_MODE';
 		_Error := TRUE;
 	ELSE
@@ -528,7 +528,7 @@ CASE uiExecutingStep OF
 			uiExecutingStep := 30000;  // 雙爪取盒
 		ELSE
 			_Abort := TRUE;
-			strStatus := 'Invalid Clamp Work Behavior at Step 1100';
+			strStatus := 'FB_FeedInRoundBeltBoxToWareHouse Step 1100: Invalid Clamp Work Behavior';
 			Error := TRUE;
 			uiResumeStep := 1100;
 		END_IF
@@ -1075,7 +1075,7 @@ CASE uiExecutingStep OF
 			IF tonTimeOut.Q THEN
 				uiResumeStep := 86000;
 				_Abort := TRUE;
-				strStatus := 'Step 86000: Robot reset wait timeout';
+				strStatus := 'FB_FeedInRoundBeltBoxToWareHouse Step 86000: Robot reset wait timeout';
 				_UniqueErrorCode := 'E_ROBOT_RESET_TIMEOUT';
 			END_IF
 		END_IF
@@ -1180,7 +1180,7 @@ CASE uiExecutingStep OF
 			IF tonTimeOut.Q THEN
 				uiResumeStep := 86030;
 				_Abort := TRUE;
-				strStatus := 'Step 86030: Robot reset wait timeout';
+				strStatus := 'FB_FeedInRoundBeltBoxToWareHouse Step 86030: Robot reset wait timeout';
 				_UniqueErrorCode := 'E_ROBOT_RESET_TIMEOUT';
 			END_IF
 		END_IF
@@ -1458,10 +1458,10 @@ CASE uiExecutingStep OF
 		// 非 HandshakeMode: 直接結束 (向後相容)
 		IF HandshakeMode THEN
 			FeedBack := TRUE;
-			Status := 'Process completed, waiting for C# ReadComplete';
+			Status := 'FB_FeedInRoundBeltBoxToWareHouse Step 99000: Process completed, waiting for C# ReadComplete';
 			uiExecutingStep := 99100;
 		ELSE
-			Status := 'Process completed';
+			Status := 'FB_FeedInRoundBeltBoxToWareHouse Step 99000: Process completed';
 			_Executed := TRUE;
 		END_IF
 
@@ -1474,12 +1474,12 @@ CASE uiExecutingStep OF
 		IF ReadComplete THEN
 			FeedBack := FALSE;
 			tonReadComplete(IN := FALSE);
-			Status := 'Process completed';
+			Status := 'FB_FeedInRoundBeltBoxToWareHouse Step 99100: Process completed';
 			_Executed := TRUE;
 		ELSIF tonReadComplete.Q THEN
 			// C# 讀取逾時 → Abort + resume 回 99100,Reset 後可續做
 			tonReadComplete(IN := FALSE);
-			strStatus := 'ReadComplete timeout (C# did not respond within 15s)';
+			strStatus := 'FB_FeedInRoundBeltBoxToWareHouse Step 99100: ReadComplete timeout (C# did not respond within 15s)';
 			_UniqueErrorCode := 'E_READ_COMPLETE_TIMEOUT';
 			uiResumeStep := 99100;
 			_Abort := TRUE;

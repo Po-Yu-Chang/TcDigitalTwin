@@ -194,7 +194,7 @@ CASE eState OF
 					uiRobotExecutingStep := 400;
 				ELSIF GVL_ADS.FanucRobot_ReadAllOffsetData.Status.Error THEN
 					_Error := TRUE;
-					_Status := 'Read All offset data failue';
+					_Status := 'FB_FanucRobot_Basic Step 300: Read All offset data failue';
 				END_IF
 			400:
                 _UI1.UI09_RSR1 := TRUE;
@@ -564,7 +564,7 @@ END_VAR]]></Declaration>
                     uiRobotExecutingStep := 400;
                 ELSIF Error OR Ton_SetProgTimeOut.Q THEN
                     _Error  := TRUE;
-                    _Status := 'RSR1 has error when RSR1 active.';
+                    _Status := 'FB_FanucRobot_Basic Step 300: RSR1 has error when RSR1 active.';
                 END_IF
             400:
                 // Close RSR1 command
@@ -585,7 +585,7 @@ END_VAR]]></Declaration>
                 ELSE
                     bCompleted := TRUE;
                 END_IF
-				_Status := 'Robot in Executing State';		//edit by min 20250913   
+				_Status := 'FB_FanucRobot_Basic Step 500: Robot in Executing State';		//edit by min 20250913
 				M_ManualService();
                 //_VelocityCommand.nInt                           := GVL_ADS.FanucRobot_General.Command.RobotVelocity;
                 _RSR1_Ready                                     := TRUE;
@@ -670,7 +670,7 @@ END_VAR]]></Declaration>
 
         IF _UO1.UO04_PrgPaused AND NOT _UO1.UO03_PrgRunning THEN
             Halt    := TRUE;
-            _Status := 'Robot in Halt State';
+            _Status := 'FB_FanucRobot_Basic: Robot in Halt State';
             eState  := E_MethodStatus_Basic.STATE_Held;
         END_IF
 		IF reset THEN
@@ -704,15 +704,15 @@ END_CASE
 
 IF Estop THEN
    // _Error  := TRUE;
-    _Status := 'EStop has been trigged.';
+    _Status := 'FB_FanucRobot_Basic: EStop has been trigged.';
 	eState  := E_MethodStatus_Basic.STATE_ERROR;
 ELSIF _UO1.UO08_TPEnabled THEN
     _Error  := TRUE;
-    _Status := 'TP has got contol';
+    _Status := 'FB_FanucRobot_Basic: TP has got contol';
 	eState  := E_MethodStatus_Basic.STATE_ERROR;
 ELSIF _UO1.UO09_BattAlarm THEN
     _Error  := TRUE;
-    _Status := 'Robot has Battary alarm';
+    _Status := 'FB_FanucRobot_Basic: Robot has Battary alarm';
 	eState  := E_MethodStatus_Basic.STATE_ERROR;
 END_IF]]></ST>
       </Implementation>
@@ -814,7 +814,7 @@ END_CASE
 IF Estop OR _UO1.UO08_TPEnabled THEN
 	eState := E_MethodStatus_Basic.STATE_ERROR;
 	_Error := TRUE;
-	_Status := 'EStop has been trigged.';
+	_Status := 'FB_FanucRobot_Basic: EStop has been trigged.';
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -924,7 +924,7 @@ CASE eState OF
                     uiRobotExecutingStep := 400;
 				ELSIF Error THEN
 					_Error := TRUE;
-					_Status:='RSR3 has error when RSR3 active.';
+					_Status:='FB_FanucRobot_Basic Step 300: RSR3 has error when RSR3 active.';
                 END_IF
 			400:
 				// Allow Read / Write offset data
@@ -961,7 +961,7 @@ END_CASE
 IF Estop OR _UO1.UO08_TPEnabled THEN
 	eState := E_MethodStatus_Basic.STATE_ERROR;
 	_Error := TRUE;
-	_Status := 'EStop has been trigged.';
+	_Status := 'FB_FanucRobot_Basic: EStop has been trigged.';
 END_IF]]></ST>
       </Implementation>
     </Method>

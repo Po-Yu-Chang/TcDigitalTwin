@@ -577,7 +577,7 @@ CASE uiExecutingStep OF
 0:
 	// 非自動模式直接報錯 (避免軸控衝突)
 	IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-		strStatus := 'Not in Auto mode';
+		strStatus := 'FB_WareHouseInnerPickToRoundBelt Step 0: Not in Auto mode';
 		_UniqueErrorCode := 'E_NOT_AUTO_MODE';
 		_Error := TRUE;
 	ELSE
@@ -591,7 +591,7 @@ CASE uiExecutingStep OF
 		IF M_CheckCommand() THEN
 			uiExecutingStep := 5;
 		ELSE
-			strStatus := 'Invalid command';
+			strStatus := 'FB_WareHouseInnerPickToRoundBelt Step 0: Invalid command';
 			_Error := TRUE;
 		END_IF
 	END_IF
@@ -2153,7 +2153,7 @@ CASE uiExecutingStep OF
 	IF RoundBelt.xError THEN
 		_Error := TRUE;
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
-		strStatus := 'RoundBelt error';
+		strStatus := 'FB_WareHouseInnerPickToRoundBelt Step 60100: RoundBelt error';
 	END_IF
 	tonTimeOut.IN := TRUE;
 	IF tonTimeOut.Q THEN uiResumeStep := 60100; _Abort := TRUE; tonTimeOut.IN := FALSE; END_IF
@@ -2238,7 +2238,7 @@ CASE uiExecutingStep OF
 		IF RoundBelt.xError THEN
 			_Error := TRUE;
 			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
-			strStatus := 'RoundBelt error';
+			strStatus := 'FB_WareHouseInnerPickToRoundBelt Step 81000: RoundBelt error';
 		END_IF
 	11:
 		// 等待 A 爪對應的載具 sensor 偵測到位 (確認載具已在手臂放盒範圍內)
@@ -2273,7 +2273,7 @@ CASE uiExecutingStep OF
 		IF RoundBelt.xError THEN
 			_Error := TRUE;
 			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
-			strStatus := 'RoundBelt error';
+			strStatus := 'FB_WareHouseInnerPickToRoundBelt Step 81000: RoundBelt error';
 		END_IF
 	99: // 圓帶側完成，等待手臂側 Done
 	END_CASE
@@ -2530,12 +2530,12 @@ CASE uiExecutingStep OF
 	IF ReadComplete THEN
 		FeedBack := FALSE;
 		tonReadComplete.IN := FALSE;
-		Status := 'Process completed';
+		Status := 'FB_WareHouseInnerPickToRoundBelt Step 99100: Process completed';
 		_Executed := TRUE;
 	ELSIF tonReadComplete.Q THEN
 		// C# 讀取逾時 → Abort + 設 resume 回 99100，Reset 後可續做
 		tonReadComplete.IN := FALSE;
-		strStatus := 'ReadComplete timeout (C# did not respond within 5s)';
+		strStatus := 'FB_WareHouseInnerPickToRoundBelt Step 99100: ReadComplete timeout (C# did not respond within 5s)';
 		_UniqueErrorCode := 'E_READ_COMPLETE_TIMEOUT';
 		uiResumeStep := 99100;
 		_Abort := TRUE;

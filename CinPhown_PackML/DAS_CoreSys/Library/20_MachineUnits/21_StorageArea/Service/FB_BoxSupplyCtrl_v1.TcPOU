@@ -287,7 +287,7 @@ Status          := '';
 _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
-strStatus :='No Error';
+strStatus :='FB_BoxSupplyCtrl_v1: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 
 IF Execute THEN
@@ -434,7 +434,7 @@ CASE ExcutingStep OF
 			END_IF
 			IF tonBtnCtrl.Q THEN
 				_Error:= TRUE;
-				StrStatus :='Cylinder MoveBackward timeout';
+				StrStatus :='FB_BoxSupplyCtrl_v1 Step 5: Cylinder MoveBackward timeout';
 			END_IF
 		10:	// Rackmotor move to station 0
 			tonBtnMotorCtrl.IN :=TRUE;
@@ -444,7 +444,7 @@ CASE ExcutingStep OF
 			END_IF
 			IF tonBtnMotorCtrl.Q THEN
 				_Error :=TRUE;
-				StrStatus :='RackMotor MoveToStation timeout';
+				StrStatus :='FB_BoxSupplyCtrl_v1 Step 10: RackMotor MoveToStation timeout';
 			END_IF
 		20:	// check currentstation 
 			tonBtnMotorCtrl.IN :=TRUE;
@@ -457,7 +457,7 @@ CASE ExcutingStep OF
 			END_IF
 			IF tonBtnMotorCtrl.Q THEN
 				_Error :=TRUE;
-				StrStatus :='RackMotor currentStation timeout';
+				StrStatus :='FB_BoxSupplyCtrl_v1 Step 20: RackMotor currentStation timeout';
 			END_IF
 		30:
 			ExcutingStep := E_RackState.FeedBox;

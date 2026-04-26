@@ -259,7 +259,7 @@ _AbortCompleted		:= FALSE;
 IF Execute AND NOT Stop THEN
 	// 啟動前檢查
 	IF NOT bBoxA_Enable AND NOT bBoxB_Enable THEN
-		strStatus := 'No box enabled';
+		strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse: No box enabled';
 		_UniqueErrorCode := 'E_NO_BOX';
 		_Abort := TRUE;
 		RETURN;
@@ -418,7 +418,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_TimeOut.Q OR StorageRobot.Error THEN
 				uiResumeStep := uiExecutingStep;
-				strStatus := 'Robot pick first box timeout';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 2000: Robot pick first box timeout';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -528,7 +528,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_TimeOut.Q OR StorageRobot.Error THEN
 				uiResumeStep := uiExecutingStep;
-				strStatus := 'Robot pick second box timeout';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 4000: Robot pick second box timeout';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -559,7 +559,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_RobotResetTimeOut.Q THEN
 				uiResumeStep := 5000;
-				strStatus := 'Robot reset timeout (phase 5)';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5000: Robot reset timeout (phase 5)';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -595,7 +595,7 @@ CASE uiExecutingStep OF
 					BoxReady_1st := bBoxReady);
 			ELSE
 				uiResumeStep := 5200;
-				strStatus := 'Invalid BoxA warehouse value';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5200: Invalid BoxA warehouse value';
 				_UniqueErrorCode := 'E_INVALID_WAREHOUSE';
 				_Abort := TRUE;
 				RETURN;
@@ -607,7 +607,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_TimeOut.Q OR StorageRobot.Error THEN
 				uiResumeStep := 5200;
-				strStatus := 'ClampA place to warehouse timeout';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5200: ClampA place to warehouse timeout';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -630,7 +630,7 @@ CASE uiExecutingStep OF
 			IF NGRegionMove.Error OR NGRegionMove.Aborted THEN
 				NGRegionMove.Execute := FALSE;
 				uiResumeStep := 5300;
-				strStatus := 'ClampA NG region move failed';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5300: ClampA NG region move failed';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -670,7 +670,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_RobotResetTimeOut.Q THEN
 				uiResumeStep := 6000;
-				strStatus := 'Robot reset timeout (phase 6)';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6000: Robot reset timeout (phase 6)';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -706,7 +706,7 @@ CASE uiExecutingStep OF
 					BoxReady_2nd := bBoxReady);
 			ELSE
 				uiResumeStep := 6200;
-				strStatus := 'Invalid BoxB warehouse value';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6200: Invalid BoxB warehouse value';
 				_UniqueErrorCode := 'E_INVALID_WAREHOUSE';
 				_Abort := TRUE;
 				RETURN;
@@ -718,7 +718,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_TimeOut.Q OR StorageRobot.Error THEN
 				uiResumeStep := 6200;
-				strStatus := 'ClampB place to warehouse timeout';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6200: ClampB place to warehouse timeout';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -741,7 +741,7 @@ CASE uiExecutingStep OF
 			IF NGRegionMove.Error OR NGRegionMove.Aborted THEN
 				NGRegionMove.Execute := FALSE;
 				uiResumeStep := 6300;
-				strStatus := 'ClampB NG region move failed';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6300: ClampB NG region move failed';
 				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
 				_Abort := TRUE;
 			END_IF
@@ -774,7 +774,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF TON_TimeOut.Q THEN
 				uiResumeStep := uiExecutingStep;
-				strStatus := 'Mechanism reset timeout';
+				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 9100: Mechanism reset timeout';
 				_UniqueErrorCode := 'E_CYL_TIMEOUT';
 				_Abort := TRUE;
 			END_IF

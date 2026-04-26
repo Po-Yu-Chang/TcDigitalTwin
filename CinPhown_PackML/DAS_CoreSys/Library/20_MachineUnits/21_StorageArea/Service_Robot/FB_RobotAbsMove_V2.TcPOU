@@ -88,7 +88,7 @@ END_VAR
 
 IF NOT UseA AND NOT UseB THEN
 	M_CheckClampStatus 	:= FALSE;
-	strStatus 			:= 'FB_RobotAbsMove_V2 ,Wrong Command , Both Clammp not used';
+	strStatus 			:= 'FB_RobotAbsMove_V2: Wrong Command , Both Clammp not used';
 	RETURN;
 END_IF
 
@@ -96,13 +96,13 @@ IF UseA THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotAbsMove_V2 ,Robot Use A Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotAbsMove_V2: Robot Use A Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotAbsMove_V2 ,Robot Use A Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotAbsMove_V2: Robot Use A Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -111,13 +111,13 @@ IF UseB THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotAbsMove_V2 ,Robot Use B Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotAbsMove_V2: Robot Use B Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotAbsMove_V2 ,Robot Use B Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotAbsMove_V2: Robot Use B Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -138,7 +138,7 @@ END_VAR]]></Declaration>
 
 
 IF Info.A_Get <> Info.B_Get THEN
-	strStatus:='Wrong command ,GetA not match to GetB';
+	strStatus:='FB_RobotAbsMove_V2: Wrong command ,GetA not match to GetB';
 	M_CheckCommand:=FALSE;
 	RETURN;
 ELSE		
@@ -147,14 +147,14 @@ END_IF
 
 IF Info.A_Area<> Info.B_Area THEN
 	IF NOT(Info.A_Area=99 OR Info.B_Area=99) THEN
-	strStatus:='Wrong command ,Area A not match to Area B';
+	strStatus:='FB_RobotAbsMove_V2: Wrong command ,Area A not match to Area B';
 	M_CheckCommand:=FALSE;
 	RETURN;
 END_IF
 END_IF
 
 IF Info.A_Area = 99 AND Info.B_Area = 99 THEN
-	strStatus:='Wrong command ,Both Area are 99';
+	strStatus:='FB_RobotAbsMove_V2: Wrong command ,Both Area are 99';
 	M_CheckCommand:=FALSE;
 	RETURN;
 END_IF
@@ -162,7 +162,7 @@ END_IF
 CASE LREAL_TO_INT(Info.A_Area) OF
 	1 : //Normal command : RoundBelt
 		IF Info.A_Position<1 OR  Info.A_Position>3 THEN
-			strStatus:='Wrong command ,Position A Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -172,7 +172,7 @@ CASE LREAL_TO_INT(Info.A_Area) OF
 		
 	2:	//Buffer area
 		IF Info.A_Position<1 OR  Info.A_Position>40 THEN
-			strStatus:='Wrong command ,Position A Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -181,7 +181,7 @@ CASE LREAL_TO_INT(Info.A_Area) OF
 		END_IF
 	3: //Allocated/Empty conveyor
 		IF Info.A_Position<1 OR  Info.A_Position>2 THEN
-			strStatus:='Wrong command ,Position A Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -190,11 +190,11 @@ CASE LREAL_TO_INT(Info.A_Area) OF
 		END_IF
 	5: //FeedIn/Out conveyor
 		IF Info.A_Position<1 OR  Info.A_Position>5 THEN
-			strStatus:='Wrong command ,Position A Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSIF Info.A_Position=3 AND Get THEN
-			strStatus:='Wrong command ,Can Not Get box from FeedOut conveyor ';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Can Not Get box from FeedOut conveyor ';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -203,7 +203,7 @@ CASE LREAL_TO_INT(Info.A_Area) OF
 		END_IF
 	7: // PullOut conveyor
 		IF Info.A_Position<1 OR  Info.A_Position>2 THEN
-			strStatus:='Wrong command ,Position A Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -215,7 +215,7 @@ CASE LREAL_TO_INT(Info.A_Area) OF
 		UseA :=FALSE;
 	
 	ELSE //Wrong command
-		strStatus:='Wrong command ,Area_A not allow ';
+		strStatus:='FB_RobotAbsMove_V2: Wrong command ,Area_A not allow ';
 		M_CheckCommand:=FALSE;
 		RETURN;
 
@@ -224,7 +224,7 @@ END_CASE
 CASE LREAL_TO_INT(Info.B_Area) OF
 	1 : //Normal command : RoundBelt
 		IF Info.B_Position<1 OR  Info.B_Position>3 THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -234,7 +234,7 @@ CASE LREAL_TO_INT(Info.B_Area) OF
 		
 	2:	
 		IF Info.B_Position<1 OR  Info.B_Position>40 THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -243,7 +243,7 @@ CASE LREAL_TO_INT(Info.B_Area) OF
 		END_IF
 	3:
 		IF Info.B_Position<1 OR  Info.B_Position>2 THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -252,7 +252,7 @@ CASE LREAL_TO_INT(Info.B_Area) OF
 		END_IF
 	5:
 		IF Info.B_Position<1 OR  Info.B_Position>5 THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -261,11 +261,11 @@ CASE LREAL_TO_INT(Info.B_Area) OF
 		END_IF
 	7:
 		IF Info.B_Position<1 OR  Info.B_Position>2 THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSIF Info.B_Position=3 AND Get THEN
-			strStatus:='Wrong command ,Can Not Get box from FeedOut conveyor ';
+			strStatus:='FB_RobotAbsMove_V2: Wrong command ,Can Not Get box from FeedOut conveyor ';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 		ELSE
@@ -277,7 +277,7 @@ CASE LREAL_TO_INT(Info.B_Area) OF
 		UseB :=FALSE;
 	
 	ELSE //Wrong command
-		strStatus:='Wrong command ,Area_B not allow ';
+		strStatus:='FB_RobotAbsMove_V2: Wrong command ,Area_B not allow ';
 		M_CheckCommand:=FALSE;
 		RETURN;
 
@@ -430,7 +430,7 @@ _Error          := FALSE;
 _Executed       := FALSE;
 tonDelay.IN := FALSE	;
 bTimeOutIN:=FALSE;
-strStatus :='No Error';
+strStatus :='FB_RobotAbsMove_V2: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 AClampMoveDone	:= FALSE;
 BClampMoveDone	:= FALSE;
@@ -1064,7 +1064,7 @@ CASE uiExecutingStep OF
 			END_IF
    
     99000: // process done
-        Status    := 'Process completed';
+        Status    := 'FB_RobotAbsMove_V2 Step 99000: Process completed';
 		Cylinder.List.fbLowCV_Block1.M_Retract();
 		Cylinder.List.fbLowCV_Press4.M_Retract();
 		IF Cylinder.List.fbLowCV_Block1.InRearPosition AND 

@@ -127,7 +127,7 @@ CASE uiExecutingStep OF
 			END_IF
 	9900:
 			Buzz := BuzzBilnker.OUT AND BuzzBilnker.ENABLE;
-			strStatus := 'Process done ';
+			strStatus := 'FB_BuzzCtrl Step 9900: Process done ';
 			_Executed := TRUE;
 	
 END_CASE

@@ -171,7 +171,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF Ton_BoxMoveForward.Q THEN
 			_Error :=TRUE;
-			Status :='Storage Cabinet MoveBackward motor timeout';
+			Status :='FB_FeedInBox Step 10: Storage Cabinet MoveBackward motor timeout';
 		END_IF
 	15:	//Motor First reverse  then stop motor 
 		tonFirstReserveTime.IN := TRUE;
@@ -192,7 +192,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF Ton_BoxMoveForward.Q THEN
 			_Error :=TRUE;
-			Status :='Storage Cabinet MoveForward motor timeout';
+			Status :='FB_FeedInBox Step 20: Storage Cabinet MoveForward motor timeout';
 		END_IF
 		
 	25:	//Motor second MoveForward  then stop motor
@@ -214,7 +214,7 @@ CASE uiExecutingStep OF
 			uiExecutingStep :=50;
 		ELSE
 			_Error :=TRUE;
-			Status :='Storage Cabinet Layer full box inside ,plaease remove box ';
+			Status :='FB_FeedInBox Step 30: Storage Cabinet Layer full box inside ,plaease remove box ';
 		END_IF	
 		
 	50:
@@ -226,7 +226,7 @@ CASE uiExecutingStep OF
 		END_IF		
 		IF  Ton_BoxMoveForward.Q THEN
 		  _Error := TRUE;
-           Status := 'Move motor timeout';
+           Status := 'FB_FeedInBox Step 50: Move motor timeout';
 		END_IF
 		
     100: // Wait box arrived

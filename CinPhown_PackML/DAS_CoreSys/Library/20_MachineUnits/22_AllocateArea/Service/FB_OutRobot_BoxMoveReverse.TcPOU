@@ -136,7 +136,7 @@ IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibA THEN
 	5,6:
 		PlacingPos[0] :=FUN_GetPositionTableData('I',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA,0);
 	ELSE
-		strStatus :='Wrong command: Clip A target not allow';
+		strStatus :='FB_OutRobot_BoxMoveReverse: Wrong command: Clip A target not allow';
 		M_GetWorkingConditions := FALSE;
 		RETURN;
 	END_CASE
@@ -152,7 +152,7 @@ IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibB THEN
 	5,6 :
 		PlacingPos[1] :=FUN_GetPositionTableData('I',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA,1);
 	ELSE
-		strStatus :='Wrong command: Clip B target not allow';	
+		strStatus :='FB_OutRobot_BoxMoveReverse: Wrong command: Clip B target not allow';
 		M_GetWorkingConditions := FALSE;
 		RETURN;
 	END_CASE
@@ -310,7 +310,7 @@ Status          := '';
 _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
-strStatus :='No Error';
+strStatus :='FB_OutRobot_BoxMoveReverse: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 tonTimeOut.IN :=TRUE;
 _UniqueErrorCode:='0';
@@ -417,7 +417,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Error := TRUE;
-		strStatus :='Move Robot to picking position timeout';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 1100: Move Robot to picking position timeout';
 	END_IF
 1200: //Clip Down Pick	  
 	bCylinderCheck := TRUE;
@@ -436,7 +436,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort := TRUE;
-		strStatus :='Cylinder pick down timeout';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 1200: Cylinder pick down timeout';
 	END_IF
 	
 1300: // Clip close Pick
@@ -456,7 +456,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort := TRUE;
-		strStatus :='Clip pick close timeout';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 1300: Clip pick close timeout';
 	END_IF
 	
 1400: // Clip Up Pick
@@ -476,7 +476,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort := TRUE;
-		strStatus :='Cylinder pick up timeout';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 1400: Cylinder pick up timeout';
 	END_IF
 	
 1500: // If Next pick
@@ -524,7 +524,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Error := TRUE;
-		strStatus :='Move Robot to placing position time out';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 2100: Move Robot to placing position time out';
 	END_IF
 	
 2150 : //Motor stop
@@ -554,7 +554,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort := TRUE;
-		strStatus :='Cylinder place down timeout';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 2200: Cylinder place down timeout';
 	END_IF
 	
 2300: // Clip open Place
@@ -574,7 +574,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort := TRUE;
-		strStatus :='Clip place open timeout';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 2300: Clip place open timeout';
 	END_IF  
 	  
 2400: // Clip up Placing
@@ -594,7 +594,7 @@ bMoveConveyorBackrward:=FALSE;
 	IF tonTimeOut.q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort := TRUE;
-		strStatus :='Cylinder place up timeout';
+		strStatus :='FB_OutRobot_BoxMoveReverse Step 2400: Cylinder place up timeout';
 	END_IF  
 	
 2500: // If Next place

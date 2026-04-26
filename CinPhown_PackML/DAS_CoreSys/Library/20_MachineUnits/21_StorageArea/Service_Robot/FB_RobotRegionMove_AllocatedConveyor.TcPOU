@@ -73,7 +73,7 @@ END_VAR
 
 IF NOT UseA AND NOT UseB THEN
 	M_CheckClampStatus 	:= FALSE;
-	strStatus 			:= 'FB_RobotRegionMove_AllocatedConveyor ,Wrong Command , Both Clammp not used';
+	strStatus 			:= 'FB_RobotRegionMove_AllocatedConveyor: Wrong Command , Both Clammp not used';
 	RETURN;
 END_IF
 
@@ -81,13 +81,13 @@ IF UseA THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor ,Robot Use A Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor: Robot Use A Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor ,Robot Use A Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor: Robot Use A Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -96,13 +96,13 @@ IF UseB THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor ,Robot Use B Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor: Robot Use B Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor ,Robot Use B Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_AllocatedConveyor: Robot Use B Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -127,13 +127,13 @@ END_VAR]]></Declaration>
 	
 //Allocated/Empty conveyor
 		IF UseA AND ( Info.A_Position<1 OR  Info.A_Position>2 ) THEN
-			strStatus:='Wrong command ,Position A Not allow';
+			strStatus:='FB_RobotRegionMove_AllocatedConveyor: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;		
 		END_IF
 	
 		IF UseB AND ( Info.B_Position<1 OR  Info.B_Position>2 )THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotRegionMove_AllocatedConveyor: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;		
 		END_IF	
@@ -578,7 +578,7 @@ CASE uiExecutingStep OF
 		END_IF	
 		IF Robot._DI1.Error THEN
 			_Abort	  	 := TRUE;
-			strStatus 	 := CONCAT('FB_RobotRegionMove_AllocatedConveyor Step 10000,',Robot.ErrMsg);
+			strStatus 	 := CONCAT('FB_RobotRegionMove_AllocatedConveyor Step 10000: ',Robot.ErrMsg);
 			uiResumeStep := 10000;
 		END_IF	
     10080:
@@ -738,7 +738,7 @@ CASE uiExecutingStep OF
 		END_IF	
 		IF Robot._DI1.Error THEN
 			_Abort	  	 := TRUE;
-			strStatus 	 := CONCAT('FB_RobotRegionMove_AllocatedConveyor Step 20000,',Robot.ErrMsg);
+			strStatus 	 := CONCAT('FB_RobotRegionMove_AllocatedConveyor Step 20000: ',Robot.ErrMsg);
 			uiResumeStep := 20000;
 		END_IF	
     20080:
@@ -860,7 +860,7 @@ CASE uiExecutingStep OF
 						tonFeedBoxTimeout.IN :=TRUE;
 						IF tonFeedBoxTimeout.Q THEN
 							tonFeedBoxTimeout.IN :=FALSE;
-							strStatus :='FB_RobotRegionMove_AllocatedConveyor Step 20000: Feed Box timeout';
+							strStatus :='FB_RobotRegionMove_AllocatedConveyor Step 30000: Feed Box timeout';
 							uiResumeStep:=30000;
 							_Abort:=TRUE;
 						END_IF
@@ -1016,7 +1016,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF Robot._DI1.Error THEN
 			_Abort		:= TRUE;
-			strStatus	:= CONCAT('FB_RobotRegionMove_AllocatedConveyor Step 30000,',robot.ErrMsg);
+			strStatus	:= CONCAT('FB_RobotRegionMove_AllocatedConveyor Step 30000: ',robot.ErrMsg);
 			uiResumeStep:= 30000;
 		END_IF
     30080: // Check robot command is clear
@@ -1070,7 +1070,7 @@ CASE uiExecutingStep OF
 							_Abort:=TRUE;
 						END_IF
     99000: // process done
-         Status    := 'Process completed';
+         Status    := 'FB_RobotRegionMove_AllocatedConveyor Step 99000: Process completed';
 		 bSameSizeCVMoveForward  :=FALSE;
 		 bSameSizeCVMoveBackward :=FALSE;
 		 bDiffCVMoveForward		:=FALSE;

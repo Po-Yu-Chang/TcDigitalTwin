@@ -80,11 +80,11 @@ END_VAR]]></Declaration>
         <ST><![CDATA[// Check command paremeter is correct
 
 IF NOT Info.Warehouse_A AND NOT Info.Warehouse_B THEN
-	strStatus:='Wrong command , No warehouse selected';
+	strStatus:='FB_WareHouseWithRobotMove_V3: Wrong command , No warehouse selected';
 	M_CheckCommand:=FALSE;
 	RETURN;
 ELSIF  Info.Warehouse_A AND  Info.Warehouse_B THEN
-	strStatus:='Wrong command , Both warehouses selected';
+	strStatus:='FB_WareHouseWithRobotMove_V3: Wrong command , Both warehouses selected';
 	M_CheckCommand:=FALSE;
 	RETURN;
 ELSIF	Info.Warehouse_A THEN
@@ -94,7 +94,7 @@ ELSIF	Info.Warehouse_B THEN
 END_IF
 
 IF Info.Get_A <> Info.Get_B THEN
-	strStatus:='Wrong command ,GetA not match to GetB';
+	strStatus:='FB_WareHouseWithRobotMove_V3: Wrong command ,GetA not match to GetB';
 	M_CheckCommand:=FALSE;
 	RETURN;
 	ELSE
@@ -109,7 +109,7 @@ CASE LREAL_TO_INT(Info.Layer_A) OF
 	//Normal
 	// Layer A in correct range
 	IF ((Info.Slide_A < 1) OR (Info.Slide_A > 20)) THEN
-		strStatus := 'Command error : Clamp A target slide out of range';
+		strStatus := 'FB_WareHouseWithRobotMove_V3: Command error : Clamp A target slide out of range';
 		M_CheckCommand:=FALSE;
 		RETURN;
 	ELSE
@@ -122,7 +122,7 @@ CASE LREAL_TO_INT(Info.Layer_A) OF
 99:
 	UseA:=FALSE;
 ELSE
-	 strStatus := 'Command error : Clamp A target layer out of range.';
+	 strStatus := 'FB_WareHouseWithRobotMove_V3: Command error : Clamp A target layer out of range.';
 	 M_CheckCommand:=FALSE;
 	 RETURN;
 END_CASE
@@ -134,7 +134,7 @@ CASE LREAL_TO_INT(Info.Layer_B) OF
 //Normal
 	// Layer A in correct range
 	IF ((Info.Slide_B < 1) OR (Info.Slide_B > 20)) THEN
-		strStatus := 'Command error : Clamp B target slide out of range';
+		strStatus := 'FB_WareHouseWithRobotMove_V3: Command error : Clamp B target slide out of range';
 		M_CheckCommand:=FALSE;
 		RETURN;
 	ELSE
@@ -146,7 +146,7 @@ CASE LREAL_TO_INT(Info.Layer_B) OF
 99:
 		UseB:=FALSE;
 ELSE
-	 strStatus := 'Command error : Clamp B target layer out of range.';
+	 strStatus := 'FB_WareHouseWithRobotMove_V3: Command error : Clamp B target layer out of range.';
 	 M_CheckCommand:=FALSE;
 	 RETURN;
 END_CASE
@@ -301,7 +301,7 @@ Status          := '';
 _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
-strStatus :='No Error';
+strStatus :='FB_WareHouseWithRobotMove_V3: No Error';
 bTimeOutIN :=FALSE;
 bRobotTimeoutIN :=FALSE;
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
@@ -405,7 +405,7 @@ CASE uiExecutingStep OF
 					uiExecutingStep := 11000;
 				ELSE
 					_Abort 	  := TRUE;
-					strStatus := 'FB_WareHouseWithRobotMove_V3 ,Step 10000: Robot Get Box ClampA is open ';
+					strStatus := 'FB_WareHouseWithRobotMove_V3 Step 10000: Robot Get Box ClampA is open ';
 
 
 
@@ -416,7 +416,7 @@ CASE uiExecutingStep OF
 					uiExecutingStep := 11000;
 				ELSE	
 					_Abort 	  := TRUE;
-					strStatus := 'FB_WareHouseWithRobotMove_V3 ,Step 10000: Robot Place Box ClampA not open ';
+					strStatus := 'FB_WareHouseWithRobotMove_V3 Step 10000: Robot Place Box ClampA not open ';
 
 
 
@@ -474,7 +474,7 @@ CASE uiExecutingStep OF
 		IF tonTimeout.Q OR Robot.Error THEN
 			_Abort := TRUE;
             uiResumeStep := 11000;
-			strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 12000: Robot Move Timeout';
+			strStatus:='FB_WareHouseWithRobotMove_V3 Step 11000: Robot Move Timeout';
 
 
 
@@ -496,7 +496,7 @@ CASE uiExecutingStep OF
 					uiExecutingStep := 21000;
 				ELSE
 					_Abort	:= TRUE;
-					strStatus := 'FB_WareHouseWithRobotMove_V3 ,Step 20000: Robot Get Box ClampB is open ';
+					strStatus := 'FB_WareHouseWithRobotMove_V3 Step 20000: Robot Get Box ClampB is open ';
 
 
 
@@ -507,7 +507,7 @@ CASE uiExecutingStep OF
 					uiExecutingStep := 21000;
 				ELSE
 					_Abort	:= TRUE;
-					strStatus := 'FB_WareHouseWithRobotMove_V3 ,Step 20000: Robot Place Box ClampB not open ';
+					strStatus := 'FB_WareHouseWithRobotMove_V3 Step 20000: Robot Place Box ClampB not open ';
 
 
 
@@ -560,7 +560,7 @@ CASE uiExecutingStep OF
 		IF tonTimeout.Q OR Robot.Error THEN
 			_Abort := TRUE;
             uiResumeStep := 21000;
-			strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 21000: Robot Move Timeout';
+			strStatus:='FB_WareHouseWithRobotMove_V3 Step 21000: Robot Move Timeout';
 
 
 
@@ -583,7 +583,7 @@ CASE uiExecutingStep OF
 					uiExecutingStep := 31000;
 				ELSE
 					_Abort	:= TRUE;
-					strStatus := 'FB_WareHouseWithRobotMove_V3 ,Step 30000: Robot both Clamp Get Box ,  Clamp not open';
+					strStatus := 'FB_WareHouseWithRobotMove_V3 Step 30000: Robot both Clamp Get Box ,  Clamp not open';
 
 
 
@@ -595,7 +595,7 @@ CASE uiExecutingStep OF
 					uiExecutingStep := 31000;
 				ELSE
 					_Abort	:= TRUE;
-					strStatus := 'FB_WareHouseWithRobotMove_V3 ,Step 30000: Robot both Clamp Place Box , Clamp has open';
+					strStatus := 'FB_WareHouseWithRobotMove_V3 Step 30000: Robot both Clamp Place Box , Clamp has open';
 
 
 
@@ -618,7 +618,7 @@ CASE uiExecutingStep OF
 							uiLastBothStep := 0;
 							uiResumeStep := 31000;
 							(*==============================================*)
-							strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Clamp A reload timeout';
+							strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Clamp A reload timeout';
 
 
 
@@ -647,7 +647,7 @@ CASE uiExecutingStep OF
 							uiAbortingStep := 0;
 							uiLastBothStep := 0;
 							uiResumeStep := 31000;
-							strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Robot Has Fault';
+							strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Robot Has Fault';
 
 
 
@@ -687,7 +687,7 @@ CASE uiExecutingStep OF
 								_BClampDoingWork := FALSE;
 								uiResumeStep := 31000;
 							(*==============================================*)
-							strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Clamp B reload timeout';
+							strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Clamp B reload timeout';
 
 
 
@@ -720,7 +720,7 @@ CASE uiExecutingStep OF
 						uiResumeStep := 31000;
 					END_IF
 					(*==============================================*)
-					strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Robot Has Fault';
+					strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Robot Has Fault';
 
 
 
@@ -758,7 +758,7 @@ CASE uiExecutingStep OF
 								_AClampDoingWork := FALSE;
 
 							(*==============================================*)
-							strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Clamp A Feedin timeout';
+							strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Clamp A Feedin timeout';
 
 
 
@@ -781,7 +781,7 @@ CASE uiExecutingStep OF
 							uiResumeStep := 31000;
 							BoxReady_1st     := FALSE;
 							_AClampDoingWork := FALSE;
-							strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Robot Has Fault';
+							strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Robot Has Fault';
 
 
 
@@ -808,7 +808,7 @@ CASE uiExecutingStep OF
 								BoxReady_2nd 	 := FALSE;
 								_BClampDoingWork := FALSE;
 							(*==============================================*)
-							strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Clamp B Feedin timeout';
+							strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Clamp B Feedin timeout';
 
 
 
@@ -841,7 +841,7 @@ CASE uiExecutingStep OF
 						BoxReady_2nd := FALSE;
 						_BClampDoingWork := FALSE;
 					END_IF
-					strStatus:='FB_WareHouseWithRobotMove_V3 ,Step 31000: Robot Has Fault';
+					strStatus:='FB_WareHouseWithRobotMove_V3 Step 31000: Robot Has Fault';
 
 
 
@@ -874,7 +874,7 @@ CASE uiExecutingStep OF
    
    
     99000: // process done
-                Status    := 'Process completed';
+                Status    := 'FB_WareHouseWithRobotMove_V3 Step 99000: Process completed';
         _Executed := TRUE;
 END_CASE
 IF _Executed THEN

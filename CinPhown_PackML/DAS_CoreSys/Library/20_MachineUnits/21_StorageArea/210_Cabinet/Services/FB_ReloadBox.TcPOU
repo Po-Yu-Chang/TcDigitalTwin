@@ -152,7 +152,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF  Ton_BoxMoveForward.Q THEN
 		  _Error := TRUE;
-           Status := 'Move motor timeout';
+           Status := 'FB_ReloadBox Step 10: Move motor timeout';
 		END_IF
     100: // Wait box arrived
         Ton_BoxMoveForward.IN := TRUE;

@@ -403,7 +403,7 @@ ELSIF Execute AND Reset THEN
 			
 			460:	//Box1 done step abort
 				uiExecutingStep :=450;
-				strStatus :='Check FirstBoxCamaraDone info retry';
+				strStatus :='FB_UpperFeedInConveyor Step 460: Check FirstBoxCamaraDone info retry';
 			
 				
 		END_CASE
@@ -472,7 +472,7 @@ Done    := FALSE;
 Aborted := FALSE;
 Error   := FALSE;
 FeedBack.InterventionRequest :=FALSE;
-strStatus :='No Error';
+strStatus :='FB_UpperFeedInConveyor: No Error';
 uiExecutingStep :=0;
 uiResettingStep	:=0;
 NoFirstBoxDiameter:= SecondBox:=FALSE;
@@ -572,7 +572,7 @@ CASE uiExecutingStep OF
 		SecondBox:=TRUE;	
 	ELSE
 	_Error := TRUE;
-	  strStatus := 'Data not correct';		
+	  strStatus := 'FB_UpperFeedInConveyor Step 0: Data not correct';
 	END_IF
 	uiExecutingStep :=10;
 
@@ -637,7 +637,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOut.Q THEN
 		_Abort :=TRUE;
-		strStatus :='Prepare Cylinder clear command timeout';
+		strStatus :='FB_UpperFeedInConveyor Step 20: Prepare Cylinder clear command timeout';
 	END_IF
 	
 100:// Check No Box 
@@ -650,7 +650,7 @@ CASE uiExecutingStep OF
 	 	 uiExecutingStep :=110; //Try reverse conveyor 
 			ELSE 
 			  _Abort := TRUE;
-		 	 strStatus := 'Conveyor not ready , please remove boxes in front';
+		 	 strStatus := 'FB_UpperFeedInConveyor Step 100: Conveyor not ready , please remove boxes in front';
 		  END_IF
 	 ELSE
  		uiExecutingStep :=200; 
@@ -672,9 +672,9 @@ CASE uiExecutingStep OF
 		IF Input.bUpCV_Block1Detect_Sensor OR 
 		  Input.bUpCV_Block2Detect_Sensor OR
 		  Input.bUpCV_BoxArrived_Sensor OR
-	 	 Input.bUpCV_Block3Detect_Sensor THEN 
+	 	 Input.bUpCV_Block3Detect_Sensor THEN
 			  _Abort := TRUE;
-		 	 strStatus := 'Conveyor not ready , please remove boxes in front';
+		 	 strStatus := 'FB_UpperFeedInConveyor Step 130: Conveyor not ready , please remove boxes in front';
 		 ELSE
 			uiExecutingStep :=140; 	 
 		 END_IF		
@@ -695,7 +695,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperConveyorTimeOut.Q THEN
 	  _Error := TRUE;
-	  strStatus := 'Cylinder.List.fbUpCV_Block3 timeout';
+	  strStatus := 'FB_UpperFeedInConveyor Step 200: Cylinder.List.fbUpCV_Block3 timeout';
 	END_IF
 		  
 	  
@@ -721,7 +721,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOut.Q THEN
 		_Abort := TRUE;
-		strStatus := 'Cylinder.List.fbUpCV_CamaraPress1.M_MoveForward timeout';
+		strStatus := 'FB_UpperFeedInConveyor Step 400: Cylinder.List.fbUpCV_CamaraPress1.M_MoveForward timeout';
 	END_IF
 
 450:// send first box camera signal
@@ -747,7 +747,7 @@ CASE uiExecutingStep OF
 	END_IF	
 	IF tonUpperTimeOutFive.Q THEN
 		_Abort :=TRUE;
-		strStatus := 'C# FirstBoxCameraDone timeout';
+		strStatus := 'FB_UpperFeedInConveyor Step 460: C# FirstBoxCameraDone timeout';
 	END_IF
 	
 500://Let first box move forward
@@ -766,7 +766,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOut.Q THEN
 		_Abort := TRUE;
-		strStatus := 'Cylinder.List.fbUpCV_CamaraPress1 or Cylinder.List.fbUpCV_Block3 InRearPosition timeout';
+		strStatus := 'FB_UpperFeedInConveyor Step 550: Cylinder.List.fbUpCV_CamaraPress1 or Cylinder.List.fbUpCV_Block3 InRearPosition timeout';
 	END_IF
 	
 600://Check if diameter camera needed
@@ -787,7 +787,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOutFive.Q THEN
 		_Abort := TRUE;
-		strStatus :='C# FirstBoxCameraDiameterRequest timeout';
+		strStatus :='FB_UpperFeedInConveyor Step 600: C# FirstBoxCameraDiameterRequest timeout';
 	END_IF
 	
 610: //Check Box 1 leave read code camera position
@@ -799,7 +799,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOut.Q  THEN
 		_Abort :=TRUE;
-		strStatus :='Input.bUpCV_Block3Detect_Sensor first box leave timeout';
+		strStatus :='FB_UpperFeedInConveyor Step 610: Input.bUpCV_Block3Detect_Sensor first box leave timeout';
 	END_IF
 	
 620: // Leave Box 2				//timeout and Check InRearPositonEdit by Min 20250326	
@@ -821,7 +821,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOut.Q THEN
 		_Abort :=TRUE;
-		strStatus :='Cylinder.List.fbUpCV_Block2 MoveForward timeout';
+		strStatus :='FB_UpperFeedInConveyor Step 700: Cylinder.List.fbUpCV_Block2 MoveForward timeout';
 	END_IF
 800: // wait first box ready on diameter position
 	tonUpperTimeOut.IN :=TRUE;
@@ -840,7 +840,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOut.Q THEN
 		_Abort :=TRUE;
-		strStatus :='Box not at Input.bUpCV_Block2Detect_Sensor ';
+		strStatus :='FB_UpperFeedInConveyor Step 800: Box not at Input.bUpCV_Block2Detect_Sensor ';
 	END_IF
 	
 1000: // Wait diameter blocker ready
@@ -851,7 +851,7 @@ CASE uiExecutingStep OF
 	END_IF
 	IF tonUpperTimeOut.Q THEN
 		_Abort :=TRUE;
-		strStatus :='Cylinder.List.fbUpCV_DiameterPress MoveForward timeout';
+		strStatus :='FB_UpperFeedInConveyor Step 1000: Cylinder.List.fbUpCV_DiameterPress MoveForward timeout';
 	END_IF
 
 1100: // Pick needle to diameter camera
@@ -886,7 +886,7 @@ CASE uiExecutingStep OF
 			  END_IF
 			 IF tonUpperTimeOutFive.Q THEN
 				 _Error :=TRUE;
-				 strStatus :='box1 diameter timeout';
+				 strStatus :='FB_UpperFeedInConveyor Step 1100: box1 diameter timeout';
 			 END_IF
 		300:
 			 IF _fbDiameterMovement.Done THEN
@@ -968,13 +968,13 @@ CASE uiExecutingStep OF
 	  
 	  IF tonUpperConveyorTimeOut.Q THEN
 			_Error :=TRUE;
-			strStatus:='First box diameter timeout';		
+			strStatus:='FB_UpperFeedInConveyor Step 1100: First box diameter timeout';		
 		  
 	  END_IF
 		IF tonWaitSecondBoxArriveTimeout.Q THEN
 			IF Input.bUpCV_ReLoadDetect_Sensor THEN
 				_Error :=TRUE;
-				strStatus:='Second box feedin to read code camera pos timeout';		
+				strStatus:='FB_UpperFeedInConveyor Step 1100: Second box feedin to read code camera pos timeout';		
 			ELSE
 				tonUpperConveyorTimeOut.IN :=FALSE;
 				SecondBox :=FALSE;
@@ -1005,7 +1005,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOut.Q THEN
 			_Abort :=TRUE;
-			strStatus :='First box still at Input.bUpCV_Block2Detect_Sensor';
+			strStatus :='FB_UpperFeedInConveyor Step 1200: First box still at Input.bUpCV_Block2Detect_Sensor';
 		END_IF
 
 1700: //Second box diameter request
@@ -1019,7 +1019,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOut.Q THEN
 			_Abort :=TRUE;
-			strStatus :='Input.bUpCV_Block2Detect_Sensor not have box';
+			strStatus :='FB_UpperFeedInConveyor Step 1700: Input.bUpCV_Block2Detect_Sensor not have box';
 		END_IF
 1800: //wait second box in diameter position
 		tonUpperTimeOut.IN :=TRUE;
@@ -1029,7 +1029,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOut.Q THEN
 			_Abort :=TRUE;
-			strStatus :='Cylinder.List.fbUpCV_DiameterPress MoveForward timeout';
+			strStatus :='FB_UpperFeedInConveyor Step 1800: Cylinder.List.fbUpCV_DiameterPress MoveForward timeout';
 			
 		END_IF
 		
@@ -1043,7 +1043,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOutFive.Q THEN
 			_Abort :=TRUE;
-			strStatus :='C# DiameterMovement Pickdone timeout';
+			strStatus :='FB_UpperFeedInConveyor Step 1900: C# DiameterMovement Pickdone timeout';
 		END_IF
 2000:	//check Second Box CamaraDone
 		tonUpperTimeOutFive.IN :=TRUE;
@@ -1055,7 +1055,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOutFive.Q THEN
 			_Abort :=TRUE;
-			strStatus :='C# SecondBoxCameraDiameterDone timeout';
+			strStatus :='FB_UpperFeedInConveyor Step 2000: C# SecondBoxCameraDiameterDone timeout';
 		END_IF		
 2100:	
 		tonUpperTimeOutFive.IN :=TRUE;
@@ -1066,7 +1066,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOutFive.Q THEN
 			_Abort :=TRUE;
-			strStatus :='_fbDiameterMovement Done timeout';
+			strStatus :='FB_UpperFeedInConveyor Step 2100: _fbDiameterMovement Done timeout';
 		END_IF
 2150:
 		IF  Input.bUpCV_BoxArrived_Sensor  AND 
@@ -1086,7 +1086,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOut.Q THEN
 			_Error :=TRUE;
-			strStatus := 'There is a box on Input.bUpCV_Block1Detect_Sensor '; 
+			strStatus := 'FB_UpperFeedInConveyor Step 2200: There is a box on Input.bUpCV_Block1Detect_Sensor ';
 		END_IF
 		
 		
@@ -1100,7 +1100,7 @@ CASE uiExecutingStep OF
 		END_IF	
 		IF tonUpperTimeOut.Q THEN
 			_Error :=TRUE;
-			strStatus :='BlockBox1 MoveForward or BlockBox2 MoveBackward or DiameterMeasurementPressBox MoveBackward timeout';
+			strStatus :='FB_UpperFeedInConveyor Step 2300: BlockBox1 MoveForward or BlockBox2 MoveBackward or DiameterMeasurementPressBox MoveBackward timeout';
 		END_IF
 2400:	//Check Box1 in FeedInBox1Detecting and Box2 leave BlockBox2Detecting
 		
@@ -1132,7 +1132,7 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonUpperTimeOutFive.Q THEN
 			_Error :=TRUE;
-			strStatus :='FeedInBox1Detecting not have a box';
+			strStatus :='FB_UpperFeedInConveyor Step 2500: FeedInBox1Detecting not have a box';
 		END_IF
 2600:
 		tonUpperConveyorDelay.PT:=T#500MS;
@@ -1155,7 +1155,7 @@ CASE uiExecutingStep OF
 		END_IF	
 		IF tonUpperTimeOut.Q THEN
 			_Error :=TRUE;
-			strStatus :=' Cylinder.List.fbUpCV_FeedInPress1 or Cylinder.List.fbUpCV_FeedInPress2 MoveForward timeout';
+			strStatus :='FB_UpperFeedInConveyor Step 2600: Cylinder.List.fbUpCV_FeedInPress1 or Cylinder.List.fbUpCV_FeedInPress2 MoveForward timeout';
 		END_IF
 2700:
 		tonUpperTimeOut.IN :=TRUE;
@@ -1180,7 +1180,7 @@ CASE uiExecutingStep OF
 		END_IF	
 		IF tonUpperTimeOut.Q THEN 
 			_Error :=TRUE;
-			strStatus :='FeedInPressBox1Cylinder or FeedInPressBox2Cylinder or ReadCodePressBox2Cylinder MoveBackward timeout';
+			strStatus :='FB_UpperFeedInConveyor Step 2700: FeedInPressBox1Cylinder or FeedInPressBox2Cylinder or ReadCodePressBox2Cylinder MoveBackward timeout';
 		END_IF
 		
 2800:	//TO check the camera photo speed recoeding time

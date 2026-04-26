@@ -175,19 +175,19 @@ END_VAR]]></Declaration>
 	0:
 		M_GetErrorMsg := 'No Error';
 	1:
-		M_GetErrorMsg := 'Action time out';
+		M_GetErrorMsg := 'FB_TurnTableService ErrorID 1: Action time out';
 	2:
-		M_GetErrorMsg := 'Position Data invalid';
+		M_GetErrorMsg := 'FB_TurnTableService ErrorID 2: Position Data invalid';
 	3:
-		M_GetErrorMsg := 'TurnTableTarget invalid';
+		M_GetErrorMsg := 'FB_TurnTableService ErrorID 3: TurnTableTarget invalid';
 	4:
-		M_GetErrorMsg := 'Axis not ready';
+		M_GetErrorMsg := 'FB_TurnTableService ErrorID 4: Axis not ready';
 	5:
-		M_GetErrorMsg := 'Cylinder not ready';
+		M_GetErrorMsg := 'FB_TurnTableService ErrorID 5: Cylinder not ready';
 	6:
-		M_GetErrorMsg := 'Axis TurnTable has Error';
+		M_GetErrorMsg := 'FB_TurnTableService ErrorID 6: Axis TurnTable has Error';
 	7:
-		M_GetErrorMsg := 'fbTurntable_Press has Error';
+		M_GetErrorMsg := 'FB_TurnTableService ErrorID 7: fbTurntable_Press has Error';
 END_CASE]]></ST>
       </Implementation>
     </Method>

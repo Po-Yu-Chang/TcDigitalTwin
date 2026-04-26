@@ -570,7 +570,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=10000;
 			_Abort :=TRUE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 10000: Pick Box timeout';
 		END_IF
 		
     11000: // Only ClampA pickup box from WareHouseB
@@ -603,7 +603,7 @@ CASE uiExecutingStep OF
 		IF tonTimeOut.Q THEN
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=11000;
-			_Abort 		:=TRUE;			strStatus :='Pick Box timeout';
+			_Abort 		:=TRUE;			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 11000: Pick Box timeout';
 		END_IF
 		
     12000: // Only ClampA pickup box from pullout conveyor
@@ -621,7 +621,7 @@ CASE uiExecutingStep OF
 																					 CV_BackwardTIme := T#0S,
 																					 CV_ForwardTime  := T#0S);
             ELSE
-                Status := 'FB_FeedInEmptyBoxWithRobot_V3 ,Step 12000: Not define PulloutConveyor Slide';
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 12000: Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
 			
@@ -643,7 +643,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			_Abort :=TRUE;
 			uiResumeStep:=12000;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 12000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 12000: Pick Box timeout';
 		END_IF
 		
     20000: // Only clampB pickup box from WareHouseA
@@ -676,7 +676,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN	:= FALSE;
 			_Abort 		:= TRUE;
 			uiResumeStep:= 20000;			
-			strStatus 	:= 'FB_FeedInEmptyBoxWithRobot_V3 ,Step 12000:Pick Box timeout';	
+			strStatus 	:= 'FB_FeedInEmptyBoxWithRobot_V3 Step 20000: Pick Box timeout';
 		END_IF
     21000: // Only ClampB pickup box from WareHouseB
 		bTimeOutIN :=TRUE;	
@@ -708,7 +708,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			_Abort 		:= TRUE;
 			uiResumeStep:= 21000;				
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 21000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 21000: Pick Box timeout';
 		END_IF
 
     22000: // Only ClampB pickup box from PullOut conveyor
@@ -725,7 +725,7 @@ CASE uiExecutingStep OF
 																					 CV_BackwardTIme := T#0S,
 																					 CV_ForwardTime  := T#0S);
             ELSE
-                Status := 'FB_FeedInEmptyBoxWithRobot_V3 ,Step 22000: Not define PulloutConveyor Slide';
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 22000: Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
 			
@@ -746,7 +746,7 @@ CASE uiExecutingStep OF
 		IF tonTimeOut.Q THEN
 			uiResumeStep:=22000;
 			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 22000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 22000: Pick Box timeout';
 		END_IF
 		
     30000: // ClampA pickup from WarehouseA, ClampB pickup from WarehouseA
@@ -809,7 +809,7 @@ CASE uiExecutingStep OF
 				bTimeOutIN:=FALSE;
 				uiResumeStep:= 30000;
 				_Abort 		:= TRUE;
-				strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 30000: Pick Box timeout';
+				strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 30000: Pick Box timeout';
 			END_IF
 		
     31000: // ClampA pickup from WarehouseA, ClampB pickup from WarehouseB
@@ -840,7 +840,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:= 31000;
 			_Abort 		:= TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 31000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 31000: Pick Box timeout';
 		END_IF
 		
 	31080:
@@ -878,7 +878,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:= 31100;
 			_Abort 		:= TRUE;			
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 31100: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 31100: Pick Box timeout';
 		END_IF
 		
 	31180:
@@ -916,7 +916,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=32000;
 			_Abort :=TRUE;			
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 32000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 32000: Pick Box timeout';
 		END_IF
 	32080:
 		Robot.M_ResetAllCommand();
@@ -940,7 +940,7 @@ CASE uiExecutingStep OF
                                                          CV_BackwardTIme := T#0S,
                                                          CV_ForwardTime := T#0S);
             ELSE
-                Status := 'Not define PulloutConveyor Slide';
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 32100: Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
 
@@ -955,7 +955,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=32100;
 			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 32100: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 32100: Pick Box timeout';
 		END_IF
 	32180:
 		robot.M_ResetAllCommand();
@@ -991,7 +991,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=33000;
 			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 33000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 33000: Pick Box timeout';
 		END_IF
 	33080:
 		Robot.M_ResetAllCommand(); // Clear command and go to place box
@@ -1029,7 +1029,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			 uiResumeStep:=33100;
 			_Abort		 :=TRUE;
-			strStatus 	 :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 33100: Place Box timeout';
+			strStatus 	 :='FB_FeedInEmptyBoxWithRobot_V3 Step 33100: Place Box timeout';
 		END_IF
 		
     34000: // ClampA pickup from WarehouseB, ClampB pickup from WarehouseB
@@ -1095,7 +1095,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=34000;
 			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 34000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 34000: Pick Box timeout';
 		END_IF
 		
     35000: // ClampA pickup from WarehouseB, ClampB pickup from PulloutConveyor
@@ -1125,7 +1125,7 @@ CASE uiExecutingStep OF
 		  tonTimeOut.IN:=FALSE;
 		  uiResumeStep:=35000;
 		  _Abort :=TRUE;
-		  strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 35000: Pick Box timeout';
+		  strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 35000: Pick Box timeout';
     	END_IF
 		
     35100:
@@ -1144,7 +1144,7 @@ CASE uiExecutingStep OF
                                                          CV_BackwardTIme := T#0S,
                                                          CV_ForwardTime := T#0S);
             ELSE
-                Status := 'Not define PulloutConveyor Slide';
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 35100: Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
 
@@ -1162,7 +1162,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN	:=FALSE;
 			uiResumeStep:=35100;
 			_Abort 		:=TRUE;
-			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 ,Step 35100: Pick Box timeout';
+			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 Step 35100: Pick Box timeout';
 		END_IF
 		
     36000: // ClampA pickup from PulloutConveyor, ClampB pickup from WarehouseA
@@ -1181,7 +1181,7 @@ CASE uiExecutingStep OF
                                                          CV_BackwardTIme := T#0S,
                                                          CV_ForwardTime := T#0S);
             ELSE
-                Status := 'Not define PulloutConveyor Slide';
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 36000: Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
 
@@ -1196,7 +1196,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN	:=FALSE;
 			uiResumeStep:=36000;
 			_Abort 		:=TRUE;
-			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 ,Step 36000: Pick Box timeout';
+			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 Step 36000: Pick Box timeout';
 		END_IF
 		
 	36080:
@@ -1233,7 +1233,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=36100;
 			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 36100: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 36100: Pick Box timeout';
 		END_IF
 		
 	36200:
@@ -1257,7 +1257,7 @@ CASE uiExecutingStep OF
                                                          CV_BackwardTIme := T#0S,
                                                          CV_ForwardTime := T#0S);
             ELSE
-                Status := 'FB_FeedInEmptyBoxWithRobot_V3 ,Step 37000: Not define PulloutConveyor Slide';
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 37000: Not define PulloutConveyor Slide';
                 _Error := TRUE;
             END_IF
 
@@ -1272,7 +1272,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=37000;
 			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 37000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 37000: Pick Box timeout';
 		END_IF
 		
 		
@@ -1311,7 +1311,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			uiResumeStep:=37100;
 			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 37180: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 37100: Pick Box timeout';
 		END_IF
 	37180:
 		Robot.M_ResetAllCommand(); // Clear command and go to place box
@@ -1334,7 +1334,7 @@ CASE uiExecutingStep OF
                                                          CV_BackwardTIme := T#0S,
                                                          CV_ForwardTime := T#0S);
                 ELSE
-                    Status := 'Not define PulloutConveyor Slide';
+                    Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 38000: Not define PulloutConveyor Slide';
                     _Error := TRUE;
                 END_IF
 
@@ -1364,7 +1364,7 @@ CASE uiExecutingStep OF
                                                          CV_BackwardTIme := T#0S,
                                                          CV_ForwardTime := T#0S);
                 ELSE
-                    Status := 'Not define PulloutConveyor Slide';
+                    Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 38000: Not define PulloutConveyor Slide';
                     _Error := TRUE;
                 END_IF
 
@@ -1391,7 +1391,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			_Abort :=TRUE;	
 			uiResumeStep:=38000;		
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 38000: Pick Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 38000: Pick Box timeout';
 		END_IF
 		IF DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Error THEN
 				uiResumeStep 	:= 38000;
@@ -1484,7 +1484,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN:=FALSE;
 			_Abort :=TRUE;		
 			uiResumeStep:=61000;	
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 ,Step 61000: Place Box timeout';
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 61000: Place Box timeout';
 			IF Robot._DI1.Error THEN
 			bTimeOutIN  := FALSE;
 			_Abort		:= TRUE;
@@ -1579,7 +1579,7 @@ CASE uiExecutingStep OF
 			bTimeOutIN	:= FALSE;
 			_Abort 		:= TRUE;		
 			uiResumeStep:= 71000;	
-			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 ,Step 71000: Place Box timeout';
+			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 Step 71000: Place Box timeout';
 		END_IF
 		IF Robot._DI1.Error THEN
 			bTimeOutIN	:= FALSE;
@@ -1593,7 +1593,7 @@ CASE uiExecutingStep OF
 				uiExecutingStep := 80100;
 			ELSE
 				_Abort 	  := TRUE;
-				strStatus := 'FB_FeedInEmptyBoxWithRobot_V4 Step 80000: Robot Use Both Clamp Place ,but Clamp open';
+				strStatus := 'FB_FeedInEmptyBoxWithRobot_V3 Step 80000: Robot Use Both Clamp Place ,but Clamp open';
 			END_IF	 
 		
     80100: // Both Clamp place box
@@ -1822,7 +1822,7 @@ CASE uiExecutingStep OF
 			SameSizeCV.M_MotorStop();
 			bWorkingConveyorMoveForward:=FALSE;
 			tonFeedInConveyorDelay.IN :=FALSE;
-			Status    := 'Process completed';
+			Status    := 'FB_FeedInEmptyBoxWithRobot_V3 Step 99000: Process completed';
 				IF DiffSizeCV.InStopped AND SameSizeCV.InStopped THEN
 				 _Executed := TRUE;
 				END_IF

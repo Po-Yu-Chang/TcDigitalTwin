@@ -417,17 +417,17 @@ END_VAR]]></Declaration>
     0:
         M_GetErrorMsg := 'No Error';
     1:
-        M_GetErrorMsg := 'Action time out';
+        M_GetErrorMsg := 'FB_StorageHoming ErrorID 1: Action time out';
     2:
-        M_GetErrorMsg := 'Cylinder not ready';
+        M_GetErrorMsg := 'FB_StorageHoming ErrorID 2: Cylinder not ready';
     3:
-        M_GetErrorMsg := 'Motor not ready';
+        M_GetErrorMsg := 'FB_StorageHoming ErrorID 3: Motor not ready';
     4:
-		M_GetErrorMsg := 'FanucRobot can not homing';
+		M_GetErrorMsg := 'FB_StorageHoming ErrorID 4: FanucRobot can not homing';
 	10:
-		M_GetErrorMsg := 'Storage FanucRobot FeedOut to NG Conveyor not busy';
+		M_GetErrorMsg := 'FB_StorageHoming ErrorID 10: Storage FanucRobot FeedOut to NG Conveyor not busy';
 	11:
-		M_GetErrorMsg := 'Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
+		M_GetErrorMsg := 'FB_StorageHoming ErrorID 11: Storage FanucRobot FeedOut to NG Conveyor Done Timeout';
 END_CASE]]></ST>
       </Implementation>
     </Method>

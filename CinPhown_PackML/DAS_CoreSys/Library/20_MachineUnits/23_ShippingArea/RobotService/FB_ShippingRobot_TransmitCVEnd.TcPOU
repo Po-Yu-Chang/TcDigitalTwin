@@ -64,7 +64,7 @@ CASE 	LREAL_TO_INT(Info.A_Position) OF
 	SensorToBeCheck :=INPUT.bDifferentSizeCV_BoxNearShippingSensor;
 	ConveyorMotor	REF= Motor.List.TransmitDifferentSideCV;
 ELSE
-	strStatus:='Wrong command ,Position A Not allow';
+	strStatus:='FB_ShippingRobot_TransmitCVEnd: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;	
 END_CASE
@@ -72,13 +72,13 @@ END_CASE
 
 IF Get THEN
 	IF NOT Robot._DI1.ClampA_Open THEN
-		strStatus := 'Get command , clamp have box ';
+		strStatus := 'FB_ShippingRobot_TransmitCVEnd: Get command , clamp have box ';
 		M_CheckCommand := FALSE;
 		RETURN;
 	END_IF
 ELSE
 	IF Robot._DI1.ClampA_Open THEN 
-		strStatus := 'Place command , clamp not have box ';
+		strStatus := 'FB_ShippingRobot_TransmitCVEnd: Place command , clamp not have box ';
 		M_CheckCommand := FALSE;
 		RETURN;
 	END_IF
@@ -185,7 +185,7 @@ IF Execute AND Reset THEN
 	uiExecutingStep :=uiResumeStep;
 //	PreviousStrStatus := strStatus;
 //	PreviousErrorCode := _UniqueErrorCode;
-	Status := 'no error';
+	Status := 'FB_ShippingRobot_TransmitCVEnd: no error';
 	eSTATE:=STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>
@@ -251,7 +251,7 @@ _Executed       := FALSE;
 
 tonTimeOut.IN:=FALSE;
 tonBoxArriveDelay.IN :=FALSE;
-strStatus :='No Error';
+strStatus :='FB_ShippingRobot_TransmitCVEnd: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 PreviousStrStatus			 :='';
 PreviousErrorCode			 :='';
@@ -360,7 +360,7 @@ CASE uiExecutingStep OF
 			ELSIF NOT Get  THEN
 				uiExecutingStep := 500;
 			ELSE
-				strStatus := 'Wrong command';
+				strStatus := 'FB_ShippingRobot_TransmitCVEnd Step 50: Wrong command';
 				_Error 	  := TRUE;
 			END_IF
    
@@ -410,7 +410,7 @@ CASE uiExecutingStep OF
 				tonTimeOut.IN:=TRUE;
 				IF tonTimeOut.Q=TRUE THEN		
 					uiResumeStep  	:= 10000;	
-					strStatus 		:='wait Box Arrived TransCV time out';
+					strStatus 		:='FB_ShippingRobot_TransmitCVEnd Step 10000: wait Box Arrived TransCV time out';
 					_Abort			:= TRUE;
 				END_IF	
     10080:
@@ -422,7 +422,7 @@ CASE uiExecutingStep OF
 			END_IF
 			IF tonTimeOut.Q=TRUE THEN
 				uiExecutingStep := 10080;
-				strStatus 		:='Reset Robot timeout';
+				strStatus 		:='FB_ShippingRobot_TransmitCVEnd Step 10080: Reset Robot timeout';
 				_Abort			:= TRUE;
 			END_IF	
     
@@ -435,7 +435,7 @@ CASE uiExecutingStep OF
 			END_IF
 		
     99000: // process done
-                Status    := 'Process completed';
+                Status    := 'FB_ShippingRobot_TransmitCVEnd Step 99000: Process completed';
         		_Executed := TRUE;
 END_CASE
 

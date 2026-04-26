@@ -367,7 +367,7 @@ tonTimeOut.IN := TRUE;
 
 // 非自動模式直接中止
 IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-	strStatus := 'Not in Auto mode';
+	strStatus := 'FB_FeedInRoundBeltBoxBatch: Not in Auto mode';
 	_UniqueErrorCode := 'E_NOT_AUTO_MODE';
 	_Abort := TRUE;
 	RETURN;
@@ -376,14 +376,14 @@ END_IF
 // Pause: 僅在迭代邊界 (step 0/310) 生效
 IF __ISVALIDREF(BatchInfo) AND BatchInfo.Pause THEN
 	IF uiExecutingStep = 0 OR uiExecutingStep = 310 THEN
-		strStatus := 'Paused (at iteration boundary)';
+		strStatus := 'FB_FeedInRoundBeltBoxBatch: Paused (at iteration boundary)';
 		RETURN;
 	END_IF
 END_IF
 
 // Per-iteration timeout (600s, step 310 推進時重置)
 IF tonTimeOut.Q THEN
-	strStatus := 'Batch per-iteration timeout';
+	strStatus := 'FB_FeedInRoundBeltBoxBatch: Batch per-iteration timeout';
 	_UniqueErrorCode := 'E_BATCH_TIMEOUT';
 	uiResumeStep := 100;
 	_Abort := TRUE;

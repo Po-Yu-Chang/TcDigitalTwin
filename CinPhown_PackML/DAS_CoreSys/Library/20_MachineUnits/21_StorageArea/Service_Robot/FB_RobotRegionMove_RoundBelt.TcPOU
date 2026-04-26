@@ -55,7 +55,7 @@ END_VAR
 
 IF NOT UseA AND NOT UseB THEN
 	M_CheckClampStatus 	:= FALSE;
-	strStatus 			:= 'FB_RobotRegionMove_RoundBelt ,Wrong Command , Both Clammp not used';
+	strStatus 			:= 'FB_RobotRegionMove_RoundBelt: Wrong Command , Both Clammp not used';
 	RETURN;
 END_IF
 
@@ -63,13 +63,13 @@ IF UseA THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use A Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt: Robot Use A Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use A Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt: Robot Use A Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -78,13 +78,13 @@ IF UseB THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use B Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt: Robot Use B Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_RoundBelt ,Robot Use B Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_RoundBelt: Robot Use B Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -108,7 +108,7 @@ UseA := Info.UseA;
 UseB := Info.UseB;
 	//Normal command : RoundBelt
 		IF Info.UseA AND (Info.A_Position<1 OR  Info.A_Position>3) THEN
-			strStatus:='Wrong command ,Position A Not allowed';
+			strStatus:='FB_RobotRegionMove_RoundBelt: Wrong command ,Position A Not allowed';
 			M_CheckCommand:=FALSE;
 			RETURN;			
 		END_IF
@@ -116,7 +116,7 @@ UseB := Info.UseB;
 	
 	//Normal command : RoundBelt
 		IF Info.UseB AND(Info.B_Position<1 OR  Info.B_Position>3) THEN
-			strStatus:='Wrong command ,Position B Not allowed';
+			strStatus:='FB_RobotRegionMove_RoundBelt: Wrong command ,Position B Not allowed';
 			M_CheckCommand:=FALSE;
 			RETURN;				
 		END_IF
@@ -260,7 +260,7 @@ _Error          := FALSE;
 _Executed       := FALSE;
 
 tonTimeOut.IN:=tonCheckRoundBeltDelay.IN:= FALSE;
-strStatus :='No Error';
+strStatus :='FB_RobotRegionMove_RoundBelt: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 PreviousStrStatus			 :='';
 PreviousErrorCode			 :='';
@@ -401,11 +401,11 @@ CASE uiExecutingStep OF
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 						uiResettingStep := 10000;
 						_Abort:=TRUE	;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : No Box on A1';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000: No Box on A1';
 					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 						uiResettingStep := 10000;
 						_Abort:=TRUE	;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : No Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000: No Box on A2';
 					ELSE 
 						uiSingleClampStep := 100;
 					END_IF	
@@ -413,11 +413,11 @@ CASE uiExecutingStep OF
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 						uiResettingStep := 10000;
 						_Abort:=TRUE	;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : Box on A1';									
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000: Box on A1';									
 					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 						uiResettingStep := 10000;
 						_Abort:=TRUE	;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000 : Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 10000: Box on A2';
 					ELSE
 						uiSingleClampStep := 100;	
 					END_IF				
@@ -456,7 +456,7 @@ CASE uiExecutingStep OF
 		IF tonTimeOut.Q=TRUE THEN
 			uiResumeStep 	:= 10000;
 			tonTimeOut.IN	:= FALSE;
-			strStatus := 'FB_RobotRegionMove_RoundBlet Step 10000 : Robot Abs Move timeout';
+			strStatus := 'FB_RobotRegionMove_RoundBelt Step 10000: Robot Abs Move timeout';
 			_Abort			:= TRUE;
 		END_IF	
 		IF robot.Error THEN
@@ -473,7 +473,7 @@ CASE uiExecutingStep OF
             uiExecutingStep := 99000; 
         END_IF
     	IF tonTimeOut.Q=TRUE THEN
-			strStatus :='FB_RobotRegionMove_RoundBlet Step 10000 : Reset Robot timeout';
+			strStatus :='FB_RobotRegionMove_RoundBelt Step 10080: Reset Robot timeout';
 
 
 			_Error:=TRUE;
@@ -504,11 +504,11 @@ CASE uiExecutingStep OF
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 						_Abort:=TRUE	;
 						uiResettingStep := 20000;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : No Box on A1';		
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000: No Box on A1';		
 					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 						_Abort:=TRUE	;
 						uiResettingStep := 20000;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : No Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000: No Box on A2';
 					ELSE
 						uiSingleClampStep := 100;
 					END_IF	
@@ -516,11 +516,11 @@ CASE uiExecutingStep OF
 					IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 						_Abort:=TRUE	;
 						uiResettingStep := 20000;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : Box on A1';				
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000: Box on A1';				
 					ELSIF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 						_Abort:=TRUE	;
 						uiResettingStep := 20000;
-						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000 : Box on A2';
+						strStatus :='FB_RobotRegionMove_RoundBelt Step 20000: Box on A2';
 					ELSE
 						uiSingleClampStep := 100;
 					END_IF				
@@ -559,7 +559,7 @@ CASE uiExecutingStep OF
 		IF tonTimeOut.Q=TRUE THEN
 			uiResumeStep 	:= 20000;
 			tonTimeOut.IN	:= FALSE;
-			strStatus := 'FB_RobotRegionMove_RoundBlet Step 20000 : Robot Abs Move timeout';
+			strStatus := 'FB_RobotRegionMove_RoundBelt Step 20000: Robot Abs Move timeout';
 			_Abort			:= TRUE;
 		END_IF
 		IF robot.Error THEN
@@ -578,7 +578,7 @@ CASE uiExecutingStep OF
             uiExecutingStep := 99000;
         END_IF
 		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='FB_RobotRegionMove_RoundBlet Step 20080 : Reset Robot timeout';
+			strStatus :='FB_RobotRegionMove_RoundBelt Step 20080: Reset Robot timeout';
 
 
 			_Error:=TRUE;
@@ -604,23 +604,23 @@ CASE uiExecutingStep OF
 						IF  Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 							_Abort:=TRUE	;
 							uiResettingStep := 30000;
-							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : No Box on A1';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000: No Box on A1';
 						END_IF				
 						IF  Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 							_Abort:=TRUE	;
 							uiResettingStep := 30000;
-							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : No Box on A2';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000: No Box on A2';
 						END_IF	
 					ELSE		//Place job , check no box 
 						IF  Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 							_Abort:=TRUE	;
 							uiResettingStep := 30000;
-							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : Box on A1';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000: Box on A1';
 						END_IF				
 						IF  Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 							_Abort:=TRUE	;
 							uiResettingStep := 30000;
-							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000 : Box on A2';
+							strStatus :='FB_RobotRegionMove_RoundBelt Step 30000: Box on A2';
 						END_IF				
 					END_IF
 					IF NOT _Error THEN
@@ -663,7 +663,7 @@ CASE uiExecutingStep OF
 		IF tonTimeOut.Q=TRUE THEN
 			uiResumeStep 	:= 30000;
 			tonTimeOut.IN	:= FALSE;
-			strStatus := 'FB_RobotRegionMove_RoundBlet Step 30000 : Robot Abs Move timeout';
+			strStatus := 'FB_RobotRegionMove_RoundBelt Step 30000: Robot Abs Move timeout';
 			_Abort			:= TRUE;
 		END_IF
 		IF robot.Error THEN
@@ -682,7 +682,7 @@ CASE uiExecutingStep OF
         END_IF    
    		tonTimeOut.IN:=TRUE;
 		IF tonTimeOut.Q=TRUE THEN
-			strStatus :='FB_RobotRegionMove_RoundBlet Step 30080 : Stop Robot timeout';
+			strStatus :='FB_RobotRegionMove_RoundBelt Step 30080: Stop Robot timeout';
 
 
 
@@ -694,26 +694,26 @@ CASE uiExecutingStep OF
 			IF Get THEN  // Picking job , check box putted
 				IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =TRUE	THEN
 					_Error:=TRUE	;
-					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : Box still on A1';
+					strStatus :='FB_RobotRegionMove_RoundBelt Step 99000: Box still on A1';
 
 
 				END_IF				
 				IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =TRUE	THEN
 					_Error:=TRUE	;
-					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : Box still on A2';
+					strStatus :='FB_RobotRegionMove_RoundBelt Step 99000: Box still on A2';
 
 
 				END_IF	
 			ELSE		//Place job , check no box 
 				IF A1Used AND Input.bRoundBelt_ChangeZoneA2Detect_Sensor =FALSE	THEN
 					_Error:=TRUE	;
-					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : No Box on A1';
+					strStatus :='FB_RobotRegionMove_RoundBelt Step 99000: No Box on A1';
 
 
 				END_IF				
 				IF A2Used AND Input.bRoundBelt_ChangeZoneA3Detect_Sensor =FALSE	THEN
 					_Error:=TRUE	;
-					strStatus :='FB_RobotRegionMove_RoundBlet Step 99000 : No Box on A2';
+					strStatus :='FB_RobotRegionMove_RoundBelt Step 99000: No Box on A2';
 
 
 				END_IF	
@@ -723,7 +723,7 @@ CASE uiExecutingStep OF
 			 	uiExecutingStep := 99100;
 			 END_IF
 	99100: // process done
-                Status    := 'Process completed';
+                Status    := 'FB_RobotRegionMove_RoundBelt Step 99100: Process completed';
         	_Executed := TRUE;
 END_CASE
 

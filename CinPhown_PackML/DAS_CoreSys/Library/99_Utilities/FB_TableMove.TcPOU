@@ -195,25 +195,25 @@ END_VAR]]></Declaration>
     0:
         M_GetErrorMsg := 'No Error';
     1:
-        M_GetErrorMsg := 'Action time out';
+        M_GetErrorMsg := 'FB_TableMove ErrorID 1: Action time out';
     2:
-        M_GetErrorMsg := 'Position Data invalid';
+        M_GetErrorMsg := 'FB_TableMove ErrorID 2: Position Data invalid';
     3:
-        M_GetErrorMsg := 'Index invalid';
+        M_GetErrorMsg := 'FB_TableMove ErrorID 3: Index invalid';
     4:
-		M_GetErrorMsg := 'Axis is not ready';
+		M_GetErrorMsg := 'FB_TableMove ErrorID 4: Axis is not ready';
     5:
-        M_GetErrorMsg := 'Axis OutRobot X has Error';
+        M_GetErrorMsg := 'FB_TableMove ErrorID 5: Axis OutRobot X has Error';
     6:
-        M_GetErrorMsg := 'Axis OutRobot Y has Error';
+        M_GetErrorMsg := 'FB_TableMove ErrorID 6: Axis OutRobot Y has Error';
 	7:
-		M_GetErrorMsg := 'Axis Allocate_X has error';
+		M_GetErrorMsg := 'FB_TableMove ErrorID 7: Axis Allocate_X has error';
 	8:
-		M_GetErrorMsg := 'Axis Allocate_Y has error';
+		M_GetErrorMsg := 'FB_TableMove ErrorID 8: Axis Allocate_Y has error';
 	9:
-		M_GetErrorMsg := 'Axis RoundBelt has error';
+		M_GetErrorMsg := 'FB_TableMove ErrorID 9: Axis RoundBelt has error';
 	10:
-		M_GetErrorMsg := 'Axis TurnTable has error';
+		M_GetErrorMsg := 'FB_TableMove ErrorID 10: Axis TurnTable has error';
 END_CASE]]></ST>
       </Implementation>
     </Method>

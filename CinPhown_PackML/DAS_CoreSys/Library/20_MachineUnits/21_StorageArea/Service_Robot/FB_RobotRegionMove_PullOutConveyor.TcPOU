@@ -51,7 +51,7 @@ END_VAR
 
 IF NOT UseA AND NOT UseB THEN
 	M_CheckClampStatus 	:= FALSE;
-	strStatus 			:= 'FB_RobotRegionMove_PullOutConveyor ,Wrong Command , Both Clammp not used';
+	strStatus 			:= 'FB_RobotRegionMove_PullOutConveyor: Wrong Command , Both Clammp not used';
 	RETURN;
 END_IF
 
@@ -59,13 +59,13 @@ IF UseA THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use A Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor: Robot Use A Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampA_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use A Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor: Robot Use A Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -74,13 +74,13 @@ IF UseB THEN
 	IF Get THEN
 		IF NOT Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus  := FALSE;
-			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use B Clamp Get ,but Clamp not open ';
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor: Robot Use B Clamp Get ,but Clamp not open ';
 			RETURN;
 		END_IF
 	ELSE
 		IF Robot._DI1.ClampB_Open THEN
 			M_CheckClampStatus	:= FALSE;
-			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor ,Robot Use B Clamp Place ,but Clamp open';
+			strStatus			:= 'FB_RobotRegionMove_PullOutConveyor: Robot Use B Clamp Place ,but Clamp open';
 			RETURN;
 		END_IF
 	END_IF
@@ -105,13 +105,13 @@ END_VAR]]></Declaration>
 
 	 // PullOut conveyor
 		IF UseA AND (Info.A_Position<1 OR  Info.A_Position>2 )THEN
-			strStatus:='Wrong command ,Position A Not allow';
+			strStatus:='FB_RobotRegionMove_PullOutConveyor: Wrong command ,Position A Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;				
 		END_IF	
 	
 		IF UseB AND (Info.B_Position<1 OR  Info.B_Position>2 )THEN
-			strStatus:='Wrong command ,Position B Not allow';
+			strStatus:='FB_RobotRegionMove_PullOutConveyor: Wrong command ,Position B Not allow';
 			M_CheckCommand:=FALSE;
 			RETURN;			
 		END_IF
@@ -675,7 +675,7 @@ CASE uiExecutingStep OF
         END_IF
 		IF robot._DI1.Error THEN
 			_Abort		 := TRUE;
-			strStatus	 := CONCAT('FB_RobotRegionMove_PullOutConveyor Step 30000,',robot.ErrMsg);
+			strStatus	 := CONCAT('FB_RobotRegionMove_PullOutConveyor Step 30000: ',robot.ErrMsg);
 			uiResumeStep := 30000;
 		END_IF
 
@@ -700,7 +700,7 @@ CASE uiExecutingStep OF
 
     99000: // process done
         DAS_CoreSys.MachineControl.fballocatearea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
-        Status := 'Process completed';
+        Status := 'FB_RobotRegionMove_PullOutConveyor Step 99000: Process completed';
         _Executed := TRUE;
 END_CASE
 

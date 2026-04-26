@@ -48,19 +48,19 @@ UseB := Info.UseB;
 // 出貨區小手臂只有 A爪,所以程式內只有判斷 useA
 IF UseB THEN
 	M_CheckCommandVaild := FALSE;
-	status 				:= 'FB_ShippingRobot_PhotoStandByPos , WrongCommand not have B Clamp , not can retry';
+	status 				:= 'FB_ShippingRobot_PhotoStandByPos: WrongCommand not have B Clamp , not can retry';
 	RETURN;
 END_IF
 IF NOT UseA THEN
 	M_CheckCommandVaild := FALSE;
-	status 				:= 'FB_ShippingRobot_PhotoStandByPos , WrongCommand A Clamp must be used';
+	status 				:= 'FB_ShippingRobot_PhotoStandByPos: WrongCommand A Clamp must be used';
 	RETURN;
 END_IF
 
 //
 IF info.A_Position <> 0 THEN
 	M_CheckCommandVaild := TRUE;
-	status				:= 'FB_ShippingRobot_PhotoStandByPos , WrongCommand not have Position';
+	status				:= 'FB_ShippingRobot_PhotoStandByPos: WrongCommand not have Position';
 END_IF
 
 M_CheckCommandVaild := TRUE;]]></ST>
@@ -245,7 +245,7 @@ CASE uiExecutingStep OF
 			
 			IF TON_RobotActionTimeOut.Q THEN
 				_Abort 	:= TRUE;
-				Status	:= 'FB_ShippingRobot_PhotoStandByPos ,Step:10000 RobotAction Timeout,can retry';
+				Status	:= 'FB_ShippingRobot_PhotoStandByPos Step 10000: RobotAction Timeout,can retry';
 			END_IF
 			
 	11000:	// reset 手臂命令
@@ -258,11 +258,11 @@ CASE uiExecutingStep OF
         	END_IF
 			IF TON_CheckRobotDoneTimeOut.Q THEN
 				_Error := TRUE;
-				status := 'FB_ShippingRobot_PhotoStandByPos , Step:11000 Wait Robot done Timeout';
+				status := 'FB_ShippingRobot_PhotoStandByPos Step 11000: Wait Robot done Timeout';
 			END_IF
 		
 	90000:
-			Status    := 'Process completed';
+			Status    := 'FB_ShippingRobot_PhotoStandByPos Step 90000: Process completed';
         	_Executed := TRUE;
 end_case
 

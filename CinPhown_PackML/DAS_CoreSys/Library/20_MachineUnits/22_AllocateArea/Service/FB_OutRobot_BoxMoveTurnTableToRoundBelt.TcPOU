@@ -247,7 +247,7 @@ Status          := '';
 _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
-strStatus :='No Error';
+strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt: No Error';
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
 tonTimeOut.IN :=TRUE;
 _UniqueErrorCode:='0';
@@ -311,7 +311,7 @@ CASE uiExecutingStep OF
 
 	IF (UseA AND NOT INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND NOT INPUT.bTurnTable_R2Detect_Sensor) THEN
 		_Error:=TRUE;
-		strStatus :='Box Not on Turntable';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 200: Box Not on Turntable';
 	ELSE
 		IF UseA THEN
 			iWorkingIndex :=0;
@@ -342,7 +342,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Error :=TRUE;
-		strStatus :='Robot move to picking position timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 1100: Robot move to picking position timeout';
 	END_IF
 	
 1200: //Clip Down Pick	  
@@ -362,7 +362,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort :=TRUE;
-		strStatus :='Cylinder pick down timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 1200: Cylinder pick down timeout';
 	END_IF
 	
 1300: // Clip close Pick
@@ -383,7 +383,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort :=TRUE;
-		strStatus :='clip pick close timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 1300: clip pick close timeout';
 	END_IF
 	
 1400: // Clip Up Pick
@@ -404,7 +404,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort :=TRUE;
-		strStatus :='cylinder pick up timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 1400: cylinder pick up timeout';
 	END_IF
 	  
 1500: // If Next pick
@@ -434,7 +434,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Error :=TRUE;
-		strStatus :='Box still on Turntable';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 1600: Box still on Turntable';
 	END_IF
 
 2000: // Move to Placing pos	 
@@ -455,7 +455,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Error :=TRUE;
-		strStatus :='robot move to placing position timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 2100: robot move to placing position timeout';
 	END_IF
 
 
@@ -476,7 +476,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort :=TRUE;
-		strStatus :='Cylinder place down timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 2200: Cylinder place down timeout';
 	END_IF
 	
 2300: // Clip open Place
@@ -497,7 +497,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort :=TRUE;
-		strStatus :='clip place open timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 2300: clip place open timeout';
 	END_IF
 	  
 2400: // Clip up Placing
@@ -517,7 +517,7 @@ CASE uiExecutingStep OF
 	IF tonTimeOut.Q THEN
 		tonTimeOut.IN := FALSE;
 		_Abort :=TRUE;
-		strStatus :='cylinder place up timeout';
+		strStatus :='FB_OutRobot_BoxMoveTurnTableToRoundBelt Step 2400: cylinder place up timeout';
 	END_IF
 	
 2500: // If Next place

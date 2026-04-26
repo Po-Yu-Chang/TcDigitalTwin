@@ -406,7 +406,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 10000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 10000: Pick Box timeout';
 		END_IF
     10080:
         Robot.M_ResetAllCommand(); // Clear command and go to place box
@@ -449,7 +449,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 11000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 11000: Pick Box timeout';
 		END_IF
     11080:
         Robot.M_ResetAllCommand(); // Clear command and go to place box
@@ -492,7 +492,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 20000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 20000: Pick Box timeout';
 		END_IF
     20080:
         WareHouse.M_ResetReloadBox();
@@ -535,7 +535,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 21000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 21000: Pick Box timeout';
 		END_IF
     21080:
         WareHouse.M_ResetReloadBox();
@@ -611,7 +611,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 30000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 30000: Pick Box timeout';
 		END_IF
     30080: // Check robot command is clear
         WareHouse.M_ResetReloadBox();
@@ -649,7 +649,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 31000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 31000: Pick Box timeout';
 		END_IF
 
     31080:
@@ -686,7 +686,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 31100;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 31100: Pick Box timeout';
 		END_IF
     31180:
         Robot.M_ResetAllCommand(); // Clear command and go to place box
@@ -723,7 +723,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 32000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 32000: Pick Box timeout';
 		END_IF
 
     32080:
@@ -760,7 +760,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 32100;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 32100: Pick Box timeout';
 		END_IF
 
     32180:
@@ -838,7 +838,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 33000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Pick Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 33000: Pick Box timeout';
 		END_IF
 
     33080:
@@ -873,7 +873,7 @@ CASE uiExecutingStep OF
 				IF RoundBelt.xError THEN
 					_Error :=TRUE;
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();	
-					strStatus:='RoundBelt Error';
+					strStatus:='FB_ReloadRoundBeltBoxWithRobot_V2 Step 61000: RoundBelt Error';
 				END_IF
 	61010:
 			
@@ -891,7 +891,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 61010;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Place Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 61010: Place Box timeout';
 		END_IF
 		IF Robot._DI1.Error THEN
 			uiResumeStep := 61010;
@@ -934,7 +934,7 @@ CASE uiExecutingStep OF
 					_Error :=TRUE;
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
-					strStatus:='RoundBelt Error';
+					strStatus:='FB_ReloadRoundBeltBoxWithRobot_V2 Step 71000: RoundBelt Error';
 				END_IF
 	71010:
 			
@@ -952,7 +952,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 71010;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Place Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 71010: Place Box timeout';
 		END_IF
 		IF Robot._DI1.Error THEN
 			uiResumeStep := 71010;
@@ -998,7 +998,7 @@ CASE uiExecutingStep OF
 					_Error :=TRUE;
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
-					strStatus:='RoundBelt Error';
+					strStatus:='FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: RoundBelt Error';
 				END_IF
             11:
 				//========================Test==================
@@ -1055,7 +1055,7 @@ CASE uiExecutingStep OF
 				IF RoundBelt.xError THEN
 					_Error :=TRUE;
 					DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();	
-					strStatus:='RoundBelt Error';
+					strStatus:='FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: RoundBelt Error';
 				END_IF
             80:	
 				//========================Test==================
@@ -1096,7 +1096,7 @@ CASE uiExecutingStep OF
 			uiResumeStep := 81000;
 			_Abort := TRUE;
 			tonTimeOut.IN :=FALSE;
-			strStatus :='Place Box timeout';
+			strStatus :='FB_ReloadRoundBeltBoxWithRobot_V2 Step 81000: Place Box timeout';
 		END_IF
 		IF Robot._DI1.Error THEN
 			uiResumeStep := 81000;
@@ -1109,7 +1109,7 @@ CASE uiExecutingStep OF
 
 			DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
 			DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
-        	Status    := 'Process completed';
+        	Status    := 'FB_ReloadRoundBeltBoxWithRobot_V2 Step 99000: Process completed';
         	_Executed := TRUE;
 END_CASE
 

@@ -477,7 +477,7 @@ tonTimeOut.IN := TRUE;
 
 // 非自動模式直接中止 (避免軸控衝突)
 IF GVL_Machine.PackTags[UnitNo.Storage].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-	strStatus := 'Not in Auto mode';
+	strStatus := 'FB_WareHouseInnerPickToRoundBeltBatch: Not in Auto mode';
 	_UniqueErrorCode := 'E_NOT_AUTO_MODE';
 	_Abort := TRUE;
 END_IF
@@ -489,7 +489,7 @@ END_IF
 // ============================================================
 IF __ISVALIDREF(BatchInfo) AND BatchInfo.Pause THEN
 	IF uiExecutingStep = 0 OR uiExecutingStep = 310 THEN
-		strStatus := 'Paused (at iteration boundary)';
+		strStatus := 'FB_WareHouseInnerPickToRoundBeltBatch: Paused (at iteration boundary)';
 	END_IF
 	// 非安全 step: 繼續跑直到下一個 iteration 邊界
 END_IF
@@ -498,7 +498,7 @@ END_IF
 // Resume 映射: 無論 timeout 發生在哪個 step,都回 step 100 重新配置 fbSingleFlow
 // (abort 過程會清掉 fbSingleFlow 狀態,直接回原 step 沒用)
 IF tonTimeOut.Q THEN
-	strStatus := 'Batch per-iteration timeout';
+	strStatus := 'FB_WareHouseInnerPickToRoundBeltBatch: Batch per-iteration timeout';
 	_UniqueErrorCode := 'E_BATCH_TIMEOUT';
 	uiResumeStep := 100;
 	_Abort := TRUE;
