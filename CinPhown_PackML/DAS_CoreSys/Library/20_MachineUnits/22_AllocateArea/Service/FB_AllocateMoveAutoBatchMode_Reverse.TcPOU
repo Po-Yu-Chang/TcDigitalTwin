@@ -115,7 +115,13 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[A00_BasicUnits();
-SUPER^.A10_StateControl();]]></ST>
+SUPER^.A10_StateControl();
+
+(*============================================================
+Create Date : 2026/04/27	
+Last Update	: 2026/04/27
+Change Log  : 導入鏡射機測試完成版本。 edited by Gamin 
+============================================================*)]]></ST>
     </Implementation>
     <Folder Name="Method" Id="{d5b13dfa-ebc1-41eb-a207-dda0dff105e7}" />
     <Folder Name="STATE" Id="{281a6d9f-e7d6-45c2-b22a-d6cf6add0914}" />
@@ -1223,6 +1229,8 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
     <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse">
       <LineId Id="23" Count="0" />
       <LineId Id="30" Count="0" />
+      <LineId Id="143" Count="4" />
+      <LineId Id="142" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.A00_BasicUnits">
       <LineId Id="1" Count="2" />
