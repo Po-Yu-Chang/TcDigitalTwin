@@ -265,6 +265,7 @@ fb_AllocateBatchMode_Reverse(
 	Execute:=AutoAllocateJobBatch_Reverse_Ctrl.bExecute ,
 	Abort:= THIS^.Abort OR _bAnyServiceError,
 	Reset:= Reset,
+	Pause:= bStopMem,
 	ObjectName:= 'Allocate batch reverse',
 	Busy=> AutoAllocateJobBatch_Reverse_Status.bBusy,
 	Done=> AutoAllocateJobBatch_Reverse_Status.bDone,
@@ -1306,6 +1307,7 @@ END_IF]]></ST>
       <LineId Id="365" Count="6" />
       <LineId Id="274" Count="6" />
       <LineId Id="372" Count="0" />
+      <LineId Id="476" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateAreaWithRoundbelt.A01_RoundBeltAccessControl">
       <LineId Id="1" Count="1" />

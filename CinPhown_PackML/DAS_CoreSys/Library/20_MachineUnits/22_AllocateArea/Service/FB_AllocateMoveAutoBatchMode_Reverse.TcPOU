@@ -421,7 +421,22 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[		Busy := TRUE;				
+        <ST><![CDATA[		Busy := TRUE;
+
+		// Pause gate:
+		// 停止本 Service 繼續派發新動作,並關閉 timeout 計時。
+		// 實際軸/氣缸立即停止仍由上層 machine/axis/cylinder control 負責。
+		IF Pause THEN
+			Paused := TRUE;
+			Status := 'Allocate batch reverse paused';
+			tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
+			Ton_RoundBeltArrivedDelay(IN := FALSE);
+			RoundBeltMoveJob.HandShake.Execute := FALSE;
+			RoundBeltMoveJob_Ctrl.Execute := FALSE;
+			bAllocateRobotMoveRequest := FALSE;
+			RETURN;
+		END_IF
+		Paused := FALSE;
 			
 		// 非自動模式直接中止 (避免軸控衝突)
 		IF GVL_Machine.PackTags[UnitNo.Allocate].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
