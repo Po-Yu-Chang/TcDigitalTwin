@@ -1183,19 +1183,25 @@
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\FUNs\FUN_GetSyncGroup_AllocationJob.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_AllocateMoveAutoBatchMode_Reverse_Old.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_PullOutConveyorAction_OLD.TcPOU">
       <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_PullOutConveyorBtnCtrl_OLD.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateMoveAutoBatchMode_Reverse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateRobotNeedlingMove.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateMoveAutoBatchMode.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateMoveAutoBatchMode_Reverse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_EmptyBoxMove.TcPOU">

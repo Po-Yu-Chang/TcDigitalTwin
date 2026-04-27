@@ -1,25 +1,25 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_AllocateMoveAutoBatchMode_Reverse" Id="{87270cb6-b261-402d-a003-deaf35677c10}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateMoveAutoBatchMode_Reverse EXTENDS FB_ObjectBase_V2
+  <POU Name="FB_AllocateMoveAutoBatchMode_Reverse_Old" Id="{13994e33-075a-4c5d-8335-7da03bfd97f5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateMoveAutoBatchMode_Reverse_Old EXTENDS FB_ObjectBase_V2
 VAR_INPUT
 //    Execute    :BOOL;   // True : This prog will start.
 //    Abort      :BOOL;   // True : This prog will be abort.
 //    Reset      :BOOL;   // True : This prog will be reset.
 //    ObjectName :STRING; // Set this fb name(About it's action)
-//	  Pause		 :BOOL;
-	bOccupied							: BOOL;	
-	Clips 								: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;
-	cylinders 							: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;	
-	TurnTable_Press		 		   		: REFERENCE TO FB_Cylinder;
-	RoundBelt_Press 			   		: REFERENCE TO FB_Cylinder;
-	AutoAllocateJobBatch_Reverse_Ctrl   :st_AllocateMoveAutoBatchMode_Ctrl;
-	INPUT            			   		: REFERENCE TO ST_InputTable;
-    OUTPUT           			   		: REFERENCE TO ST_OutputTable;
-	NrOfAllocateCylinder 		   		: INT :=4;
-	CurrentData 				   		: REFERENCE TO ST_SetupPara; // Componets setup parameter
-	bAutoAllocateJobDryRun         		: BOOL := FALSE;
-	RoundBeltMoveJob_Status 			: ST_StatusBasic;
+//	Pause				:BOOL;
+	bOccupied			: BOOL;	
+	Clips 				: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;
+	cylinders 			: REFERENCE TO  ARRAY[0..3] OF FB_Cylinder;	
+	TurnTable_Press		 		   : REFERENCE TO FB_Cylinder;
+	RoundBelt_Press 			   : REFERENCE TO FB_Cylinder;
+	AutoAllocateJobBatch_Reverse_Ctrl      :st_AllocateMoveAutoBatchMode_Ctrl;
+	INPUT            			   : REFERENCE TO ST_InputTable;
+    OUTPUT           			   : REFERENCE TO ST_OutputTable;
+	NrOfAllocateCylinder 		   : INT :=4;
+	CurrentData 				   : REFERENCE TO ST_SetupPara; // Componets setup parameter
+	bAutoAllocateJobDryRun         : BOOL := FALSE;
+	RoundBeltMoveJob_Status 		: ST_StatusBasic;
 END_VAR
 
 VAR_OUTPUT
@@ -34,7 +34,7 @@ VAR_OUTPUT
 	//UniqueErrorCode :STRING;
 	// AutoAllocateJobBatch_Status    :st_AllocateMoveAutoBatchMode_Status;
 	RoundBeltMoveJob_Position	:LREAL;
-	bAllocateRobotMoveRequest : BOOL;
+	bAllocateRobotMoveRequest	: BOOL;
 END_VAR
 
 VAR
@@ -117,20 +117,16 @@ END_VAR
       <ST><![CDATA[A00_BasicUnits();
 SUPER^.A10_StateControl();]]></ST>
     </Implementation>
-    <Folder Name="Method" Id="{d5b13dfa-ebc1-41eb-a207-dda0dff105e7}" />
-    <Folder Name="STATE" Id="{281a6d9f-e7d6-45c2-b22a-d6cf6add0914}" />
-    <Action Name="A00_BasicUnits" Id="{5815ecf9-6783-4177-b4b2-3cd8dd3fe3c8}">
+    <Folder Name="Method" Id="{45a4ea90-0e64-48dc-852d-816a1005b08d}" />
+    <Folder Name="STATE" Id="{3b62a0b8-2434-4355-a949-c441a79e220a}" />
+    <Action Name="A00_BasicUnits" Id="{7d091081-6027-47d1-bfee-a9cb3ba598d4}">
       <Implementation>
         <ST><![CDATA[Ton_RoundBeltArrivedDelay();
 tonFastModeTimeDelayBatch_Reverse(PT:=T#100MS);
-// 暫停時重置 Timeout 計時器，避免續作誤報超時
-IF Pause THEN
-    tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
-END_IF
-tAutoAllocationJobBatchTimeOut_Reverse(PT:=T#120s);	// 原 30s 太短,belt 移動 + XY 到位經常超時]]></ST>
+tAutoAllocationJobBatchTimeOut_Reverse(PT:=T#30s);]]></ST>
       </Implementation>
     </Action>
-    <Method Name="GetModelState" Id="{9f34a589-62a6-4ead-af86-089c1e68b6b8}">
+    <Method Name="GetModelState" Id="{f8bb4281-5c18-4516-b70b-5ad3fad39891}">
       <Declaration><![CDATA[METHOD GetModelState
 VAR_OUTPUT
     xDone    :BOOL;
@@ -149,14 +145,14 @@ xAborted := Abort;
 iErrorID := ErrorID;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="GetName" Id="{d4e9e28a-6fe2-4033-9e0e-055601f2b854}">
+    <Method Name="GetName" Id="{675144cb-5dc5-4e25-b1ca-37ef5345e97d}">
       <Declaration><![CDATA[METHOD GetName : STRING
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[GetName := ObjectName;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CheckClipsNoError" Id="{a915710b-e241-4c3b-9cf9-6f2fcef16ab4}" FolderPath="Method\">
+    <Method Name="M_CheckClipsNoError" Id="{56559f8d-76d7-4e86-8a26-e870dfcae0ad}" FolderPath="Method\">
       <Declaration><![CDATA[(* Check Allocate Robot Clip cylinder no error
 	Return True : no error
 *)
@@ -173,7 +169,7 @@ END_VAR
 M_CheckClipsNoError := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CheckCylindersNoError" Id="{6cf85825-2d33-44ca-8faa-0ff880d843d5}" FolderPath="Method\">
+    <Method Name="M_CheckCylindersNoError" Id="{68ee880e-dda8-4901-a102-d02c0963c5e4}" FolderPath="Method\">
       <Declaration><![CDATA[(* Check Allocate Robot vertical cylinder no error
 	return True : no error
 *)
@@ -195,7 +191,7 @@ END_VAR
 M_CheckCylindersNoError := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_RecoveryAxes" Id="{360ba57f-de84-49de-babb-e64817a861a9}" FolderPath="Method\">
+    <Method Name="M_RecoveryAxes" Id="{d1cd34ec-b4cc-4601-8f89-379ef91719ac}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD PRIVATE M_RecoveryAxes : BOOL
 VAR_INPUT
 END_VAR
@@ -210,7 +206,7 @@ FOR CheckErrorIndex:=1 TO 4 DO
 		arAxisCtrl_gb[CheckErrorIndex].Admin.ClearError:=TRUE;
 		bCheckTrue:=FALSE;
 	ELSE
-		arAxisCtrl_gb[CheckErrorIndex].Admin.ClearError:=FALSE;
+		arAxisCtrl_gb[CheckErrorIndex].Admin.ClearError:=FALSE;	
 	END_IF
 END_FOR
 //		TurnTable := 1,
@@ -223,7 +219,7 @@ M_RecoveryAxes:= bCheckTrue;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTED" Id="{b483e50d-57f3-401c-855d-0144ecd84e12}" FolderPath="STATE\">
+    <Method Name="M_STATE_ABORTED" Id="{5865d2e9-e508-476c-a990-7b8c465690c9}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTED
 VAR_INPUT
 END_VAR
@@ -238,7 +234,7 @@ IF Aborted AND NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF
 
-	ErrorID := GVL_ErrorCode.GC_SVCID_ALC_BATCH_FULL;
+	ErrorID						 := 108;
 
 IF Aborted AND Reset THEN
 	AllocationJobBatchModeReverse :=uiResumableStep;
@@ -248,7 +244,7 @@ END_IF
 		]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTING" Id="{8573ce28-6fdd-4cc2-ae6a-0e40398022cc}" FolderPath="STATE\">
+    <Method Name="M_STATE_ABORTING" Id="{a1ec028c-5b82-4004-b96f-79e4ea655258}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTING
 VAR_INPUT
 END_VAR
@@ -294,7 +290,7 @@ END_VAR
 		]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DONE" Id="{69f6a537-d480-45ee-a209-3e1c43452818}" FolderPath="STATE\">
+    <Method Name="M_STATE_DONE" Id="{c92fa597-6a92-4816-a2e9-ed574d9b691a}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_DONE
 VAR_INPUT
 END_VAR
@@ -313,7 +309,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DORMANT" Id="{e75465b0-7af1-469a-aed3-84c9e94add1f}" FolderPath="STATE\">
+    <Method Name="M_STATE_DORMANT" Id="{733b5c60-f2f2-4263-a563-30b4932d0894}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_DORMANT
 VAR_INPUT
 END_VAR
@@ -329,11 +325,7 @@ _Error          := FALSE;
 _Executed       := FALSE;
 _Abort			:= FALSE;
 Aborted			:= FALSE;
-strStatus := M_FormatManagedStatus(
-	AlarmId := GVL_ErrorCode.GC_ALARM_ALC_BATCH_REVERSE,
-	InnerMessage := GVL_ErrorCode.GC_MSG_0089);
-Status := '';
-Error := FALSE;
+strStatus 		:='No Error';
 Status          := '';
 
 uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
@@ -365,7 +357,7 @@ IF Execute THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ERROR" Id="{f4a84ae3-100f-4b87-9012-d37364fbb17f}" FolderPath="STATE\">
+    <Method Name="M_STATE_ERROR" Id="{855fc45e-7def-49e6-afc4-f0d4c11ae8fe}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ERROR
 VAR_INPUT
 END_VAR
@@ -395,7 +387,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_EXECUTING" Id="{7b309dd7-81bb-4f01-9766-8296b5168d8c}" FolderPath="STATE\">
+    <Method Name="M_STATE_EXECUTING" Id="{23a401c5-b151-4742-b487-c4cc19ef7cec}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
 VAR_INPUT
 END_VAR
@@ -417,32 +409,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[		Busy := TRUE;				
 			
-		// 非自動模式直接中止 (避免軸控衝突)
-		IF GVL_Machine.PackTags[UnitNo.Allocate].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-			strStatus := 'Not in Auto mode';
-			_UniqueErrorCode := 'E_NOT_AUTO_MODE';
-			_Abort := TRUE;
-			RETURN;
-		END_IF
-
-		// ============================================================
-		// TurnTable Interlock (Safety)
-		// 拔針 pick 階段 (CylinderDown ~ CylinderUp) 期間, cylinders 伸到
-		// TurnTable 盒上方, TurnTable 絕對不可轉動, 否則撞斷 cylinder/夾爪
-		// ============================================================
-		IF (AllocationJobBatchModeReverse = E_AllocationJob.CylinderDownPick
-		 OR AllocationJobBatchModeReverse = E_AllocationJob.ClipColse
-		 OR AllocationJobBatchModeReverse = E_AllocationJob.CylinderUpPick) THEN
-			IF arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Moving THEN
-				StatusDescription := 'TurnTable interlock: must not move during pick';
-				_UniqueErrorCode := 'E_TT_INTERLOCK';
-				uiResumableStep := AllocationJobBatchModeReverse;
-				_Abort := TRUE;
-				RETURN;
-			END_IF
-		END_IF
-
-		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(E_RoundBeltControlAccess.Allocating);
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_GetRoundBeltAccess(E_RoundBeltControlAccess.Allocating);		
 		RoundBeltMoveJob_Ctrl.Execute:=RoundBeltMoveJob.HandShake.Execute;
 		RoundBeltMoveJob.HandShake.Busy:=RoundBeltMoveJob_Status.Busy;
 		RoundBeltMoveJob.HandShake.Done:=RoundBeltMoveJob_Status.Done;
@@ -535,16 +502,16 @@ END_VAR
 				
 				tAutoAllocationJobBatchTimeOut_Reverse.IN:=TRUE	;
 				
-				FOR i:=0 TO NrOfAllocateCylinder-1 DO
+				FOR i:= 0 TO NrOfAllocateCylinder - 1 DO
 					clips[i].M_Retract();//('E_AllocationJob.Initial');
 					IF  clips[i].InRearPosition THEN
-						cylinders[i].M_Retract();//('E_AllocationJob.Initial');
-					END_IF
-
+						cylinders[i].M_Retract();//('E_AllocationJob.Initial');			
+					END_IF	
+		
 					IF NOT cylinders[i].InRearPosition THEN
-						bCheckTrue:=FALSE;
+						bCheckTrue:=FALSE;			
 					END_IF
-
+		
 				END_FOR
 //					IF TurnTable.Motor.Error THEN
 //					TurnTable.Motor.Reset();
@@ -584,18 +551,6 @@ END_VAR
 	
 	E_AllocationJob.CheckBoxesOnTurnTableReady:
 		//Check box is ready on turntable
-		// TurnTable 角度 gate: 必須在 0/90/180/270 (任一 station) 才允許拔針
-		// 取絕對值處理負角度 (e.g., -90 → 90, -180 → 180)
-		IF NOT (FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=0,   ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=90,  ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=180, ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=270, ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=360, ToleranceRange:=0.1)) THEN
-			StatusDescription := 'TurnTable angle invalid: must be at 0/90/180/270 to pick';
-			_UniqueErrorCode := 'E_TT_ANGLE_INVALID';
-			_Error := TRUE;
-			RETURN;
-		END_IF
 		tAutoAllocationJobBatchTimeOut_Reverse.IN:=TRUE	;
 		bBoxCheck :=TRUE;		
 				FOR i:=0 TO 3 DO
@@ -638,23 +593,23 @@ END_VAR
 
 				IF ClipsHaveNeedle_Pick[iWorkingIndex] THEN // Work if this index is request
                 	iWorkingCylinder := CurrentProcessData.PickingNeedleInfo[iWorkingIndex].Clip;
-					// Get working cylinder index from picking info
+					// Get working cylinder index from picking info		
 					IF cylinders[iWorkingCylinder].InRearPosition THEN
-					bAllocateRobotMoveRequest	:= TRUE;		
-						// Move allocating robot to picking position
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position :=CurrentPickingCoordinates[iWorkingIndex].X;
-
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;
+						bAllocateRobotMoveRequest	:= TRUE;			
+							// Move allocating robot to picking position
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position :=CurrentPickingCoordinates[iWorkingIndex].X;
+					
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPickingCoordinates[iWorkingIndex].Y;		
 					END_IF
-
+								
               		FOR i :=0 TO 3 DO
 						IF  CurrentProcessData.PlacingNeedleInfo[i].CycleStart THEN
 							iFirstWorkIndex:=	i;
@@ -670,7 +625,7 @@ END_VAR
 					//	IF iCurrentRotateBeltStation <> CurrentProcessData.PlacingNeedleInfo[iFirstWorkIndex].Station THEN
 							 //request to get the access to control Rotate belt
 							RoundBeltMoveJob.Position:=CurrentProcessData.PlacingNeedleInfo[iFirstWorkIndex].Station;							
-							RoundBeltMoveJob.HandShake.Execute;			
+							RoundBeltMoveJob.HandShake.Execute		;					
 							// In fast mode , just send rotatebelt to target station if it's request different station. Station check will be later
 					//	END_IF
 				
@@ -831,8 +786,8 @@ END_VAR
 		tAutoAllocationJobBatchTimeOut_Reverse.IN:=FALSE	;
 		iWorkingIndex:=iWorkingIndex+1;
 		IF iWorkingIndex>= NrOfAllocateCylinder THEN
-			iWorkingIndex:=0;
-			RoundBeltMoveJob.HandShake.Execute := FALSE;	// P1 fix: 改 HandShake (非 Ctrl),避免下 scan 被 line 429 覆蓋
+			iWorkingIndex:=0;		
+			RoundBeltMoveJob_Ctrl.Execute := FALSE;
 			AllocationJobBatchModeReverse:=E_AllocationJob.CheckRotateBeltStation;	
 			// If no more picking , go to next step to check  the rotate belt station 
 		ELSE
@@ -855,45 +810,38 @@ END_VAR
 		END_IF		
 	
       E_AllocationJob.MovingRotateBeltStation:
-				// timeout 保護: belt + XY 同時啟動,等兩者都就緒
-				tAutoAllocationJobBatchTimeOut_Reverse.IN := TRUE;
 
                 bMoveRotateBeltBusy := RoundBeltMoveJob_Status.Busy;
-				bMoveRotateBeltDone := RoundBeltMoveJob_Status.Done;
-                RoundBeltMoveJob.HandShake.Execute := TRUE;
-				// XY 與圓帶同時啟動（不受 FastMode 限制）
-				IF cylinders[iWorkingCylinder].InRearPosition THEN
+				bMoveRotateBeltDone := RoundBeltMoveJob_Status.Done;				
+                RoundBeltMoveJob.HandShake.Execute := TRUE;				
+				IF CurrentProcessData.FastMode THEN            
+					IF cylinders[iWorkingCylinder].InRearPosition THEN
+						
+						bAllocateRobotMoveRequest	:= TRUE; 
+                   							
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position :=CurrentPlacingCoordinates[iWorkingIndex].X;
 					
-					bAllocateRobotMoveRequest	:= TRUE;
-					
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position :=CurrentPlacingCoordinates[iWorkingIndex].X;
-
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
-					arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;
-				END_IF
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;		
+					END_IF
+                END_IF            
 			
 					
 						
-              	 IF (bMoveRotateBeltBusy OR bMoveRotateBeltDone) AND
-				    (  arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Moving   OR arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Moving
-				    OR (arAxisStatus_gb[AxisNo.Allocate_X].Admin.CmdDone AND arAxisStatus_gb[AxisNo.Allocate_Y].Admin.CmdDone) )	 THEN
-					tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
+              	 IF (bMoveRotateBeltBusy OR bMoveRotateBeltDone) AND 
+				    (  arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Moving   OR arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Moving)	 THEN
+					
                  	   AllocationJobBatchModeReverse := E_AllocationJob.MovedRotateBeltStation;
                	 END_IF
-
-				IF tAutoAllocationJobBatchTimeOut_Reverse.Q THEN
-					StatusDescription := 'MovingRotateBeltStation: Belt or XY not responding timeout';
-					uiResumableStep := E_AllocationJob.MovingRotateBeltStation;
-					_Abort := TRUE;
-				END_IF
-
+			
+				
       E_AllocationJob.MovedRotateBeltStation:
 
                 tAutoAllocationJobBatchTimeOut_Reverse.IN := TRUE;
@@ -903,40 +851,45 @@ END_VAR
 
                 IF bMoveRotateBeltDone THEN
 					RoundBeltMoveJob.HandShake.Execute := FALSE;  
-					// XY 已在 MovingRotateBeltStation 啟動，直接等兩軸到位
-					AllocationJobBatchModeReverse := E_AllocationJob.MovingToPlacingPos;
+					IF CurrentProcessData.FastMode THEN   
+                   	     AllocationJobBatchModeReverse   :=E_AllocationJob.MovingToPlacingPos;          	 
+					 
+					 ELSE
+					 	AllocationJobBatchModeReverse := E_AllocationJob.MoveToPlacingPos; 					 
+					 END_IF
                 END_IF
 				
 			 
 
                 IF tAutoAllocationJobBatchTimeOut_Reverse.Q THEN
-                    StatusDescription := 'Rotate Belt TimeOut';
-					uiResumableStep := E_AllocationJob.MovedRotateBeltStation;
-                    _Abort            := TRUE;	// P1 fix: 改 _Abort (可續做)
-                END_IF
 
+                    StatusDescription := 'Rotate Belt TimeOut';
+                    _Error            := TRUE;
+
+                END_IF
+	
             E_AllocationJob.MoveToPlacingPos:
 
-                IF ClipsHaveNeedle[iWorkingIndex] THEN
+                IF ClipsHaveNeedle[iWorkingIndex] THEN 
                     iWorkingCylinder := CurrentProcessData.PlacingNeedleInfo[iWorkingIndex].Clip;
 					IF cylinders[iWorkingCylinder].InRearPosition THEN
 						
 						bAllocateRobotMoveRequest	:= TRUE;
-						
+                  
 						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Acc := CurrentData.Axes.Allocate_X.HalfAuto.Acceleration;
 						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Dec := CurrentData.Axes.Allocate_X.HalfAuto.Deceleration;
 						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Jerk := CurrentData.Axes.Allocate_X.HalfAuto.Jerk;
 						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Velocity := CurrentData.Axes.Allocate_X.HalfAuto.Velocity;
 						arAxisCtrl_gb[AxisNo.Allocate_X].PosMode.Position :=CurrentPlacingCoordinates[iWorkingIndex].X;
-	
+					
 						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Acc := CurrentData.Axes.Allocate_Y.HalfAuto.Acceleration;
 						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Dec := CurrentData.Axes.Allocate_Y.HalfAuto.Deceleration;
 						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Jerk := CurrentData.Axes.Allocate_Y.HalfAuto.Jerk;
 						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Velocity := CurrentData.Axes.Allocate_Y.HalfAuto.Velocity;
-						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;
-
-                        AllocationJobBatchModeReverse := E_AllocationJob.MovingToPlacingPos;
-					END_IF                    
+						arAxisCtrl_gb[AxisNo.Allocate_Y].PosMode.Position := CurrentPlacingCoordinates[iWorkingIndex].Y;		
+							
+                        AllocationJobBatchModeReverse := E_AllocationJob.MovingToPlacingPos;         
+					END_IF           
 
                 ELSE
 
@@ -972,17 +925,15 @@ END_VAR
                
 
                 IF tAutoAllocationJobBatchTimeOut_Reverse.Q THEN
+
                     StatusDescription := 'Moving placing timeout';
-					uiResumableStep := E_AllocationJob.MovingToPlacingPos;
-                    _Abort            := TRUE;	// P1 fix: 改 _Abort (可續做),原本 _Error 不可續做
+                    _Error            := TRUE;
+
                 END_IF
 
 			E_AllocationJob.CheckBoxReadyOnAllocatePosOfRoundBelt:
-				tAutoAllocationJobBatchTimeOut_Reverse.IN:=TRUE	;
-				bBoxCheck := TRUE;		// P0 fix: 初始化,避免殘留 FALSE 導致永遠不進入
-				A1Used := FALSE;		// P1 fix: resume 路徑殘留防呆
-				A2Used := FALSE;
-
+				tAutoAllocationJobBatchTimeOut_Reverse.IN:=TRUE	;				
+				
 				  FOR i:=0 TO 3 DO
 					IF CurrentProcessData.PlacingNeedleInfo[iWorkingIndex].Station = CurrentProcessData.PlacingNeedleInfo[i].Station THEN
 						IF CurrentProcessData.PlacingNeedleInfo[i].Box=0 THEN
@@ -1022,7 +973,8 @@ END_VAR
 						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND 
 							ClipsHaveNeedle[i]	 THEN
 							cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].M_Extend();//('Auto Mode E_AllocationJob.CylinderDownPlace in Sync placing Mode');
-							bCylinderCheck :=cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].InFrontPosition AND bCylinderCheck;			
+							//bCylinderCheck :=cylinders[i].InFrontPosition AND bCylinderCheck;		
+							bCylinderCheck :=cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].InFrontPosition AND bCylinderCheck;
 						END_IF
 					END_FOR
 					
@@ -1048,7 +1000,8 @@ END_VAR
 						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND 
 							ClipsHaveNeedle[i]	 THEN
 							clips[CurrentProcessData.PlacingNeedleInfo[i].Clip].M_Retract();//('Auto Mode E_AllocationJob.ClipOpen in Sync placing Mode');
-							bCylinderCheck :=clips[CurrentProcessData.PlacingNeedleInfo[i].Clip].InRearPosition AND bCylinderCheck;			
+//							bCylinderCheck :=clips[i].InRearPosition AND bCylinderCheck;		
+							bCylinderCheck :=clips[CurrentProcessData.PlacingNeedleInfo[i].Clip].InRearPosition AND bCylinderCheck;	
 						END_IF
 					END_FOR
 					
@@ -1069,25 +1022,38 @@ END_VAR
 
             E_AllocationJob.CylinderUpPlace:
                 bCylinderCheck         := TRUE;
-				tAutoAllocationJobBatchTimeOut_Reverse.IN := TRUE;	// P0 fix: 原本沒啟動 timer → timeout 保護失效
+                //bCylinderCheckFastMode := TRUE;
 
                 cylinders[iWorkingCylinder].M_Retract();//(' Auto Mode E_AllocationJob.CylinderUpPlace');
-
+				
 					IF CurrentProcessData.SyncMode THEN
 					FOR i := iWorkingIndex+1 TO 3 DO
-						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND
+						IF CurrentSyncGroupPiacing[i]=CurrentSyncGroupPiacing[iWorkingIndex] AND 
 							ClipsHaveNeedle[i]	 THEN
 							cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].M_Retract();//('Auto Mode E_AllocationJob.CylinderUpPlace in Sync placing Mode');
-							bCylinderCheck :=cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].InRearPosition AND bCylinderCheck;
-
+							bCylinderCheck :=cylinders[CurrentProcessData.PlacingNeedleInfo[i].Clip].InRearPosition AND bCylinderCheck;	
+							//bCylinderCheckFastMode := (NOT cylinders[i].InRearPosition) AND bCylinderCheckFastMode;
+							
 						END_IF
-					END_FOR
+					END_FOR					
 				END_IF
-
-                IF cylinders[iWorkingCylinder].InRearPosition AND bCylinderCheck THEN
+(*==========================	取消FastMode，預防偷跑導致機構衝突。//edited by Gamin，2026/03/31
+				IF CurrentProcessData.FastMode  AND NOT cylinders[iWorkingCylinder].InFrontPosition AND bCylinderCheckFastMode THEN						
+               		 tonFastModeTimeDelayBatch_Reverse.IN := TRUE;
+				END_IF
+				
+                IF (cylinders[iWorkingCylinder].InRearPosition AND bCylinderCheck) OR  tonFastModeTimeDelayBatch_Reverse.Q THEN
                     tAutoAllocationJobBatchTimeOut_Reverse.IN              := FALSE;
+					tonFastModeTimeDelayBatch_Reverse.IN 				  := FALSE;
+                   // GVL.TwinCatMemory.AllocatingInfoToHost[1] := THIS^.AutoAllocateJob_Ctrl.AutoMode_AllocateMove.PlacingNeedleInfo[iWorkingIndex];
+                    //Update TwinCat memory
                     AllocationJobBatchModeReverse := E_AllocationJob.CheckNeedlePlaced;
 
+                END_IF
+=============================*)
+				 IF cylinders[iWorkingCylinder].InRearPosition AND bCylinderCheck THEN
+                    tAutoAllocationJobBatchTimeOut_Reverse.IN              := FALSE;
+                    AllocationJobBatchModeReverse := E_AllocationJob.CheckNeedlePlaced;
                 END_IF
 
                 IF tAutoAllocationJobBatchTimeOut_Reverse.Q THEN
@@ -1150,7 +1116,7 @@ IF _Executed THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_RESETTING" Id="{52a24316-1427-4aed-b94e-7ae6311276bc}" FolderPath="STATE\">
+    <Method Name="M_STATE_RESETTING" Id="{d43ab730-5df8-42d7-865b-b123c1e71b62}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_RESETTING
 VAR_INPUT
 END_VAR
@@ -1220,32 +1186,31 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
         END_IF]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old">
       <LineId Id="23" Count="0" />
       <LineId Id="30" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.A00_BasicUnits">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.A00_BasicUnits">
       <LineId Id="1" Count="2" />
-      <LineId Id="5" Count="3" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.GetModelState">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.GetModelState">
       <LineId Id="17" Count="3" />
       <LineId Id="16" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.GetName">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.GetName">
       <LineId Id="4" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_CheckClipsNoError">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_CheckClipsNoError">
       <LineId Id="33" Count="3" />
       <LineId Id="7" Count="0" />
       <LineId Id="43" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_CheckCylindersNoError">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_CheckCylindersNoError">
       <LineId Id="15" Count="8" />
       <LineId Id="30" Count="0" />
       <LineId Id="14" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_RecoveryAxes">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_RecoveryAxes">
       <LineId Id="32" Count="0" />
       <LineId Id="35" Count="0" />
       <LineId Id="24" Count="0" />
@@ -1261,7 +1226,7 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
       <LineId Id="25" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_ABORTED">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_STATE_ABORTED">
       <LineId Id="29" Count="2" />
       <LineId Id="33" Count="0" />
       <LineId Id="51" Count="0" />
@@ -1270,20 +1235,20 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
       <LineId Id="38" Count="5" />
       <LineId Id="27" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_ABORTING">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_STATE_ABORTING">
       <LineId Id="27" Count="13" />
       <LineId Id="61" Count="5" />
       <LineId Id="41" Count="16" />
       <LineId Id="25" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_DONE">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_STATE_DONE">
       <LineId Id="71" Count="1" />
       <LineId Id="82" Count="1" />
       <LineId Id="81" Count="0" />
       <LineId Id="73" Count="4" />
       <LineId Id="17" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_DORMANT">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_STATE_DORMANT">
       <LineId Id="24" Count="2" />
       <LineId Id="78" Count="0" />
       <LineId Id="27" Count="2" />
@@ -1309,24 +1274,97 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
       <LineId Id="33" Count="0" />
       <LineId Id="15" Count="0" />
       <LineId Id="5" Count="0" />
-      <LineId Id="93" Count="2" />
-      <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_ERROR">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_STATE_ERROR">
       <LineId Id="22" Count="3" />
       <LineId Id="38" Count="12" />
       <LineId Id="31" Count="3" />
       <LineId Id="20" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_EXECUTING">
-      <LineId Id="2798" Count="689" />
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_STATE_EXECUTING">
+      <LineId Id="55" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="998" Count="1" />
+      <LineId Id="1285" Count="1" />
+      <LineId Id="1288" Count="0" />
+      <LineId Id="1287" Count="0" />
+      <LineId Id="1000" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="1304" Count="176" />
+      <LineId Id="2115" Count="1" />
+      <LineId Id="1486" Count="0" />
+      <LineId Id="2006" Count="9" />
+      <LineId Id="2004" Count="0" />
+      <LineId Id="2117" Count="0" />
+      <LineId Id="2005" Count="0" />
+      <LineId Id="1487" Count="14" />
+      <LineId Id="1506" Count="0" />
+      <LineId Id="1508" Count="28" />
+      <LineId Id="2118" Count="2" />
+      <LineId Id="1539" Count="136" />
+      <LineId Id="1696" Count="6" />
+      <LineId Id="1706" Count="1" />
+      <LineId Id="1713" Count="0" />
+      <LineId Id="1719" Count="3" />
+      <LineId Id="2074" Count="0" />
+      <LineId Id="1727" Count="2" />
+      <LineId Id="1731" Count="0" />
+      <LineId Id="1733" Count="0" />
+      <LineId Id="2123" Count="1" />
+      <LineId Id="2122" Count="0" />
+      <LineId Id="2017" Count="0" />
+      <LineId Id="2021" Count="9" />
+      <LineId Id="2020" Count="0" />
+      <LineId Id="2125" Count="0" />
+      <LineId Id="1739" Count="4" />
+      <LineId Id="2079" Count="0" />
+      <LineId Id="1744" Count="31" />
+      <LineId Id="1777" Count="1" />
+      <LineId Id="2143" Count="2" />
+      <LineId Id="1784" Count="1" />
+      <LineId Id="2033" Count="9" />
+      <LineId Id="2031" Count="1" />
+      <LineId Id="1786" Count="0" />
+      <LineId Id="2146" Count="0" />
+      <LineId Id="1787" Count="10" />
+      <LineId Id="2147" Count="2" />
+      <LineId Id="1799" Count="0" />
+      <LineId Id="2043" Count="0" />
+      <LineId Id="2075" Count="0" />
+      <LineId Id="2078" Count="0" />
+      <LineId Id="2150" Count="0" />
+      <LineId Id="2046" Count="0" />
+      <LineId Id="2045" Count="0" />
+      <LineId Id="2049" Count="7" />
+      <LineId Id="2047" Count="1" />
+      <LineId Id="2044" Count="0" />
+      <LineId Id="1815" Count="10" />
+      <LineId Id="1827" Count="21" />
+      <LineId Id="2097" Count="0" />
+      <LineId Id="1849" Count="17" />
+      <LineId Id="2151" Count="0" />
+      <LineId Id="1867" Count="25" />
+      <LineId Id="2152" Count="0" />
+      <LineId Id="1893" Count="47" />
+      <LineId Id="2153" Count="0" />
+      <LineId Id="2155" Count="0" />
+      <LineId Id="2160" Count="0" />
+      <LineId Id="2164" Count="0" />
+      <LineId Id="2154" Count="0" />
+      <LineId Id="1941" Count="28" />
+      <LineId Id="1989" Count="11" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="883" Count="0" />
+      <LineId Id="1302" Count="1" />
+      <LineId Id="1301" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="37" Count="5" />
+      <LineId Id="50" Count="1" />
       <LineId Id="49" Count="0" />
-      <LineId Id="694" Count="2" />
-      <LineId Id="2" Count="0" />
-      <LineId Id="698" Count="36" />
-      <LineId Id="3488" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_RESETTING">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse_Old.M_STATE_RESETTING">
       <LineId Id="36" Count="4" />
       <LineId Id="42" Count="6" />
       <LineId Id="50" Count="48" />
