@@ -592,15 +592,14 @@ END_VAR
 		//Check box is ready on turntable
 		// TurnTable 角度 gate: 必須在 0/90/180/270 (任一 station) 才允許拔針
 		// 取絕對值處理負角度 (e.g., -90 → 90, -180 → 180)
-		IF NOT (FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=0,   ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=90,  ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=180, ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=270, ToleranceRange:=0.1)
-		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ActPos), TargetPos:=360, ToleranceRange:=0.1)) THEN
+		IF NOT (FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ModuloActPos), TargetPos:=0,   ToleranceRange:=0.1)
+		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ModuloActPos), TargetPos:=90,  ToleranceRange:=0.1)
+		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ModuloActPos), TargetPos:=180, ToleranceRange:=0.1)
+		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ModuloActPos), TargetPos:=270, ToleranceRange:=0.1)
+		     OR FUN_CheckInPos(ActPos:=ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ModuloActPos), TargetPos:=360, ToleranceRange:=0.1)) THEN
 			StatusDescription := 'TurnTable angle invalid: must be at 0/90/180/270 to pick';
 			_UniqueErrorCode := 'E_TT_ANGLE_INVALID';
 			_Error := TRUE;
-			RETURN;
 		END_IF
 		tAutoAllocationJobBatchTimeOut_Reverse.IN:=TRUE	;
 		bBoxCheck :=TRUE;		
@@ -1327,7 +1326,8 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
       <LineId Id="20" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_EXECUTING">
-      <LineId Id="2798" Count="689" />
+      <LineId Id="2798" Count="178" />
+      <LineId Id="2978" Count="509" />
       <LineId Id="49" Count="0" />
       <LineId Id="694" Count="2" />
       <LineId Id="2" Count="0" />

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.20">
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4024.59">
 	<DataTypes>
 		<DataType>
 			<Name GUID="{18071995-0000-0000-0000-000000000035}" TcBaseType="true" HideType="true">UINTARR2</Name>
@@ -1006,13 +1006,13 @@ Drive Status 4 (manually linked):
 			<Name GUID="{F7B9FC50-054E-4547-B468-83A9E72D8064}" Namespace="MC" TcBaseType="true" HideType="true">NCTOPLC_AXIS_REF_STATE3_FLAGS</Name>
 			<BitSize>32</BitSize>
 			<SubItem>
-				<Name>TouchProbe1InputState</Name>
+				<Name>TouchProbe1InputState </Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000010}">BIT</Type>
 				<BitSize>1</BitSize>
 				<BitOffs>0</BitOffs>
 			</SubItem>
 			<SubItem>
-				<Name>TouchProbe2InputState</Name>
+				<Name>TouchProbe2InputState </Name>
 				<Type GUID="{18071995-0000-0000-0000-000000000010}">BIT</Type>
 				<BitSize>1</BitSize>
 				<BitOffs>1</BitOffs>
@@ -1634,7 +1634,7 @@ External Setpoint Generation:
 		<ImageData Id="1008">424dd6020000000000003600000028000000100000000e0000000100180000000000a0020000c40e0000c40e00000000000000000000ff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080808080808080808080808080808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080c0c0c0000000c0c0c0000000808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c000bfff00bfffc0c0c0808080c0c0c000ffffc0c0c000ffff808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c000bfff00bfffc0c0c0808080c0c0c0c0c0c0c0c0c0c0c0c0808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c000bfff00bfffc0c0c0808080c0c0c0000000c0c0c0000000808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080c0c0c0ff0000c0c0c0ff0000808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080c0c0c0c0c0c0c0c0c0c0c0c0808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080c0c0c0000000c0c0c0000000808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c000bfff00bfffc0c0c0808080c0c0c00000ffc0c0c00000ff808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c000bfff00bfffc0c0c0808080c0c0c0c0c0c0c0c0c0c0c0c0808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c000bfff00bfffc0c0c0808080c0c0c0000000c0c0c0000000808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080c0c0c0c0c0c0c0c0c0c0c0c0808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080c0c0c0008000c0c0c0008000808080ff00ffff00ffff00ffff00ffff00ffff00ffc0c0c0c0c0c0c0c0c0c0c0c0808080c0c0c0c0c0c0c0c0c0c0c0c0808080ff00ffff00ffff00ffff00ffff00ff</ImageData>
 		<ImageData Id="1009">424dd6020000000000003600000028000000100000000e0000000100180000000000a002000000000000000000000000000000000000fffffffffffffffffff8f8f7e8e7e6b6b6b6c7c5c6e8e7e7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa0a492747668535252b7b4b4c0bdbe130c09888584ffffffffffffffffffffffffffffffffffffffffffffffffffffff26222166625f838484c3c1c2c6c2c42923202d2724191310656361ebebeaffffffffffffffffffffffffffffffffffff0200005a5856727879cbc7c8c9c5c62923213b35333e3835231e1c000000ffffffffffffffffffffffffffffffffffff000000575553626463cbc7c8c9c5c62923203b35333e3634302a27050200ffffffffffffffffffffffffffffffffffff9795959e9a989ba2a5cdcacac7c4c52a24213b35333c37332c2725020000ffffffffffffffffffffffffffffffffffff0704014d4a47aca9a8d5d4d4c8c5c62923203b35333c36332c2725030100fefcfcffffffffffffffffffffffffffffff0000003c3936111010d5d3d4c8c3c52923213a34313c35332c2725030000f9f7f7ffffffffffffffffffffffffffffff6865635b5956110e0acccacacecacb27211f3933313a35322b2624020000f4f3f3ffffffffffffffffffffffffffffffe9eaeadcdcdc8b8b8bcacbcad4d1d2251f1c3933323935322c2926010000efefeeffffffffffffffffffffffffffffff4f50517e7e7fcac5c57d7a7bd5d3d4231f1d3933303835322a2724020000e9e9e9ffffffffffffffffffffffffffffff5352501a19133f3e3a555755c8c8c92923203733303a36332b2825000000e6e6e5ffffffffffffffffffffffffffffffffffffffffffc7c3c47a72706e6564433b3a2c2725231f1c1715120a0603dddcdbffffffffffffffffffffffffffffffffffffffffffffffffffffffeeeeedc0bebc918a897e7775777472b9b6b4f2f2f1ffffffffffff</ImageData>
 	</ImageDatas>
-	<Project ProjectGUID="{D4E29E39-B00B-4F5A-BE84-840E319A9C5A}" TargetNetId="5.146.84.212.1.1" ShowHideConfigurations="#x6">
+	<Project ProjectGUID="{D4E29E39-B00B-4F5A-BE84-840E319A9C5A}" TargetNetId="5.146.84.212.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
 			<Settings MaxCpus="2" NonWinCpus="1" RouterMemory="1073741824" MaxStackSize="4096">
 				<Cpu/>
@@ -2708,924 +2708,453 @@ External Setpoint Generation:
 		</Motion>
 		<Plc>
 			<Project GUID="{F0C6C3EF-6481-4440-89AE-361520A7C96C}" Name="DAS_CoreSys" PrjFilePath="DAS_CoreSys\DAS_CoreSys.plcproj" TmcFilePath="DAS_CoreSys\DAS_CoreSys.tmc" ReloadTmc="true" AmsPort="851" TargetArchiveSettings="#x0000" FileArchiveSettings="#x0000" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{C35E7664-3C87-2F75-8DC2-56F312153B81}" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{DB202307-D98E-E656-1F74-09776331E819}">
 					<Name>DAS_CoreSys Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
-					<Vars VarGrpType="2" ContextId="2" AreaNo="33">
-						<Name>ModbusTask Outputs</Name>
+					<Vars VarGrpType="1">
+						<Name>MotionSync Inputs</Name>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].Admin.Axis.NcToPlc</Name>
+							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>MotionSync Outputs</Name>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].Admin.Axis.PlcToNc</Name>
 							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
 						</Var>
+					</Vars>
+					<Vars VarGrpType="1" ContextId="1" AreaNo="16">
+						<Name>CoreSys Inputs</Name>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncPhase.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.MBdata_Read_ControllerN</Name>
+							<Type GUID="{060B5B14-F3E4-BBEC-EC3A-662E138FDAD3}">ARRAY [0..3] OF ARRAY [0..21] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[0].MB_EL6X22B_ControllerN.InData</Name>
+							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncVel.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[0].MB_EL6X22B_ControllerN.WcState</Name>
+							<Type>BOOL</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncPhase.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[1].MB_EL6X22B_ControllerN.InData</Name>
+							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[1].MB_EL6X22B_ControllerN.WcState</Name>
+							<Type>BOOL</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncVel.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[2].MB_EL6X22B_ControllerN.InData</Name>
+							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncPhase.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[2].MB_EL6X22B_ControllerN.WcState</Name>
+							<Type>BOOL</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[3].MB_EL6X22B_ControllerN.InData</Name>
+							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncVel.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[3].MB_EL6X22B_ControllerN.WcState</Name>
+							<Type>BOOL</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncPhase.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncVel.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._EIPConnectionState</Name>
+							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
+							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncPhase.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._FanucEIPState</Name>
+							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
+							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncVel.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncPhase.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._EIPConnectionState</Name>
+							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
+							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._FanucEIPState</Name>
+							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
+							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncVel.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncPhase.Master.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[0].OutData</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._EIPConnectionState</Name>
+							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._EIPConnectionState</Name>
+							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._FanucEIPState</Name>
+							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._FanucEIPState</Name>
+							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_UI</Name>
+							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._EIPConnectionState</Name>
+							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._EIPConnectionState</Name>
+							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._FanucEIPState</Name>
+							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._FanucEIPState</Name>
+							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="2" ContextId="1" AreaNo="17">
+						<Name>CoreSys Outputs</Name>
+						<Var>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[0].MB_EL6X22B_ControllerN.OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[1].OutData</Name>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[1].MB_EL6X22B_ControllerN.OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[2].OutData</Name>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[2].MB_EL6X22B_ControllerN.OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[3].OutData</Name>
+							<Name>ComModbusRTU.fb_Warehouse_Modbus[3].MB_EL6X22B_ControllerN.OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>MAIN2_RS485.RS485_V2[1].ModbusRtuMasterV2_KL6x22B.OutData</Name>
-							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN2_RS485.RS485_V2[2].ModbusRtuMasterV2_KL6x22B.OutData</Name>
-							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawOut_DO</Name>
+							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
+							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN2_RS485.RS485_V2[3].ModbusRtuMasterV2_KL6x22B.OutData</Name>
-							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>MAIN2_RS485.RS485_V2[4].ModbusRtuMasterV2_KL6x22B.OutData</Name>
-							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
+							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawOut_DO</Name>
+							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
+							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO1</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO2</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO3</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawOut_DO</Name>
+							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
+							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO4</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_DO</Name>
+							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
+							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO5</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO6</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_UO</Name>
+							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
+							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO7</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_DO</Name>
+							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
+							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO16</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO1</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO2</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO3</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO4</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO5</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO6</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO7</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO8</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO9</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO10</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO11</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO12</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO13</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO14</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO15</Name>
-							<Type>BIT</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO16</Name>
-							<Type>BIT</Type>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_DO</Name>
+							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
+							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 					</Vars>
 					<Vars VarGrpType="1" ContextId="2" AreaNo="32">
 						<Name>ModbusTask Inputs</Name>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncVel.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncVel.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncPhase.Master.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncPhase.Master.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncProfile.MasterAxis.NcToPlc</Name>
 							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
 						</Var>
 						<Var>
@@ -4397,378 +3926,801 @@ External Setpoint Generation:
 							<Type>BIT</Type>
 						</Var>
 					</Vars>
-					<Vars VarGrpType="2" ContextId="1" AreaNo="17">
-						<Name>CoreSys Outputs</Name>
+					<Vars VarGrpType="2" ContextId="2" AreaNo="33">
+						<Name>ModbusTask Outputs</Name>
 						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[0].MB_EL6X22B_ControllerN.OutData</Name>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[1].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[2].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[3].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[4].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[5].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[6].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[7].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[8].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[9].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncVel.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncPhase.Master.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>BATW.GVL_Motion.arAxisCtrl_gb[10].SyncMode.SyncProfile.MasterAxis.PlcToNc</Name>
+							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
+						</Var>
+						<Var>
+							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[0].OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[1].MB_EL6X22B_ControllerN.OutData</Name>
+							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[1].OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[2].MB_EL6X22B_ControllerN.OutData</Name>
+							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[2].OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[3].MB_EL6X22B_ControllerN.OutData</Name>
+							<Name>ComModbusRTU.MB_EL6X22B_ControllerN[3].OutData</Name>
 							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>MAIN2_RS485.RS485_V2[1].ModbusRtuMasterV2_KL6x22B.OutData</Name>
+							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawOut_DO</Name>
-							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
-							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
+							<Name>MAIN2_RS485.RS485_V2[2].ModbusRtuMasterV2_KL6x22B.OutData</Name>
+							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>MAIN2_RS485.RS485_V2[3].ModbusRtuMasterV2_KL6x22B.OutData</Name>
+							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawOut_DO</Name>
-							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
-							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
+							<Name>MAIN2_RS485.RS485_V2[4].ModbusRtuMasterV2_KL6x22B.OutData</Name>
+							<Type GUID="{E4C24E72-EF65-C814-8E17-663F53275EE3}" Namespace="Tc2_ModbusRTU">MB_KL6outData22B</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO1</Name>
+							<Type>BIT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO2</Name>
+							<Type>BIT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawOut_DO</Name>
-							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
-							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO3</Name>
+							<Type>BIT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_DO</Name>
-							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
-							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO4</Name>
+							<Type>BIT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO5</Name>
+							<Type>BIT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_UO</Name>
-							<Comment><![CDATA[ UO : Fanuc robot default output rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO6</Name>
+							<Type>BIT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_DO</Name>
-							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
-							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO7</Name>
+							<Type>BIT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_DO</Name>
-							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
-							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_01.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_02.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_03.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_04.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_05.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_06.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_07.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_08.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_09.DO16</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO1</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO2</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO3</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO4</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO5</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO6</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO7</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO8</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO9</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO10</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO11</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO12</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO13</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO14</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO15</Name>
+							<Type>BIT</Type>
+						</Var>
+						<Var>
+							<Name>GVL_Output.uniDO.stEbusDO.EL2889_10.DO16</Name>
+							<Type>BIT</Type>
 						</Var>
 					</Vars>
-					<Vars VarGrpType="1" ContextId="1" AreaNo="16">
-						<Name>CoreSys Inputs</Name>
-						<Var>
-							<Name>ComModbusRTU.MBdata_Read_ControllerN</Name>
-							<Type GUID="{060B5B14-F3E4-BBEC-EC3A-662E138FDAD3}">ARRAY [0..3] OF ARRAY [0..21] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[0].MB_EL6X22B_ControllerN.InData</Name>
-							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[0].MB_EL6X22B_ControllerN.WcState</Name>
-							<Type>BOOL</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[1].MB_EL6X22B_ControllerN.InData</Name>
-							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[1].MB_EL6X22B_ControllerN.WcState</Name>
-							<Type>BOOL</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[2].MB_EL6X22B_ControllerN.InData</Name>
-							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[2].MB_EL6X22B_ControllerN.WcState</Name>
-							<Type>BOOL</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[3].MB_EL6X22B_ControllerN.InData</Name>
-							<Type GUID="{F852D9F7-9DB9-AE77-EE6D-D9BA52CDE308}" Namespace="Tc2_ModbusRTU">MB_KL6inData22B</Type>
-						</Var>
-						<Var>
-							<Name>ComModbusRTU.fb_Warehouse_Modbus[3].MB_EL6X22B_ControllerN.WcState</Name>
-							<Type>BOOL</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._EIPConnectionState</Name>
-							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.StorageFanucRobot._FanucEIPState</Name>
-							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._EIPConnectionState</Name>
-							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.fbMachineHoming.ShippinFanucRobot._FanucEIPState</Name>
-							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._EIPConnectionState</Name>
-							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._EIPConnectionState</Name>
-							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._FanucEIPState</Name>
-							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._FanucEIPState</Name>
-							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_UI</Name>
-							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
-							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._EIPConnectionState</Name>
-							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._EIPConnectionState</Name>
-							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._FanucEIPState</Name>
-							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._FanucEIPState</Name>
-							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
-							<Type>UINT</Type>
-						</Var>
-					</Vars>
-					<Vars VarGrpType="2" AreaNo="1">
-						<Name>MotionSync Outputs</Name>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].Admin.Axis.PlcToNc</Name>
-							<Type GUID="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" Namespace="MC">PLCTONC_AXIS_REF</Type>
-						</Var>
-					</Vars>
-					<Vars VarGrpType="1">
-						<Name>MotionSync Inputs</Name>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[8].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[9].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-						<Var>
-							<Name>GVL_Motion.arAxisCtrl_gb[10].Admin.Axis.NcToPlc</Name>
-							<Type GUID="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" Namespace="MC">NCTOPLC_AXIS_REF</Type>
-						</Var>
-					</Vars>
-					<UnrestoredVarLinks ImportTime="2026-04-25T12:38:19">
-						<OwnerA Name="InputDst" Prefix="TIPC^DAS_CoreSys^DAS_CoreSys Instance" Type="1">
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 1|TurnTable">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.NcToPlc" TypeA="MC.NCTOPLC_AXIS_REF" InOutA="0" GuidA="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" VarB="Outputs^ToPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 2|RoundBelt">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.NcToPlc" TypeA="MC.NCTOPLC_AXIS_REF" InOutA="0" GuidA="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" VarB="Outputs^ToPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 3|AllocateRobot_X">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.NcToPlc" TypeA="MC.NCTOPLC_AXIS_REF" InOutA="0" GuidA="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" VarB="Outputs^ToPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 4|AllocateRobot_Y">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.NcToPlc" TypeA="MC.NCTOPLC_AXIS_REF" InOutA="0" GuidA="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" VarB="Outputs^ToPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 5|OutRobot_X">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.NcToPlc" TypeA="MC.NCTOPLC_AXIS_REF" InOutA="0" GuidA="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" VarB="Outputs^ToPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 6|OutRobot_Y">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.NcToPlc" TypeA="MC.NCTOPLC_AXIS_REF" InOutA="0" GuidA="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" VarB="Outputs^ToPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 7|RackMotor">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.NcToPlc" TypeA="MC.NCTOPLC_AXIS_REF" InOutA="0" GuidA="{25521FAA-EA5F-4C7F-8864-BBCCDACD2E98}" VarB="Outputs^ToPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-						</OwnerA>
-						<OwnerA Name="OutputSrc" Prefix="TIPC^DAS_CoreSys^DAS_CoreSys Instance" Type="2">
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 1|TurnTable">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.PlcToNc" TypeA="MC.PLCTONC_AXIS_REF" InOutA="1" GuidA="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" VarB="Inputs^FromPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 2|RoundBelt">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.PlcToNc" TypeA="MC.PLCTONC_AXIS_REF" InOutA="1" GuidA="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" VarB="Inputs^FromPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 3|AllocateRobot_X">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.PlcToNc" TypeA="MC.PLCTONC_AXIS_REF" InOutA="1" GuidA="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" VarB="Inputs^FromPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 4|AllocateRobot_Y">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.PlcToNc" TypeA="MC.PLCTONC_AXIS_REF" InOutA="1" GuidA="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" VarB="Inputs^FromPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 5|OutRobot_X">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.PlcToNc" TypeA="MC.PLCTONC_AXIS_REF" InOutA="1" GuidA="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" VarB="Inputs^FromPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 6|OutRobot_Y">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.PlcToNc" TypeA="MC.PLCTONC_AXIS_REF" InOutA="1" GuidA="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" VarB="Inputs^FromPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-							<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 7|RackMotor">
-								<Link VarA="BATW.GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.PlcToNc" TypeA="MC.PLCTONC_AXIS_REF" InOutA="1" GuidA="{96B75FEB-2D84-43BE-A3EC-D9A681F27D52}" VarB="Inputs^FromPlc" RestoreInfo="ANotFound"/>
-							</OwnerB>
-						</OwnerA>
-					</UnrestoredVarLinks>
 					<Contexts>
 						<Context>
 							<Id>0</Id>
@@ -14881,9 +14833,7 @@ C:\TwinCAT\3.1\Config\Io\EtherNetIP\FANUCROBOT0301_R30IBP.EDS
 					</EthernetIp>
 				</Box>
 				<Ethernet DeviceDesc="EL6652 EtherNet/IP Scanner (Master)" SpecialTask="true" TaskPort="301"/>
-				<EtherNetIPMasterDev m_EthIpMasterDevPar="0300000053746f726167652046616e756320526f626f74202845434154204549502053630c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000">
-					<Ethernet/>
-				</EtherNetIPMasterDev>
+				<EtherNetIPMasterDev m_EthIpMasterDevPar="0300000053746f726167652046616e756320526f626f74202845434154204549502053630c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001058331fd0400a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"/>
 			</Device>
 			<Device Id="6" DevType="151" AmsPort="28678" AmsNetId="169.254.53.69.7.1" RemoteName="Device 6 (ECAT EIP Scanner (EL6652))">
 				<Name>Device 6 (ECAT EIP Scanner (EL6652))</Name>
@@ -14975,9 +14925,7 @@ C:\TwinCAT\3.1\Config\Io\EtherNetIP\FANUCROBOT0301_R30IBP.EDS
 					</EthernetIp>
 				</Box>
 				<Ethernet DeviceDesc="EL6652 EtherNet/IP Scanner (Master)" SpecialTask="true" TaskPort="301"/>
-				<EtherNetIPMasterDev m_EthIpMasterDevPar="06000000446576696365203620284543415420454950205363616e6e65722028454c36360c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e00a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000">
-					<Ethernet/>
-				</EtherNetIPMasterDev>
+				<EtherNetIPMasterDev m_EthIpMasterDevPar="06000000446576696365203620284543415420454950205363616e6e65722028454c36360c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001058f29ef0e00a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"/>
 			</Device>
 			<Device Id="8" DevType="109" DevFlags="#x0004">
 				<Name>X001 (RT-Ethernet Adapter)</Name>
@@ -15002,6 +14950,7 @@ C:\TwinCAT\3.1\Config\Io\EtherNetIP\FANUCROBOT0301_R30IBP.EDS
 		<MappingInfo Identifier="{00000000-0070-0304-3000-040371000403}" Id="#x02030050"/>
 		<MappingInfo Identifier="{00000000-0080-0304-A000-040380000403}" Id="#x02030090"/>
 		<MappingInfo Identifier="{00000000-0090-0304-A000-040390000403}" Id="#x020300a0"/>
+		<MappingInfo Identifier="{08502001-0010-0500-0020-500830000403}" Id="#x02030080" Watchdog="04000000040000000400000004000000"/>
 		<MappingInfo Identifier="{08502003-00B0-0304-0020-5008B0000403}" Id="#x02030010" Watchdog="00000000000000000000000000000000"/>
 		<MappingInfo Identifier="{08502003-00C0-0304-0020-5008C0000403}" Id="#x02030030" Watchdog="00000000000000000000000000000000"/>
 		<MappingInfo Identifier="{05000010-00B0-0304-3000-0403B0000403}" Id="#x020300b0" Watchdog="00000000000000000000000000000000"/>
@@ -15780,6 +15729,34 @@ C:\TwinCAT\3.1\Config\Io\EtherNetIP\FANUCROBOT0301_R30IBP.EDS
 				<Link VarA="CoreSys Inputs^DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI" VarB="UIO (Input/Output)^Inputs^noname0_arrBYTE"/>
 				<Link VarA="CoreSys Outputs^DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_DO" VarB="DIO (Input/Output)^Outputs^noname0_arrBYTE"/>
 				<Link VarA="CoreSys Outputs^DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawOut_UO" VarB="UIO (Input/Output)^Outputs^noname0_arrBYTE"/>
+			</OwnerB>
+			<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 1|TurnTable">
+				<Link VarA="MotionSync Inputs^BATW.GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.NcToPlc" VarB="Outputs^ToPlc"/>
+				<Link VarA="MotionSync Outputs^BATW.GVL_Motion.arAxisCtrl_gb[1].Admin.Axis.PlcToNc" VarB="Inputs^FromPlc"/>
+			</OwnerB>
+			<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 2|RoundBelt">
+				<Link VarA="MotionSync Inputs^BATW.GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.NcToPlc" VarB="Outputs^ToPlc"/>
+				<Link VarA="MotionSync Outputs^BATW.GVL_Motion.arAxisCtrl_gb[2].Admin.Axis.PlcToNc" VarB="Inputs^FromPlc"/>
+			</OwnerB>
+			<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 3|AllocateRobot_X">
+				<Link VarA="MotionSync Inputs^BATW.GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.NcToPlc" VarB="Outputs^ToPlc"/>
+				<Link VarA="MotionSync Outputs^BATW.GVL_Motion.arAxisCtrl_gb[3].Admin.Axis.PlcToNc" VarB="Inputs^FromPlc"/>
+			</OwnerB>
+			<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 4|AllocateRobot_Y">
+				<Link VarA="MotionSync Inputs^BATW.GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.NcToPlc" VarB="Outputs^ToPlc"/>
+				<Link VarA="MotionSync Outputs^BATW.GVL_Motion.arAxisCtrl_gb[4].Admin.Axis.PlcToNc" VarB="Inputs^FromPlc"/>
+			</OwnerB>
+			<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 5|OutRobot_X">
+				<Link VarA="MotionSync Inputs^BATW.GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.NcToPlc" VarB="Outputs^ToPlc"/>
+				<Link VarA="MotionSync Outputs^BATW.GVL_Motion.arAxisCtrl_gb[5].Admin.Axis.PlcToNc" VarB="Inputs^FromPlc"/>
+			</OwnerB>
+			<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 6|OutRobot_Y">
+				<Link VarA="MotionSync Inputs^BATW.GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.NcToPlc" VarB="Outputs^ToPlc"/>
+				<Link VarA="MotionSync Outputs^BATW.GVL_Motion.arAxisCtrl_gb[6].Admin.Axis.PlcToNc" VarB="Inputs^FromPlc"/>
+			</OwnerB>
+			<OwnerB Name="TINC^NC-Task 1 SAF^Axes^Axis 7|RackMotor">
+				<Link VarA="MotionSync Inputs^BATW.GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.NcToPlc" VarB="Outputs^ToPlc"/>
+				<Link VarA="MotionSync Outputs^BATW.GVL_Motion.arAxisCtrl_gb[7].Admin.Axis.PlcToNc" VarB="Inputs^FromPlc"/>
 			</OwnerB>
 		</OwnerA>
 	</Mappings>
