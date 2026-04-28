@@ -433,9 +433,9 @@ END_VAR
 			StatusDescription := 'Allocate batch reverse paused';
 			tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
 			Ton_RoundBeltArrivedDelay(IN := FALSE);
-			RoundBeltMoveJob.HandShake.Execute := FALSE;
-			RoundBeltMoveJob_Ctrl.Execute := FALSE;
-			bAllocateRobotMoveRequest := FALSE;
+//			RoundBeltMoveJob.HandShake.Execute := FALSE;
+//			RoundBeltMoveJob_Ctrl.Execute := FALSE;
+//			bAllocateRobotMoveRequest := FALSE;
 			RETURN;
 		END_IF
 		Paused := FALSE;
@@ -1406,7 +1406,6 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
       <LineId Id="698" Count="36" />
       <LineId Id="3488" Count="0" />
       <LineId Id="736" Count="13" />
-      <LineId Id="3489" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_RESETTING">
       <LineId Id="36" Count="4" />
