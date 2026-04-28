@@ -1406,7 +1406,6 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
       <LineId Id="698" Count="36" />
       <LineId Id="3488" Count="0" />
       <LineId Id="736" Count="13" />
-      <LineId Id="3489" Count="0" />
     </LineIds>
     <LineIds Name="FB_AllocateMoveAutoBatchMode_Reverse.M_STATE_RESETTING">
       <LineId Id="36" Count="4" />
