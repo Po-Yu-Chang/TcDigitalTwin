@@ -309,7 +309,8 @@ fbOutRobot_EmptyBoxMove(
 	Motor:= Motor, 
 	Cylinders :=OutRobotCylinders.Cylinders,
 	Clips := OutRobotClips.Cylinders,
-	AutoMode_OutRobotMoveMove:=Service.AutoMode_EmptyBoxMove );
+	AutoMode_OutRobotMoveMove:=Service.AutoMode_EmptyBoxMove ,
+	Pause := bStopMem);
 
 fbOutRobot_RareBoxMove(
 	Execute:= Service.AutoMode_RareBoxMove.HandShake.Execute ,
@@ -1275,6 +1276,7 @@ END_IF]]></ST>
       <LineId Id="131" Count="1" />
       <LineId Id="81" Count="0" />
       <LineId Id="98" Count="15" />
+      <LineId Id="479" Count="0" />
       <LineId Id="133" Count="1" />
       <LineId Id="97" Count="0" />
       <LineId Id="115" Count="0" />

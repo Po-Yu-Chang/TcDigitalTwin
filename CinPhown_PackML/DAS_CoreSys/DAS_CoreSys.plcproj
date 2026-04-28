@@ -1191,6 +1191,9 @@
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_OutRobot_EmptyBoxMove_old.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_PullOutConveyorAction_OLD.TcPOU">
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
