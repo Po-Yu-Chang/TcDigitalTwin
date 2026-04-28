@@ -1194,6 +1194,9 @@
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_OutRobot_EmptyBoxMove_old.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_OutRobot_RareBoxMove_old.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_PullOutConveyorAction_OLD.TcPOU">
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
@@ -1217,10 +1220,10 @@
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_EmptyBoxMove.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_RareBoxMove.TcPOU">
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_BoxMoveTurnTableToRoundBelt.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_BoxMoveTurnTableToRoundBelt.TcPOU">
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_RareBoxMove.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_PullOutConveyorAction.TcPOU">
