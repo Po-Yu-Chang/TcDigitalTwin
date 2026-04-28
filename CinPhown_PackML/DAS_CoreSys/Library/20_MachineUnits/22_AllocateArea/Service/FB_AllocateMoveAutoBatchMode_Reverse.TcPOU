@@ -427,15 +427,15 @@ END_VAR
 
 		// Pause gate:
 		// 停止本 Service 繼續派發新動作,並關閉 timeout 計時。
-		// 實際軸/氣缸立即停止仍由上層 machine/axis/cylinder control 負責。
+		// 不清除圓帶的命令跟取消移動命令，以防暫停的不步序是在等待到位或者完成，避免卡死。
 		IF Pause THEN
 			Paused := TRUE;
 			StatusDescription := 'Allocate batch reverse paused';
 			tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
 			Ton_RoundBeltArrivedDelay(IN := FALSE);
-			RoundBeltMoveJob.HandShake.Execute := FALSE;
-			RoundBeltMoveJob_Ctrl.Execute := FALSE;
-			bAllocateRobotMoveRequest := FALSE;
+//			RoundBeltMoveJob.HandShake.Execute := FALSE;
+//			RoundBeltMoveJob_Ctrl.Execute := FALSE;
+//			bAllocateRobotMoveRequest := FALSE;
 			RETURN;
 		END_IF
 		Paused := FALSE;
