@@ -9,6 +9,7 @@ VAR_INPUT
 
     Cylinder : REFERENCE TO UNI_CylinderList;
     TimeOut  : LREAL := 90; // Unit : s
+	Pause	 : BOOL;
 END_VAR
 VAR_OUTPUT
     xAborted : BOOL;
@@ -28,6 +29,9 @@ VAR
 	bWorkZonePlug_Extend	: BOOL;
 	bWorkZonePress_Extend	: BOOL;
 	bChargeZonePlug_Extend	: BOOL;
+	
+	TON_ServiceTimeOut		: TON;
+	bServiceTimeOutIn		: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -49,6 +53,9 @@ ErrorMsg := M_GetErrorMsg(xErrorID := iErrorID);
 
 			  
 A00_ReadPositionData();
+
+TON_ServiceTimeOut(IN:= bServiceTimeOutIn AND NOT Pause, PT := T#90S);
+
 ]]></ST>
     </Implementation>
     <Folder Name="Action" Id="{fb0ea1b7-3a55-401e-86f0-87cb968c2200}" />
@@ -98,6 +105,12 @@ IF bWorkZonePress_Extend AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.N
 END_IF
 IF bChargeZonePlug_Extend AND arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.NotMoving THEN
 	Cylinder.List.fbRoundBelt_ChargeZone_Plug.M_Extend();
+END_IF
+
+// Service Work Timer
+bServiceTimeOutIn := TRUE;
+IF TON_ServiceTimeOut.Q THEN
+	iErrorID := GVL_ErrorCode.GC_ERR_TIMEOUT;
 END_IF
 
 CASE uiCyclicStep OF
@@ -260,7 +273,7 @@ VAR_OUTPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[bServiceTimeOutIn := false;]]></ST>
       </Implementation>
     </Method>
     <Method Name="StartAction" Id="{bc4c5ba3-0601-41d1-a02e-4666588ee580}" FolderPath="Action\">
@@ -280,6 +293,7 @@ M_StationModify(TargetStation,ModifiedTargetStation =>ModifiedTargetPos);
 bWorkZonePlug_Extend 	:= FALSE;
 bWorkZonePress_Extend	:= FALSE;
 bChargeZonePlug_Extend	:= FALSE;
+bServiceTimeOutIn 	   	:= false;
 
 //verify C# Station command
 iVar := TargetStation MOD 2 ;
@@ -329,6 +343,8 @@ END_IF
       <LineId Id="118" Count="2" />
       <LineId Id="117" Count="0" />
       <LineId Id="92" Count="1" />
+      <LineId Id="178" Count="1" />
+      <LineId Id="177" Count="0" />
       <LineId Id="115" Count="0" />
     </LineIds>
     <LineIds Name="FB_RoundBeltService.A00_ReadPositionData">
@@ -343,6 +359,8 @@ END_IF
       <LineId Id="288" Count="0" />
       <LineId Id="290" Count="8" />
       <LineId Id="289" Count="0" />
+      <LineId Id="310" Count="4" />
+      <LineId Id="309" Count="0" />
       <LineId Id="264" Count="1" />
       <LineId Id="251" Count="0" />
       <LineId Id="88" Count="0" />
@@ -423,6 +441,7 @@ END_IF
       <LineId Id="59" Count="0" />
       <LineId Id="115" Count="2" />
       <LineId Id="114" Count="0" />
+      <LineId Id="126" Count="0" />
       <LineId Id="105" Count="0" />
       <LineId Id="104" Count="0" />
       <LineId Id="85" Count="0" />

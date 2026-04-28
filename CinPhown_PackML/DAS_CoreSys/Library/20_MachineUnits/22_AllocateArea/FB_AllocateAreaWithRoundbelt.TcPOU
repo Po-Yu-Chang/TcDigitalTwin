@@ -209,7 +209,8 @@ RoundBeltControl(
 	xAborted=> , 
 	iErrorID=> , 
 	ErrorMsg=> ,
-	AxisRoundMoveRequest => );
+	AxisRoundMoveRequest => ,
+	Pause	:= bStopMem);
 	
 TurnTableControl(
 	xDone=> _TurnTableMove.HandShake.Done,
@@ -1250,7 +1251,9 @@ END_IF]]></ST>
       <LineId Id="36" Count="10" />
       <LineId Id="35" Count="0" />
       <LineId Id="47" Count="0" />
-      <LineId Id="49" Count="15" />
+      <LineId Id="49" Count="2" />
+      <LineId Id="477" Count="0" />
+      <LineId Id="52" Count="12" />
       <LineId Id="374" Count="0" />
       <LineId Id="475" Count="0" />
       <LineId Id="65" Count="9" />
