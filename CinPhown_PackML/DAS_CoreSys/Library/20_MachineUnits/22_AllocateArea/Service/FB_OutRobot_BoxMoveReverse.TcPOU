@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_OutRobot_BoxMoveReverse" Id="{2010a4e0-e6c4-4a61-ade6-1d88897847d3}" SpecialFunc="None">
+  <POU Name="FB_OutRobot_BoxMoveReverse" Id="{f3e83fbe-be04-4e98-957f-fba21b58faf5}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_OutRobot_BoxMoveReverse EXTENDS FB_ObjectBase_V2
 VAR_INPUT
 //    Execute    :BOOL;   // True : This prog will start.
@@ -33,15 +33,14 @@ VAR
 //	_Error : BOOL; // FB has an error.
 //	_ResetCompleted : BOOL; // FB resetting completed.
 //	_AbortCompleted : BOOL; // FB aborting completed.
-	//_Abort		: BOOL;
+//	_Abort		: BOOL;
 	strStatus	: STRING;
-	uiResumeStep : UINT;
+	uiResumeStep : UDINT;
 	tonTimeOut   :TON;
 	tonTimeDelay   :TON;
 	iWorkingIndex : INT;
 	_UniqueErrorCode :STRING;
-	
-	
+
 	PickingPos	: ARRAY[0..1] OF ST_PositionTable;
 	PlacingPos  : ARRAY[0..1] OF ST_PositionTable;
 	bSyncPick	: BOOL;
@@ -51,21 +50,42 @@ VAR
 	UseA	: BOOL;
 	UseB	: BOOL;
 	bMotorMoveForward : BOOL;
+	lrEpsPos 	: LREAL := 0.001;	// 浮點座標比較容差 (sync 判斷)
+	// Step 切換偵測 (timer 乾淨重置)
+	uiExecutingStep_Last : UDINT;
+	// Resume / Pause 機制
+	bResumeEnabled : BOOL;
+	bCanPause : BOOL;
+	bPauseLast : BOOL;
+	// 雙 clip pick / place 旗標 (取代 iWorkingIndex 共用)
+	bPickedA : BOOL;
+	bPickedB : BOOL;
+	bPlacedA : BOOL;
+	bPlacedB : BOOL;
+	// Safety: 夾爪是否正夾著箱 (latched, 1300 閉夾→TRUE, 2300 開夾→FALSE)
+	bClipHasBox : ARRAY[0..1] OF BOOL;
+	
+	_bRetry  : BOOL;
+	
+	// Error blinking 閃爍邏輯
+	trigErrorReset		: R_TRIG;
+	tonErrorResetDelay	: TON;
+	bErrorBlinking		: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[A00_BasicUnits();
 SUPER^.A10_StateControl();]]></ST>
     </Implementation>
-    <Folder Name="Method" Id="{3226158d-4665-4849-bf0c-83df847d8e4a}" />
-    <Folder Name="STATE" Id="{b81dde6d-c30a-4b4f-9274-d386d378fe4a}" />
-    <Action Name="A00_BasicUnits" Id="{871c1988-dc90-4a56-b253-eb8b77b8a4b4}">
+    <Folder Name="Method" Id="{d6e260a5-a891-444e-890d-7227dd5220a5}" />
+    <Folder Name="STATE" Id="{f9fc60e3-aa74-4364-b599-5cdb8c0b3912}" />
+    <Action Name="A00_BasicUnits" Id="{14e52cea-4905-4712-ad7d-530b54102f3f}">
       <Implementation>
-        <ST><![CDATA[tonTimeOut(PT:=T#60S);
-tonTimeDelay(PT:=T#1.5s);]]></ST>
+        <ST><![CDATA[// Timer 由各 step 自行呼叫並傳 IN/PT,此處不做 freerun call,
+// 避免「IN 殘留 TRUE」造成 step 切換後 timer 不歸零。]]></ST>
       </Implementation>
     </Action>
-    <Method Name="GetModelState" Id="{87d57486-748b-4b84-893f-708c478b8089}">
+    <Method Name="GetModelState" Id="{5eb72e06-7e2a-4bb9-a846-ce5593c00faf}">
       <Declaration><![CDATA[METHOD GetModelState
 VAR_OUTPUT
     xDone    :BOOL;
@@ -80,36 +100,71 @@ END_VAR
         <ST><![CDATA[xDone    := Done;
 xBusy    := Busy;
 xError   := Error;
-xAborted := Abort;
+xAborted := Aborted;
 iErrorID := ErrorID;
 UniqueErrorCode := THIS^.UniqueErrorCode;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="GetName" Id="{d60fa25c-e3a4-4da5-8b54-f31985b997b8}">
+    <Method Name="GetName" Id="{2525672c-763f-45e0-914f-a08631d0e58d}">
       <Declaration><![CDATA[METHOD GetName : STRING
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[GetName := ObjectName;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CheckCommand" Id="{99b0aba1-caca-4248-a190-29327f26fc04}" FolderPath="Method\">
+    <Method Name="M_CheckCommand" Id="{f140fd6d-cdcd-4593-a4b7-9ce270b0ce43}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD PRIVATE M_CheckCommand : BOOL
 VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[
+        <ST><![CDATA[IF NOT AutoMode_OutRobotMoveMove.ClampingInfo.UseClibA AND NOT AutoMode_OutRobotMoveMove.ClampingInfo.UseClibB THEN
+	M_CheckCommand := FALSE;
+	strStatus 	   := 'FB_OutRobot_BoxMoveReverse , Wrong Command Neither Clamp was used';
+	RETURN;
+END_IF
+IF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA <> AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipB THEN
+	M_CheckCommand := FALSE;
+	strStatus 	   := 'FB_OutRobot_BoxMoveReverse , Wrong Command ClampA,B need same TargetPos';
+	RETURN;
+END_IF
 
 M_CheckCommand:=true;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_GetWorkingConditions" Id="{b1f356aa-a92c-41ce-8e7d-9ad847c21bd2}" FolderPath="Method\">
+    <Method Name="M_GetResumeEntryStep" Id="{c0000003-0000-0000-0000-000000000003}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GetResumeEntryStep : UDINT
+VAR_INPUT
+	uiErrorStep : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Resume 入口對照表: 錯誤點 → 重新進入的安全 checkpoint
+CASE uiErrorStep OF
+	1000, 1100:
+		M_GetResumeEntryStep := 1000;
+	1200, 1300, 1400, 1500, 1600:
+		M_GetResumeEntryStep := 1000;	// pick 階段錯誤 → 重發 XY 從頭 pick
+	2000, 2100, 2150:
+		M_GetResumeEntryStep := 2000;
+	2200, 2300, 2400, 2500:
+		M_GetResumeEntryStep := 2000;	// place 階段錯誤 → 重發 XY 從頭 place
+	2600, 2700:
+		M_GetResumeEntryStep := 2600;	// conveyor handoff 重做
+ELSE
+	M_GetResumeEntryStep := 0;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetWorkingConditions" Id="{98cc34e0-eda1-4aec-bc36-9e9af1097447}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD PRIVATE M_GetWorkingConditions : BOOL
 VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[//For Outbox move reverse, Boxes must place on same position , therefor only work with TargetPosition of ClipA
+
+
 
 IF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 5 THEN
 	ConveyorMotor REF= Motor.List.TransmitDifferentSideCV;
@@ -118,25 +173,29 @@ ELSIF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 6 THEN
 ELSIF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 3 THEN
 	ConveyorMotor REF= Motor.List.TransmitDifferentSideCV;
 ELSIF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 4 THEN
-	ConveyorMotor REF= Motor.List.TransmitSameSideCV;	
+	ConveyorMotor REF= Motor.List.TransmitSameSideCV;
 END_IF
 
 IF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA=5 THEN
 		bMotorMoveForward := FALSE;
 	ELSE
-		bMotorMoveForward := TRUE;	
+		bMotorMoveForward := TRUE;
 END_IF
 IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibA THEN
 	PickingPos[0] :=FUN_GetPositionTableData('R',1,0);
 	UseA := TRUE;
-	CASE  AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA OF	
-		
+	CASE  AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA OF
+
 	3,4:
 		PlacingPos[0] :=FUN_GetPositionTableData('O',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA,0);
 	5,6:
 		PlacingPos[0] :=FUN_GetPositionTableData('I',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA,0);
 	ELSE
-		strStatus :='FB_OutRobot_BoxMoveReverse: Wrong command: Clip A target not allow';
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0157);
+		Status := strStatus;
+		Error := TRUE;
 		M_GetWorkingConditions := FALSE;
 		RETURN;
 	END_CASE
@@ -145,33 +204,76 @@ END_IF
 IF AutoMode_OutRobotMoveMove.ClampingInfo.UseClibB THEN
 	PickingPos[1] :=FUN_GetPositionTableData('R',2,1);
 	UseB :=TRUE;
-		CASE AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA OF
-		
+		CASE AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipB OF
+
 	3,4:
-		PlacingPos[1] :=FUN_GetPositionTableData('O',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA,1);
+		PlacingPos[1] :=FUN_GetPositionTableData('O',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipB,1);
 	5,6 :
-		PlacingPos[1] :=FUN_GetPositionTableData('I',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA,1);
+		PlacingPos[1] :=FUN_GetPositionTableData('I',AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipB,1);
 	ELSE
-		strStatus :='FB_OutRobot_BoxMoveReverse: Wrong command: Clip B target not allow';
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0158);
+		Status := strStatus;
+		Error := TRUE;
 		M_GetWorkingConditions := FALSE;
 		RETURN;
 	END_CASE
 END_IF
-IF PlacingPos[0].X_Pos =PlacingPos[1].X_Pos AND PlacingPos[0].Y_Pos = PlacingPos[1].Y_Pos AND UseA AND UseB THEN
-		bSyncPlace:=TRUE;
-	ELSE
-		bSyncPlace:=FALSE;	
-END_IF
-IF PickingPos[0].X_Pos =PickingPos[1].X_Pos AND PickingPos[0].Y_Pos = PickingPos[1].Y_Pos AND UseA AND UseB THEN
-		bSyncPick:=TRUE;
-	ELSE
-		bSyncPick:=FALSE;	
-END_IF
+
+// Sync 判斷一律用浮點容差 (lrEpsPos), OutRobot 只有 X/Y 軸 (無 R 軸),
+// 不比較 R_Pos 避免因不相關欄位微誤差導致 sync 永遠 FALSE
+bSyncPlace := UseA AND UseB
+	AND ABS(PlacingPos[0].X_Pos - PlacingPos[1].X_Pos) < lrEpsPos
+	AND ABS(PlacingPos[0].Y_Pos - PlacingPos[1].Y_Pos) < lrEpsPos;
+
+bSyncPick := UseA AND UseB
+	AND ABS(PickingPos[0].X_Pos - PickingPos[1].X_Pos) < lrEpsPos
+	AND ABS(PickingPos[0].Y_Pos - PickingPos[1].Y_Pos) < lrEpsPos;
 
 M_GetWorkingConditions :=TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_RecoveryAllObjects" Id="{fc7678d4-bb65-45fd-862f-96a4a21c1b30}" FolderPath="Method\">
+    <Method Name="M_IsOutRobotAtPos" Id="{c0000001-0000-0000-0000-000000000001}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_IsOutRobotAtPos : BOOL
+VAR_INPUT
+	TargetPos : ST_PositionTable;
+END_VAR
+VAR
+	lTol : LREAL := 0.1;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//lTol := GVL_HMI.Setup.Mechanical.OutRobotPositionTolerance;
+
+M_IsOutRobotAtPos :=
+		NOT arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Moving
+	AND NOT arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Moving
+	AND ABS(arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.NcToPlc.ActPos - TargetPos.X_Pos) < lTol
+	AND ABS(arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.NcToPlc.ActPos - TargetPos.Y_Pos) < lTol;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_IsTurnTableAtStation" Id="{c0000002-0000-0000-0000-000000000002}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_IsTurnTableAtStation : BOOL
+VAR
+	lActPos : LREAL;
+	lTol    : LREAL := 0.1;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Pick 前 TurnTable 必須位於 0/90/180/270/360 (任一 station)
+// 取絕對值處理負角度 (e.g., -90 → 90, -180 → 180)
+lActPos := ABS(arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.NcToPlc.ModuloActPos);
+
+M_IsTurnTableAtStation :=
+	   FUN_CheckInPos(ActPos:=lActPos, TargetPos:=0,   ToleranceRange:=lTol)
+	OR FUN_CheckInPos(ActPos:=lActPos, TargetPos:=90,  ToleranceRange:=lTol)
+	OR FUN_CheckInPos(ActPos:=lActPos, TargetPos:=180, ToleranceRange:=lTol)
+	OR FUN_CheckInPos(ActPos:=lActPos, TargetPos:=270, ToleranceRange:=lTol)
+	OR FUN_CheckInPos(ActPos:=lActPos, TargetPos:=360, ToleranceRange:=lTol);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_RecoveryAllObjects" Id="{d165e555-6c86-4089-916b-9a58de282fb4}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD PRIVATE M_RecoveryAllObjects : BOOL
 VAR_INPUT
 END_VAR
@@ -180,15 +282,17 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[FOR i:=0 TO 1 DO
+	// Clip: 有箱時絕對不張開 (safety),只清錯
 	IF Clips[i].xError THEN
 		Clips[i].M_Reset();
-		ELSE
-		Clips[i].M_Retract();		
+	ELSIF NOT bClipHasBox[i] THEN
+		Clips[i].M_Retract();
 	END_IF
+	// Cylinder: 一律抬起 (空爪或有箱都安全)
 	IF Cylinders[i].xError THEN
-	Cylinders[i].M_Reset();	
+		Cylinders[i].M_Reset();
 	ELSE
-	Cylinders[i].M_Retract();	
+		Cylinders[i].M_Retract();
 	END_IF
 END_FOR
 
@@ -209,7 +313,7 @@ END_IF
 	]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_SensorUpdate" Id="{621a30f3-02f4-40fd-897f-cf5bab1b722f}" FolderPath="Method\">
+    <Method Name="M_SensorUpdate" Id="{f1f87623-52f8-4554-9792-aeb5eb42c4d9}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD PRIVATE M_SensorUpdate : BOOL
 VAR_INPUT
 END_VAR
@@ -226,28 +330,43 @@ ELSIF AutoMode_OutRobotMoveMove.ClampingInfo.TargetOfClipA = 4 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTED" Id="{c3c5ce99-5e57-43a4-827f-558adde51648}" FolderPath="STATE\">
+    <Method Name="M_STATE_ABORTED" Id="{d840a1d1-c783-4da9-80f0-46e244582d0e}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTED
 VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[ERROR :=TRUE;
-Busy    := FALSE;
-Aborted := TRUE;
-Status := strStatus;
+        <ST><![CDATA[IF NOT _bRetry THEN
+	ERROR 			:= TRUE;
+	Busy    		:= FALSE;
+	Aborted 		:= TRUE;
+	Status 			:= strStatus;
+	uiAbortingStep  := 0;
+	_AbortCompleted := TRUE;
+END_IF
+
+IF reset THEN
+	ERROR 	:= FALSE;
+	Aborted := FALSE;
+	_bRetry	:= TRUE;
+END_IF
 
 IF NOT Execute THEN
 	eSTATE:=STATE_RESETTING;
-END_IF
-
-IF Execute AND Reset THEN
-//	uiExecutingStep :=uiResumeStep;
+// 續做: Reset+Execute 時設旗標,EXECUTING step 0 會跳到 ResumeStep
+ELSIF Execute AND _bRetry AND uiResumeStep > 0 THEN
+	Status  := '';
+	bResumeEnabled := TRUE;
+	uiExecutingStep := 0;
 	eSTATE:=STATE_EXECUTING;
+// 判斷如果是不能續做的，重新跳回aborting 再次進入aborted 循環，上位下Reset 會看Error 如果Error沒有消失會卡住。
+ELSIF Execute AND _bRetry AND uiResumeStep = 0 THEN	
+	strStatus := 'FB_OutRobot_BoxMoveReverse, this Error can not retry';
+	eState := STATE_ERROR;
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTING" Id="{cca0af9f-77a9-4f29-b0f8-60b0f27bb3c8}" FolderPath="STATE\">
+    <Method Name="M_STATE_ABORTING" Id="{dc5c1a40-90b4-4678-8029-a3d1311ecd17}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTING
 VAR_INPUT
 END_VAR
@@ -258,30 +377,56 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=True;
+        <ST><![CDATA[// Timer 歸零
+tonTimeOut(IN:=FALSE);
+tonTimeDelay(IN:=FALSE);
+
 CASE uiAbortingStep OF
 	0 :
+		_Abort  := FALSE;
+		_bRetry := FALSE;
 		bCylinderCheck:=TRUE;
-		ConveyorMotor.M_MotorStop();
-		FOR i :=0 TO 1 DO		
-	    	Cylinders[i].M_Reset();
-			Cylinders[i].M_Retract();
-			bCylinderCheck:=bCylinderCheck AND Cylinders[i].InRearPosition;	
+		IF __ISVALIDREF(ConveyorMotor) THEN
+			ConveyorMotor.M_MotorStop();
+		END_IF
+
+		// Safety: 有箱的 clip 絕對不張開
+		FOR i :=0 TO 1 DO
+			IF Clips[i].xError THEN
+				Clips[i].M_Reset();
+			ELSIF NOT bClipHasBox[i] THEN
+				Clips[i].M_Retract();
+			END_IF
 		END_FOR
-		IF bCylinderCheck THEN		
+
+		// Cylinder 一律抬起 (空爪或有箱都安全)
+		FOR i :=0 TO 1 DO
+			IF Cylinders[i].xError THEN
+				Cylinders[i].M_Reset();
+			END_IF
+			Cylinders[i].M_Retract();
+			bCylinderCheck:=bCylinderCheck AND Cylinders[i].InRearPosition;
+		END_FOR
+
+		IF bCylinderCheck THEN
 			uiAbortingStep:=9999;
 		END_IF
-		
-	9999:	
-			_AbortCompleted:=TRUE;
+
+	9999:
+		_Abort := FALSE;
+		_AbortCompleted:=TRUE;
 END_CASE
 
-IF _AbortCompleted THEN	
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND _AbortCompleted THEN
 	eSTATE :=STATE_ABORTED;
-END_IF]]></ST>
+END_IF
+
+]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DONE" Id="{d11bc627-b501-4bb8-a371-5ee132806827}" FolderPath="STATE\">
+    <Method Name="M_STATE_DONE" Id="{c9e9cf49-5e0e-45c3-9c1b-20074085120c}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_DONE
 VAR_INPUT
 END_VAR
@@ -295,7 +440,7 @@ IF NOT Execute THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DORMANT" Id="{2411840d-d85f-41c9-82a8-f7ff09309fa8}" FolderPath="STATE\">
+    <Method Name="M_STATE_DORMANT" Id="{143405c0-ae72-4a5a-8b8d-6a872a66ac79}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_DORMANT
 VAR_INPUT
 END_VAR
@@ -310,23 +455,49 @@ Status          := '';
 _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
-strStatus :='FB_OutRobot_BoxMoveReverse: No Error';
-uiExecutingStep :=uiResettingStep :=uiResumeStep :=0;
-tonTimeOut.IN :=TRUE;
+_Abort          := FALSE;
+strStatus := M_FormatManagedStatus(
+	AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+	InnerMessage := GVL_ErrorCode.GC_MSG_0089);
+Status := '';
+Error := FALSE;
+uiExecutingStep :=uiResettingStep :=0;
+// Timer 完整歸零 (用實際 FB call,不是只設屬性)
+tonTimeOut(IN:=FALSE);
+tonTimeDelay(IN:=FALSE);
+uiExecutingStep_Last := 0;
 _UniqueErrorCode:='0';
 iWorkingIndex :=0;
-bSyncPick :=FALSE;
+bSyncPick := FALSE;
 bSyncPlace := FALSE;
 UseA := FALSE;
-UseB :=FALSE;
-bMotorMoveForward:= FALSE;
+UseB := FALSE;
+bMotorMoveForward := FALSE;
+bPickedA := FALSE;
+bPickedB := FALSE;
+bPlacedA := FALSE;
+bPlacedB := FALSE;
+bPauseLast 	:= FALSE;
+bCanPause 	:= FALSE;
+_bRetry	 	:= FALSE;
+_AbortCompleted := FALSE;
+uiAbortingStep  := 0;
+tonErrorResetDelay.IN := FALSE;
+// 非續做模式才清 ResumeStep 與 ClipHasBox
+IF NOT bResumeEnabled THEN
+	uiResumeStep := 0;
+	bClipHasBox[0] := FALSE;
+	bClipHasBox[1] := FALSE;
+END_IF
+// 註: M_RecoveryAllObjects 不放 DORMANT 避免與其他 FB 搶 ClearError,
+// 以及避免清掉 bClipHasBox 後誤張爪掉箱。僅 EXECUTING step 0 / RESETTING 呼叫。
 
 IF Execute THEN
 	eSTATE:=STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ERROR" Id="{7426c8a7-ac70-4583-98a7-d373e0b17bca}" FolderPath="STATE\">
+    <Method Name="M_STATE_ERROR" Id="{b6e5580e-fd77-4ac8-b994-4f8bfb80565d}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ERROR
 VAR_INPUT
 END_VAR
@@ -334,15 +505,38 @@ END_VAR
       <Implementation>
         <ST><![CDATA[ERROR   :=TRUE;
 Busy	:=FALSE;
+_Error  := FALSE;
 Status := strStatus;
-ConveyorMotor.M_MotorStop();
+IF __ISVALIDREF(ConveyorMotor) THEN
+	ConveyorMotor.M_MotorStop();
+END_IF
 
-IF NOT Execute THEN	
-eSTATE:=STATE_RESETTING;
-END_IF]]></ST>
+// --- Reset 閃爍邏輯：偵測上升緣觸發 1 秒閃爍 ---
+trigErrorReset(CLK := reset);
+IF trigErrorReset.Q THEN
+	bErrorBlinking := TRUE;
+END_IF
+
+tonErrorResetDelay(IN := bErrorBlinking, PT := T#1S);
+IF tonErrorResetDelay.Q THEN
+	bErrorBlinking := FALSE;
+END_IF
+
+// 閃爍期間 (1秒) 暫時將 Error 訊號設為 FALSE
+IF bErrorBlinking THEN
+	Error := FALSE;
+END_IF
+
+
+IF NOT Execute THEN
+	bErrorBlinking := FALSE;
+	tonErrorResetDelay.IN := FALSE;
+	eSTATE:=STATE_RESETTING;
+END_IF
+]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_EXECUTING" Id="{a4f8385a-88e7-4ec2-972c-1f67f72164d1}" FolderPath="STATE\">
+    <Method Name="M_STATE_EXECUTING" Id="{1e1413df-6920-4d38-abcc-c5a793041751}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
 VAR_INPUT
 END_VAR
@@ -357,9 +551,73 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[Busy :=TRUE;
 M_SensorUpdate();
+
+// ============================================================
+// (A) Step 切換 → Timer 完整歸零 (Fix 1)
+// ============================================================
+IF uiExecutingStep <> uiExecutingStep_Last THEN
+	tonTimeOut(IN:=FALSE);
+	tonTimeDelay(IN:=FALSE);
+	uiExecutingStep_Last := uiExecutingStep;
+END_IF
+
+// ============================================================
+// (B) TurnTable Interlock (Fix 3)
+// Pick 下爪區間 (1200~1499) 期間 TurnTable 不可移動
+// ============================================================
+IF (uiExecutingStep >= 1200 AND uiExecutingStep <= 1499) THEN
+	IF arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Moving THEN
+		_Error := TRUE;
+		uiResumeStep := uiExecutingStep;
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0174);
+		Status := strStatus;
+		Error := TRUE;
+	END_IF
+END_IF
+
+// ============================================================
+// (C) Pause 處理 (Fix 4) - 僅在「安全 step」生效
+// ============================================================
+bCanPause :=
+	   uiExecutingStep = 0
+	OR uiExecutingStep = 100
+	OR uiExecutingStep = 200
+	OR uiExecutingStep = 1000
+	OR uiExecutingStep = 1100
+	OR uiExecutingStep = 1500
+	OR uiExecutingStep = 2000
+	OR uiExecutingStep = 2100
+	OR uiExecutingStep = 2150
+	OR uiExecutingStep = 2500
+	OR uiExecutingStep = 2700;
+
+// Pause 釋放邊緣 → 強制 timer 歸零
+IF bPauseLast AND NOT Pause THEN
+	tonTimeOut(IN:=FALSE);
+	tonTimeDelay(IN:=FALSE);
+END_IF
+bPauseLast := Pause;
+
+IF Pause AND bCanPause THEN
+	bMoveConveyorForward := FALSE;
+	bMoveConveyorBackrward := FALSE;
+	IF __ISVALIDREF(ConveyorMotor) THEN
+		ConveyorMotor.M_MotorStop();
+	END_IF
+	tonTimeOut(IN:=FALSE);
+	tonTimeDelay(IN:=FALSE);
+	Busy := TRUE;
+	RETURN;
+END_IF
+
+// ============================================================
+// Conveyor 連續控制 (sync 後 latched flag 控制)
+// ============================================================
 IF bMoveConveyorForward THEN
 	IF NOT ConveyorMotor.InBackWard THEN
-		ConveyorMotor.M_MoveForward();	
+		ConveyorMotor.M_MoveForward();
 	END_IF
 END_IF
 
@@ -368,270 +626,411 @@ IF bMoveConveyorBackrward THEN
 		ConveyorMotor.M_MoveBackward();
 	END_IF
 END_IF
-CASE uiExecutingStep OF
-	
 
-0: //Idle
-bMoveConveyorForward:=FALSE;
-bMoveConveyorBackrward:=FALSE;
-	tonTimeDelay.IN :=FALSE;
-	tonTimeOut.IN := FALSE;
-	M_RecoveryAllObjects();
-	//M_GetWorkingConditions();
-	iWorkingIndex :=0;
-	uiExecutingStep := 100;
-	
+CASE uiExecutingStep OF
+
+0: //Entry - VAR_INST reset + 流程分流
+	// VAR_INST 私有給本 method,DORMANT 看不到,必須在此 reset
+	bMoveConveyorForward := FALSE;
+	bMoveConveyorBackrward := FALSE;
+
+	IF GVL_Machine.PackTags[UnitNo.Allocate].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
+		strStatus := 'Not in Auto mode';
+		_UniqueErrorCode := 'E_NOT_AUTO_MODE';
+		_Error := TRUE;
+	ELSIF bResumeEnabled AND uiResumeStep > 0 THEN
+		// 續做模式
+		IF M_GetWorkingConditions() THEN
+			M_RecoveryAllObjects();
+			// Safety: 若仍夾著箱,強制走 placing 流程
+			IF bClipHasBox[0] OR bClipHasBox[1] THEN
+				IF bClipHasBox[0] THEN
+					iWorkingIndex := 0;
+				ELSE
+					iWorkingIndex := 1;
+				END_IF
+				bPickedA := UseA;
+				bPickedB := UseB;
+				bPlacedA := UseA AND NOT bClipHasBox[0];
+				bPlacedB := UseB AND NOT bClipHasBox[1];
+				uiExecutingStep := 2000;
+			ELSE
+				uiExecutingStep := M_GetResumeEntryStep(uiErrorStep:=uiResumeStep);
+			END_IF
+			bResumeEnabled := FALSE;
+			uiResumeStep := 0;
+		ELSE
+			_Error := TRUE;
+		END_IF
+	ELSE
+		// 正常啟動: DORMANT 已 reset 所有 FB-level flag
+		IF M_GetWorkingConditions() THEN
+			M_RecoveryAllObjects();
+			uiExecutingStep := 100;
+		ELSE
+			_Error := TRUE;
+		END_IF
+	END_IF
+
 100: //Check command
-	IF M_GetWorkingConditions()THEN
+	IF M_CheckCommand() THEN
 		uiExecutingStep:=200;
 	ELSE
-		_Error:=TRUE;		
+		_Error :=TRUE;
 	END_IF
-	
-200: // first index
 
+200: // TT angle gate + 確認 R 上有箱
+	IF NOT M_IsTurnTableAtStation() THEN
+		_Abort := TRUE;
+		uiResumeStep := uiExecutingStep;
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0175);
+	ELSIF (UseA AND NOT INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND NOT INPUT.bTurnTable_R2Detect_Sensor) THEN
+		_Error:=TRUE;
+		uiResumeStep := 0;	// 沒箱可抓 → 不可續做
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0009);
+		Status := strStatus;
+		Error := TRUE;
+	ELSE
 		IF UseA THEN
 			iWorkingIndex :=0;
 		ELSE
-			iWorkingIndex :=1;	
+			iWorkingIndex :=1;
 		END_IF
-		
-		uiExecutingStep:=1000;	
-	
-1000: 
-	// Move OutRobot to First clip picking	
-	 	 
-	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PickingPos[iWorkingIndex].X_Pos;		
-	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PickingPos[iWorkingIndex].Y_Pos;	
+		uiExecutingStep:=1000;
+	END_IF
+
+1000: // Move OutRobot to picking pos (TurnTable R)
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PickingPos[iWorkingIndex].X_Pos;
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PickingPos[iWorkingIndex].Y_Pos;
 	uiExecutingStep:=1100;
-		// todo : Check axes is moving
-1100:
-	// Check outRobot arrived
-	IF		(arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone) 
-	AND (arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone) 
-	THEN
-		tonTimeOut.IN := FALSE;
-		uiExecutingStep:=1200;
-	END_IF	
-	tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
-		_Error := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 1100: Move Robot to picking position timeout';
-	END_IF
-1200: //Clip Down Pick	  
-	bCylinderCheck := TRUE;
-	Cylinders[iWorkingIndex].M_Extend();
-	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
-	IF bSyncPick THEN
-		Cylinders[1].M_Extend();
-		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
-	END_IF	
-	 
-	IF bCylinderCheck THEN
-		tonTimeOut.IN := FALSE;
-		uiExecutingStep:=1300;
-	END_IF 
-	tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
-		_Abort := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 1200: Cylinder pick down timeout';
-	END_IF
-	
-1300: // Clip close Pick
-	bCylinderCheck := TRUE;
-	Clips[iWorkingIndex].M_Extend();
-	bCylinderCheck := Clips[iWorkingIndex].InFrontPosition AND bCylinderCheck;
-	IF bSyncPick THEN
-		Clips[1].M_Extend();
-		bCylinderCheck := Clips[1].InFrontPosition AND bCylinderCheck;
-	END_IF	
-	 
-	IF bCylinderCheck THEN
-		tonTimeOut.IN := FALSE;
-		uiExecutingStep:=1400;
-	END_IF 
-	tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
-		_Abort := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 1300: Clip pick close timeout';
-	END_IF
-	
-1400: // Clip Up Pick
-	bCylinderCheck := TRUE;
-	Cylinders[iWorkingIndex].M_Retract();
-	bCylinderCheck := Cylinders[iWorkingIndex].InRearPosition AND bCylinderCheck;
-	IF bSyncPick THEN
-		Cylinders[1].M_Retract();
-		bCylinderCheck := Cylinders[1].InRearPosition AND bCylinderCheck;
-	END_IF	
-	 
-	IF bCylinderCheck THEN
-		tonTimeOut.IN := FALSE;
-		uiExecutingStep:=1500;
-	END_IF 
-	  tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
-		_Abort := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 1400: Cylinder pick up timeout';
-	END_IF
-	
-1500: // If Next pick
-	  IF iWorkingIndex>=1 OR bSyncPick OR NOT UseB THEN
-		//Go to placing step
-			IF UseA THEN
-				iWorkingIndex:=0;
-			ELSE
-				iWorkingIndex:=1;	
-			END_IF
-			uiExecutingStep:=2000;
-		ELSE
-			iWorkingIndex :=iWorkingIndex +1;
-			uiExecutingStep:=1000;	
-	  END_IF
-	  
 
-2000: // Move to Placing pos
-	  // Move Conveyor 
-	   IF bMotorMoveForward THEN
-		 	bMoveConveyorForward:=TRUE;//ConveyorMotor.M_MoveForward();
-			bMoveConveyorBackrward := FALSE;
-		  ELSE	 
-			  bMoveConveyorForward := FALSE;
-			 bMoveConveyorBackrward := TRUE; 
-	 		 ConveyorMotor.M_MoveBackward(); 
-	   END_IF
-	   
-	 arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PlacingPos[iWorkingIndex].X_Pos;		
-	 arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PlacingPos[iWorkingIndex].Y_Pos;	
-	 uiExecutingStep:=2100;
-
-2100: // Waiting outRobot move to placing pos	 
-	  // Check sensor off for a while
-	tonTimeDelay.IN := NOT 	SensorOnConveyor;
-	 IF	(arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone) 
+1100: // Wait OutRobot XY arrive (pick on TT) - 修正: 等 TurnTable 靜止 (原本誤檢查 RoundBelt)
+	IF (arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone)
 	AND (arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone)
-	AND  tonTimeDelay.Q
-	THEN	
-		tonTimeOut.IN := FALSE;	
-		uiExecutingStep:=2150;
-	END_IF	
-	
-	  tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
-		_Error := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 2100: Move Robot to placing position time out';
-	END_IF
-	
-2150 : //Motor stop
-		tonTimeDelay.IN := FALSE;
-		bMoveConveyorForward:=FALSE;
-		bMoveConveyorBackrward:=FALSE;
-		ConveyorMotor.M_MotorStop();
-		IF	ConveyorMotor.InStopped THEN
-			uiExecutingStep:=2200;
+	AND NOT arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Moving
+	THEN
+		uiExecutingStep:=1200;
+	ELSE
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0082);
 		END_IF
-
-2200: //Cllp Down place
-	bCylinderCheck := TRUE;
-	Cylinders[iWorkingIndex].M_Extend();
-	bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition AND bCylinderCheck;
-	IF bSyncPlace THEN
-		Cylinders[1].M_Extend();
-		bCylinderCheck := Cylinders[1].InFrontPosition AND bCylinderCheck;
-	END_IF	
-	 
-	IF bCylinderCheck THEN
-		tonTimeOut.IN := FALSE;
-		uiExecutingStep:=2300;
-	END_IF 
-	
-	  tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
-		_Abort := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 2200: Cylinder place down timeout';
 	END_IF
-	
-2300: // Clip open Place
-	bCylinderCheck := TRUE;
-	Clips[iWorkingIndex].M_Retract();
-	bCylinderCheck := Clips[iWorkingIndex].InRearPosition AND bCylinderCheck;
-	IF bSyncPlace THEN
-		Clips[1].M_Retract();
-		bCylinderCheck := Clips[1].InRearPosition AND bCylinderCheck;
-	END_IF	
-	 
-	IF bCylinderCheck THEN
-		tonTimeOut.IN := FALSE;
-		uiExecutingStep:=2400;
-	END_IF 
-	 tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
+
+1200: // Clip down (pick) - Fix 2: 下爪前位置再確認
+	IF NOT M_IsOutRobotAtPos(TargetPos:=PickingPos[iWorkingIndex]) THEN
 		_Abort := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 2300: Clip place open timeout';
-	END_IF  
-	  
-2400: // Clip up Placing
-	bCylinderCheck := TRUE;
-	Cylinders[iWorkingIndex].M_Retract();
-	bCylinderCheck := Cylinders[iWorkingIndex].InRearPosition AND bCylinderCheck;
-	IF bSyncPlace THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0172);
+	ELSE
+		// Sync 對稱化: sync 時兩爪同動同檢查
+		IF bSyncPick THEN
+			Cylinders[0].M_Extend();
+			Cylinders[1].M_Extend();
+			bCylinderCheck := Cylinders[0].InFrontPosition AND Cylinders[1].InFrontPosition;
+		ELSE
+			Cylinders[iWorkingIndex].M_Extend();
+			bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition;
+		END_IF
+		IF bCylinderCheck THEN
+			uiExecutingStep:=1300;
+		ELSE
+			tonTimeOut(IN:=TRUE, PT:=T#15S);
+			IF tonTimeOut.Q THEN
+				_Abort := TRUE;
+				uiResumeStep := uiExecutingStep;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0048);
+				Status := strStatus;
+				Error := TRUE;
+			END_IF
+		END_IF
+	END_IF
+
+1300: // Clip close (pick)
+	IF bSyncPick THEN
+		Clips[0].M_Extend();
+		Clips[1].M_Extend();
+		bCylinderCheck := Clips[0].InFrontPosition AND Clips[1].InFrontPosition;
+	ELSE
+		Clips[iWorkingIndex].M_Extend();
+		bCylinderCheck := Clips[iWorkingIndex].InFrontPosition;
+	END_IF
+	IF bCylinderCheck THEN
+		// Safety: 標記夾到箱
+		IF bSyncPick THEN
+			bClipHasBox[0] := TRUE;
+			bClipHasBox[1] := TRUE;
+		ELSE
+			bClipHasBox[iWorkingIndex] := TRUE;
+		END_IF
+		uiExecutingStep:=1400;
+	ELSE
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0025);
+			Status := strStatus;
+			Error := TRUE;
+		END_IF
+	END_IF
+
+1400: // Clip up (pick)
+	IF bSyncPick THEN
+		Cylinders[0].M_Retract();
 		Cylinders[1].M_Retract();
-		bCylinderCheck := Cylinders[1].InRearPosition AND bCylinderCheck;
-	END_IF	
-	 
+		bCylinderCheck := Cylinders[0].InRearPosition AND Cylinders[1].InRearPosition;
+	ELSE
+		Cylinders[iWorkingIndex].M_Retract();
+		bCylinderCheck := Cylinders[iWorkingIndex].InRearPosition;
+	END_IF
 	IF bCylinderCheck THEN
-		tonTimeOut.IN := FALSE;
-		uiExecutingStep:=2500;
-	END_IF 
-	 tonTimeOut.IN := TRUE;
-	IF tonTimeOut.q THEN
-		tonTimeOut.IN := FALSE;
-		_Abort := TRUE;
-		strStatus :='FB_OutRobot_BoxMoveReverse Step 2400: Cylinder place up timeout';
-	END_IF  
-	
-2500: // If Next place
-	IF iWorkingIndex>=1 OR bSyncPlace OR NOT UseB THEN
-		uiExecutingStep:=2600;
-		// Finish
-	ELSE	
-		iWorkingIndex := iWorkingIndex+1;
-	  	uiExecutingStep:=2000;
+		uiExecutingStep:=1500;
+	ELSE
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0049);
+			Status := strStatus;
+			Error := TRUE;
+		END_IF
 	END_IF
 
-2600: // Move conveyor a bit
-		  IF bMotorMoveForward THEN
-			 bMoveConveyorForward:=TRUE;//ConveyorMotor.M_MoveForward();
-			 bMoveConveyorBackrward:=FALSE;
-		  ELSE	 
-			  bMoveConveyorForward:=FALSE;
-			  bMoveConveyorBackrward:=TRUE;
-	 		 ConveyorMotor.M_MoveBackward(); 
-		  END_IF
-		tonTimeDelay.IN := NOT SensorOnConveyor;		
-		IF tonTimeDelay.Q THEN
-			uiExecutingStep:=2700;
+1500: // Next pick? (修雙 clip 漏放 bug, 用 bPickedA/B 旗標)
+	IF bSyncPick THEN
+		bPickedA := TRUE;
+		bPickedB := TRUE;
+	ELSIF iWorkingIndex = 0 THEN
+		bPickedA := TRUE;
+	ELSE
+		bPickedB := TRUE;
+	END_IF
+	IF UseA AND NOT bPickedA THEN
+		iWorkingIndex := 0;
+		uiExecutingStep := 1000;
+	ELSIF UseB AND NOT bPickedB THEN
+		iWorkingIndex := 1;
+		uiExecutingStep := 1000;
+	ELSE
+		// 全部 pick 完,先確認 R 上箱已離開,再進 placing
+		IF UseA THEN
+			iWorkingIndex := 0;
+		ELSE
+			iWorkingIndex := 1;
 		END_IF
-2700: // Stop movor
-		bMoveConveyorForward:=FALSE;
+		uiExecutingStep := 1600;
+	END_IF
+
+1600: // Confirm box left R sensor (pick 真的有抓起來)
+	IF (UseA AND INPUT.bTurnTable_R1Detect_Sensor) OR (UseB AND INPUT.bTurnTable_R2Detect_Sensor) THEN
+		// 還偵測到箱 → 等 timeout 才報錯,因為氣缸抬起到感測器斷訊可能有延遲
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0016);
+			Status := strStatus;
+			Error := TRUE;
+		END_IF
+	ELSE
+		uiExecutingStep := 2000;
+	END_IF
+
+
+2000: // Move conveyor + send OutRobot to placing pos
+	IF bMotorMoveForward THEN
+		bMoveConveyorForward:=TRUE;
 		bMoveConveyorBackrward:=FALSE;
-		ConveyorMotor.M_MotorStop();
-		tonTimeDelay.IN := FALSE;
-		IF ConveyorMotor.InStopped THEN
-			uiExecutingStep:=3000;
+	ELSE
+		bMoveConveyorForward:=FALSE;
+		bMoveConveyorBackrward:=TRUE;
+	END_IF
+	arAxisCtrl_gb[AxisNo.OutRobot_X].PosMode.Position := PlacingPos[iWorkingIndex].X_Pos;
+	arAxisCtrl_gb[AxisNo.OutRobot_Y].PosMode.Position := PlacingPos[iWorkingIndex].Y_Pos;
+	uiExecutingStep:=2100;
+
+2100: // Wait OutRobot XY arrive + sensor 'no box at conveyor stop' for a while
+	tonTimeDelay(IN:=NOT SensorOnConveyor, PT:=T#1S);
+	IF (arAxisStatus_gb[AxisNo.OutRobot_X].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_X].Admin.CmdDone)
+	AND (arAxisStatus_gb[AxisNo.OutRobot_Y].Admin._OpModeAck = ModePosAbs AND arAxisStatus_gb[AxisNo.OutRobot_Y].Admin.CmdDone)
+	AND tonTimeDelay.Q
+	THEN
+		uiExecutingStep:=2150;
+	ELSE
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0085);
 		END_IF
-3000: // Finish	
+	END_IF
+
+2150: // Stop conveyor
+	bMoveConveyorForward := FALSE;
+	bMoveConveyorBackrward := FALSE;
+	ConveyorMotor.M_MotorStop();
+	IF ConveyorMotor.InStopped THEN
+		uiExecutingStep:=2200;
+	END_IF
+
+2200: // Clip down (place) - Fix 2: 下爪前位置再確認
+	IF NOT M_IsOutRobotAtPos(TargetPos:=PlacingPos[iWorkingIndex]) THEN
+		_Abort := TRUE;
+		uiResumeStep := uiExecutingStep;
+		strStatus := M_FormatManagedStatus(
+			AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+			InnerMessage := GVL_ErrorCode.GC_MSG_0173);
+	ELSE
+		IF bSyncPlace THEN
+			Cylinders[0].M_Extend();
+			Cylinders[1].M_Extend();
+			bCylinderCheck := Cylinders[0].InFrontPosition AND Cylinders[1].InFrontPosition;
+		ELSE
+			Cylinders[iWorkingIndex].M_Extend();
+			bCylinderCheck := Cylinders[iWorkingIndex].InFrontPosition;
+		END_IF
+		IF bCylinderCheck THEN
+			uiExecutingStep:=2300;
+		ELSE
+			tonTimeOut(IN:=TRUE, PT:=T#15S);
+			IF tonTimeOut.Q THEN
+				_Abort := TRUE;
+				uiResumeStep := uiExecutingStep;
+				strStatus := M_FormatManagedStatus(
+					AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+					InnerMessage := GVL_ErrorCode.GC_MSG_0051);
+			END_IF
+		END_IF
+	END_IF
+
+2300: // Clip open (place)
+	IF bSyncPlace THEN
+		Clips[0].M_Retract();
+		Clips[1].M_Retract();
+		bCylinderCheck := Clips[0].InRearPosition AND Clips[1].InRearPosition;
+	ELSE
+		Clips[iWorkingIndex].M_Retract();
+		bCylinderCheck := Clips[iWorkingIndex].InRearPosition;
+	END_IF
+	IF bCylinderCheck THEN
+		// Safety: 箱已放下
+		IF bSyncPlace THEN
+			bClipHasBox[0] := FALSE;
+			bClipHasBox[1] := FALSE;
+		ELSE
+			bClipHasBox[iWorkingIndex] := FALSE;
+		END_IF
+		uiExecutingStep:=2400;
+	ELSE
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0028);
+		END_IF
+	END_IF
+
+2400: // Clip up (place)
+	IF bSyncPlace THEN
+		Cylinders[0].M_Retract();
+		Cylinders[1].M_Retract();
+		bCylinderCheck := Cylinders[0].InRearPosition AND Cylinders[1].InRearPosition;
+	ELSE
+		Cylinders[iWorkingIndex].M_Retract();
+		bCylinderCheck := Cylinders[iWorkingIndex].InRearPosition;
+	END_IF
+	IF bCylinderCheck THEN
+		uiExecutingStep:=2500;
+	ELSE
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0052);
+		END_IF
+	END_IF
+
+2500: // Next place? (修雙 clip 漏放 bug, 用 bPlacedA/B 旗標)
+	IF bSyncPlace THEN
+		bPlacedA := TRUE;
+		bPlacedB := TRUE;
+	ELSIF iWorkingIndex = 0 THEN
+		bPlacedA := TRUE;
+	ELSE
+		bPlacedB := TRUE;
+	END_IF
+	IF UseA AND NOT bPlacedA THEN
+		iWorkingIndex := 0;
+		uiExecutingStep := 2000;
+	ELSIF UseB AND NOT bPlacedB THEN
+		iWorkingIndex := 1;
+		uiExecutingStep := 2000;
+	ELSE
+		uiExecutingStep := 2600;
+	END_IF
+
+2600: // Move conveyor a bit until box detected at conveyor stop
+	IF bMotorMoveForward THEN
+		bMoveConveyorForward:=TRUE;
+		bMoveConveyorBackrward:=FALSE;
+	ELSE
+		bMoveConveyorForward:=FALSE;
+		bMoveConveyorBackrward:=TRUE;
+	END_IF
+	tonTimeDelay(IN:=NOT SensorOnConveyor, PT:=T#1S);
+	IF tonTimeDelay.Q THEN
+		uiExecutingStep:=2700;
+	ELSE
+		tonTimeOut(IN:=TRUE, PT:=T#15S);
+		IF tonTimeOut.Q THEN
+			_Abort := TRUE;
+			uiResumeStep := uiExecutingStep;
+			strStatus := M_FormatManagedStatus(
+				AlarmId := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,
+				InnerMessage := GVL_ErrorCode.GC_MSG_0081);
+		END_IF
+	END_IF
+
+2700: // Stop motor
+	bMoveConveyorForward:=FALSE;
+	bMoveConveyorBackrward:=FALSE;
+	ConveyorMotor.M_MotorStop();
+	IF ConveyorMotor.InStopped THEN
+		uiExecutingStep:=3000;
+	END_IF
+
+3000: // Finish
+	bMoveConveyorForward:=FALSE;
+	bMoveConveyorBackrward:=FALSE;
 	_Executed:=TRUE;
-	
+
 END_CASE
-	
+
 IF NOT Execute THEN
 	eState:=STATE_RESETTING;
 END_IF
@@ -646,7 +1045,7 @@ IF _Executed THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_RESETTING" Id="{6022a289-1bf1-4584-84c6-fbde58184ef2}" FolderPath="STATE\">
+    <Method Name="M_STATE_RESETTING" Id="{d0b24ff8-a56a-4feb-b708-cdf4e67b731c}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_RESETTING
 VAR_INPUT
 END_VAR
@@ -656,19 +1055,23 @@ END_VAR
 Done :=_Executed;
 Busy := FALSE;
 
+// Timer 確保歸零
+tonTimeOut(IN:=FALSE);
+tonTimeDelay(IN:=FALSE);
 
 CASE uiResettingStep OF
-	
+
 	0:
-		ConveyorMotor.M_MotorStop();
+		IF __ISVALIDREF(ConveyorMotor) THEN
+			ConveyorMotor.M_MotorStop();
+		END_IF
 		M_RecoveryAllObjects();
 		uiResettingStep:=9999;
 
-
 	9999:
-		M_RecoveryAllObjects();
 		_ResetCompleted:=TRUE;
 END_CASE
+
 IF _ResetCompleted THEN
 	eSTATE:=STATE_DORMANT;
 END_IF]]></ST>
@@ -692,12 +1095,23 @@ END_IF]]></ST>
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_CheckCommand">
       <LineId Id="5" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="27" Count="0" />
       <LineId Id="14" Count="0" />
       <LineId Id="13" Count="0" />
     </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveReverse.M_GetResumeEntryStep">
+      <LineId Id="3" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_GetWorkingConditions">
-      <LineId Id="35" Count="0" />
-      <LineId Id="88" Count="0" />
+      <LineId Id="35" Count="1" />
+      <LineId Id="76" Count="12" />
       <LineId Id="93" Count="0" />
       <LineId Id="95" Count="1" />
       <LineId Id="98" Count="1" />
@@ -708,10 +1122,17 @@ END_IF]]></ST>
       <LineId Id="128" Count="0" />
       <LineId Id="138" Count="29" />
       <LineId Id="134" Count="0" />
-      <LineId Id="173" Count="8" />
-      <LineId Id="172" Count="0" />
-      <LineId Id="171" Count="0" />
       <LineId Id="39" Count="0" />
+      <LineId Id="65" Count="7" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveReverse.M_IsOutRobotAtPos">
+      <LineId Id="3" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_OutRobot_BoxMoveReverse.M_IsTurnTableAtStation">
+      <LineId Id="3" Count="7" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="12" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_RecoveryAllObjects">
       <LineId Id="32" Count="11" />
@@ -723,6 +1144,8 @@ END_IF]]></ST>
       <LineId Id="21" Count="5" />
       <LineId Id="20" Count="0" />
       <LineId Id="13" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_SensorUpdate">
       <LineId Id="18" Count="1" />
@@ -732,19 +1155,33 @@ END_IF]]></ST>
       <LineId Id="14" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_STATE_ABORTED">
-      <LineId Id="9" Count="0" />
-      <LineId Id="23" Count="0" />
-      <LineId Id="22" Count="0" />
-      <LineId Id="10" Count="8" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="27" Count="4" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="44" Count="1" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="11" Count="2" />
+      <LineId Id="16" Count="1" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="57" Count="0" />
       <LineId Id="5" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="50" Count="2" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_STATE_ABORTING">
-      <LineId Id="29" Count="0" />
-      <LineId Id="5" Count="0" />
       <LineId Id="9" Count="0" />
       <LineId Id="51" Count="0" />
       <LineId Id="25" Count="0" />
-      <LineId Id="43" Count="6" />
+      <LineId Id="43" Count="2" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="46" Count="3" />
       <LineId Id="40" Count="0" />
       <LineId Id="33" Count="0" />
       <LineId Id="17" Count="0" />
@@ -754,6 +1191,21 @@ END_IF]]></ST>
       <LineId Id="11" Count="0" />
       <LineId Id="15" Count="0" />
       <LineId Id="14" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="26" Count="2" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="30" Count="2" />
+      <LineId Id="54" Count="1" />
+      <LineId Id="35" Count="4" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="80" Count="2" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_STATE_DONE">
       <LineId Id="9" Count="4" />
@@ -771,14 +1223,34 @@ END_IF]]></ST>
       <LineId Id="45" Count="1" />
       <LineId Id="14" Count="1" />
       <LineId Id="5" Count="0" />
+      <LineId Id="47" Count="2" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="30" Count="2" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="62" Count="2" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="51" Count="1" />
+      <LineId Id="39" Count="2" />
+      <LineId Id="53" Count="5" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_STATE_ERROR">
       <LineId Id="9" Count="0" />
       <LineId Id="16" Count="0" />
+      <LineId Id="49" Count="0" />
       <LineId Id="10" Count="0" />
       <LineId Id="20" Count="1" />
-      <LineId Id="11" Count="1" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="34" Count="13" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="50" Count="1" />
       <LineId Id="5" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_STATE_EXECUTING">
       <LineId Id="44" Count="0" />
@@ -861,6 +1333,7 @@ END_IF]]></ST>
       <LineId Id="306" Count="0" />
       <LineId Id="471" Count="0" />
       <LineId Id="307" Count="1" />
+      <LineId Id="724" Count="1" />
       <LineId Id="318" Count="0" />
       <LineId Id="377" Count="0" />
       <LineId Id="376" Count="0" />
@@ -868,8 +1341,7 @@ END_IF]]></ST>
       <LineId Id="380" Count="0" />
       <LineId Id="379" Count="0" />
       <LineId Id="363" Count="0" />
-      <LineId Id="360" Count="2" />
-      <LineId Id="319" Count="0" />
+      <LineId Id="360" Count="1" />
       <LineId Id="158" Count="0" />
       <LineId Id="192" Count="0" />
       <LineId Id="209" Count="0" />
@@ -898,8 +1370,6 @@ END_IF]]></ST>
       <LineId Id="474" Count="4" />
       <LineId Id="371" Count="0" />
       <LineId Id="370" Count="0" />
-      <LineId Id="384" Count="0" />
-      <LineId Id="373" Count="0" />
       <LineId Id="552" Count="0" />
       <LineId Id="530" Count="0" />
       <LineId Id="372" Count="0" />
@@ -907,8 +1377,7 @@ END_IF]]></ST>
       <LineId Id="226" Count="0" />
       <LineId Id="225" Count="0" />
       <LineId Id="236" Count="0" />
-      <LineId Id="227" Count="2" />
-      <LineId Id="231" Count="0" />
+      <LineId Id="227" Count="1" />
       <LineId Id="237" Count="0" />
       <LineId Id="230" Count="0" />
       <LineId Id="194" Count="0" />
@@ -969,6 +1438,37 @@ END_IF]]></ST>
       <LineId Id="37" Count="5" />
       <LineId Id="50" Count="1" />
       <LineId Id="49" Count="0" />
+      <LineId Id="557" Count="1" />
+      <LineId Id="294" Count="0" />
+      <LineId Id="704" Count="0" />
+      <LineId Id="295" Count="1" />
+      <LineId Id="559" Count="2" />
+      <LineId Id="300" Count="4" />
+      <LineId Id="562" Count="3" />
+      <LineId Id="309" Count="8" />
+      <LineId Id="566" Count="12" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="579" Count="7" />
+      <LineId Id="589" Count="9" />
+      <LineId Id="352" Count="7" />
+      <LineId Id="601" Count="6" />
+      <LineId Id="369" Count="0" />
+      <LineId Id="608" Count="9" />
+      <LineId Id="723" Count="0" />
+      <LineId Id="621" Count="10" />
+      <LineId Id="394" Count="5" />
+      <LineId Id="632" Count="0" />
+      <LineId Id="401" Count="10" />
+      <LineId Id="633" Count="0" />
+      <LineId Id="415" Count="8" />
+      <LineId Id="634" Count="0" />
+      <LineId Id="425" Count="10" />
+      <LineId Id="635" Count="0" />
+      <LineId Id="638" Count="40" />
+      <LineId Id="681" Count="12" />
+      <LineId Id="705" Count="5" />
+      <LineId Id="502" Count="8" />
+      <LineId Id="711" Count="1" />
     </LineIds>
     <LineIds Name="FB_OutRobot_BoxMoveReverse.M_STATE_RESETTING">
       <LineId Id="9" Count="2" />
@@ -985,6 +1485,9 @@ END_IF]]></ST>
       <LineId Id="18" Count="0" />
       <LineId Id="5" Count="0" />
       <LineId Id="26" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="40" Count="1" />
+      <LineId Id="2" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>
