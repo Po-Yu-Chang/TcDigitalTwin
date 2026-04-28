@@ -1173,7 +1173,7 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_HELD" Id="{e6f7a8b9-c0d1-4e2f-3a4b-5c6d7e8f9001}" FolderPath="State\">
-      <Declaration><![CDATA[METHOD M_STATE_HELD : BOOL
+      <Declaration><![CDATA[METHOD M_STATE_HELD
 VAR_INPUT
 END_VAR
 ]]></Declaration>
@@ -1195,7 +1195,7 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_HOLDING" Id="{f7a8b9c0-d1e2-4f3a-4b5c-6d7e8f900112}" FolderPath="State\">
-      <Declaration><![CDATA[METHOD M_STATE_HOLDING : BOOL
+      <Declaration><![CDATA[METHOD M_STATE_HOLDING
 VAR_INPUT
 END_VAR
 ]]></Declaration>
@@ -1263,7 +1263,7 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_UNHOLD" Id="{b9c0d1e2-f3a4-4b5c-6d7e-8f9001122334}" FolderPath="State\">
-      <Declaration><![CDATA[METHOD M_STATE_UNHOLD : BOOL
+      <Declaration><![CDATA[METHOD M_STATE_UNHOLD
 VAR_INPUT
 END_VAR
 ]]></Declaration>
@@ -1287,7 +1287,7 @@ END_IF
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.A00_BasicUnits">
       <LineId Id="1" Count="0" />
-      <LineId Id="3" Count="24" />
+      <LineId Id="3" Count="26" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_CheckMechanism">
       <LineId Id="18" Count="11" />
@@ -1296,6 +1296,8 @@ END_IF
     <LineIds Name="FB_ShippingRobotTransfer.M_CheckTransferCommand">
       <LineId Id="92" Count="65" />
       <LineId Id="82" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_SensorUpdate">
       <LineId Id="1" Count="0" />
@@ -1314,6 +1316,7 @@ END_IF
       <LineId Id="8" Count="3" />
       <LineId Id="14" Count="5" />
       <LineId Id="2" Count="0" />
+      <LineId Id="35" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_ABORTING">
       <LineId Id="1" Count="0" />
@@ -1323,11 +1326,15 @@ END_IF
       <LineId Id="26" Count="0" />
       <LineId Id="15" Count="7" />
       <LineId Id="2" Count="0" />
+      <LineId Id="59" Count="1" />
+      <LineId Id="47" Count="11" />
+      <LineId Id="61" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_DONE">
       <LineId Id="1" Count="0" />
       <LineId Id="4" Count="3" />
       <LineId Id="2" Count="0" />
+      <LineId Id="9" Count="6" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_DORMANT">
       <LineId Id="1" Count="0" />
@@ -1340,6 +1347,11 @@ END_IF
       <LineId Id="61" Count="1" />
       <LineId Id="60" Count="0" />
       <LineId Id="54" Count="1" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="56" Count="2" />
+      <LineId Id="65" Count="3" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="69" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_ERROR">
       <LineId Id="1" Count="0" />
@@ -1350,6 +1362,11 @@ END_IF
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_EXECUTING">
       <LineId Id="607" Count="553" />
       <LineId Id="582" Count="0" />
+      <LineId Id="558" Count="23" />
+      <LineId Id="1161" Count="0" />
+      <LineId Id="583" Count="23" />
+      <LineId Id="1162" Count="93" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_HELD">
       <LineId Id="1" Count="0" />
@@ -1360,12 +1377,11 @@ END_IF
       <LineId Id="1" Count="0" />
       <LineId Id="4" Count="10" />
       <LineId Id="2" Count="0" />
+      <LineId Id="16" Count="3" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_RESETTING">
       <LineId Id="1" Count="0" />
-      <LineId Id="4" Count="43" />
-      <LineId Id="2" Count="0" />
-      <LineId Id="49" Count="19" />
+      <LineId Id="4" Count="33" />
     </LineIds>
     <LineIds Name="FB_ShippingRobotTransfer.M_STATE_UNHOLD">
       <LineId Id="1" Count="0" />
