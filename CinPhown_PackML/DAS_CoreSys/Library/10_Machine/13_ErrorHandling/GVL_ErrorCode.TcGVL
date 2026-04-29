@@ -68,6 +68,9 @@ VAR_GLOBAL CONSTANT
     GC_ALARM_ALC_TURNTABLE               : DINT := 209;   // [Hold] 轉盤控制
     GC_ALARM_ALC_OUTROBOT_TT_TO_RB       : DINT := 210;   // [Hold] OutRobot 轉盤→圓帶
     GC_ALARM_ALC_NEEDLING_MOVE           : DINT := 211;   // [Hold] 配針移動
+	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE       : DINT := 213;   // [Hold] 反轉輸送帶入倉
+	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE_BATCH : DINT := 214;   // [Hold] 反轉輸送帶入倉Batch
+	
     // 212-299: 預留配針區服務擴充
 
     // =========================================================================

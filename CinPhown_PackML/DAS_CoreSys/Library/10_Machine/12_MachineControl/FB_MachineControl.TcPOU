@@ -2557,21 +2557,21 @@ RegisterAlarm(Trigger := fbStorageArea.fbFeedInRoundBeltBoxToWareHouse.Error ,		
 
 
 //Allocate Area Service
-RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode.Error ,				ID := 50,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode.Status,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode_Reverse.Error ,		ID := 51,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode_Reverse.Status,	Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbDifferentCVCamera.xError ,				ID := 52,value := E_Severity.Level3,Message := fbAllocateArea.fbDifferentCVCamera.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_BoxMoveReverse.Error ,			ID := 53,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_BoxMoveReverse.Status,		Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_EmptyBoxMove.Error ,				ID := 54,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_EmptyBoxMove.Status,		Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_RareBoxMove.Error ,				ID := 55,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_RareBoxMove.Status,		Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbPulloutCV.Error ,							ID := 56,value := E_Severity.Level3,Message := fbAllocateArea.fbPulloutCV.Status,					Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.RoundBeltControl.xError ,					ID := 57,value := E_Severity.Level3,Message := fbAllocateArea.RoundBeltControl.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbSameSizeCVCamera.xError ,					ID := 58,value := E_Severity.Level3,Message := fbAllocateArea.fbSameSizeCVCamera.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.TurnTableControl.xError ,					ID := 59,value := E_Severity.Level3,Message := fbAllocateArea.TurnTableControl.ErrorMsg,			Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Error ,		ID := 60,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Status,Category := 2);
-RegisterAlarm(Trigger := fbAllocateArea.fbAllocateRobotNeedlingMove.xError, 		ID := 61,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbAllocateRobotNeedlingMove.ErrorMsg,	Category :=2);
-RegisterAlarm(Trigger := fbAllocateArea.fbSameSizeCVCamera_Reverse.xError, 			ID := 62,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbSameSizeCVCamera_Reverse.ErrorMsg,	Category :=2);
-RegisterAlarm(Trigger := fbAllocateArea.fbReverseBoxToWareHouse.Error, 				ID := 63,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbReverseBoxToWareHouse.Status,		Category :=2);
-RegisterAlarm(Trigger := fbAllocateArea.fbReverseBatchPickAndPhoto.Error, 			ID := 64,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbReverseBatchPickAndPhoto.Status,	Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode.Error ,				ID := GVL_ErrorCode.GC_ALARM_ALC_BATCH_MODE,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode.Status,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fb_AllocateBatchMode_Reverse.Error ,		ID := GVL_ErrorCode.GC_ALARM_ALC_BATCH_REVERSE,value := E_Severity.Level3,Message := fbAllocateArea.fb_AllocateBatchMode_Reverse.Status,	Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbDifferentCVCamera.xError ,				ID := GVL_ErrorCode.GC_ALARM_ALC_DIFF_CV_CAMERA,value := E_Severity.Level3,Message := fbAllocateArea.fbDifferentCVCamera.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_BoxMoveReverse.Error ,			ID := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_REVERSE,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_BoxMoveReverse.Status,		Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_EmptyBoxMove.Error ,				ID := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_EMPTY,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_EmptyBoxMove.Status,		Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_RareBoxMove.Error ,				ID := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_RARE,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_RareBoxMove.Status,		Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbPulloutCV.Error ,							ID := GVL_ErrorCode.GC_ALARM_ALC_PULLOUT_CV,value := E_Severity.Level3,Message := fbAllocateArea.fbPulloutCV.Status,					Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.RoundBeltControl.xError ,					ID := GVL_ErrorCode.GC_ALARM_ALC_ROUNDBELT,value := E_Severity.Level3,Message := fbAllocateArea.RoundBeltControl.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbSameSizeCVCamera.xError ,					ID := GVL_ErrorCode.GC_ALARM_ALC_SAME_CV_CAMERA,value := E_Severity.Level3,Message := fbAllocateArea.fbSameSizeCVCamera.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.TurnTableControl.xError ,					ID := GVL_ErrorCode.GC_ALARM_ALC_TURNTABLE,value := E_Severity.Level3,Message := fbAllocateArea.TurnTableControl.ErrorMsg,			Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Error ,		ID := GVL_ErrorCode.GC_ALARM_ALC_OUTROBOT_TT_TO_RB,value := E_Severity.Level3,Message := fbAllocateArea.fbOutRobot_TurnTableToRoundBelt.Status,Category := 2);
+RegisterAlarm(Trigger := fbAllocateArea.fbAllocateRobotNeedlingMove.xError, 		ID := GVL_ErrorCode.GC_ALARM_ALC_NEEDLING_MOVE,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbAllocateRobotNeedlingMove.ErrorMsg,	Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fbSameSizeCVCamera_Reverse.xError, 			ID := GVL_ErrorCode.GC_ALARM_ALC_SAME_CV_CAMERA_REVERSE,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbSameSizeCVCamera_Reverse.ErrorMsg,	Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fbReverseBoxToWareHouse.Error, 				ID := GVL_ErrorCode.GC_ALARM_ALC_REVERSE_TO_WAREHOUSE,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbReverseBoxToWareHouse.Status,		Category :=2);
+RegisterAlarm(Trigger := fbAllocateArea.fbReverseBatchPickAndPhoto.Error, 			ID := GVL_ErrorCode.GC_ALARM_ALC_REVERSE_TO_WAREHOUSE_BATCH,value:= E_Severity.Level3,Message	:= fbAllocateArea.fbReverseBatchPickAndPhoto.Status,	Category :=2);
 
 
 //Shipping Area Service
@@ -2737,13 +2737,13 @@ RegisterAlarm(Trigger := bFanucShpTrig[17], ID := 196, value := E_Severity.Level
 
 
 // Servo Error
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error,ID := 201,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0181,Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error,ID := 202,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0182,Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error,ID := 203,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0183,Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error,ID := 204,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0184,Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error,ID := 205,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0185,Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error,ID := 206,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0186,Category := 2);
-RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Error,ID := 207,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0187,Category := 1);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.TurnTable].Admin.Axis.Status.Error,ID := GVL_ErrorCode.GC_ALARM_AXIS_TURNTABLE,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0181,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RoundBelt].Admin.Axis.Status.Error,ID := GVL_ErrorCode.GC_ALARM_AXIS_ROUNDBELT,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0182,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_X].Admin.Axis.Status.Error,ID := GVL_ErrorCode.GC_ALARM_AXIS_ALLOCATE_X,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0183,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.Allocate_Y].Admin.Axis.Status.Error,ID := GVL_ErrorCode.GC_ALARM_AXIS_ALLOCATE_Y,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0184,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_X].Admin.Axis.Status.Error,ID := GVL_ErrorCode.GC_ALARM_AXIS_OUTROBOT_X,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0185,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.OutRobot_Y].Admin.Axis.Status.Error,ID := GVL_ErrorCode.GC_ALARM_AXIS_OUTROBOT_Y,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0186,Category := 2);
+RegisterAlarm(Trigger := arAxisCtrl_gb[AxisNo.RackMotor].Admin.Axis.Status.Error,ID := GVL_ErrorCode.GC_ALARM_AXIS_RACKMOTOR,value := E_Severity.Level6,Message := GVL_ErrorCode.GC_MSG_0187,Category := 1);
 
 // ModbusRTU 
 bByPassModBusRTU[1] := MAIN2_RS485.RS485_V2[1].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_1;
