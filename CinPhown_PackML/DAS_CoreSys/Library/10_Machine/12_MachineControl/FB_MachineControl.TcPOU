@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
   <POU Name="FB_MachineControl" Id="{e3b1bb4d-882f-4a96-a73d-3761a8a6d18d}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_MachineControl EXTENDS FB_ModeBase_V2 IMPLEMENTS I_UnitState
@@ -119,6 +119,7 @@ VAR
 	TON_Shipping_RobotRelease_StartCmd	: TON;
 	
 	fbBuzzCtrl : FB_BuzzCtrl;
+	fbMachineModeSwitch : FB_MachineModeSwitch;
 	
 END_VAR
 ]]></Declaration>
@@ -271,6 +272,24 @@ fbBuzzCtrl(
 	UniqueErrorCode=> , 
 	Timer:=GVL_ADS.BuzzCtrl.BuzzTime, 
 	Buzz=> BuzzCtrlUseBuzz);
+	
+fbMachineModeSwitch(
+	Execute:= GVL_ADS.MachineMode.HandshakeBase.Execute,
+	Abort:= ,
+	Reset:= GVL_ADS.MachineMode.HandshakeBase.Reset,
+	Pause:= ,
+	ObjectName:= 'MachineModeSwitch',
+	Busy=> GVL_ADS.MachineMode.HandshakeBase.Busy,
+	Done=> GVL_ADS.MachineMode.HandshakeBase.Done,
+	Aborted=> ,
+	Error=> GVL_ADS.MachineMode.HandshakeBase.Error,
+	ErrorID=> ,
+	Status=> ,
+	UniqueErrorCode=> ,
+	ModeLink:= GVL_ADS.MachineMode,
+	MachineCtrl_CurrentState := THIS^.eStateCurrent,
+	MachineCtrl_CurrentMode := THIS^.eModeCommand,
+	MachineHomed := MachineHomed);
 	
 fbBlink_05(ENABLE:= TRUE, TIMELOW:= T#0.25S, TIMEHIGH:= T#0.25S, OUT=> );
 Allocate_EStopEdgeDetect(xInput := INPUT.bAllocate_EStopPb);
@@ -2513,7 +2532,7 @@ RegisterAlarm(Trigger := fballocateArea.fballocateHome.xError,	ID := 13,value :=
 RegisterAlarm(Trigger := fbShippingArea.fbShippingHoming.xError,ID := 14,value := E_Severity.Level4,Message :=fbShippingArea.fbShippingHoming.ErrorMsg,Category := 3);
 //Machine Area Service
 RegisterAlarm(Trigger := TableMove.xError , 					ID := 15,value := E_Severity.Level4,Message := TableMove.ErrorMsg,Category := 2);
-
+RegisterAlarm(Trigger := fbMachineModeSwitch.Error , 			ID := 16,value := E_Severity.Level4,Message := fbMachineModeSwitch.Status,Category := 2);
 
 //Storage Area Service
 RegisterAlarm(Trigger := fbStorageArea.fbWarehouse.fbReloadBox.Error,				ID := 21,value := E_Severity.Level4,Message := fbStorageArea.fbWarehouse.fbReloadBox.Status,			Category := 1);
@@ -4150,6 +4169,9 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="166" Count="0" />
       <LineId Id="168" Count="12" />
       <LineId Id="167" Count="0" />
+      <LineId Id="181" Count="0" />
+      <LineId Id="183" Count="15" />
+      <LineId Id="182" Count="0" />
       <LineId Id="149" Count="1" />
       <LineId Id="155" Count="0" />
       <LineId Id="154" Count="0" />
@@ -4477,7 +4499,8 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
     <LineIds Name="FB_MachineControl.M_General_AlarmRegister">
       <LineId Id="3058" Count="18" />
       <LineId Id="3279" Count="0" />
-      <LineId Id="3077" Count="16" />
+      <LineId Id="3302" Count="0" />
+      <LineId Id="3078" Count="15" />
       <LineId Id="3263" Count="2" />
       <LineId Id="3268" Count="0" />
       <LineId Id="3288" Count="1" />
@@ -4493,6 +4516,8 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="3269" Count="8" />
       <LineId Id="3180" Count="70" />
       <LineId Id="2" Count="0" />
+      <LineId Id="216" Count="76" />
+      <LineId Id="3290" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_GetCylinderError">
       <LineId Id="5" Count="0" />

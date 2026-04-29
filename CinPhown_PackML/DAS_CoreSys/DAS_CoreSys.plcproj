@@ -207,6 +207,9 @@
     <Compile Include="Library\10_Machine\12_MachineControl\Service\FB_MachineHoming.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\Service\FB_MachineModeSwitch.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\13_ErrorHandling\FB_ErrorHandler.TcPOU">
       <SubType>Code</SubType>
     </Compile>
