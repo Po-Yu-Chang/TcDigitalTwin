@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
-  <POU Name="FB_AllocateMoveAutoBatchMode" Id="{730c5c6f-85c9-47e4-bfa7-de413646d16a}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateMoveAutoBatchMode EXTENDS FB_ObjectBase_V2
+  <POU Name="FB_AllocateMoveAutoBatchMode_Old" Id="{ec2f0d3e-dce0-4b97-829d-60023ff0c89a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AllocateMoveAutoBatchMode_Old EXTENDS FB_ObjectBase_V2
 VAR_INPUT
 //    Execute    :BOOL;   // True : This prog will start.
 //    Abort      :BOOL;   // True : This prog will be abort.
@@ -63,7 +63,6 @@ VAR
     uiAbortedStep       :UDINT;
   //  uiResettingStep     :UDINT;
 	uiResumableStep		: E_AllocationJob;
-	_bRetry				: BOOL;
     bAborttingCompleted :BOOL; // True: Aborting process finished
     bAborted            :BOOL; // True : Aborted process finished
     bExecuted           :BOOL; // True : Executing process finished
@@ -119,18 +118,24 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[A00_BasicUnits();
-SUPER^.A10_StateControl();]]></ST>
+SUPER^.A10_StateControl();
+
+(*============================================================
+Create Date : 2026/04/29	
+Last Update	: 2026/04/29
+Change Log  : 2026/04/29，原先版本新增續做功能，此為尚未加續做的功能，暫存。 edited by Gamin 
+============================================================*)]]></ST>
     </Implementation>
-    <Folder Name="Method" Id="{83f0bd84-786e-4b0d-bc45-62a0a5dd5861}" />
-    <Folder Name="STATE" Id="{5bccb11f-c9ea-4bd6-9a5f-1c28c5589cc7}" />
-    <Action Name="A00_BasicUnits" Id="{2368ece2-50ec-44e9-b8c6-c71fb0f23bae}">
+    <Folder Name="Method" Id="{970af198-11c8-48f6-81db-a6dd27db342c}" />
+    <Folder Name="STATE" Id="{cf82d058-6110-4733-aeda-e96a2c61c021}" />
+    <Action Name="A00_BasicUnits" Id="{1250a90a-0c9b-44d0-9f2c-64a89b3c5b54}">
       <Implementation>
         <ST><![CDATA[Ton_RoundBeltArrivedDelay();
 tonFastModeTimeDelayBatch();
 tAutoAllocationJobBatchTimeOut(PT := T#60s);	//default 20s ]]></ST>
       </Implementation>
     </Action>
-    <Method Name="GetModelState" Id="{f5131c8d-4837-4ef7-a086-459351eb9e53}">
+    <Method Name="GetModelState" Id="{746743f1-5d23-4bcd-b03f-8eb982da9186}">
       <Declaration><![CDATA[METHOD GetModelState
 VAR_OUTPUT
     xDone    :BOOL;
@@ -145,18 +150,18 @@ END_VAR
         <ST><![CDATA[xDone    := Done;
 xBusy    := Busy;
 xError   := Error;
-xAborted := Aborted;
+xAborted := Abort;
 iErrorID := ErrorID;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="GetName" Id="{43ef450e-78ad-45fd-b7c8-5ebb60751c68}">
+    <Method Name="GetName" Id="{0561d760-ebc5-44d8-81ba-f863efe99a96}">
       <Declaration><![CDATA[METHOD GetName : STRING
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[GetName := ObjectName;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CheckClipsNoError" Id="{88a765d6-2986-4a78-8250-7b78ae2c09f7}" FolderPath="Method\">
+    <Method Name="M_CheckClipsNoError" Id="{af4f99c6-57e7-4f9b-b51f-b44e9a84aae8}" FolderPath="Method\">
       <Declaration><![CDATA[(* Check Allocate Robot Clip cylinder no error
 	Return True : no error
 *)
@@ -173,7 +178,7 @@ END_VAR
 M_CheckClipsNoError := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_CheckCylindersNoError" Id="{ffa534e9-070f-43b5-8242-fe29cd7d3055}" FolderPath="Method\">
+    <Method Name="M_CheckCylindersNoError" Id="{c840779e-9505-41eb-99c9-ae4afa681557}" FolderPath="Method\">
       <Declaration><![CDATA[(* Check Allocate Robot vertical cylinder no error
 	return True : no error
 *)
@@ -195,7 +200,7 @@ END_VAR
 M_CheckCylindersNoError := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_RecoveryAxes" Id="{483ce099-f0ed-4349-8363-151feaf708ce}" FolderPath="Method\">
+    <Method Name="M_RecoveryAxes" Id="{965a4590-3b4f-4428-a6cb-67fbd546a239}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD PRIVATE M_RecoveryAxes : BOOL
 VAR_INPUT
 END_VAR
@@ -210,7 +215,7 @@ FOR CheckErrorIndex:=1 TO 4 DO
 		arAxisCtrl_gb[CheckErrorIndex].Admin.ClearError:=TRUE;
 		bCheckTrue:=FALSE;
 	ELSE
-		arAxisCtrl_gb[CheckErrorIndex].Admin.ClearError:=FALSE;	
+		arAxisCtrl_gb[AxisNo.TurnTable].Admin.ClearError:=FALSE;	
 	END_IF
 END_FOR
 //		TurnTable := 1,
@@ -223,44 +228,34 @@ M_RecoveryAxes:= bCheckTrue;
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTED" Id="{1a009bdf-47bd-48c5-a1d6-af240f38bbdc}" FolderPath="STATE\">
+    <Method Name="M_STATE_ABORTED" Id="{3cc0f6ed-245a-4b83-8452-08355430a9bf}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTED
 VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF NOT _bRetry THEN
-	Busy     := FALSE;
-	Aborted := TRUE;
-	Status  := StatusDescription;
-	Error   := TRUE;
-	uiAbortingStep := 0;
-	_AbortCompleted := FALSE;
-END_IF
+        <ST><![CDATA[Busy     := FALSE;
+Aborted := TRUE;
+Status                       := StatusDescription;
+Error                        := TRUE;
 
+IF Aborted AND NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
 IF SimpleAllocateMode THEN
-	ErrorID := 112;
+	ErrorID						 := 112;
 ELSE
-	ErrorID := 108;
-END_IF
-
-IF Reset THEN
-	Aborted := FALSE;
-	Error := FALSE;
-	_bRetry := TRUE;
-END_IF
-
-IF NOT Execute THEN
-	eState := STATE_RESETTING;
-ELSIF Execute AND _bRetry THEN
-	AllocationJobBatchMode := uiResumableStep;
-	_bRetry := FALSE;
-	eState := STATE_EXECUTING;
+	ErrorID						 := 108;
+	END_IF
+IF Aborted AND Reset THEN
+	AllocationJobBatchMode :=uiResumableStep;
+	eState :=STATE_EXECUTING;
+	Aborted :=FALSE;
 END_IF
 		]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ABORTING" Id="{77902caf-78a3-46d0-b13c-c0e79594172c}" FolderPath="STATE\">
+    <Method Name="M_STATE_ABORTING" Id="{de915e21-b3b5-4bc5-87c4-fbe67daa021e}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ABORTING
 VAR_INPUT
 END_VAR
@@ -268,13 +263,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[CASE uiAbortingStep OF
             0:
-				_Abort := FALSE;
-				_AbortCompleted := FALSE;
-				_bRetry := FALSE;
 				tAutoAllocationJobBatchTimeOut.IN:=FALSE;
-				Ton_RoundBeltArrivedDelay.IN := FALSE;
-				RoundBeltMoveJob.HandShake.Execute := FALSE;
-				RoundBeltMoveJob_Ctrl.Execute := FALSE;
 				
 				uiAbortingStep:=100;
                 // Aborting process start
@@ -297,12 +286,11 @@ END_VAR
 					
             9000:
                 // Aborting process finished
+				_abort:=FALSE;
                 _AbortCompleted := TRUE;
         END_CASE
 
-        IF NOT Execute THEN
-            eState := STATE_RESETTING;
-        ELSIF Execute AND _AbortCompleted THEN
+        IF _AbortCompleted THEN
             // Aborting process is running normally 
 			uiAbortingStep:=0;
             eState := STATE_Aborted;
@@ -313,7 +301,7 @@ END_VAR
 		]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DONE" Id="{8ef9bd5f-7dbd-4f25-9321-1d403f95b063}" FolderPath="STATE\">
+    <Method Name="M_STATE_DONE" Id="{35d69661-dfa5-481e-b471-6d7c07e99dd8}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_DONE
 VAR_INPUT
 END_VAR
@@ -331,7 +319,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_DORMANT" Id="{5370bb1d-2458-45b8-9aa5-247764b78999}" FolderPath="STATE\">
+    <Method Name="M_STATE_DORMANT" Id="{d25409a8-61be-4a23-9943-ea192fd20a1b}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_DORMANT
 VAR_INPUT
 END_VAR
@@ -348,8 +336,6 @@ _ResetCompleted := FALSE;
 _Error          := FALSE;
 _Executed       := FALSE;
 _Abort			:= FALSE;
-_AbortCompleted := FALSE;
-_bRetry := FALSE;
 Aborted			:= FALSE;
 strStatus 		:='No Error';
 Status          := '';
@@ -378,7 +364,7 @@ IF Execute THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_ERROR" Id="{3d5b50a2-4b21-4553-b62f-e9ad51c26144}" FolderPath="STATE\">
+    <Method Name="M_STATE_ERROR" Id="{f20d3263-1048-4728-8028-77d05961bc0f}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_ERROR
 VAR_INPUT
 END_VAR
@@ -411,7 +397,7 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_EXECUTING" Id="{9c949f4f-7990-416f-b4c1-885789dfb146}" FolderPath="STATE\">
+    <Method Name="M_STATE_EXECUTING" Id="{2755a200-e63c-47e6-951f-055fb8d0d94b}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
 VAR_INPUT
 END_VAR
@@ -426,29 +412,7 @@ END_VAR
 
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[		Busy := TRUE;
-
-		// Pause gate:
-		// 停止本 Service 繼續派發新動作,並關閉 timeout 計時。
-		// 不清除圓帶的命令跟取消移動命令，以防暫停的不步序是在等待到位或者完成，避免卡死。
-		IF Pause THEN
-			Paused := TRUE;
-			StatusDescription := 'Allocate batch reverse paused';
-			tAutoAllocationJobBatchTimeOut.IN := FALSE;
-			Ton_RoundBeltArrivedDelay.IN := FALSE;
-//			RoundBeltMoveJob.HandShake.Execute := FALSE;
-//			RoundBeltMoveJob_Ctrl.Execute := FALSE;
-//			bAllocateRobotMoveRequest := FALSE;
-			RETURN;
-		END_IF
-		Paused := FALSE;
-			
-		// 非自動模式直接中止 (避免軸控衝突)
-		IF GVL_Machine.PackTags[UnitNo.Allocate].Status.UnitModeCurrent <> E_UnitMode.Auto THEN
-			StatusDescription := 'FB_AllocateMoveAutoBatchMode, Not in Auto mode';
-			_UniqueErrorCode := 'E_NOT_AUTO_MODE';
-			_Error := TRUE;
-		END_IF		
+        <ST><![CDATA[		Busy := TRUE;			
 		
 		tonFastModeTimeDelayBatch.PT:=T#10MS;
 		ProcessedIndex:=arrProcessedIndex;
@@ -541,7 +505,7 @@ END_VAR
 				bCheckTrue:=TRUE;				
 				tAutoAllocationJobBatchTimeOut.IN:=TRUE	;
 				
-				FOR i:=0 TO NrOfAllocateCylinder - 1 DO
+				FOR i:=1 TO NrOfAllocateCylinder DO
 					clips[i].M_Retract();
 					IF  clips[i].InRearPosition THEN
 						cylinders[i].M_Retract();		
@@ -669,8 +633,7 @@ END_VAR
 
                 IF tAutoAllocationJobBatchTimeOut.Q THEN
                     StatusDescription := 'Rotate Belt TimeOut';
-                    uiResumableStep := E_AllocationJob.MovingRotateBeltStation;
-                    _Abort           := TRUE;
+                    _Error            := TRUE;
                 END_IF
 				
 					
@@ -714,8 +677,7 @@ END_VAR
 				 IF tAutoAllocationJobBatchTimeOut.Q THEN
 
                     StatusDescription := 'Allocate robot TimeOut';
-                    uiResumableStep := E_AllocationJob.MoveToTargetPos;
-                    _Abort           := TRUE;
+                    _Error            := TRUE;
 
                 END_IF
 				
@@ -735,8 +697,7 @@ END_VAR
 
                 IF tAutoAllocationJobBatchTimeOut.Q THEN
                     StatusDescription := 'Moving to picking position timeout';
-                    uiResumableStep := E_AllocationJob.MoveToTargetPos;
-                    _Abort           := TRUE;
+                    _Error            := TRUE;
                 END_IF
 				
 				
@@ -837,7 +798,8 @@ END_VAR
                 IF tAutoAllocationJobBatchTimeOut.Q THEN
 
                     StatusDescription := 'Picking Close timeout';
-                    _Error := TRUE;
+                    _Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.ClipColse;
 
                 END_IF
 
@@ -977,8 +939,7 @@ END_VAR
 
                 IF tAutoAllocationJobBatchTimeOut.Q THEN
                     StatusDescription := 'Rotate Belt TimeOut';
-                    uiResumableStep := E_AllocationJob.MovingRotateBeltStation_SimpleAllocatePlacing;
-                    _Abort           := TRUE;
+                    _Error            := TRUE;
                 END_IF
 				
 	E_AllocationJob.CheckBoxReadyOnRoundBelt_SimpleAllocateMode:
@@ -1062,8 +1023,7 @@ END_VAR
 				IF tAutoAllocationJobBatchTimeOut.Q THEN
 			
 					StatusDescription :='Move to placing timeout';
-					uiResumableStep := E_AllocationJob.MoveToPlacingPos;
-					_Abort := TRUE;
+					_Error :=TRUE	;
 					
 				END_IF
 
@@ -1080,8 +1040,7 @@ END_VAR
 
                 IF tAutoAllocationJobBatchTimeOut.Q THEN
                     StatusDescription := 'Moving placing timeout';
-                    uiResumableStep := E_AllocationJob.MoveToPlacingPos;
-                    _Abort           := TRUE;
+                    _Error            := TRUE;
 
                 END_IF
 
@@ -1138,7 +1097,8 @@ END_VAR
                 IF tAutoAllocationJobBatchTimeOut.Q THEN
 
                     StatusDescription := ' placing Open timeout';
-                    _Error := TRUE;
+                    _Abort :=TRUE	;
+					uiResumableStep :=E_AllocationJob.ClipOpen;
 
                 END_IF
 
@@ -1242,7 +1202,7 @@ IF _Executed THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="M_STATE_RESETTING" Id="{8985c9ba-4b10-4911-a07c-7385c5c77b01}" FolderPath="STATE\">
+    <Method Name="M_STATE_RESETTING" Id="{7f8d3c50-90f0-4b49-acbb-3ed428ffadbc}" FolderPath="STATE\">
       <Declaration><![CDATA[METHOD  M_STATE_RESETTING
 VAR_INPUT
 END_VAR
@@ -1261,10 +1221,6 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
 
                 uiAbortingStep := 0;
                 uiAbortedStep  := 0;
-				_bRetry := FALSE;
-				RoundBeltMoveJob.HandShake.Execute:=FALSE;
-				RoundBeltMoveJob_Ctrl.Execute:= RoundBeltMoveJob.HandShake.Execute;
-				DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(E_RoundBeltControlAccess.Allocating);
 			
                 IF M_RecoveryAxes() THEN
 					uiResettingStep := 1000;
@@ -1314,31 +1270,33 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
         END_IF]]></ST>
       </Implementation>
     </Method>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old">
       <LineId Id="23" Count="0" />
       <LineId Id="30" Count="0" />
+      <LineId Id="146" Count="4" />
+      <LineId Id="145" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.A00_BasicUnits">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.A00_BasicUnits">
       <LineId Id="1" Count="2" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.GetModelState">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.GetModelState">
       <LineId Id="17" Count="3" />
       <LineId Id="16" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.GetName">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.GetName">
       <LineId Id="4" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_CheckClipsNoError">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_CheckClipsNoError">
       <LineId Id="33" Count="3" />
       <LineId Id="7" Count="0" />
       <LineId Id="43" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_CheckCylindersNoError">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_CheckCylindersNoError">
       <LineId Id="15" Count="8" />
       <LineId Id="30" Count="0" />
       <LineId Id="14" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_RecoveryAxes">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_RecoveryAxes">
       <LineId Id="32" Count="0" />
       <LineId Id="35" Count="0" />
       <LineId Id="24" Count="0" />
@@ -1354,7 +1312,7 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="25" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_ABORTED">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_STATE_ABORTED">
       <LineId Id="29" Count="2" />
       <LineId Id="33" Count="0" />
       <LineId Id="51" Count="0" />
@@ -1362,27 +1320,20 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="47" Count="3" />
       <LineId Id="38" Count="5" />
       <LineId Id="27" Count="0" />
-      <LineId Id="22" Count="4" />
-      <LineId Id="52" Count="0" />
-      <LineId Id="28" Count="0" />
-      <LineId Id="53" Count="1" />
-      <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_ABORTING">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_STATE_ABORTING">
       <LineId Id="27" Count="13" />
       <LineId Id="61" Count="5" />
       <LineId Id="41" Count="16" />
       <LineId Id="25" Count="0" />
-      <LineId Id="67" Count="5" />
-      <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_DONE">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_STATE_DONE">
       <LineId Id="71" Count="1" />
       <LineId Id="81" Count="1" />
       <LineId Id="73" Count="4" />
       <LineId Id="17" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_DORMANT">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_STATE_DORMANT">
       <LineId Id="24" Count="2" />
       <LineId Id="78" Count="0" />
       <LineId Id="27" Count="2" />
@@ -1405,10 +1356,8 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="33" Count="0" />
       <LineId Id="15" Count="0" />
       <LineId Id="5" Count="0" />
-      <LineId Id="82" Count="0" />
-      <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_ERROR">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_STATE_ERROR">
       <LineId Id="22" Count="3" />
       <LineId Id="39" Count="0" />
       <LineId Id="38" Count="0" />
@@ -1426,10 +1375,7 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="33" Count="1" />
       <LineId Id="20" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_EXECUTING">
-      <LineId Id="1110" Count="7" />
-      <LineId Id="1132" Count="0" />
-      <LineId Id="1119" Count="12" />
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_STATE_EXECUTING">
       <LineId Id="55" Count="2" />
       <LineId Id="60" Count="0" />
       <LineId Id="997" Count="1" />
@@ -1531,10 +1477,8 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="37" Count="5" />
       <LineId Id="50" Count="1" />
       <LineId Id="49" Count="0" />
-      <LineId Id="1095" Count="2" />
-      <LineId Id="2" Count="0" />
     </LineIds>
-    <LineIds Name="FB_AllocateMoveAutoBatchMode.M_STATE_RESETTING">
+    <LineIds Name="FB_AllocateMoveAutoBatchMode_Old.M_STATE_RESETTING">
       <LineId Id="36" Count="2" />
       <LineId Id="40" Count="0" />
       <LineId Id="42" Count="6" />
@@ -1550,9 +1494,6 @@ tAutoAllocationJobBatchTimeOut.IN := FALSE;
       <LineId Id="102" Count="1" />
       <LineId Id="71" Count="27" />
       <LineId Id="34" Count="0" />
-      <LineId Id="119" Count="0" />
-      <LineId Id="62" Count="1" />
-      <LineId Id="2" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

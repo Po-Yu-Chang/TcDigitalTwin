@@ -230,7 +230,7 @@ TurnTableControl(
 fb_AllocateBatchMode(
 	Execute:= AutoAllocateJobBatch_Ctrl.bExecute,
 	Abort:= THIS^.Abort OR _bAnyServiceError,
-	Reset:= Reset,
+	Reset:= AutoAllocateJobBatch_Ctrl.bReset,
 	ObjectName:= 'Allocate One process',
 	Busy=> AutoAllocateJobBatch_Status.bBusy,
 	Done=> AutoAllocateJobBatch_Status.bDone,
@@ -265,7 +265,7 @@ fb_AllocateBatchMode(
 fb_AllocateBatchMode_Reverse(
 	Execute:=AutoAllocateJobBatch_Reverse_Ctrl.bExecute ,
 	Abort:= THIS^.Abort OR _bAnyServiceError,
-	Reset:= Reset,
+	Reset:= AutoAllocateJobBatch_Reverse_Ctrl.bReset,
 	Pause:= bStopMem,
 	ObjectName:= 'Allocate batch reverse',
 	Busy=> AutoAllocateJobBatch_Reverse_Status.bBusy,
