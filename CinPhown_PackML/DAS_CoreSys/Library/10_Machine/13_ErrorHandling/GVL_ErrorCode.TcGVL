@@ -59,7 +59,7 @@ VAR_GLOBAL CONSTANT
     // =========================================================================
     // [1] RegisterAlarm ID — 配針區服務 (200-299)
     // =========================================================================
-    GC_ALARM_ALC_BATCH_MODE              	: DINT := 200;   // [Hold] 批次配針
+      GC_ALARM_ALC_BATCH_MODE              	: DINT := 200;   // [Hold] 批次配針
     GC_ALARM_ALC_BATCH_REVERSE           	: DINT := 201;   // [Hold] 批次配針反向
     GC_ALARM_ALC_DIFF_CV_CAMERA          	: DINT := 202;   // [Hold] 異徑CV相機
     GC_ALARM_ALC_OUTROBOT_REVERSE        	: DINT := 203;   // [Hold] OutRobot 反向移盒
@@ -68,12 +68,12 @@ VAR_GLOBAL CONSTANT
     GC_ALARM_ALC_PULLOUT_CV              	: DINT := 206;   // [Hold] 拔針輸送帶
     GC_ALARM_ALC_ROUNDBELT               	: DINT := 207;   // [Hold] 圓帶控制
     GC_ALARM_ALC_SAME_CV_CAMERA          	: DINT := 208;   // [Hold] 同徑CV相機
-    GC_ALARM_ALC_SAME_CV_CAMERA_REVERSE  	: DINT := 212;   // [Hold] 同徑CV相機(反向)
     GC_ALARM_ALC_TURNTABLE               	: DINT := 209;   // [Hold] 轉盤控制
     GC_ALARM_ALC_OUTROBOT_TT_TO_RB       	: DINT := 210;   // [Hold] OutRobot 轉盤→圓帶
     GC_ALARM_ALC_NEEDLING_MOVE           	: DINT := 211;   // [Hold] 配針移動
-	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE       : DINT := 212;   // [Hold] 反轉輸送帶入倉
-	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE_BATCH : DINT := 213;   // [Hold] 反轉輸送帶入倉Batch
+    GC_ALARM_ALC_SAME_CV_CAMERA_REVERSE  	: DINT := 212;   // [Hold] 同徑CV相機(反向)
+	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE       : DINT := 213;   // [Hold] 反轉輸送帶入倉
+	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE_BATCH : DINT := 214;   // [Hold] 反轉輸送帶入倉Batch
 	
     // 212-299: 預留配針區服務擴充
 
