@@ -25,6 +25,7 @@ VAR_GLOBAL CONSTANT
     GC_ALARM_SHIPPING_HOMING             : DINT := 13;    // [Hold] 出貨區回原點錯誤
     GC_ALARM_TABLE_MOVE                  : DINT := 14;    // [Hold] TableMove 錯誤
     GC_ALARM_MODBUS_RTU                  : DINT := 15;    // [Hold] Modbus RTU 通訊
+    GC_ALARM_MACHINEMODE_SWITCH          : DINT := 16;    // [Hold] 機台模式切換
     // 16-99: 預留 Homing/通用服務擴充
 
     // =========================================================================
@@ -50,24 +51,27 @@ VAR_GLOBAL CONSTANT
     GC_ALARM_STO_DIAMETER_MOVEMENT       : DINT := 117;   // [Hold] 直徑移動
 	GC_ALARM_STO_ROBOTSELFHOMING		 : DINT := 118;	  // [Hold] 倉儲區手臂單獨回原點
 	GC_AlARM_STO_ROBOTINNERPICK			 : DINT := 119;	  // [Hold] 倉儲分揀放置圓帶
+	GC_AlARM_STO_ROBOTINNERPICK_BATCH	 : DINT := 120;	  // [Hold] 倉儲分揀放置圓帶BATCH
+	GC_AlARM_STO_ROUNDBELTTOWAREHOUSE_BATCH	 : DINT := 121;	  // [Hold] 圓帶回倉ATCH
+
     // 119-199: 預留倉儲區服務擴充
 
     // =========================================================================
     // [1] RegisterAlarm ID — 配針區服務 (200-299)
     // =========================================================================
-    GC_ALARM_ALC_BATCH_MODE              : DINT := 200;   // [Hold] 批次配針
-    GC_ALARM_ALC_BATCH_REVERSE           : DINT := 201;   // [Hold] 批次配針反向
-    GC_ALARM_ALC_DIFF_CV_CAMERA          : DINT := 202;   // [Hold] 異徑CV相機
-    GC_ALARM_ALC_OUTROBOT_REVERSE        : DINT := 203;   // [Hold] OutRobot 反向移盒
-    GC_ALARM_ALC_OUTROBOT_EMPTY          : DINT := 204;   // [Hold] OutRobot 空盒移動
-    GC_ALARM_ALC_OUTROBOT_RARE           : DINT := 205;   // [Hold] OutRobot 稀有盒移動
-    GC_ALARM_ALC_PULLOUT_CV              : DINT := 206;   // [Hold] 拔針輸送帶
-    GC_ALARM_ALC_ROUNDBELT               : DINT := 207;   // [Hold] 圓帶控制
-    GC_ALARM_ALC_SAME_CV_CAMERA          : DINT := 208;   // [Hold] 同徑CV相機
-    GC_ALARM_ALC_SAME_CV_CAMERA_REVERSE  : DINT := 212;   // [Hold] 同徑CV相機(反向)
-    GC_ALARM_ALC_TURNTABLE               : DINT := 209;   // [Hold] 轉盤控制
-    GC_ALARM_ALC_OUTROBOT_TT_TO_RB       : DINT := 210;   // [Hold] OutRobot 轉盤→圓帶
-    GC_ALARM_ALC_NEEDLING_MOVE           : DINT := 211;   // [Hold] 配針移動
+      GC_ALARM_ALC_BATCH_MODE              	: DINT := 200;   // [Hold] 批次配針
+    GC_ALARM_ALC_BATCH_REVERSE           	: DINT := 201;   // [Hold] 批次配針反向
+    GC_ALARM_ALC_DIFF_CV_CAMERA          	: DINT := 202;   // [Hold] 異徑CV相機
+    GC_ALARM_ALC_OUTROBOT_REVERSE        	: DINT := 203;   // [Hold] OutRobot 反向移盒
+    GC_ALARM_ALC_OUTROBOT_EMPTY          	: DINT := 204;   // [Hold] OutRobot 空盒移動
+    GC_ALARM_ALC_OUTROBOT_RARE           	: DINT := 205;   // [Hold] OutRobot 稀有盒移動
+    GC_ALARM_ALC_PULLOUT_CV              	: DINT := 206;   // [Hold] 拔針輸送帶
+    GC_ALARM_ALC_ROUNDBELT               	: DINT := 207;   // [Hold] 圓帶控制
+    GC_ALARM_ALC_SAME_CV_CAMERA          	: DINT := 208;   // [Hold] 同徑CV相機
+    GC_ALARM_ALC_TURNTABLE               	: DINT := 209;   // [Hold] 轉盤控制
+    GC_ALARM_ALC_OUTROBOT_TT_TO_RB       	: DINT := 210;   // [Hold] OutRobot 轉盤→圓帶
+    GC_ALARM_ALC_NEEDLING_MOVE           	: DINT := 211;   // [Hold] 配針移動
+    GC_ALARM_ALC_SAME_CV_CAMERA_REVERSE  	: DINT := 212;   // [Hold] 同徑CV相機(反向)
 	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE       : DINT := 213;   // [Hold] 反轉輸送帶入倉
 	GC_ALARM_ALC_REVERSE_TO_WAREHOUSE_BATCH : DINT := 214;   // [Hold] 反轉輸送帶入倉Batch
 	
@@ -83,6 +87,7 @@ VAR_GLOBAL CONSTANT
     GC_ALARM_SHP_RIGHT_TRANS_CV          : DINT := 304;   // [Hold] 右側傳送帶
     GC_ALARM_SHP_ROBOT_BUFFER            : DINT := 305;   // [Hold] 出貨機器人緩衝
     GC_ALARM_SHP_ROBOT_TRANSFER          : DINT := 306;   // [Hold] 出貨機器人轉移
+	GC_ALARM_SHP_ROBOT_PHOTOSTANDBYPOS   : DINT := 307;   // [Hold] 出貨機器人拍照等待位
     // 307-399: 預留出貨區服務擴充
 
     // =========================================================================
