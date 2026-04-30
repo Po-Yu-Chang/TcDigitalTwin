@@ -207,6 +207,9 @@
     <Compile Include="Library\10_Machine\12_MachineControl\Service\FB_MachineHoming.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\Service\FB_MachineModeSwitch.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\13_ErrorHandling\FB_ErrorHandler.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -1187,6 +1190,18 @@
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_OutRobot_BoxMoveReverse_Old.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_OutRobot_EmptyBoxMove_old.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_OutRobot_RareBoxMove_old.TcPOU">
+      <SubType>Code</SubType>
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Old_Version_Service\FB_PullOutConveyorAction_OLD.TcPOU">
       <SubType>Code</SubType>
       <ExcludeFromBuild>true</ExcludeFromBuild>
@@ -1204,16 +1219,16 @@
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_AllocateMoveAutoBatchMode.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_EmptyBoxMove.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_RareBoxMove.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_BoxMoveReverse.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_EmptyBoxMove.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_BoxMoveTurnTableToRoundBelt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_OutRobot_RareBoxMove.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Service\FB_PullOutConveyorAction.TcPOU">

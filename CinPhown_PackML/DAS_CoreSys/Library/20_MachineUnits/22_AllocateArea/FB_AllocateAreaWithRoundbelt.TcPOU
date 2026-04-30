@@ -230,7 +230,7 @@ TurnTableControl(
 fb_AllocateBatchMode(
 	Execute:= AutoAllocateJobBatch_Ctrl.bExecute,
 	Abort:= THIS^.Abort OR _bAnyServiceError,
-	Reset:= Reset,
+	Reset:= AutoAllocateJobBatch_Ctrl.bReset,
 	ObjectName:= 'Allocate One process',
 	Busy=> AutoAllocateJobBatch_Status.bBusy,
 	Done=> AutoAllocateJobBatch_Status.bDone,
@@ -265,7 +265,7 @@ fb_AllocateBatchMode(
 fb_AllocateBatchMode_Reverse(
 	Execute:=AutoAllocateJobBatch_Reverse_Ctrl.bExecute ,
 	Abort:= THIS^.Abort OR _bAnyServiceError,
-	Reset:= Reset,
+	Reset:= AutoAllocateJobBatch_Reverse_Ctrl.bReset,
 	Pause:= bStopMem,
 	ObjectName:= 'Allocate batch reverse',
 	Busy=> AutoAllocateJobBatch_Reverse_Status.bBusy,
@@ -309,7 +309,8 @@ fbOutRobot_EmptyBoxMove(
 	Motor:= Motor, 
 	Cylinders :=OutRobotCylinders.Cylinders,
 	Clips := OutRobotClips.Cylinders,
-	AutoMode_OutRobotMoveMove:=Service.AutoMode_EmptyBoxMove );
+	AutoMode_OutRobotMoveMove:=Service.AutoMode_EmptyBoxMove ,
+	Pause := bStopMem);
 
 fbOutRobot_RareBoxMove(
 	Execute:= Service.AutoMode_RareBoxMove.HandShake.Execute ,
@@ -328,7 +329,8 @@ fbOutRobot_RareBoxMove(
 	Motor:= Motor, 
 	Cylinders :=OutRobotCylinders.Cylinders,
 	Clips := OutRobotClips.Cylinders,
-	AutoMode_OutRobotMoveMove:= Service.AutoMode_RareBoxMove);
+	AutoMode_OutRobotMoveMove:= Service.AutoMode_RareBoxMove,
+	Pause := bStopMem);
 
 fbOutRobot_BoxMoveReverse(
 	Execute:= Service.AutoMode_BoxMoveReverse.HandShake.Execute,
@@ -347,7 +349,8 @@ fbOutRobot_BoxMoveReverse(
 	Motor:= Motor, 
 	Cylinders :=OutRobotCylinders.Cylinders,
 	Clips := OutRobotClips.Cylinders,
-	AutoMode_OutRobotMoveMove:= Service.AutoMode_BoxMoveReverse);	
+	AutoMode_OutRobotMoveMove:= Service.AutoMode_BoxMoveReverse,
+	pause := bStopMem);	
 	
 fbDifferentCVCamera(
 	xDone=> Service.AutoMode_DifferentCVCamera.Status.Done,
@@ -1274,13 +1277,18 @@ END_IF]]></ST>
       <LineId Id="131" Count="1" />
       <LineId Id="81" Count="0" />
       <LineId Id="98" Count="15" />
+      <LineId Id="479" Count="0" />
       <LineId Id="133" Count="1" />
       <LineId Id="97" Count="0" />
       <LineId Id="115" Count="0" />
-      <LineId Id="137" Count="16" />
+      <LineId Id="137" Count="14" />
+      <LineId Id="480" Count="0" />
+      <LineId Id="152" Count="1" />
       <LineId Id="114" Count="0" />
       <LineId Id="172" Count="14" />
-      <LineId Id="154" Count="1" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="478" Count="0" />
+      <LineId Id="155" Count="0" />
       <LineId Id="187" Count="0" />
       <LineId Id="234" Count="0" />
       <LineId Id="236" Count="14" />

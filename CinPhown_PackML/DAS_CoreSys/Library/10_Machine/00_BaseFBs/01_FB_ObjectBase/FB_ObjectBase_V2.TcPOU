@@ -313,7 +313,7 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_HELD" Id="{6d612e93-b6d2-4a26-b32e-24c0d4774a53}" FolderPath="STATE\">
-      <Declaration><![CDATA[METHOD M_STATE_HELD : BOOL
+      <Declaration><![CDATA[METHOD M_STATE_HELD
 VAR_INPUT
 END_VAR
 ]]></Declaration>
@@ -343,7 +343,7 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_HOLDING" Id="{4a8e5d59-86af-49b8-af27-1a0172810a85}" FolderPath="STATE\">
-      <Declaration><![CDATA[METHOD M_STATE_HOLDING : BOOL
+      <Declaration><![CDATA[METHOD M_STATE_HOLDING
 VAR_INPUT
 END_VAR
 ]]></Declaration>
@@ -395,7 +395,7 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="M_STATE_UNHOLD" Id="{770387d7-50ca-46e2-9c63-0a8a190d7bfa}" FolderPath="STATE\">
-      <Declaration><![CDATA[METHOD M_STATE_UNHOLD : BOOL
+      <Declaration><![CDATA[METHOD M_STATE_UNHOLD
 VAR_INPUT
 END_VAR
 ]]></Declaration>

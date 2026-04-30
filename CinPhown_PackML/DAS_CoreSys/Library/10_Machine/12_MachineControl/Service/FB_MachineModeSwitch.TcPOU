@@ -1,0 +1,425 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_MachineModeSwitch" Id="{53c0ad14-faa3-42bf-b2f6-e8a0ec4c3d82}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MachineModeSwitch EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+	ModeLink 				 : REFERENCE TO ST_Mode;
+	MachineCtrl_CurrentMode  : E_UnitMode;
+	MachineCtrl_CurrentState : E_PMLState;
+	MachineHomed			 : BOOL;
+END_VAR
+VAR_OUTPUT
+	RequestedMode		 : E_UnitMode;
+	ModeRequestValid	 : BOOL;
+END_VAR
+VAR
+	eTargetModeCache    : E_MachineMode;
+
+	eActualModeCache    : E_UnitMode;
+
+	strStatus           : STRING;
+	_bRetry				: BOOL;
+	uiResumeStep		: UDINT;
+	
+	TON_WaitModeSwitch	: TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.A00_BasicUnits();
+SUPER^.A10_StateControl();
+
+IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Manual THEN
+	GVL_ADS.MachineMode.CurrentMode := E_MachineMode.MANUAL;
+ELSIF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
+	GVL_ADS.MachineMode.CurrentMode := E_MachineMode.AUTO;
+END_IF
+
+]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{5f03531e-ec1c-469c-91db-8cd0961dc2bd}" />
+    <Folder Name="STATE" Id="{e593c19a-84fd-482a-a32d-e1e324d24f89}" />
+    <Action Name="A00_BasicUnits" Id="{a8e0054e-cc88-46e4-b0f7-533972befea0}">
+      <Implementation>
+        <ST><![CDATA[eTargetModeCache := ModeLink.TargetMode;
+
+eActualModeCache := GVL_Machine.PackTags[0].Status.UnitModeCurrent;
+
+TON_WaitModeSwitch(PT := T#3S);
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{5f3aac03-40f5-4913-b8ae-d7613f3e4f82}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eTargetModeCache = E_MachineMode.AUTO AND NOT MachineHomed THEN
+	strStatus := 'FB_MachineModeSwitch ,Not Homing can not Switch AutoMode not can retry';
+	M_CheckCommand:= FALSE;
+	RETURN;
+END_IF
+
+M_CheckCommand := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{b0cb5487-c094-4220-b311-09c79f325d32}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy 	:= FALSE;
+	Aborted := TRUE;
+	Error 	:= TRUE;
+	Status 	:= strStatus;
+	uiAbortingStep := 0;
+	_AbortCompleted := FALSE;
+END_IF
+
+IF reset THEN
+	_bRetry := TRUE;
+	Error	:= FALSE;
+	Aborted	:= FALSE;
+END_IF
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND _bRetry THEN
+	uiExecutingStep := uiResumeStep ;
+	status :='';
+	eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{5101d1f1-ea45-4aef-9a7f-b770cfe9a43f}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := FALSE;
+Aborted := FALSE;
+Error := FALSE;
+Status := strStatus;
+
+CASE uiAbortingStep OF
+	0:
+		ModeRequestValid := FALSE;
+		TON_WaitModeSwitch.IN := FALSE;
+		_Abort := FALSE;
+		_bRetry := FALSE;
+
+		uiAbortingStep := 9999;
+
+	9999:
+		_AbortCompleted := TRUE;
+END_CASE
+
+IF _AbortCompleted THEN
+	eState := STATE_ABORTED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{7d1bfebf-6ba7-4f9e-ba18-bf103887b5b4}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+Aborted := FALSE;
+Error := FALSE;
+Status := strStatus;
+
+IF Reset OR NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{c4b32cd1-cb28-42c0-8804-d1d35e09f97f}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := FALSE;
+Aborted := FALSE;
+Error := FALSE;
+Paused := FALSE;
+Status := '';
+UniqueErrorCode := '';
+
+_Executed := FALSE;
+_Error := FALSE;
+_Abort := FALSE;
+_ResetCompleted := FALSE;
+_AbortCompleted := FALSE;
+_HoldingCompleted := FALSE;
+_HeldCompleted := FALSE;
+_UnholdCompleted := FALSE;
+
+uiExecutingStep := 0;
+uiResettingStep := 0;
+uiAbortingStep 	:= 0;
+uiHoldingStep 	:= 0;
+uiHeldStep 		:= 0;
+uiUnholdStep 	:= 0;
+uiResumeStep 	:= 0;
+
+_bRetry := FALSE;
+TON_WaitModeSwitch.IN := FALSE;
+ModeRequestValid := FALSE;
+
+strStatus := 'Machine mode switch idle';
+Status := strStatus;
+
+IF Execute THEN
+	eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{0689463d-acd2-484e-8eeb-7ff89d4312d2}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Error := TRUE;
+Status := strStatus;
+ModeRequestValid := FALSE;
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{80af41fd-0a13-4d38-aaf8-e19f9d81e0e7}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+
+VAR
+	esle: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := TRUE;
+Done := FALSE;
+Aborted := FALSE;
+Error := FALSE;
+
+CASE uiExecutingStep OF
+	0:
+		IF M_CheckCommand() THEN
+			uiExecutingStep := 100;
+		ELSE
+			_Error := TRUE;
+		END_IF
+
+	100:
+		CASE eTargetModeCache OF
+			E_MachineMode.MANUAL:
+				TON_WaitModeSwitch.IN 	:= TRUE;
+				RequestedMode 			:= E_UnitMode.Manual;
+				ModeRequestValid 		:= TRUE;
+				IF eActualModeCache = E_UnitMode.Manual THEN
+					uiExecutingStep := 200;
+				END_IF
+				IF TON_WaitModeSwitch.Q THEN
+					strStatus := 'FB_MachineModeSwitch ,Switch ManualMode Timeout';
+					_Abort := TRUE;
+				END_IF
+				IF MachineCtrl_CurrentMode = E_UnitMode.Auto AND 
+					MachineCtrl_CurrentState = E_PMLState.ePMLState_Suspended  THEN
+					uiResumeStep := 100;
+					strStatus 	 := 'FB_MachineModeSwitch ,MachineMode stuck in AutoMode Suspended , cat retry';
+					_Abort    	 := TRUE;
+				END_IF  
+
+			E_MachineMode.AUTO:
+				TON_WaitModeSwitch.IN 	:= TRUE;
+				RequestedMode 			:= E_UnitMode.Auto;
+				ModeRequestValid 		:= TRUE;
+				IF eActualModeCache = E_UnitMode.Auto THEN
+					uiExecutingStep := 200;
+				END_IF
+				IF TON_WaitModeSwitch.Q THEN
+					strStatus := 'FB_MachineModeSwitch ,Switch AutoMode Timeout';
+					_Abort := TRUE;
+				END_IF
+		ELSE
+			ModeRequestValid := FALSE;
+			strStatus := 'FB_MachineModeSwitch ,TargetMode is invalid for verification';
+			_Error := TRUE;
+		END_CASE
+
+	200:
+		ModeLink.CurrentMode := eTargetModeCache;
+		
+		strStatus := 'Machine mode switch verify complete';
+		_Executed := TRUE;
+END_CASE
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+ELSIF _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Executed THEN
+	eState := STATE_DONE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{a34cb8a5-ee8d-4abd-ac41-e2995521a3c1}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Aborted := FALSE;
+Error := FALSE;
+
+CASE uiResettingStep OF
+	0:
+		ModeRequestValid := FALSE;
+		TON_WaitModeSwitch.IN := FALSE;
+
+		uiResettingStep := 100;
+
+	100:
+		_ResetCompleted := TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+	eState := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_MachineModeSwitch">
+      <LineId Id="16" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="40" Count="4" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.A00_BasicUnits">
+      <LineId Id="2" Count="2" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_CheckCommand">
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_STATE_ABORTED">
+      <LineId Id="20" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="5" Count="2" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="26" Count="1" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_STATE_ABORTING">
+      <LineId Id="3" Count="4" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="12" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_STATE_DONE">
+      <LineId Id="3" Count="7" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_STATE_DORMANT">
+      <LineId Id="3" Count="4" />
+      <LineId Id="9" Count="17" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="36" Count="1" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="27" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_STATE_ERROR">
+      <LineId Id="3" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="9" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_STATE_EXECUTING">
+      <LineId Id="3" Count="6" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="85" Count="0" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="2" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="91" Count="0" />
+      <LineId Id="19" Count="1" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="70" Count="1" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="92" Count="1" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="74" Count="1" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="37" Count="1" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="45" Count="4" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="53" Count="10" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_MachineModeSwitch.M_STATE_RESETTING">
+      <LineId Id="3" Count="0" />
+      <LineId Id="5" Count="4" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="13" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
