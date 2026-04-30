@@ -34,7 +34,7 @@ VAR
 	
 		// EIP 斷線恢復用計時器
 	tonPowerCycle			: TON;		// 電源 TRUE 維持 5 秒
-	tonPowerCycleTimeout	: TON;		// 電源循環超時 15 秒
+	tonPowerCycleTimeout	: TON;		// 電源 FALSE 後等待重連 60 秒
 
 	// 啟動延時 - 等待心跳偵測完成 (冷啟動用)
 	tonStartupDelay			: TON;		// 啟動延時 5 秒
@@ -69,7 +69,7 @@ ResetRobotDelay(PT:=T#300MS);
 TON_RobotFeedOutCommand(PT:= T#5S);
 TON_RobotTimeOut(PT := T#60S);
 tonPowerCycle(PT := T#5S);			// 電源維持 TRUE 5 秒
-tonPowerCycleTimeout(PT := T#30S);	// 電源 FALSE 後等待重連 30 秒
+tonPowerCycleTimeout(PT := T#60S);	// 電源 FALSE 後等待重連 60 秒
 tonStartupDelay(PT := T#5S);		// 啟動延時 5 秒 (等待心跳偵測)
 
 
@@ -175,25 +175,38 @@ CASE uiStorageHomingStep OF
 	// - 心跳偵測已完成，現在可以正確判斷連線狀態
 	// ============================================================================
 	400:
-		// 先檢查斷線狀態 (Heartbeat 偵測)
-		IF FanucRobot._EIPConnectionState = 8195 THEN
-			// EIP 斷線，執行電源循環恢復
+		// 斷線判定: EIP scanner 報斷線 OR 軟體心跳 5 秒未翻轉 (iTestCnt >= 10)
+		IF FanucRobot._EIPConnectionState = 8195 OR FanucRobot.iTestCnt >= 10 THEN
+			// EIP/心跳 斷線，執行電源循環恢復
 			uiStorageHomingStep := 440;
+		ELSIF FanucRobot.Halt THEN
+			// Robot 在 Halt 狀態 → 清除 Hold 讓 Halt 解除，再 Reset 回 DORMANT
+			FanucRobot.Hold := FALSE;
+			FanucRobot.Reset := TRUE;
+			ResetRobotDelay.IN := TRUE;
 		ELSIF FanucRobot.Error THEN
 			// 一般錯誤，執行正常重置
 			RobotResetCMD := TRUE;
+			ResetRobotDelay.IN := TRUE;
+		ELSIF FanucRobot._UO1.UO03_PrgRunning THEN
+			// Robot 正在執行流程 → 強制停止後再切 RSR02
+			FanucRobot.M_ResetAllCommand();
+			FanucRobot.Hold := FALSE;
+			FanucRobot.Reset := TRUE;
 			ResetRobotDelay.IN := TRUE;
 		ELSE
 			uiStorageHomingStep := 500;
 		END_IF
 		IF ResetRobotDelay.Q THEN
 			ResetRobotDelay.IN := FALSE;
+			FanucRobot.Reset := FALSE;
 			uiStorageHomingStep := 500;
 		END_IF
 
 	440:	// EIP 斷線恢復: 電源 TRUE
 		RobotResetCMD := FALSE;
 		ResetRobotDelay.IN := FALSE;
+		FanucRobotCheckTon.IN := FALSE;					// 暫停 120 秒總超時，避免電源循環中誤觸發
 		OutPut.bStorage_FanucRobotPower := TRUE;		// 強制電源 TRUE
 		tonPowerCycle.IN := TRUE;						// 開始 5 秒計時
 		tonPowerCycleTimeout.IN := FALSE;				// 還不開始重連計時
@@ -204,17 +217,20 @@ CASE uiStorageHomingStep OF
 			// 5 秒到，電源 FALSE，開始計時等待重連
 			tonPowerCycle.IN := FALSE;
 			OutPut.bStorage_FanucRobotPower := FALSE;
-			tonPowerCycleTimeout.IN := TRUE;			// 現在開始 30 秒重連計時
+			tonPowerCycleTimeout.IN := TRUE;			// 現在開始 60 秒重連計時
 			uiStorageHomingStep := 460;
 		END_IF
 
-	460:	// EIP 斷線恢復: 等待重新連線 (30秒超時)
+	460:	// EIP 斷線恢復: 等待重新連線 (60秒超時)
 		IF tonPowerCycleTimeout.Q THEN
-			// 超時 30 秒，報錯
-			iErrorID := 22;
-		ELSIF FanucRobot._EIPConnectionState <> 8195  THEN
-			// 已重新連線，繼續執行 RSR02
+			// 超時 60 秒，報錯
 			tonPowerCycleTimeout.IN := FALSE;
+			iErrorID := 22;
+			uiStorageHomingStep := 9999;
+		ELSIF FanucRobot._EIPConnectionState <> 8195 AND FanucRobot.iTestCnt < 10 THEN
+			// EIP 已重連 + 心跳已恢復，繼續執行 RSR02
+			tonPowerCycleTimeout.IN := FALSE;
+			FanucRobotCheckTon.IN := TRUE;				// 恢復 120 秒總超時監控
 			uiStorageHomingStep := 500;
 		END_IF
 

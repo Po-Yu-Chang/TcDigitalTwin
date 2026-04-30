@@ -124,7 +124,9 @@ CASE uiShippingHomingStep OF
 			uiShippingHomingStep 	    := 10;
 			
 	10:		// 檢查機械手臂 錯誤狀態
-			IF fanucrobot._EIPConnectionState = 8195 THEN
+			// 斷線判定: EIP scanner 報斷線 OR 軟體心跳 5 秒未翻轉 (iTestCnt >= 10)
+			IF fanucrobot._EIPConnectionState = 8195 OR fanucrobot.iTestCnt >= 10 THEN
+				FanucRobotCheckTon.IN := FALSE;					// 暫停 90 秒總超時，避免電源循環中誤觸發
 				Output.bShipping_FanucRobotPower := TRUE;
 				uiShippingHomingStep := 20;
 			ELSIF fanucrobot.Error THEN
@@ -132,24 +134,26 @@ CASE uiShippingHomingStep OF
 			ELSE
 				uiShippingHomingStep := 500;
 			END_IF
-			
+
 	20:		// 逾時一秒 重新啟動小手臂電源
 			TON_RebootPowerDelay.IN :=TRUE;
 			IF TON_RebootPowerDelay.Q THEN
 				Output.bShipping_FanucRobotPower := FALSE;
 				uiShippingHomingStep := 30;
 			END_IF
-			
-	30:		
+
+	30:
 			TON_RebootPowerDelay.IN  := FALSE;
 			TON_ConnectionTimeout.IN := TRUE;
 			IF TON_ConnectionTimeout.Q THEN
-				// 超時 30 秒，連線失敗
+				// 超時 60 秒，連線失敗
 				TON_ConnectionTimeout.IN := FALSE;
 				iErrorID := 30;
-			ELSIF fanucrobot._EIPConnectionState <> 8195 THEN
-				// 已重新連線，繼續檢查錯誤
+				uiShippingHomingStep := 9999;
+			ELSIF fanucrobot._EIPConnectionState <> 8195 AND fanucrobot.iTestCnt < 10 THEN
+				// EIP 已重連 + 心跳已恢復，繼續檢查錯誤
 				TON_ConnectionTimeout.IN := FALSE;
+				FanucRobotCheckTon.IN := TRUE;					// 恢復 90 秒總超時監控
 				uiShippingHomingStep := 50;
 			END_IF
 	
