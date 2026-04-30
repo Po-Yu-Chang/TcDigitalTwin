@@ -794,7 +794,23 @@ CASE uiExecutingStep OF
 		END_IF
 	END_IF
 
-1850: // Confirm box left conveyor sensor (附加 bug fix: 加 debounce + timeout)
+1850: // Confirm box left conveyor sensor
+	// ============================================================
+	// TEMP (2026-04-30): A、B 兩爪皆暫時跳過離開檢查
+	// 原因: conveyor sensor (BoxDetect5) 只能反映 conveyor 上有無箱,
+	//       無法保證箱真的被夾在爪上。A 原本就跳過 (避免上游補料壓
+	//       sensor 誤判), B 因相同顧慮也暫時不檢查。
+	// 復原條件: 爪上加裝 box-detect sensor,或上游補料時序確認後。
+	// 復原方式: 移除本無條件跳過區塊,還原下方 (* *) 內的原邏輯。
+	// ============================================================
+	tonLeaveDebounce(IN:=FALSE, PT:=T#1S);
+	tonTimeOut(IN:=FALSE, PT:=T#15S);
+	IF __ISVALIDREF(PressCylinderOnI5) THEN
+		PressCylinderOnI5.M_Retract();
+	END_IF
+	uiExecutingStep:=1900;
+
+	(* ---- 原離開檢查邏輯 (TEMP 解除後恢復本段, 移除上方無條件跳過) ----
 	// 若還有下一爪要夾,上游補料會壓住同一顆 sensor 造成誤判,直接跳過離開檢查
 	IF NOT bSyncPick
 		AND ( (iWorkingIndex = 0 AND UseB AND NOT bPickedB)
@@ -824,6 +840,7 @@ CASE uiExecutingStep OF
 			END_IF
 		END_IF
 	END_IF
+	*)
 
 1900: // Next pick? (附加 bug fix: 用 bPickedA/B 旗標,避免 iWorkingIndex 漏放 B)
 	IF bSyncPick THEN
