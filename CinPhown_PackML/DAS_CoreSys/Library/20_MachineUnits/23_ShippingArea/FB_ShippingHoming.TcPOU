@@ -32,6 +32,9 @@ VAR
 	//Reboot RobotPower
 	TON_RebootPowerDelay	: TON;
 	TON_ConnectionTimeout	: TON;
+
+	// 啟動延時 - 等待心跳偵測完成 (冷啟動用)
+	TON_StartupDelay		: TON;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -62,8 +65,9 @@ ResetRobotDelay(PT:=T#300MS);
 TON_RobotFeedOutCommand(PT:= T#5S);		//Robot FeedOut Command TimeOut
 TON_RobotTimeOut(PT := T#60S);			//Robot FeedOut Service Done Time
 TON_RobotRSR01_Delay(PT :=T#3S);
-TON_RebootPowerDelay(PT :=T#1S);
+TON_RebootPowerDelay(PT :=T#5S);		// 電源 TRUE 維持 5 秒 (與大手臂同步，避免 24V 電容殘電造成假性斷電)
 TON_ConnectionTimeout(PT :=T#60S);
+TON_StartupDelay(PT :=T#5S);			// 啟動延時 5 秒 (等待心跳偵測冷啟動完成)
 
 
 _fbShippingRobot_TransmitCVEnd(
@@ -121,21 +125,49 @@ CASE uiShippingHomingStep OF
 			TON_RobotFeedOutCommand.IN  := FALSE;
 			TON_RobotTimeOut.IN 		:= FALSE;
 			FanucRobotCheckTon.IN 		:= TRUE;
-			uiShippingHomingStep 	    := 10;
-			
+			uiShippingHomingStep 	    := 5;
+
+	// ============================================================================
+	// Step 5: 啟動延時 - 等待心跳偵測完成
+	// - 冷啟動時，心跳偵測需要 5 秒 (10 × 0.5s) 才能判定連線狀態
+	// - 必須等心跳偵測完成後，才能正確判斷機器人是否已連線，避免誤觸發電源循環
+	// ============================================================================
+	5:
+			TON_StartupDelay.IN := TRUE;
+			IF TON_StartupDelay.Q THEN
+				TON_StartupDelay.IN := FALSE;
+				uiShippingHomingStep := 10;
+			END_IF
+
 	10:		// 檢查機械手臂 錯誤狀態
 			// 斷線判定: EIP scanner 報斷線 OR 軟體心跳 5 秒未翻轉 (iTestCnt >= 10)
 			IF fanucrobot._EIPConnectionState = 8195 OR fanucrobot.iTestCnt >= 10 THEN
 				FanucRobotCheckTon.IN := FALSE;					// 暫停 90 秒總超時，避免電源循環中誤觸發
 				Output.bShipping_FanucRobotPower := TRUE;
 				uiShippingHomingStep := 20;
+			ELSIF fanucrobot.Halt THEN
+				// Robot 在 Halt 狀態 → 清除 Hold 讓 Halt 解除，再 Reset 回 DORMANT
+				fanucrobot.Hold := FALSE;
+				fanucrobot.Reset := TRUE;
+				ResetRobotDelay.IN := TRUE;
 			ELSIF fanucrobot.Error THEN
 				uiShippingHomingStep := 50;
+			ELSIF fanucrobot._UO1.UO03_PrgRunning THEN
+				// Robot 正在執行流程 → 強制停止後再切 RSR02
+				fanucrobot.M_ResetAllCommand();
+				fanucrobot.Hold := FALSE;
+				fanucrobot.Reset := TRUE;
+				ResetRobotDelay.IN := TRUE;
 			ELSE
 				uiShippingHomingStep := 500;
 			END_IF
+			IF ResetRobotDelay.Q THEN
+				ResetRobotDelay.IN := FALSE;
+				fanucrobot.Reset := FALSE;
+				uiShippingHomingStep := 500;
+			END_IF
 
-	20:		// 逾時一秒 重新啟動小手臂電源
+	20:		// 電源 TRUE 維持 5 秒後切回 FALSE 重啟小手臂
 			TON_RebootPowerDelay.IN :=TRUE;
 			IF TON_RebootPowerDelay.Q THEN
 				Output.bShipping_FanucRobotPower := FALSE;
@@ -185,6 +217,10 @@ CASE uiShippingHomingStep OF
 			FanucRobot.OpMode := E_FanucRobotOpMode.RSR01;
 			IF FanucRobot._RSR1_Ready THEN
 				uiShippingHomingStep := 1000;
+			END_IF
+			// RSR02 完成後，檢查是否還有殘留錯誤
+			IF FanucRobot.Error THEN
+				iErrorID := 21;		// RSR02 完成但錯誤仍存在
 			END_IF
 		
 	1000:	// 確認手臂切換到 RSR01 模式，並且確保已回報 PLC 正在執行 RSR01
@@ -274,6 +310,8 @@ END_VAR]]></Declaration>
 		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 11: Shipping FanucRobot FeedOut to SameSizeConveyor Done Timeout';
 	20:
 		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 20: Occupid , AutoMode_ShippingRobot_TransmitCVEnd in Executing ';
+	21:
+		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 21: RSR02 Complete but FanucRobot still in Error';
 	30:
 		M_GetErrorMsg := 'FB_ShippingHoming ErrorID 30: Reboot ShippingArea FanucRobot Connect TimeOut';
 
@@ -290,6 +328,8 @@ END_VAR
         <ST><![CDATA[FanucRobotCheckTon.IN := FALSE;
 TON_RobotRSR01_Delay.IN	:= FALSE;
 TON_RebootPowerDelay.IN := FALSE;
+TON_ConnectionTimeout.IN := FALSE;
+TON_StartupDelay.IN		:= FALSE;
 _fbShippingRobot_TransmitCVEnd.M_ResetHomingFeedOut();]]></ST>
       </Implementation>
     </Method>
@@ -307,6 +347,8 @@ TON_RobotFeedOutCommand.IN 	:= FALSE;
 TON_RobotTimeOut.IN 		:= FALSE;
 TON_RobotRSR01_Delay.IN		:= FALSE;
 TON_RebootPowerDelay.IN		:= FALSE;
+TON_ConnectionTimeout.IN	:= FALSE;
+TON_StartupDelay.IN			:= FALSE;
 uiShippingHomingStep := 0;
 _fbShippingRobot_TransmitCVEnd.M_ResetHomingFeedOut();
 
