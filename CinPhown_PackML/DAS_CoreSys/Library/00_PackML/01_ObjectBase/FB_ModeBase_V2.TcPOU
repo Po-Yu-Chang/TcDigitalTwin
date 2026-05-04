@@ -395,12 +395,18 @@ VAR_INST
     FoundCount : INT := 0;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR iLoopIndex := 1 TO MaxAlarms DO
+        <ST><![CDATA[// VAR_INST 必須在每次呼叫開頭重置，否則一旦某次找到重複就會卡 TRUE，
+// 後面新 ID 都會被當成已存在而拒絕註冊（iErrorCount 不再增加）。
+HasSameID := FALSE;
+FoundIndex := 0;
+FoundCount := 0;
+
+FOR iLoopIndex := 1 TO MaxAlarms DO
     IF PackTag.Admin.Alarm[iLoopIndex].ID = ID THEN
         IF NOT HasSameID THEN
             HasSameID := TRUE;
             FoundIndex := iLoopIndex;
-			
+
 			EXIT;
         END_IF
 		PackTag.Admin.Alarm[iLoopIndex].Message := Message;

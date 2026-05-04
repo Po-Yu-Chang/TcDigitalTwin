@@ -3,7 +3,7 @@
   <DUT Name="st_SafetyByPass" Id="{a9b9684b-8783-4786-9450-01b4f7850c88}">
     <Declaration><![CDATA[TYPE st_SafetyByPass :
 STRUCT
-	SafeDoorByPass :BOOL;
+	SafeDoorByPass :BOOL := FALSE;
 	//AliveCheckingBYPass : BOOL;
 END_STRUCT
 END_TYPE
