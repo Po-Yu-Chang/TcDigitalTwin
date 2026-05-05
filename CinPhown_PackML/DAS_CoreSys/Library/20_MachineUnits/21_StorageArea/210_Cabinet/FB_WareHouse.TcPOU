@@ -71,9 +71,9 @@ END_VAR]]></Declaration>
 	ErrorID=> , 
 	Status=> , 
 	Motors:= Motors, 
-	WarehouseStatus:= WheelhouseSensor.List, 
-	ArrivedDelayTime:= T#2S, 
-	WarehouseSelect:= , 
+	WarehouseStatus:= WheelhouseSensor.List,
+	ArrivedDelayTime:= T#1S,
+	WarehouseSelect:= ,
 	WarehouseCoordinates:= , 
 	TimeOut:= T#10S);
 	
@@ -89,9 +89,9 @@ fbFeedInBox(
 	ErrorID=> , 
 	Status=> , 
 	Motors:= Motors, 
-	WarehouseStatus:= WheelhouseSensor.List, 
-	ArrivedDelayTime:= T#2.0S, 
-	WarehouseSelect:= , 
+	WarehouseStatus:= WheelhouseSensor.List,
+	ArrivedDelayTime:= T#1S,
+	WarehouseSelect:= ,
 	WarehouseCoordinates:= , 
 	TimeOut:= T#10S);]]></ST>
       </Implementation>

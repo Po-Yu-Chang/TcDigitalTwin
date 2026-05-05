@@ -35,9 +35,9 @@ Ton_ArriveDelay(PT:= ArrivedDelayTime);//2.0s
 Ton_BoxMoveForward(PT:= TimeOut);//10S
 
 //check full box in cabinet time
-tonFirstReserveTime(PT :=T#1.5S);	
+tonFirstReserveTime(PT :=T#1.5S);
 tonSecondForwardTime(PT :=T#750MS);
-tonThirdReserceTime(PT :=T#2.0S);]]></ST>
+tonThirdReserceTime(PT := ArrivedDelayTime);]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_CheckSlideSensor" Id="{2ead7186-fc6a-4154-8439-32582083264a}">
