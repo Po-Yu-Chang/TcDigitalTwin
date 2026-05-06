@@ -144,6 +144,7 @@ fbFeedInEmptyBoxWithRobot(Execute    := service.AutoMode_FeedInEmptyBoxWithRobot
                           DiffSizeCV := Motor.List.TransmitDifferentSideCV,
 						  SameSizeCV := Motor.List.TransmitSameSideCV,
                           Info := Service.AutoMode_FeedInEmptyBoxWithRobot.Info,
+                          Pause := bStopMem,
                           Stop := bStopMem,
 						  AClampMoveDone=>service.AutoMode_FeedInEmptyBoxWithRobot.AClampMoveDone,
 						  BClampMoveDone=>service.AutoMode_FeedInEmptyBoxWithRobot.BClampMoveDone);
