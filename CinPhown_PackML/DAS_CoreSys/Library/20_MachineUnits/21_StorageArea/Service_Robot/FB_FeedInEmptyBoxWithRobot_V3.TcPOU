@@ -744,9 +744,10 @@ CASE uiExecutingStep OF
         END_IF;
 				
 		IF tonTimeOut.Q THEN
-			uiResumeStep:=22000;
-			_Abort :=TRUE;
-			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 22000: Pick Box timeout';
+			bTimeOutIN	:= FALSE;	// 對齊 10000/11000/12000/20000/21000 的 timeout handler,避免 timer 殘留 IN=TRUE
+			uiResumeStep:= 22000;
+			_Abort 		:= TRUE;
+			strStatus 	:= 'FB_FeedInEmptyBoxWithRobot_V3 Step 22000: Pick Box timeout';
 		END_IF
 		
     30000: // ClampA pickup from WarehouseA, ClampB pickup from WarehouseA
@@ -1577,13 +1578,13 @@ CASE uiExecutingStep OF
        	
 		IF tonTimeOut.Q THEN
 			bTimeOutIN	:= FALSE;
-			_Abort 		:= TRUE;		
-			uiResumeStep:= 71000;	
+			_Abort 		:= TRUE;
+			uiResumeStep:= 71000;
 			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 Step 71000: Place Box timeout';
 		END_IF
 		IF Robot._DI1.Error THEN
 			bTimeOutIN	:= FALSE;
-			_Abort		:= FALSE;
+			_Abort		:= TRUE;	// typo fix: 原本寫成 FALSE,會把同 scan 內 sub-step 已設的 _Abort:=TRUE 蓋掉,造成 Fanuc 報錯時 FB 卡在 71000 不轉 ABORTING (對齊 61000 / 81000 行為)
 			uiResumeStep:= 71000;
 			strStatus	:= CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 71000:',robot.ErrMsg);
 		END_IF
