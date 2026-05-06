@@ -261,7 +261,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CASE uiAbortingStep OF
+        <ST><![CDATA[CASE uiAbortingStep OF 
 	0:
 			_Abort 			:= FALSE;
 			bTimeOutIN		:= FALSE;
@@ -271,21 +271,6 @@ END_VAR
 			IF uiExecutingStep > 60000 THEN
 				WorkingConveyor.M_MotorStop();
 			END_IF
-
-			// 移植 mirror V4 (commit 62b5122):abort 時把 Robot DO handshake / 周邊狀態 / Pullout access 一次清乾淨,
-			// 避免 abort 後重啟時殘留前一輪的指令 (e.g. Robot RSR 訊號未清造成誤觸發、Pullout access 一直被鎖在 FanucRobot 導致下次 Get 失敗)。
-			Robot.M_ResetAllCommand();
-			Robot.Bzone_AllowWork := FALSE;
-			WareHouse.M_ResetFeedInBox();
-			WareHouse.M_ResetReloadBox();
-			DiffSizeCV.M_MotorStop();
-			SameSizeCV.M_MotorStop();
-			DAS_CoreSys.MachineControl.fballocatearea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
-			AClampMoveDone	 := FALSE;
-			BClampMoveDone	 := FALSE;
-			_AClampDoingWork := FALSE;
-			_BClampDoingWork := FALSE;
-
 			uiAbortingStep 	:= 10;
 			
 	10:		// Stop PullOut conveyor for all steps that use it
