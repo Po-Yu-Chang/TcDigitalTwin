@@ -166,6 +166,8 @@ VAR_GLOBAL CONSTANT
     GC_ALARM_AXIS_OUTROBOT_Y             : DINT := 805;   // [Abort] OutRobot Y軸錯誤
     GC_ALARM_AXIS_RACKMOTOR              : DINT := 806;   // [Abort] RackMotor軸錯誤
     // 807-899: 預留伺服軸擴充
+	
+	GC_ALARM_MODBUSRTU					: DINT	:= 850;	  // 光電板 MODBUS (實際用 +1 ~ +4) 
 
     // =========================================================================
     // [1] RegisterAlarm ID — 安全門 (900-999) [Hold, Level2]

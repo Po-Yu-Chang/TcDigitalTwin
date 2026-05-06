@@ -2759,10 +2759,10 @@ bByPassModBusRTU[2] := MAIN2_RS485.RS485_V2[2].bError AND NOT GVL_HMI.Setup.Mech
 bByPassModBusRTU[3] := MAIN2_RS485.RS485_V2[3].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_3;
 bByPassModBusRTU[4] := MAIN2_RS485.RS485_V2[4].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_4;
 
-RegisterAlarm(Trigger := bByPassModBusRTU[1],ID := 300,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[1].ErrorMsg,Category := 1);
-RegisterAlarm(Trigger := bByPassModBusRTU[2],ID := 301,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[2].ErrorMsg,Category := 1);
-RegisterAlarm(Trigger := bByPassModBusRTU[3],ID := 302,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[3].ErrorMsg,Category := 1);
-RegisterAlarm(Trigger := bByPassModBusRTU[4],ID := 303,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[4].ErrorMsg,Category := 1);
+RegisterAlarm(Trigger := bByPassModBusRTU[1],ID := GVL_ErrorCode.GC_ALARM_MODBUSRTU	+ 1,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[1].ErrorMsg,Category := 1);
+RegisterAlarm(Trigger := bByPassModBusRTU[2],ID := GVL_ErrorCode.GC_ALARM_MODBUSRTU + 2,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[2].ErrorMsg,Category := 1);
+RegisterAlarm(Trigger := bByPassModBusRTU[3],ID := GVL_ErrorCode.GC_ALARM_MODBUSRTU + 3,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[3].ErrorMsg,Category := 1);
+RegisterAlarm(Trigger := bByPassModBusRTU[4],ID := GVL_ErrorCode.GC_ALARM_MODBUSRTU + 4,value := E_Severity.Level2,Message := MAIN2_RS485.RS485_V2[4].ErrorMsg,Category := 1);
 
 
 
