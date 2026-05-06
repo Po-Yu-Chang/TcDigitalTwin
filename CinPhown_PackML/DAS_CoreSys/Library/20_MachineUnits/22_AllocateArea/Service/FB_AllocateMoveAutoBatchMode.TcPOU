@@ -1217,16 +1217,60 @@ END_VAR
             E_AllocationJob.Finish:
                 // Finish
 					//Update needling data
-					arrProcessedIndex[iProcessingIndex] :=CurrentProcessData.ID;					
-				IF 	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob> iProcessingIndex THEN			
-					
+					arrProcessedIndex[iProcessingIndex] :=CurrentProcessData.ID;
+				IF 	AutoAllocateJobBatch_Ctrl.AutoMode_AllocateMoveBatch.NrOfAllocationJob> iProcessingIndex THEN
+
 					iProcessingIndex :=iProcessingIndex+1;
 					AllocationJobBatchMode := E_AllocationJob.PreDataProcess;
 				ELSE
+					// 最後一筆邏輯完成,但機械可能還在收尾。
+					// 進入 FinalCleanup gate,等所有 cylinder/clip/press 都歸位、RoundBelt idle 才設 _Executed
+					AllocationJobBatchMode := E_AllocationJob.FinalCleanup;
+				END_IF
+
+			E_AllocationJob.FinalCleanup:
+				// 給 Done 之前的最終收尾 gate:
+				// 確保整批做完後,所有 cylinder/clip 都退到安全位置、RoundBelt 不再 Busy,
+				// 才允許 _Executed := TRUE → STATE_DONE。
+				// 目的: 上位看到 Done 時、PLC 內部資料(ProcessedIndex/WorkedID)跟機械都已穩定,
+				//       上位撤 Execute 後即使馬上下一包進來也不會撞到上一包未收尾的狀態。
+				// 註: TurnTable_Press / RoundBelt_Press 不收 — 兩個 Press 只是壓住盒子,
+				//     對下一批的 X/Y robot 跟 cylinder 升降都沒有安全顧慮;
+				//     收了反而會讓盒子晃動,且下一批 CheckBoxesOnTurnTableReady 還要再 Extend。
+				tAutoAllocationJobBatchTimeOut(IN := TRUE, PT := T#10S);
+				bCheckTrue := TRUE;
+
+				FOR i := 0 TO NrOfAllocateCylinder-1 DO
+					clips[i].M_Retract();
+					IF clips[i].InRearPosition THEN
+						cylinders[i].M_Retract();
+					END_IF
+					IF NOT cylinders[i].InRearPosition OR NOT clips[i].InRearPosition THEN
+						bCheckTrue := FALSE;
+					END_IF
+				END_FOR
+
+				// 圓帶不可還在動作中
+				IF RoundBeltMoveJob_Status.Busy THEN
+					bCheckTrue := FALSE;
+				END_IF
+
+				// 同步把最後一筆 ID 確實出到 ProcessedIndex (頂部已每 cycle 拷貝,這裡是雙保險)
+				ProcessedIndex := arrProcessedIndex;
+
+				IF bCheckTrue THEN
+					tAutoAllocationJobBatchTimeOut.IN := FALSE;
 					_Executed := TRUE;
-				END_IF				
-				
-        END_CASE 
+				END_IF
+
+				IF tAutoAllocationJobBatchTimeOut.Q THEN
+					StatusDescription := 'FinalCleanup timeout: hardware not back to safe position';
+					_UniqueErrorCode := 'E_FINAL_CLEANUP_TIMEOUT';
+					uiResumableStep := E_AllocationJob.FinalCleanup;
+					_Abort := TRUE;
+				END_IF
+
+        END_CASE
 
 IF NOT Execute THEN
 	eState:=STATE_RESETTING;

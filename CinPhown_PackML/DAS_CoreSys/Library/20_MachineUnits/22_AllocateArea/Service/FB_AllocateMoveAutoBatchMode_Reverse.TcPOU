@@ -1174,10 +1174,13 @@ END_VAR
 
 			E_AllocationJob.FinalCleanup:
 				// 給 Done 之前的最終收尾 gate:
-				// 確保整批做完後,所有 cylinder/clip/Press 都退到安全位置,RoundBelt 不再 Busy,
+				// 確保整批做完後,所有 cylinder/clip 都退到安全位置、RoundBelt 不再 Busy,
 				// 才允許 _Executed := TRUE → STATE_DONE。
 				// 目的: 上位看到 Done 時、PLC 內部資料(ProcessedIndex/WorkedID)跟機械都已穩定,
 				//       上位撤 Execute 後即使馬上下一包進來也不會撞到上一包未收尾的狀態。
+				// 註: TurnTable_Press / RoundBelt_Press 不收 — 兩個 Press 只是壓住盒子,
+				//     對下一批的 X/Y robot 跟 cylinder 升降都沒有安全顧慮;
+				//     收了反而會讓盒子晃動,且下一批 CheckBoxesOnTurnTableReady 還要再 Extend。
 				tAutoAllocationJobBatchTimeOut_Reverse(IN := TRUE, PT := T#10S);
 				bCheckTrue := TRUE;
 
@@ -1190,12 +1193,6 @@ END_VAR
 						bCheckTrue := FALSE;
 					END_IF
 				END_FOR
-
-				TurnTable_Press.M_Retract();
-				RoundBelt_Press.M_Retract();
-				IF NOT TurnTable_Press.InRearPosition OR NOT RoundBelt_Press.InRearPosition THEN
-					bCheckTrue := FALSE;
-				END_IF
 
 				// 圓帶不可還在動作中
 				IF RoundBeltMoveJob_Status.Busy THEN
