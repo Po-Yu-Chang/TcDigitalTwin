@@ -33,8 +33,9 @@ TYPE E_AllocationJob :
 	CheckNeedlePlace,
 	IfNextPTP_Picking,
 	IfNextPTP_Placing,
-	CheckBoxesOnTurnTableReady	
-	
+	CheckBoxesOnTurnTableReady,
+	FinalCleanup		// 最後一筆完成後的硬體歸位 gate (cylinders/clips/Press 全縮回 + RoundBelt idle 才允許 _Executed)
+
 );
 END_TYPE
 ]]></Declaration>
