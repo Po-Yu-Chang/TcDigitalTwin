@@ -1462,6 +1462,7 @@ CASE uiExecutingStep OF
 						SameSizeSlide_clear := TRUE;
 					END_IF
 					IF Robot._DI1.Error THEN
+						uiResumeStep := 61000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
 						uiResumePlaceSingleStep := 0;
 						SameSizeSlide_clear		:= FALSE;
 						DiffSizeSlide_Clear		:= FALSE;
@@ -1558,9 +1559,10 @@ CASE uiExecutingStep OF
 						SameSizeSlide_clear := TRUE;
 					END_IF
 					IF Robot._DI1.Error THEN
+						uiResumeStep := 71000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
 						uiResumePlaceSingleStep := 0;
 						DiffSizeSlide_Clear		:= FALSE;
-						SameSizeSlide_clear		:= FALSE;						
+						SameSizeSlide_clear		:= FALSE;
 						_Abort	  := TRUE;
 						strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 71000:',Robot.ErrMsg);
 					END_IF
@@ -1675,6 +1677,7 @@ CASE uiExecutingStep OF
 //					SlideClear_1st := FALSE;
 //				END_IF
 				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
 					uiResumePlaceBothStep := 0;
 					SlideClear_1st		  := FALSE;
 					_Abort	  := TRUE;
@@ -1692,23 +1695,25 @@ CASE uiExecutingStep OF
 					uiPlaceBothStep := 50;
 				END_IF
 				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
 					uiResumePlaceBothStep := 0;
 					SlideClear_1st		  := FALSE;
 					_Abort	  := TRUE;
 					strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
 				END_IF
-				
+
 			50://Wait Robot finish clampA
 				IF Robot._DI1.Notification THEN
 					uiPlaceBothStep:=60;
 				END_IF
 				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
 					uiResumePlaceBothStep := 0;
 					SlideClear_1st		  := FALSE;
 					_Abort	  := TRUE;
 					strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
 				END_IF
-				
+
 			60://Move conveyor forward
 				bWorkingConveyorMoveForward:=  TRUE;
 				IF WorkingConveyor.InForWard THEN
@@ -1758,14 +1763,16 @@ CASE uiExecutingStep OF
 					tonPlaceSensorDelay.IN :=FALSE;
 				END_IF
 				IF Robot._DI1.Error THEN
+						uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
 						uiResumePlaceBothStep := 60;
 						SlideClear_2nd		  := FALSE;
 						_Abort	  := TRUE;
 						strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
 					END_IF
-				
+
 			99:
 				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
 					uiResumePlaceBothStep := 60;
 					SlideClear_2nd		  := FALSE;
 					_Abort	  := TRUE;
