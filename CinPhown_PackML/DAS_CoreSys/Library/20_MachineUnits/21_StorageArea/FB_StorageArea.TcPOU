@@ -29,7 +29,7 @@ VAR
 
     // Service
     //fbFeedInEmptyBoxWithRobot           : FB_FeedInEmptyBoxWithRobot;
-	fbFeedInEmptyBoxWithRobot           : FB_FeedInEmptyBoxWithRobot_V3;			//Edited by Gamin in 2025//11/24
+	fbFeedInEmptyBoxWithRobot           : FB_FeedInEmptyBoxWithRobot_V4;			//Edited by Gamin in 2025//11/24
     //fbReloadRoundBeltBoxWithRobot       : FB_ReloadRoundBeltBoxWithRobot;
 	fbReloadRoundBeltBoxWithRobot       : FB_ReloadRoundBeltBoxWithRobot_V2;		//Edited by Gamin in 2025//11/24
     fbRobotRegionMove_AllocatedConveyor : FB_RobotRegionMove_AllocatedConveyor;
@@ -1042,6 +1042,7 @@ M_StateComplete();]]></ST>
       <LineId Id="3577" Count="0" />
       <LineId Id="3579" Count="17" />
       <LineId Id="3578" Count="0" />
+      <LineId Id="3639" Count="0" />
     </LineIds>
     <LineIds Name="FB_StorageArea.M_Aborted">
       <LineId Id="6" Count="1" />

@@ -125,8 +125,8 @@ END_VAR
 	RETURN;
 END_IF
 
-IF (info.Destination.Area = E_RobotArea.BufferArea) OR
-   (info.Source.Position = E_RobotArea.BufferArea) THEN
+IF (info.Destination.Area = E_RobotArea.ShippingBufferArea) OR
+   (info.Source.Area = E_RobotArea.ShippingBufferArea) THEN
 	M_CheckMechanism := FALSE;
 	strStatus := 'FB_ShippingRobotTransfer: Wrong Command, no BufferArea';
 	RETURN;
