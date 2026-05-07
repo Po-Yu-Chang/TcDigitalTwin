@@ -1,0 +1,2217 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_FeedInEmptyBoxWithRobot_V3" Id="{a9007e56-6ca3-4774-a061-95bbcfe0c6ce}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FeedInEmptyBoxWithRobot_V3 EXTENDS FB_ObjectBase_V2 IMPLEMENTS IBasicElement
+VAR_INPUT
+    // Below are the components being controlled.
+    Robot           : REFERENCE TO FB_FanucRobot_Basic_V2; // Fanuc Robot
+    PullOutConveyor : REFERENCE TO FB_PullOutConveyorAction; // Allocated area pull out conveyor
+    DiffSizeCV  : REFERENCE TO FB_Motor; // Allocated area feed in conveyor(diff and same size conveyor)
+	SameSizeCV : REFERENCE TO FB_Motor;
+    WareHouse       : REFERENCE TO FB_WareHouse; // Storage area warehouse A and warehouse B conveyor and sensor
+    //SameSizeFullSensor : REFERENCE TO BOOL; 				 // Because the same size sensor implement FB_ConveyorSameSize, so use reference to connect it
+    Info  : ST_FeedInEmptyBox_Info; // Setting the feedin emptybox action's parameter
+    Input : REFERENCE TO ST_InputTable;
+    Stop  : BOOL;
+END_VAR
+VAR_OUTPUT
+	AClampMoveDone	: BOOL;
+	BClampMoveDone	: BOOL;
+END_VAR
+VAR
+    tonPlaceSensorDelay    : TON;
+    tonFeedInConveyorDelay : TON;
+    tonTimeOut             : TON;
+	bTimeOutIN			   : BOOL;
+    tonFeedBoxTimeout      : TON;
+    strStatus              : STRING;
+    _UniqueErrorCode       : STRING;
+//    _Abort                 : BOOL;
+    uiResumeStep           : UDINT;
+	uiResumePlaceBothStep  : UINT;
+	uiResumePlaceSingleStep: UINT;
+    PreviousStrStatus      : STRING;
+    PreviousErrorCode      : STRING;
+	
+	WorkingConveyor			: REFERENCE TO FB_Motor;
+	SelectedSensor				 : BOOL;
+	bWorkingConveyorMoveForward  : BOOL;
+	bWorkingConveyorMoveBackward : BOOL;
+	
+	uiPickUpBothStep            : UINT;
+    uiPlaceBothStep             : UINT;
+	uiPlaceSingleStep			: UINT;
+	
+	// Clamp work
+	_AClampDoingWork	: BOOL;
+	_BClampDoingWork	: BOOL;
+	
+	uiResumePickUpBothStep : UDINT;
+
+	_bRetry	: BOOL;
+
+	// Safe Pause (移植自 mirror V4 commit 326aa68)
+	bPauseLatched : BOOL;
+	uiPauseFromStep : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^.A10_StateControl();
+A00_BasicUnits();
+
+(*============================================================
+Create Date : 2025/12/01
+Last Update	: 2026/03/31
+Change Log  : 2025/11/24，send flag A clamp done and B clamp done for C# use to SQL 		// Owner : Gamin
+			  2025/12/1 ，Create V3__ import Kinsus version to fix Singal Clamp doing 		// Owner : Gamin
+			  2026/03/31，導入泰興鏡射機版本，雷射續做，自主清除手臂錯誤。
+			  2026/05/07，因鏡射版新增Service Execute穿透問題，將此版本封存，將運行版本更改為V4版本。		// Owner : Gamin
+============================================================*)]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{c9aecf5e-5b84-4c60-a61c-26afc07eb515}" />
+    <Folder Name="State" Id="{3cb5c74c-969a-4f1a-a8b3-4510a61c8536}" />
+    <Action Name="A00_BasicUnits" Id="{fb53a09a-977f-430e-ae75-f5ff61869fc7}">
+      <Implementation>
+        <ST><![CDATA[tonTimeOut(IN:= bTimeOutIN AND NOT THIS^.Stop, PT:=T#60S);
+tonFeedBoxTimeout(PT:=T#15s);
+tonPlaceSensorDelay();
+tonFeedInConveyorDelay(PT:=T#500MS);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_CheckCommand" Id="{dc86a8b3-6a3f-4d5c-8562-a75b5c0aa293}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckCommand : BOOL
+VAR_INPUT
+END_VAR
+
+VAR_INST
+	CheckBehavior : BOOL; // True : Behavior is correct
+	CheckWareHouseSetting : BOOL; // True : WareHouse setting is correct
+	CheckPullOutConveyorSetting : BOOL; // True : PullOut Conveyor setting is correct
+	CheckPickUpArea : BOOL; // True : PickUp Area is correct
+	CheckPlaceArea : BOOL; // True : Place Area is correct
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Memory clear
+CheckBehavior := FALSE;
+// Check command is correct
+IF info.ClampA_Setting.Behavior = E_ClampWork.Work OR info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	CheckBehavior := TRUE;
+ELSE
+	CheckBehavior := FALSE;
+END_IF
+
+
+M_CheckCommand := CheckBehavior;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsNotBusy" Id="{ce0c22e5-983f-4b1e-88de-1074569a5dac}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsNotBusy : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsNotBusy := true; // need add units check ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CheckUnitsReady" Id="{81debe24-5c6f-4343-9972-1c207568b433}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_CheckUnitsReady : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckUnitsReady := NOT (Robot.Error (*OR PullOutConveyor.Error OR FeedInConveyor.bError OR WareHouse.bError*));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReloadPulloutConveyorBox" Id="{18000816-19b9-49bd-a1dd-e442d1b58b66}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_ReloadPulloutConveyorBox : BOOL
+VAR_INPUT
+	Execute : BOOL;
+	SlideSelect : E_PullOutConveyorPosition;
+END_VAR
+VAR_INST
+	uiReloadPulloutConveyorBoxStep : UDINT;
+	fbExecute_Rtrig : R_TRIG;
+	fbExecute_Ftrig : F_TRIG;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbExecute_Rtrig(CLK := Execute);
+fbExecute_Ftrig(CLK := Execute);
+IF fbExecute_Rtrig.Q THEN
+	uiReloadPulloutConveyorBoxStep := 100;
+ELSIF fbExecute_Ftrig.Q THEN
+	uiReloadPulloutConveyorBoxStep := 99000;
+END_IF
+CASE uiReloadPulloutConveyorBoxStep OF
+	0 : 
+		// Wait command
+	99000:
+//		PullOutConveyor.FixCylinderA1.M_MoveBackward('');
+//		PullOutConveyor.FixCylinderA2.M_MoveBackward('');
+//		PullOutConveyor.FixCylinderB1.M_MoveBackward('');
+//		PullOutConveyor.FixCylinderB2.M_MoveBackward('');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SelectActionMode" Id="{431cc655-ff14-40a6-9efe-a1f3ee0f2207}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD M_SelectActionMode : E_FeedInAction
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior <> E_ClampWork.Work THEN
+	IF info.ClampA_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseA THEN
+		M_SelectActionMode := E_FeedInAction.ClampA_WareHouseA;
+	ELSIF info.ClampA_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseB THEN
+		M_SelectActionMode := E_FeedInAction.ClampA_WareHouseB;
+	ELSIF info.ClampA_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.PullOutConveyor THEN
+		M_SelectActionMode := E_FeedInAction.ClampA_PullOutConveyor;
+	END_IF
+ELSIF info.ClampA_Setting.Behavior <> E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	IF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseA THEN
+		M_SelectActionMode := E_FeedInAction.ClampB_WareHouseA;
+	ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseB THEN
+		M_SelectActionMode := E_FeedInAction.ClampB_WareHouseB;
+	ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.PullOutConveyor THEN
+		M_SelectActionMode := E_FeedInAction.ClampB_PullOutConveyor;
+	END_IF
+ELSIF info.ClampA_Setting.Behavior = E_ClampWork.Work AND info.ClampB_Setting.Behavior = E_ClampWork.Work THEN
+	IF info.ClampA_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.PullOutConveyor THEN
+		IF  info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseA THEN
+			M_SelectActionMode := E_FeedInAction.A_PullOut_B_WareHouseA;
+		ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseB THEN
+			M_SelectActionMode := E_FeedInAction.A_PullOut_B_WareHouseB;
+		ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.PullOutConveyor THEN
+			M_SelectActionMode := E_FeedInAction.A_PullOut_B_PullOut;
+		END_IF
+	ELSIF info.ClampA_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseA THEN
+		IF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseA THEN
+			M_SelectActionMode := E_FeedInAction.A_WareHouseA_B_WareHouseA;
+		ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseB THEN
+			M_SelectActionMode := E_FeedInAction.A_WareHouseA_B_WareHouseB;
+		ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.PullOutConveyor THEN
+			M_SelectActionMode := E_FeedInAction.A_WareHouseA_B_PullOut;
+		END_IF
+	ELSIF info.ClampA_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseB THEN
+		IF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseA THEN
+			M_SelectActionMode := E_FeedInAction.A_WareHouseB_B_WareHouseA;
+		ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.WareHouseB THEN
+			M_SelectActionMode := E_FeedInAction.A_WareHouseB_B_WareHouseB;
+		ELSIF info.ClampB_Setting.PickUpArea = E_FeedInEmptyBox_PickUpArea.PullOutConveyor THEN
+			M_SelectActionMode := E_FeedInAction.A_WareHouseB_B_PullOut;
+		END_IF
+	END_IF
+END_IF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{7c897995-3107-4731-812e-7d76d33eecf8}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy    := FALSE;
+	Aborted := TRUE;
+	Error   := TRUE;
+	Status := strStatus ;
+	UniqueErrorCode := _UniqueErrorCode;
+	uiAbortingStep 		:= 0;
+	_AbortCompleted 	:= FALSE;
+	bTimeOutIN := FALSE;
+END_IF
+
+IF reset THEN
+	_bRetry := TRUE;
+	Error := _Error := FALSE;
+	Abort := _Abort := Aborted := FALSE;
+END_IF
+
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error AND NOT Robot.Halt THEN
+	Status := '';
+
+	uiExecutingStep   := uiResumeStep;
+	uiPlaceBothStep   := uiResumePlaceBothStep;
+
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	IF GVL_ADS.MachineState <>E_MachineState.Error THEN
+		eSTATE:=STATE_EXECUTING;
+	END_IF
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{dc1abcf5-1a82-46a8-aae1-d99b55a648d4}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiAbortingStep OF 
+	0:
+			_Abort 			:= FALSE;
+			bTimeOutIN		:= FALSE;
+			_bRetry			  := FALSE;
+			bWorkingConveyorMoveForward  := FALSE;
+			bWorkingConveyorMoveBackward := FALSE;
+			IF uiExecutingStep > 60000 THEN
+				WorkingConveyor.M_MotorStop();
+			END_IF
+			uiAbortingStep 	:= 10;
+			
+	10:		// Stop PullOut conveyor for all steps that use it
+			
+			IF uiResumeStep = 38000 THEN
+				CASE uiResumePickUpBothStep OF
+					0,20:
+							DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+							uiAbortingStep := 50;
+					10,99:
+							uiAbortingStep := 50;
+				END_CASE
+			ELSIF uiResumeStep = 12000 OR uiResumeStep = 22000 OR
+				  uiResumeStep = 32100 OR uiResumeStep = 35100 OR
+				  uiResumeStep = 36000 OR uiResumeStep = 37000 THEN
+				DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+				uiAbortingStep := 100;
+			ELSE
+					uiAbortingStep := 50;
+			END_IF
+			
+	50:		// 判別可以續做的子步驟，只給予這些子步驟 續做步驟，避免其他步驟回Executing 後，進入錯的子步驟
+			IF uiResumeStep = 81000 THEN
+				CASE uiPlaceBothStep OF
+					30,40,50,90,99:
+								uiPlaceBothStep	:= uiResumePlaceBothStep;
+				ELSE
+					;
+				END_CASE
+				uiAbortingStep	:= 100;
+				
+			ELSIF uiResumeStep = 61000 THEN
+				CASE uiPlaceSingleStep OF
+					400:
+							uiPlaceSingleStep := uiResumePlaceSingleStep;
+				ELSE
+					;
+				END_CASE
+				uiAbortingStep := 100;
+				
+			ELSIF uiResumeStep = 71000 THEN
+				CASE uiPlaceSingleStep OF 
+					400:
+							uiPlaceSingleStep := uiResumePlaceSingleStep;
+				ELSE
+					;
+				END_CASE
+				uiAbortingStep := 100;
+				
+			ELSE
+				uiAbortingStep := 100;
+			END_IF
+			
+	100:
+			IF Robot._DI1.Error (*AND Robot.ErrMsg ='Laser detected'*)THEN
+				uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	200:		
+			 IF DAS_CoreSys.MachineControl.M_RobotResetCmd() THEN
+				 uiAbortingStep := 300;
+			 END_IF
+	300:
+			IF DAS_CoreSys.MachineControl.M_RobotStartCmd() THEN
+				 uiAbortingStep := 400;
+			 END_IF 
+	400:
+			IF Robot._DI1.Error THEN
+		 		uiAbortingStep := 200;
+			ELSE
+				uiAbortingStep := 9999;
+			END_IF
+	9999:
+			_AbortCompleted := TRUE;
+	
+END_CASE
+IF strStatus = PreviousStrStatus THEN
+	_UniqueErrorCode :=PreviousErrorCode;
+END_IF
+IF _AbortCompleted THEN
+    eState := STATE_Aborted;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{ef78c692-92ba-4ddd-81c3-4c3053e5ec7f}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Done := TRUE;
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{3f232bee-8207-4a79-b216-166f480fd8d2}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Clear FB output
+Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           :=  FALSE;
+ErrorID         := 0;
+Status          := '';
+_ResetCompleted := FALSE;
+_Error          := FALSE;
+_Executed       := FALSE;
+uiExecutingStep := 0;
+uiResettingStep := 0;
+uiResumeStep			:= 0;
+uiResumePickUpBothStep	:= 0;
+uiResumePlaceBothStep	:= 0;
+uiResumePlaceSingleStep	:= 0;
+uiPickUpBothStep        := 0;
+uiPlaceBothStep         := 0;
+uiPlaceSingleStep		:= 0;
+tonPlaceSensorDelay.IN :=FALSE;
+tonFeedInConveyorDelay.IN :=FALSE;
+bWorkingConveyorMoveForward  :=FALSE;
+bWorkingConveyorMoveBackward :=FALSE;
+AClampMoveDone	:= FALSE;
+BClampMoveDone	:= FALSE;
+_AClampDoingWork	:= FALSE;
+_BClampDoingWork	:= FALSE;
+bTimeOutIN :=FALSE;
+_UniqueErrorCode :='0';
+PreviousStrStatus			 :='';
+PreviousErrorCode			 :='';
+tonPlaceSensorDelay.PT:=T#2.5S;
+_AbortCompleted		:= FALSE;
+_bRetry	:= FALSE;
+Paused := FALSE;
+bPauseLatched := FALSE;
+uiPauseFromStep := 0;
+//DAS.fbStorageArea.M_InactivePulloutConveyorInternCtrl();
+// Wait Execute command
+IF Execute AND NOT stop THEN
+    eState := STATE_EXECUTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{abe8f6c1-933c-482e-b13c-59d621790fd9}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Robot.Bzone_AllowWork	:=FALSE;
+Error 					:= TRUE;
+Busy					:= FALSE;
+status 					:= strStatus;
+
+DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+WareHouse.M_ResetFeedInBox();
+WareHouse.M_ResetReloadBox();
+DiffSizeCV.M_MotorStop();
+SameSizeCV.M_MotorStop();
+
+IF NOT Execute THEN
+    eState := STATE_RESETTING;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{72ccddd0-2f32-49d9-b22f-aaaa4c0906f4}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+    ClampA_WareHouseCoordinates : ST_WareHouseCoordinates;
+    ClampB_WareHouseCoordinates : ST_WareHouseCoordinates;
+    BoxReady_1st                : BOOL;
+    BoxReady_2nd                : BOOL;
+    SlideClear_1st              : BOOL;
+    SlideClear_2nd              : BOOL;
+    TargetWarehouse             : E_WareHouse;
+    DiffSizeSlide_Clear         : BOOL;
+    SameSizeSlide_clear         : BOOL;
+    ActionMode                  : E_FeedInAction;
+END_VAR
+VAR
+
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Set status busy
+Busy := TRUE;
+Robot.Bzone_AllowWork:=Robot._DI12.BzoneInWork;
+
+IF __ISVALIDREF(WorkingConveyor) THEN
+	IF 	bWorkingConveyorMoveForward AND NOT WorkingConveyor.InBackWard THEN
+		WorkingConveyor.M_MoveForward();
+	END_IF
+	IF 	bWorkingConveyorMoveBackward AND NOT WorkingConveyor.InForWard THEN
+		WorkingConveyor.M_MoveBackward();
+	END_IF
+END_IF
+
+
+//Auto mode , just allow robot
+(*IF THIS^.Stop THEN // Pending the timeout when Stop signal occur
+	bTimeOutIN :=FALSE;
+END_IF*)
+CASE uiExecutingStep OF
+    0:
+        // Clear variable
+        ActionMode       := E_FeedInAction.Undefined;
+        BoxReady_1st     := FALSE;
+        BoxReady_2nd     := FALSE;
+		bWorkingConveyorMoveForward  :=FALSE;
+		bWorkingConveyorMoveBackward :=FALSE;
+		
+        uiPickUpBothStep := 0;
+        uiPlaceBothStep  := 0;
+		uiPlaceSingleStep := 0;
+        // Check command
+        IF M_CheckCommand() THEN
+            uiExecutingStep := 10;
+        END_IF
+    10: // Start process, check units first
+        IF M_CheckUnitsReady() THEN
+            uiExecutingStep := 20;
+        END_IF
+    20: // Check units not busy state
+        IF M_CheckUnitsNotBusy() THEN
+            uiExecutingStep := 1000;
+        END_IF
+    1000:
+        // Select action mode
+        ActionMode      := M_SelectActionMode();
+        uiExecutingStep := 1100;
+    1100:
+        // according action mode jump step
+        CASE ActionMode OF
+            E_FeedInAction.ClampA_WareHouseA:
+                uiExecutingStep := 10000; // Go to start only ClampA pickup from WareHouseA
+            E_FeedInAction.ClampA_WareHouseB:
+                uiExecutingStep := 11000; // Go to Start only ClampA pickup from WareHouseB
+            E_FeedInAction.ClampA_PullOutConveyor:
+                uiExecutingStep := 12000; // Go to Start only ClampA pickup form PulloutConveyor
+            E_FeedInAction.ClampB_WareHouseA:
+                uiExecutingStep := 20000; // Go to Start only ClampB pickup from WareHouseA
+            E_FeedInAction.ClampB_WareHouseB:
+                uiExecutingStep := 21000; // Go to Start only ClampB pickup from WareHouseB
+            E_FeedInAction.ClampB_PullOutConveyor:
+                uiExecutingStep := 22000; // Go to Start only ClampB pickup from PulloutConveyor
+            E_FeedInAction.A_WareHouseA_B_WareHouseA:
+                uiExecutingStep := 30000; // Go to Start ClampA pickup from WarehouseA, ClampB pickup from WarehouseA
+            E_FeedInAction.A_WareHouseA_B_WareHouseB:
+                uiExecutingStep := 31000; // Go to Start ClampA pickup from WarehouseA, ClmapB pickup from WarehouseB
+            E_FeedInAction.A_WareHouseA_B_PullOut:
+                uiExecutingStep := 32000; // Go to Start ClampA pickup from WarehouseA, ClampB pickup from PulloutConveyor
+            E_FeedInAction.A_WareHouseB_B_WareHouseA:
+                uiExecutingStep := 33000; // Go to Start ClampA pickup from WarehouseB, ClampB pickup from WarehouseA
+            E_FeedInAction.A_WareHouseB_B_WareHouseB:
+                uiExecutingStep := 34000; // Go to Start ClampA pickup from WarehouseB, CLampB pickup from WarehouseB
+            E_FeedInAction.A_WareHouseB_B_PullOut:
+                uiExecutingStep := 35000; // Go to Start ClampA pickup from WarehouseB, ClampB pickup from PulloutConveyor
+            E_FeedInAction.A_PullOut_B_WareHouseA:
+                uiExecutingStep := 36000; // Go to Start ClampA pickup from PulloutConveyor, ClampB pickup from WarehouseA
+            E_FeedInAction.A_PullOut_B_WareHouseB:
+                uiExecutingStep := 37000; // Go to Start ClampA pickup from PulloutConveyor, ClampB pickup from WarehouseB
+            E_FeedInAction.A_PullOut_B_PullOut:
+                uiExecutingStep := 38000; // Go to Start ClampBoth pickup from PulloutConveyor
+        END_CASE
+    10000: // Only clampA pickup box from WareHouseA
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._DI1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st 	 := TRUE;
+				_AClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+												   
+			//  robot doing AClamp done
+			IF _AClampDoingWork AND  NOT Robot._DI1.ClampA_Open THEN
+				AClampMoveDone := TRUE;
+			END_IF
+        ELSE
+            IF Robot.M_ResetWareHousePickUpBox_ClampA() THEN
+                // Clear command and go to place box
+				bTimeOutIN:=FALSE;
+                uiExecutingStep := 60000; // only place clampA
+            END_IF
+        END_IF
+			
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=10000;
+			_Abort :=TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 10000: Pick Box timeout';
+		END_IF
+		
+    11000: // Only ClampA pickup box from WareHouseB
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st 	 := TRUE;
+				_AClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+			//  robot doing AClamp done
+			IF _AClampDoingWork AND  NOT Robot._DI1.ClampA_Open THEN
+				AClampMoveDone := TRUE;
+			END_IF
+        ELSE
+            IF Robot.M_ResetWareHousePickUpBox_ClampA() THEN
+                // Clear command and go to place box
+				bTimeOutIN:=FALSE;
+                uiExecutingStep := 60000; // only place clampA
+            END_IF
+        END_IF
+
+				
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=11000;
+			_Abort 		:=TRUE;			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 11000: Pick Box timeout';
+		END_IF
+		
+    12000: // Only ClampA pickup box from pullout conveyor
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._di1.Done THEN
+			DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+            IF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+				DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
+																					 
+            ELSIF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+				DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
+            ELSE
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 12000: Not define PulloutConveyor Slide';
+                _Error := TRUE;
+            END_IF
+			
+			IF DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Done THEN
+					BoxReady_1st     := TRUE;
+			END_IF
+			
+            Robot.M_StartPullOutConveyorPickUpBox_ClampA(ClampA_Address := Info.ClampA_Setting.PullOutConveyorSetting,
+                                                         BoxReady       := BoxReady_1st);
+        ELSE
+            IF Robot.M_ResetPullOutConveyorPickUpBox_ClampA() THEN
+                DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlideA_FeedIn();
+				bTimeOutIN:=FALSE;
+                uiExecutingStep := 60000; // only place clampA
+            END_IF
+        END_IF;
+				
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			_Abort :=TRUE;
+			uiResumeStep:=12000;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 12000: Pick Box timeout';
+		END_IF
+		
+    20000: // Only clampB pickup box from WareHouseA
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd 	 := TRUE;
+				_BClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+			// make sure robot doing Clamp done
+			IF _BClampDoingWork AND  NOT Robot._DI1.ClampB_Open THEN
+				BClampMoveDone := TRUE;
+			END_IF
+        ELSE
+            IF Robot.M_ResetWareHousePickUpBox_ClampB() THEN
+                // Clear command and go to place box
+				bTimeOutIN:=FALSE;
+                uiExecutingStep := 70000; // only place clampA
+            END_IF
+        END_IF
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN	:= FALSE;
+			_Abort 		:= TRUE;
+			uiResumeStep:= 20000;			
+			strStatus 	:= 'FB_FeedInEmptyBoxWithRobot_V3 Step 20000: Pick Box timeout';
+		END_IF
+    21000: // Only ClampB pickup box from WareHouseB
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd 	 := TRUE;
+				_BClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+			// robot doing Clamp done
+			IF _BClampDoingWork AND  NOT Robot._DI1.ClampB_Open THEN
+				BClampMoveDone := TRUE;
+			END_IF
+        ELSE
+            IF Robot.M_ResetWareHousePickUpBox_ClampB() THEN
+                // Clear command and go to place box
+				bTimeOutIN:=FALSE;
+                uiExecutingStep := 70000; // only place clampA
+            END_IF
+        END_IF
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			_Abort 		:= TRUE;
+			uiResumeStep:= 21000;				
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 21000: Pick Box timeout';
+		END_IF
+
+    22000: // Only ClampB pickup box from PullOut conveyor
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._di1.Done THEN
+            DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+            IF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+                DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
+            ELSIF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+                DAS_CoreSys.MachineControl.fballocatearea.M_StartStoragePulloutAction(CommandType 	 := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+																					 CV_BackwardTIme := T#0S,
+																					 CV_ForwardTime  := T#0S);
+            ELSE
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 22000: Not define PulloutConveyor Slide';
+                _Error := TRUE;
+            END_IF
+			
+			IF DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done THEN
+				BoxReady_2nd := TRUE;
+			END_IF
+			
+            Robot.M_StartPullOutConveyorPickUpBox_ClampB(ClampB_Address := Info.ClampB_Setting.PullOutConveyorSetting,
+                                                         BoxReady       := BoxReady_2nd);
+        ELSE
+            IF Robot.M_ResetPullOutConveyorPickUpBox_ClampB() THEN
+                DAS_CoreSys.MachineControl.fbStorageArea.M_ResetSlideA_FeedIn();
+				bTimeOutIN:=FALSE;
+                uiExecutingStep := 70000; // only place clampA
+            END_IF
+        END_IF;
+				
+		IF tonTimeOut.Q THEN
+			bTimeOutIN	:= FALSE;	// 對齊 10000/11000/12000/20000/21000 的 timeout handler,避免 timer 殘留 IN=TRUE
+			uiResumeStep:= 22000;
+			_Abort 		:= TRUE;
+			strStatus 	:= 'FB_FeedInEmptyBoxWithRobot_V3 Step 22000: Pick Box timeout';
+		END_IF
+		
+    30000: // ClampA pickup from WarehouseA, ClampB pickup from WarehouseA
+        ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+        ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;		
+        CASE uiPickUpBothStep OF
+            0: // ClampA target slide move the box to front side
+                WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_1st     := TRUE;
+					_AClampDoingWork := TRUE;
+                    uiPickUpBothStep := 10;
+                END_IF
+
+            10: // wait Robot Allow continue
+                IF Robot._DI1.Notification AND
+                    NOT
+                    WareHouse._stWarehouseList.ASide_Layers[ClampA_WareHouseCoordinates.Layer].stStatus.bSlides[ClampA_WareHouseCoordinates.Slide]
+                    THEN
+                    WareHouse.M_ResetReloadBox();
+
+                    IF NOT WareHouse.bReloadBox_Completed THEN
+                        uiPickUpBothStep := 20;
+                    END_IF
+
+                END_IF
+            20: // ClampB target slide move the box to front slide
+                WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_2nd     := TRUE;
+					_BClampDoingWork := TRUE;
+                    uiPickUpBothStep := 99;
+                END_IF
+            99:
+        // wait reset
+        END_CASE
+			bTimeOutIN :=TRUE;	
+        	Robot.M_StartWareHousePickUpBox_ClampBoth(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                  ClampA_Info     := ClampA_WareHouseCoordinates,
+                                                  ClampB_Info     := ClampB_WareHouseCoordinates,
+                                                  BoxReady_1st    := BoxReady_1st,
+                                                  BoxReady_2nd    := BoxReady_2nd);
+			// robot doing Clamp done
+			IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+				AClampMoveDone := TRUE;
+			END_IF						
+			// robot doing Clamp done
+			IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN
+				BClampMoveDone := TRUE;
+			END_IF
+
+			IF Robot._DI1.Done THEN
+				bTimeOutIN:=FALSE;
+				uiExecutingStep := 80000; // go to place step
+			END_IF
+					
+			IF tonTimeOut.Q THEN
+				bTimeOutIN:=FALSE;
+				uiResumeStep:= 30000;
+				_Abort 		:= TRUE;
+				strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 30000: Pick Box timeout';
+			END_IF
+		
+    31000: // ClampA pickup from WarehouseA, ClampB pickup from WarehouseB
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._DI1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st 	 := TRUE;
+				_AClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+												   
+			// robot doing Clamp done
+			IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+				AClampMoveDone := TRUE;
+			END_IF
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 31080;
+		END_IF
+				
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:= 31000;
+			_Abort 		:= TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 31000: Pick Box timeout';
+		END_IF
+		
+	31080:
+		Robot.M_ResetAllCommand(); // Clear command and go to place box
+		IF NOT Robot._di1.Done THEN
+			uiExecutingStep := 31100;// ClampA pickup finished, ClampB pickup start
+		END_IF
+		
+    31100:
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd 	 := TRUE;
+				_BClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+			
+			// robot doing Clamp done
+			IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN
+				BClampMoveDone := TRUE;
+			END_IF						   
+												   
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 31180;
+		END_IF
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:= 31100;
+			_Abort 		:= TRUE;			
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 31100: Pick Box timeout';
+		END_IF
+		
+	31180:
+		Robot.M_ResetAllCommand(); // Clear command and go to place box
+		IF NOT Robot._di1.Done THEN
+			uiExecutingStep := 80000;// ClampA pickup finished, ClampB pickup start
+		END_IF
+		
+    32000: // ClampA pickup from WarehouseA, ClampB pickup from PulloutConveyor
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._DI1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st 	 := TRUE;
+				_AClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+												   
+			// robot doing Clamp done
+			IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+				AClampMoveDone := TRUE;
+			END_IF
+			
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 32080; // ClampA pickup finished, ClampB start	
+        END_IF
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=32000;
+			_Abort :=TRUE;			
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 32000: Pick Box timeout';
+		END_IF
+	32080:
+		Robot.M_ResetAllCommand();
+		// Clear command and go to place box
+		IF NOT Robot._di1.Done THEN
+			uiExecutingStep := 32100;// ClampA pickup finished, ClampB start
+		END_IF
+    32100:
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+        DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+            IF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSIF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSE
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 32100: Not define PulloutConveyor Slide';
+                _Error := TRUE;
+            END_IF
+
+            Robot.M_StartPullOutConveyorPickUpBox_ClampB(ClampB_Address := Info.ClampB_Setting.PullOutConveyorSetting,
+                                                         BoxReady       := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 32180;
+		END_IF
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=32100;
+			_Abort :=TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 32100: Pick Box timeout';
+		END_IF
+	32180:
+		robot.M_ResetAllCommand();
+		IF NOT Robot._DI1.Done THEN
+			uiExecutingStep := 80000;
+		END_IF
+    33000: // ClampA Pickup from WarehouseB, ClampB pickup from WarehouseA
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._di1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st 	 := TRUE;
+				_AClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+												   
+			// robot doing Clamp done
+			IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+				AClampMoveDone := TRUE;
+			END_IF
+			
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 33080;
+		END_IF
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=33000;
+			_Abort :=TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 33000: Pick Box timeout';
+		END_IF
+	33080:
+		Robot.M_ResetAllCommand(); // Clear command and go to place box
+		IF NOT Robot._DI1.Done THEN
+                uiExecutingStep := 33100; // only place clampA
+        END_IF
+    
+	33100:
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd 	 := TRUE;
+				_BClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+			// robot doing Clamp done
+			IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN
+				BClampMoveDone := TRUE;
+			END_IF										   									   
+        ELSE
+			Robot.M_ResetAllCommand(); // Clear command and go to place box
+			IF NOT Robot._DI1.Done THEN
+				bTimeOutIN:=FALSE;
+				uiExecutingStep := 80000; // only place clampA
+			END_IF
+        END_IF
+				
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			 uiResumeStep:=33100;
+			_Abort		 :=TRUE;
+			strStatus 	 :='FB_FeedInEmptyBoxWithRobot_V3 Step 33100: Place Box timeout';
+		END_IF
+		
+    34000: // ClampA pickup from WarehouseB, ClampB pickup from WarehouseB
+        ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+        ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+
+        CASE uiPickUpBothStep OF
+            0: // ClampA target slide move the box to front side
+                WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_1st     := TRUE;
+					_AClampDoingWork := TRUE;
+                    uiPickUpBothStep := 10;
+                END_IF
+
+            10: // wait Robot Allow continue
+                IF Robot._DI1.Notification AND
+                    NOT
+                    WareHouse._stWarehouseList.BSide_Layers[ClampA_WareHouseCoordinates.Layer].stStatus.bSlides[ClampA_WareHouseCoordinates.Slide]
+                    THEN
+                    WareHouse.M_ResetReloadBox();
+
+                    IF NOT WareHouse.bReloadBox_Completed THEN
+                        uiPickUpBothStep := 20;
+                    END_IF
+
+                END_IF
+            20: // ClampB target slide move the box to front slide
+                WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+                IF WareHouse.bReloadBox_Completed THEN
+                    BoxReady_2nd     := TRUE;
+					_BClampDoingWork := TRUE;
+                    uiPickUpBothStep := 99;
+                END_IF
+            99:
+        // wait reset
+        END_CASE
+		bTimeOutIN :=TRUE;
+        Robot.M_StartWareHousePickUpBox_ClampBoth(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                  ClampA_Info     := ClampA_WareHouseCoordinates,
+                                                  ClampB_Info     := ClampB_WareHouseCoordinates,
+                                                  BoxReady_1st    := BoxReady_1st,
+                                                  BoxReady_2nd    := BoxReady_2nd);
+												  
+		// robot doing Clamp done
+		IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN
+			BClampMoveDone := TRUE;
+		END_IF	
+		// robot doing Clamp done
+		IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+			AClampMoveDone := TRUE;
+		END_IF	
+
+        IF Robot._DI1.Done THEN
+			bTimeOutIN:=FALSE;
+            uiExecutingStep := 80000; // go to place step
+        END_IF
+		
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=34000;
+			_Abort :=TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 34000: Pick Box timeout';
+		END_IF
+		
+    35000: // ClampA pickup from WarehouseB, ClampB pickup from PulloutConveyor
+		bTimeOutIN :=TRUE;		
+		IF NOT Robot._DI1.Done THEN
+            ClampA_WareHouseCoordinates := info.ClampA_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampA_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_1st := TRUE;
+				_AClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampA(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampA_WareHouseCoordinates,
+                                                   BoxReady_1st    := BoxReady_1st);
+			// robot doing Clamp done
+				IF _AClampDoingWork AND NOT Robot._DI1.ClampA_Open THEN
+					AClampMoveDone := TRUE;
+				END_IF									   
+        ELSE
+		  tonTimeOut.IN:=FALSE;
+		  uiExecutingStep := 35100; // ClampA pickup finished, ClampB start 
+		END_IF
+		  tonTimeOut.IN :=TRUE;   
+		IF tonTimeOut.Q THEN
+		  tonTimeOut.IN:=FALSE;
+		  uiResumeStep:=35000;
+		  _Abort :=TRUE;
+		  strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 35000: Pick Box timeout';
+    	END_IF
+		
+    35100:
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._di1.Done THEN
+        DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+            IF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSIF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSE
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 35100: Not define PulloutConveyor Slide';
+                _Error := TRUE;
+            END_IF
+
+            Robot.M_StartPullOutConveyorPickUpBox_ClampB(ClampB_Address := Info.ClampB_Setting.PullOutConveyorSetting,
+                                                         BoxReady       := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+        ELSE
+            IF Robot.M_ResetPullOutConveyorPickUpBox_ClampB() THEN
+            DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+				bTimeOutIN:=FALSE;
+                uiExecutingStep := 80000; // only place clampA
+            END_IF
+        END_IF;
+					
+		IF tonTimeOut.Q THEN
+			bTimeOutIN	:=FALSE;
+			uiResumeStep:=35100;
+			_Abort 		:=TRUE;
+			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 Step 35100: Pick Box timeout';
+		END_IF
+		
+    36000: // ClampA pickup from PulloutConveyor, ClampB pickup from WarehouseA
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+        DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+            IF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSIF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSE
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 36000: Not define PulloutConveyor Slide';
+                _Error := TRUE;
+            END_IF
+
+            Robot.M_StartPullOutConveyorPickUpBox_ClampA(ClampA_Address := Info.ClampA_Setting.PullOutConveyorSetting,
+                                                         BoxReady       := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 36080;
+		END_IF
+						
+		IF tonTimeOut.Q THEN
+			bTimeOutIN	:=FALSE;
+			uiResumeStep:=36000;
+			_Abort 		:=TRUE;
+			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 Step 36000: Pick Box timeout';
+		END_IF
+		
+	36080:
+		Robot.M_ResetAllCommand();
+        DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+		IF NOT Robot._di1.Done THEN
+			uiExecutingStep := 36100; // only place clampA
+		END_IF
+    36100:
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd 	 := TRUE;
+				_BClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseA,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+			// robot doing Clamp done
+			IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN
+				BClampMoveDone := TRUE;
+			END_IF									   
+												   
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 36200;
+		END_IF
+						
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=36100;
+			_Abort :=TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 36100: Pick Box timeout';
+		END_IF
+		
+	36200:
+		Robot.M_ResetAllCommand(); // Clear command and go to place box
+		IF NOT Robot._DI1.Done THEN
+			uiExecutingStep := 80000; //  place clampA and clampB
+		END_IF 
+    37000: // ClampA pickup from PulloutConveyor, ClampB pickup from WarehouseB
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._di1.Done THEN
+        DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+            IF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSIF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+            ELSE
+                Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 37000: Not define PulloutConveyor Slide';
+                _Error := TRUE;
+            END_IF
+
+            Robot.M_StartPullOutConveyorPickUpBox_ClampA(ClampA_Address := Info.ClampA_Setting.PullOutConveyorSetting,
+                                                         BoxReady       := DAS_CoreSys.MachineControl.fballocatearea.fbPulloutCV.Done);
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 37080;
+		END_IF
+						
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=37000;
+			_Abort :=TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 37000: Pick Box timeout';
+		END_IF
+		
+		
+	37080:
+		Robot.M_ResetAllCommand();
+		IF NOT Robot._di1.Done THEN
+			// Clear Pullout conveyor reload command
+            DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+			uiExecutingStep := 37100;
+		END_IF
+    
+	37100:
+		bTimeOutIN :=TRUE;
+        IF NOT Robot._di1.Done THEN
+            ClampB_WareHouseCoordinates := info.ClampB_Setting.WareHouseSetting;
+            WareHouse.M_StartReloadBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := ClampB_WareHouseCoordinates);
+
+            IF WareHouse.bReloadBox_Completed THEN
+                BoxReady_2nd 	 := TRUE;
+				_BClampDoingWork := TRUE;
+            END_IF
+
+            Robot.M_StartWareHousePickUpBox_ClampB(WareHouseSelect := E_WareHouse.WareHouseB,
+                                                   Info            := ClampB_WareHouseCoordinates,
+                                                   BoxReady_2nd    := BoxReady_2nd);
+			// robot doing Clamp done
+			IF _BClampDoingWork AND NOT Robot._DI1.ClampB_Open THEN
+				BClampMoveDone := TRUE;
+			END_IF											   
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiExecutingStep := 37180;
+		END_IF
+				
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			uiResumeStep:=37100;
+			_Abort :=TRUE;
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 37100: Pick Box timeout';
+		END_IF
+	37180:
+		Robot.M_ResetAllCommand(); // Clear command and go to place box
+		IF NOT Robot._di1.Done THEN
+			uiExecutingStep := 80000; // only place clampA
+		END_IF
+    38000: // ClampBoth pickup from PulloutConveyor
+        DAS_CoreSys.MachineControl.fballocatearea.M_GetPulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+
+        CASE uiPickUpBothStep OF
+            0: // ClampA target slide move the box to front side
+                IF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+                ELSIF Info.ClampA_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+                ELSE
+                    Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 38000: Not define PulloutConveyor Slide';
+                    _Error := TRUE;
+                END_IF
+
+                IF DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Done THEN
+                    BoxReady_1st     := TRUE;
+                    uiPickUpBothStep := 10;
+                END_IF
+
+            10: // wait Robot Allow continue
+                IF Robot._DI1.Notification THEN
+            		DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+
+                    IF NOT DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Done THEN
+                        uiPickUpBothStep := 20;
+                    END_IF
+
+                END_IF
+            20: // ClampB target slide move the box to front slide
+                IF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I3_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideB_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+                ELSIF Info.ClampB_Setting.PullOutConveyorSetting = E_PullOutConveyorAddress.I4_Slide THEN
+                        DAS_CoreSys.MachineControl.fballocatearea
+                            .M_StartStoragePulloutAction(CommandType := E_PullOutConveyorCommandType.SlideA_FeedIn_Ext,
+                                                         CV_BackwardTIme := T#0S,
+                                                         CV_ForwardTime := T#0S);
+                ELSE
+                    Status := 'FB_FeedInEmptyBoxWithRobot_V3 Step 38000: Not define PulloutConveyor Slide';
+                    _Error := TRUE;
+                END_IF
+
+                IF DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Done THEN
+                    BoxReady_2nd     := TRUE;
+                    uiPickUpBothStep := 99;
+                END_IF
+            99:
+        // wait reset
+        END_CASE
+		bTimeOutIN :=TRUE;	
+        Robot.M_StartPullOutConveyorPickUpBox_ClampBoth(ClampA_Address := Info.ClampA_Setting.PullOutConveyorSetting,
+                                                        ClampB_Address := Info.ClampB_Setting.PullOutConveyorSetting,
+                                                        BoxReady_1     := BoxReady_1st,
+                                                        BoxReady_2     := BoxReady_2nd);
+
+        IF Robot._DI1.Done THEN
+			bTimeOutIN:=FALSE;
+            uiExecutingStep := 80000; // go to place step
+        END_IF
+		
+			
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			_Abort :=TRUE;	
+			uiResumeStep:=38000;		
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 38000: Pick Box timeout';
+		END_IF
+		IF DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Error THEN
+				uiResumeStep 	:= 38000;
+				uiResumePickUpBothStep := uiPickUpBothStep;
+				strStatus 		:= DAS_CoreSys.MachineControl.fballocatearea.fbpulloutcv.Status;
+				_Abort 			:= TRUE;
+			END_IF
+    60000: // Only ClampA place box
+        // Clear command
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        // Check robot RSR1 not working
+        IF NOT Robot._DI1.Done AND NOT (Robot._DI1.AbsMoveA OR Robot._DI1.AbsMoveB OR Robot._DI1.WarehouseA OR Robot._DI1.WarehouseB) THEN
+            uiExecutingStep := 61000;
+        END_IF
+    61000: // Only ClampA place box Start
+		bTimeOutIN :=TRUE;
+		M_UpdateConveyorSensor(Info.ClampA_Setting.PlaceArea);
+        IF NOT Robot._DI1.Done THEN
+			CASE uiPlaceSingleStep OF	
+				0: // setup
+				IF NOT DiffSizeCV.InBackWard AND NOT SameSizeCV.InBackWard THEN
+					CASE Info.ClampA_Setting.PlaceArea OF
+						E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor:					
+							WorkingConveyor REF= DiffSizeCV;
+						E_FeedInEmptyBox_PlaceArea.SameSizeConveyor:
+							WorkingConveyor REF= SameSizeCV;
+					END_CASE						
+				END_IF
+				IF __ISVALIDREF(WorkingConveyor) THEN
+					uiPlaceSingleStep:=100;
+				END_IF
+				
+				100://Move conveyor forward to free conveyor
+					bWorkingConveyorMoveForward:=  TRUE;
+					IF WorkingConveyor.InForWard THEN
+						uiPlaceSingleStep:=200;
+					END_IF
+	
+				200:// delay for a while
+					
+					tonPlaceSensorDelay.IN := NOT SelectedSensor;
+					IF tonPlaceSensorDelay.Q THEN
+						tonPlaceSensorDelay.IN:=FALSE;
+						uiPlaceSingleStep:=300;
+					END_IF
+					
+				300:// stop motor
+					WorkingConveyor.M_MotorStop(); 
+					bWorkingConveyorMoveForward:= FALSE;
+					bWorkingConveyorMoveBackward :=FALSE; 
+					IF	WorkingConveyor.InStopped THEN
+						uiPlaceSingleStep:=400;
+					END_IF
+				400:
+					WorkingConveyor.M_MotorStop(); 
+					IF Input.bDifferentSizeCV_BoxDetect7_Sensor THEN
+						DiffSizeSlide_Clear := FALSE;
+					ELSE
+						DiffSizeSlide_Clear := TRUE;
+					END_IF
+	
+					IF Input.bSameSizeCV_BoxNearStorageSensor THEN
+						SameSizeSlide_clear := FALSE;
+					ELSE
+						SameSizeSlide_clear := TRUE;
+					END_IF
+					IF Robot._DI1.Error THEN
+						uiResumeStep := 61000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
+						uiResumePlaceSingleStep := 0;
+						SameSizeSlide_clear		:= FALSE;
+						DiffSizeSlide_Clear		:= FALSE;
+						_Abort	  := TRUE;
+						strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 61000:',Robot.ErrMsg);
+					END_IF
+				
+			
+			END_CASE
+			
+            Robot.M_StartMoveBoxToFeedInConveyor_ClampA(ConveyorSlideSelect := Info.ClampA_Setting.PlaceArea,
+                                                        DiffSizeSlideClear  := DiffSizeSlide_Clear,
+                                                        SameSizeSlideClear  := SameSizeSlide_clear);
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiPlaceSingleStep:=0;
+            uiExecutingStep := 99000; // Go to process end
+        END_IF
+				
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			_Abort :=TRUE;		
+			uiResumeStep:=61000;	
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 61000: Place Box timeout';
+			IF Robot._DI1.Error THEN
+			bTimeOutIN  := FALSE;
+			_Abort		:= TRUE;
+			uiResumeStep:= 61000;
+			strStatus	:= CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 61000: ',robot.ErrMsg);
+		END_IF
+		END_IF
+    70000: // Only ClampB place box
+        // Clear command
+        WareHouse.M_ResetReloadBox();
+        Robot.M_ResetAllCommand();
+
+        // Check robot RSR1 not working
+        IF NOT Robot._DI1.Done AND NOT (Robot._DI1.AbsMoveA OR Robot._DI1.AbsMoveB OR Robot._DI1.WarehouseA OR Robot._DI1.WarehouseB) THEN
+			uiPlaceSingleStep :=0;
+            uiExecutingStep := 71000;
+        END_IF
+    71000:
+	
+		bTimeOutIN :=TRUE;
+		M_UpdateConveyorSensor(Info.ClampB_Setting.PlaceArea);
+        IF NOT Robot._DI1.Done THEN
+			CASE uiPlaceSingleStep OF	
+				0: // setup
+				IF NOT DiffSizeCV.InBackWard AND NOT SameSizeCV.InBackWard THEN
+					CASE Info.ClampB_Setting.PlaceArea OF
+						E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor:					
+							WorkingConveyor REF= DiffSizeCV;
+						E_FeedInEmptyBox_PlaceArea.SameSizeConveyor:
+							WorkingConveyor REF= SameSizeCV;
+					END_CASE						
+				END_IF
+				IF __ISVALIDREF(WorkingConveyor) THEN
+					uiPlaceSingleStep:=100;
+				END_IF
+				
+				100://Move conveyor forward to free conveyor
+					bWorkingConveyorMoveForward:=  TRUE;
+					IF WorkingConveyor.InForWard THEN
+						uiPlaceSingleStep:=200;
+					END_IF
+	
+				200:// delay for a while
+					
+					tonPlaceSensorDelay.IN := NOT SelectedSensor;
+					IF tonPlaceSensorDelay.Q THEN
+						tonPlaceSensorDelay.IN:=FALSE;
+						uiPlaceSingleStep:=300;
+					END_IF
+					
+				300:// stop motor
+					WorkingConveyor.M_MotorStop(); 
+					bWorkingConveyorMoveForward:= FALSE;
+					bWorkingConveyorMoveBackward :=FALSE; 
+					tonPlaceSensorDelay.IN:=FALSE;
+					IF	WorkingConveyor.InStopped THEN
+						uiPlaceSingleStep:=400;
+					END_IF
+				400:
+					WorkingConveyor.M_MotorStop(); 
+					IF Input.bDifferentSizeCV_BoxDetect7_Sensor THEN
+						DiffSizeSlide_Clear := FALSE;
+					ELSE
+						DiffSizeSlide_Clear := TRUE;
+					END_IF
+	
+					IF Input.bSameSizeCV_BoxNearStorageSensor THEN
+						SameSizeSlide_clear := FALSE;
+					ELSE
+						SameSizeSlide_clear := TRUE;
+					END_IF
+					IF Robot._DI1.Error THEN
+						uiResumeStep := 71000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
+						uiResumePlaceSingleStep := 0;
+						DiffSizeSlide_Clear		:= FALSE;
+						SameSizeSlide_clear		:= FALSE;
+						_Abort	  := TRUE;
+						strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 71000:',Robot.ErrMsg);
+					END_IF
+			
+			END_CASE
+			
+            Robot.M_StartMoveBoxToFeedInConveyor_ClampB(ConveyorSlideSelect := Info.ClampB_Setting.PlaceArea,
+                                                        DiffSizeSlideClear  := DiffSizeSlide_Clear,
+                                                        SameSizeSlideClear  := SameSizeSlide_clear);
+        ELSE
+			bTimeOutIN:=FALSE;
+			uiPlaceSingleStep:=0;
+            uiExecutingStep := 99000; // Go to process end
+        END_IF	       
+       	
+		IF tonTimeOut.Q THEN
+			bTimeOutIN	:= FALSE;
+			_Abort 		:= TRUE;
+			uiResumeStep:= 71000;
+			strStatus 	:='FB_FeedInEmptyBoxWithRobot_V3 Step 71000: Place Box timeout';
+		END_IF
+		IF Robot._DI1.Error THEN
+			bTimeOutIN	:= FALSE;
+			_Abort		:= TRUE;	// typo fix: 原本寫成 FALSE,會把同 scan 內 sub-step 已設的 _Abort:=TRUE 蓋掉,造成 Fanuc 報錯時 FB 卡在 71000 不轉 ABORTING (對齊 61000 / 81000 行為)
+			uiResumeStep:= 71000;
+			strStatus	:= CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 71000:',robot.ErrMsg);
+		END_IF
+		
+    80000:
+			IF NOT Robot._DI1.ClampA_Open AND NOT Robot._DI1.ClampB_Open THEN
+				uiExecutingStep := 80100;
+			ELSE
+				_Abort 	  := TRUE;
+				strStatus := 'FB_FeedInEmptyBoxWithRobot_V3 Step 80000: Robot Use Both Clamp Place ,but Clamp open';
+			END_IF	 
+		
+    80100: // Both Clamp place box
+        WareHouse.M_ResetReloadBox(); // Clear Warehouse reload command
+        Robot.M_ResetAllCommand(); // Clear Fanuc Robot command
+		bTimeOutIN := FALSE;
+        IF NOT Robot._DI1.Done THEN
+            uiExecutingStep := 81000;
+        END_IF;
+    81000:
+			
+        CASE uiPlaceBothStep OF
+			
+            0:  //setup              
+                SlideClear_1st  := FALSE;
+                SlideClear_2nd  := FALSE;
+			IF NOT DiffSizeCV.InBackWard AND NOT SameSizeCV.InBackWard THEN
+				CASE Info.ClampA_Setting.PlaceArea OF
+					E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor:
+						WorkingConveyor REF=DiffSizeCV;
+					E_FeedInEmptyBox_PlaceArea.SameSizeConveyor:
+						WorkingConveyor REF= SameSizeCV;						
+				END_CASE
+				IF __ISVALIDREF(WorkingConveyor) THEN
+					uiPlaceBothStep := 5;
+				END_IF
+			END_IF
+				
+			5://Move motor forward
+				bWorkingConveyorMoveForward:=  TRUE;
+				IF WorkingConveyor.InForWard THEN
+					uiPlaceBothStep := 10;
+				END_IF
+				
+				
+            10://Delay for a while
+				M_UpdateConveyorSensor(Info.ClampA_Setting.PlaceArea);
+				tonPlaceSensorDelay.IN := NOT SelectedSensor AND WorkingConveyor.InForWard ;
+				IF tonPlaceSensorDelay.Q THEN
+					tonPlaceSensorDelay.IN:=FALSE;
+					uiPlaceBothStep := 20;
+				END_IF
+				
+				
+             20://Stop movor
+					WorkingConveyor.M_MotorStop(); 					
+					bWorkingConveyorMoveForward:= FALSE;
+					bWorkingConveyorMoveBackward :=FALSE; 
+//					IF WorkingConveyor.InStopped THEN		// 放盒不需要確認軌道停，會跟出貨手臂互卡  edited Gamin 2026/04/28
+//						uiPlaceBothStep := 30;
+//					END_IF 
+					uiPlaceBothStep := 30;
+
+			30:	// ClampA place box
+				
+				WorkingConveyor.M_MotorStop(); 	
+				bWorkingConveyorMoveForward:= FALSE;
+				bWorkingConveyorMoveBackward :=FALSE; 
+//				IF	WorkingConveyor.InStopped THEN
+                	IF info.ClampA_Setting.PlaceArea = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+                    	IF Input.bDifferentSizeCV_BoxDetect7_Sensor THEN
+                        	SlideClear_1st := FALSE;
+                    	ELSE
+                        	SlideClear_1st := TRUE;
+                    	END_IF
+
+                	ELSIF info.ClampA_Setting.PlaceArea = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+                    	IF Input.bSameSizeCV_BoxNearStorageSensor THEN
+                        	SlideClear_1st := FALSE;
+                    	ELSE
+                        	SlideClear_1st := TRUE;
+                    	END_IF
+                	END_IF
+					IF SlideClear_1st  THEN
+                		uiPlaceBothStep := 40;
+					END_IF
+//				ELSE
+//					SlideClear_1st := FALSE;
+//				END_IF
+				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
+					uiResumePlaceBothStep := 0;
+					SlideClear_1st		  := FALSE;
+					_Abort	  := TRUE;
+					strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
+				END_IF
+            40: //setup for clampB				
+			
+				CASE Info.ClampB_Setting.PlaceArea OF
+					E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor:
+						WorkingConveyor REF= DiffSizeCV;
+					E_FeedInEmptyBox_PlaceArea.SameSizeConveyor:
+						WorkingConveyor REF= SameSizeCV;
+				END_CASE
+				IF __ISVALIDREF(WorkingConveyor) THEN
+					uiPlaceBothStep := 50;
+				END_IF
+				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
+					uiResumePlaceBothStep := 0;
+					SlideClear_1st		  := FALSE;
+					_Abort	  := TRUE;
+					strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
+				END_IF
+
+			50://Wait Robot finish clampA
+				IF Robot._DI1.Notification THEN
+					uiPlaceBothStep:=60;
+				END_IF
+				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
+					uiResumePlaceBothStep := 0;
+					SlideClear_1st		  := FALSE;
+					_Abort	  := TRUE;
+					strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
+				END_IF
+
+			60://Move conveyor forward
+				bWorkingConveyorMoveForward:=  TRUE;
+				IF WorkingConveyor.InForWard THEN
+					uiPlaceBothStep:=70;
+				END_IF
+				
+			70://Update sensor
+				M_UpdateConveyorSensor(Info.ClampB_Setting.PlaceArea);
+				tonPlaceSensorDelay.IN := NOT SelectedSensor AND WorkingConveyor.InForWard ;
+				IF 	tonPlaceSensorDelay.Q THEN
+					tonPlaceSensorDelay.IN:=FALSE;
+					uiPlaceBothStep:=80;
+				END_IF
+				
+			80://Stop conveyor
+				WorkingConveyor.M_MotorStop(); 
+				bWorkingConveyorMoveForward:= FALSE;
+				bWorkingConveyorMoveBackward :=FALSE; 
+//				IF WorkingConveyor.InStopped THEN
+//					uiPlaceBothStep:=90;
+//				END_IF
+				uiPlaceBothStep:=90;
+			90:		
+				WorkingConveyor.M_MotorStop(); 
+				bWorkingConveyorMoveForward:= FALSE;
+				bWorkingConveyorMoveBackward :=FALSE; 
+//				IF	WorkingConveyor.InStopped THEN
+               		 IF info.ClampB_Setting.PlaceArea = E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor THEN
+                 	   IF Input.bDifferentSizeCV_BoxDetect7_Sensor THEN						
+                    	    SlideClear_2nd := FALSE;
+                   		 ELSE                        
+							SlideClear_2nd := TRUE;							
+                   		 END_IF
+					
+               		 ELSIF info.ClampB_Setting.PlaceArea = E_FeedInEmptyBox_PlaceArea.SameSizeConveyor THEN
+                 	   IF Input.bSameSizeCV_BoxNearStorageSensor THEN
+                 	       SlideClear_2nd := FALSE;
+                 		ELSE
+							SlideClear_2nd := TRUE;
+							
+                  		END_IF
+               			 END_IF
+//				END_IF
+				
+				IF SlideClear_2nd THEN
+                	uiPlaceBothStep := 99;
+					tonPlaceSensorDelay.IN :=FALSE;
+				END_IF
+				IF Robot._DI1.Error THEN
+						uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
+						uiResumePlaceBothStep := 60;
+						SlideClear_2nd		  := FALSE;
+						_Abort	  := TRUE;
+						strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
+					END_IF
+
+			99:
+				IF Robot._DI1.Error THEN
+					uiResumeStep := 81000;	// 補 missing assignment:雷射觸發 Robot.Error 走這條 abort 路徑時,uiResumeStep 必須設成本 step,否則 ABORTING/ABORTED 會用前一階段(pickup)的舊值,resume 跳回 pickup → 撞機
+					uiResumePlaceBothStep := 60;
+					SlideClear_2nd		  := FALSE;
+					_Abort	  := TRUE;
+					strStatus := CONCAT('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
+				END_IF
+        // wait reset
+        END_CASE
+		bTimeOutIN :=TRUE;	
+        IF NOT Robot._DI1.Done THEN
+            Robot.M_StartMoveBoxToFeedInConveyor_ClampBoth(ClampA_Address := info.ClampA_Setting.PlaceArea,
+                                                           ClampB_Address := info.ClampB_Setting.PlaceArea,
+                                                           SlideClear_1st := SlideClear_1st,
+                                                           SlideClear_2nd := SlideClear_2nd);
+        ELSE
+			bTimeOutIN:=FALSE;
+            uiExecutingStep := 90000;
+        END_IF
+			
+		IF tonTimeOut.Q THEN
+			bTimeOutIN:=FALSE;
+			_Abort :=TRUE;	
+			uiResumeStep:=81000;		
+			strStatus :='FB_FeedInEmptyBoxWithRobot_V3 Step 81000: Place Box timeout';
+		END_IF
+		IF Robot._DI1.Error THEN
+			bTimeOutIN  := FALSE;
+			_Abort 		:= TRUE;
+			uiResumeStep:= 81000;
+			strStatus	:= concat('FB_FeedInEmptyBoxWithRobot_V3 Step 81000:',Robot.ErrMsg);
+			//strStatus	:= 'Test ErrMsg';
+		END_IF
+	
+	90000: // Move conveyor forward a bit
+		bWorkingConveyorMoveForward:=TRUE;
+		IF WorkingConveyor.InForWard THEN
+			uiExecutingStep := 91000;
+		END_IF
+	
+	91000:// DELAY
+		tonPlaceSensorDelay.PT:=T#0.8S;
+		tonPlaceSensorDelay.IN :=TRUE;
+		IF tonPlaceSensorDelay.Q THEN
+			uiExecutingStep := 92000;
+		END_IF
+	
+	92000:// STOP MOTOR
+		tonPlaceSensorDelay.IN :=FALSE;
+		bWorkingConveyorMoveForward:=FALSE;
+		WorkingConveyor.M_MotorStop();
+		IF WorkingConveyor.InStopped THEN
+			uiExecutingStep := 99000;
+		END_IF
+			
+				
+    99000: // process done
+        // Stop FeedIn conveyor
+		tonFeedInConveyorDelay.IN :=TRUE;		//Delay FeedInConveyor stop 500MS Edit by Min
+		IF tonFeedInConveyorDelay.Q THEN
+			DAS_CoreSys.MachineControl.fballocatearea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+			DiffSizeCV.M_MotorStop();
+			SameSizeCV.M_MotorStop();
+			bWorkingConveyorMoveForward:=FALSE;
+			tonFeedInConveyorDelay.IN :=FALSE;
+			Status    := 'FB_FeedInEmptyBoxWithRobot_V3 Step 99000: Process completed';
+				IF DiffSizeCV.InStopped AND SameSizeCV.InStopped THEN
+				 _Executed := TRUE;
+				END_IF
+		END_IF
+END_CASE
+
+// 移植 mirror V4 (commit 326aa68): _Executed 判斷加 NOT Robot.Halt 防止暫停期間誤跳 DONE;
+// 新增 ELSIF Pause 進 STATE_Holding,啟動 PackML 暫停流程
+IF _Executed AND NOT Robot.Halt THEN
+    eState := STATE_DONE;
+ELSIF NOT Execute THEN
+    eState := STATE_RESETTING;
+ELSIF Pause THEN
+	bPauseLatched := TRUE;
+	uiPauseFromStep := uiExecutingStep;
+	_HoldingCompleted := FALSE;
+	_HeldCompleted := FALSE;
+	_UnholdCompleted := FALSE;
+	uiHoldingStep := 0;
+	uiHeldStep := 0;
+	uiUnholdStep := 0;
+	eState := STATE_Holding;
+ELSIF Abort OR _Abort THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eState := STATE_ABORTING;
+ELSIF _Error THEN
+	//FUN_UniqueErrorCodeGenerator(iErrorID := ErrorID,UinqueErrorCode=>_UniqueErrorCode);
+	eState := STATE_ERROR;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HELD" Id="{84762d55-a6ab-4a3a-90a3-9708a6fda935}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_HELD
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := FALSE;
+Paused := TRUE;
+Status := 'Paused';
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Abort OR _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+ELSIF NOT Pause THEN
+	_UnholdCompleted := FALSE;
+	uiUnholdStep := 0;
+	eState := STATE_UnHold;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HOLDING" Id="{a5f272a8-fb23-4c39-a704-782231805356}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_HOLDING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := TRUE;
+Paused := FALSE;
+Status := 'Pause holding';
+
+bTimeOutIN := FALSE;
+tonPlaceSensorDelay.IN := FALSE;
+tonFeedInConveyorDelay.IN := FALSE;
+bWorkingConveyorMoveForward := FALSE;
+bWorkingConveyorMoveBackward := FALSE;
+
+CASE uiHoldingStep OF
+	0:
+		CASE uiExecutingStep OF
+			0,10,20,1000,1100:
+				uiHoldingStep := 9999;
+
+			61000,71000,81000,90000,91000,92000:
+				IF __ISVALIDREF(WorkingConveyor) THEN
+					WorkingConveyor.M_MotorStop();
+					IF WorkingConveyor.InStopped THEN
+						uiHoldingStep := 9999;
+					END_IF
+				ELSE
+					DiffSizeCV.M_MotorStop();
+					SameSizeCV.M_MotorStop();
+					IF DiffSizeCV.InStopped AND SameSizeCV.InStopped THEN
+						uiHoldingStep := 9999;
+					END_IF
+				END_IF
+
+			99000:
+				DAS_CoreSys.MachineControl.fballocatearea.M_ReleasePulloutAccess(
+					ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+				DiffSizeCV.M_MotorStop();
+				SameSizeCV.M_MotorStop();
+				IF DiffSizeCV.InStopped AND SameSizeCV.InStopped THEN
+					_Executed := TRUE;
+					uiHoldingStep := 9999;
+				END_IF
+
+		ELSE
+			DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+			IF Robot.Halt OR Robot._DI1.Done OR NOT Robot._DI12.BzoneInWork THEN
+				uiHoldingStep := 9999;
+			END_IF
+		END_CASE
+
+	9999:
+		_HoldingCompleted := TRUE;
+END_CASE
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Abort OR _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+ELSIF _Executed THEN
+	eState := STATE_DONE;
+ELSIF _HoldingCompleted THEN
+	eState := STATE_Held;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{14acce75-cc5f-4708-92ae-82c265c6f85c}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD  M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _Executed THEN Done :=TRUE ; END_IF
+CASE uiResettingStep OF
+	0:
+		//DAS.fbStorageArea.M_InactivePulloutConveyorInternCtrl();
+		Robot.M_ResetAllCommand();
+		Robot.Bzone_AllowWork:=FALSE;
+		DiffSizeCV.M_MotorStop();
+		SameSizeCV.M_MotorStop();
+		 DAS_CoreSys.MachineControl.fballocatearea.M_ReleasePulloutAccess(ControlAccess := E_RoundBeltControlAccess.FanucRobot);
+		 DAS_CoreSys.MachineControl.fballocatearea.M_StopStoragePulloutAction();
+		WareHouse.M_ResetFeedInBox();
+		WareHouse.M_ResetReloadBox();
+		bWorkingConveyorMoveForward  :=FALSE;
+		bWorkingConveyorMoveBackward :=FALSE;
+		bTimeOutIN:=FALSE;
+		Paused := FALSE;
+		bPauseLatched := FALSE;
+		uiPauseFromStep := 0;
+		AClampMoveDone	:= FALSE;
+		BClampMoveDone	:= FALSE;
+		_AClampDoingWork	:= FALSE;
+		_BClampDoingWork	:= FALSE;
+		uiResettingStep := 100;
+	100:
+		_ResetCompleted := TRUE;
+END_CASE
+IF _ResetCompleted THEN
+    eState := STATE_DORMANT;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_UNHOLD" Id="{a9477cfe-9332-462f-b16e-11d01d78df18}" FolderPath="State\">
+      <Declaration><![CDATA[METHOD M_STATE_UNHOLD
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Paused := FALSE;
+Status := '';
+tonPlaceSensorDelay.IN := FALSE;
+tonFeedInConveyorDelay.IN := FALSE;
+_UnholdCompleted := TRUE;
+
+IF _UnholdCompleted THEN
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_UpdateConveyorSensor" Id="{b87c24a4-4e8a-4577-897a-2d65d4b11c19}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_UpdateConveyorSensor : BOOL
+VAR_INPUT
+	Area : E_FeedInEmptyBox_PlaceArea;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE Area OF
+	
+	E_FeedInEmptyBox_PlaceArea.SameSizeConveyor :
+		SelectedSensor := Input.bSameSizeCV_BoxNearStorageSensor ;
+	
+	E_FeedInEmptyBox_PlaceArea.DiffSizeConveyor:
+		SelectedSensor := Input.bDifferentSizeCV_BoxDetect7_Sensor;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3">
+      <LineId Id="9" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="122" Count="5" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="121" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.A00_BasicUnits">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="1" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_CheckCommand">
+      <LineId Id="30" Count="1" />
+      <LineId Id="24" Count="1" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="38" Count="1" />
+      <LineId Id="36" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_CheckUnitsNotBusy">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_CheckUnitsReady">
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_ReloadPulloutConveyorBox">
+      <LineId Id="12" Count="0" />
+      <LineId Id="17" Count="2" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="24" Count="4" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_SelectActionMode">
+      <LineId Id="5" Count="1" />
+      <LineId Id="10" Count="4" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="15" Count="2" />
+      <LineId Id="19" Count="3" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="30" Count="3" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="34" Count="2" />
+      <LineId Id="54" Count="3" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="58" Count="2" />
+      <LineId Id="62" Count="3" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="39" Count="14" />
+      <LineId Id="38" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_ABORTED">
+      <LineId Id="35" Count="23" />
+      <LineId Id="64" Count="7" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_ABORTING">
+      <LineId Id="34" Count="6" />
+      <LineId Id="141" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="55" Count="82" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_DONE">
+      <LineId Id="6" Count="3" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="10" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_DORMANT">
+      <LineId Id="6" Count="10" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="72" Count="5" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="64" Count="2" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="37" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="17" Count="2" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="42" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_ERROR">
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="26" Count="4" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="6" Count="1" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_EXECUTING">
+      <LineId Id="11271" Count="1185" />
+      <LineId Id="12670" Count="0" />
+      <LineId Id="12457" Count="3" />
+      <LineId Id="12674" Count="1" />
+      <LineId Id="12461" Count="76" />
+      <LineId Id="12671" Count="0" />
+      <LineId Id="12538" Count="1" />
+      <LineId Id="12672" Count="1" />
+      <LineId Id="12540" Count="112" />
+      <LineId Id="1683" Count="0" />
+      <LineId Id="1392" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_HELD">
+      <LineId Id="3" Count="14" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_HOLDING">
+      <LineId Id="3" Count="61" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_RESETTING">
+      <LineId Id="26" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="43" Count="3" />
+      <LineId Id="38" Count="1" />
+      <LineId Id="50" Count="1" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="60" Count="2" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="13" Count="3" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_STATE_UNHOLD">
+      <LineId Id="3" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FeedInEmptyBoxWithRobot_V3.M_UpdateConveyorSensor">
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="8" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
