@@ -24,6 +24,7 @@ VAR
     tonTimeOut             : TON;
 	bTimeOutIN			   : BOOL;
     tonFeedBoxTimeout      : TON;
+	tonClampOpenConfirm    : TON;	// step 80000 race debounce: 雙爪 place 入口先確認 ClampX_Open 持續 100ms 才認列為 abort,濾掉 Robot.Done 升起後 Fanuc 端 ClampX_Open sensor 的短暫 glitch (運送途中夾爪訊號偶發抖動)
     strStatus              : STRING;
     _UniqueErrorCode       : STRING;
 //    _Abort                 : BOOL;
@@ -1599,12 +1600,24 @@ CASE uiExecutingStep OF
 		END_IF
 		
     80000:
+			// 雙爪 place 守門:確認兩爪都還夾著盒子才放行進 80100。
+			// 加 100ms debounce — 從 pickup step (33100/34000/35100/36200/37180/38000) 跳進來的 scan,
+			// Robot.Done 剛升起,Fanuc 端 ClampX_Open sensor 在運送途中可能有 1~N scan 的短暫 glitch (氣壓/姿勢切換造成的訊號抖動),
+			// 直接讀 raw input 會誤觸 _Abort + 接 RESETTING 跳回 pickup → 兩爪已夾盒卻被叫去重 pickup → 撞機。
+			// 短暫 glitch 在 100ms 內收斂會走 IF 進 80100;真實掉盒持續 100ms 以上才走 ELSIF abort。
+			tonClampOpenConfirm(IN := Robot._DI1.ClampA_Open OR Robot._DI1.ClampB_Open, PT := T#100MS);
 			IF NOT Robot._DI1.ClampA_Open AND NOT Robot._DI1.ClampB_Open THEN
+				tonClampOpenConfirm(IN := FALSE);
 				uiExecutingStep := 80100;
-			ELSE
-				_Abort 	  := TRUE;
-				strStatus := 'FB_FeedInEmptyBoxWithRobot_V3 Step 80000: Robot Use Both Clamp Place ,but Clamp open';
-			END_IF	 
+			ELSIF tonClampOpenConfirm.Q THEN
+				tonClampOpenConfirm(IN := FALSE);
+				_Abort       := TRUE;
+				uiResumeStep := 80000;	// 補 missing assignment:對齊 e4368df,abort 後 uiResumeStep 留前一段 pickup 舊值會讓 RESETTING 跳回 pickup 撞機
+				strStatus    := CONCAT(CONCAT(CONCAT(CONCAT(
+					'FB_FeedInEmptyBoxWithRobot_V3 Step 80000: Robot Use Both Clamp Place ,but Clamp open ClA=',
+					BOOL_TO_STRING(Robot._DI1.ClampA_Open)), ' ClB='), BOOL_TO_STRING(Robot._DI1.ClampB_Open)),
+					' (debounced 100ms)');
+			END_IF
 		
     80100: // Both Clamp place box
         WareHouse.M_ResetReloadBox(); // Clear Warehouse reload command
