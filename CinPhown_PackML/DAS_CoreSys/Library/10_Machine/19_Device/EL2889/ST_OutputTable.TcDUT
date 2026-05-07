@@ -110,9 +110,9 @@
         bLowCV_Block2_Down_Valve                   : BIT; //Y11.7
         Spare105                                   : BIT; //Y11.8
         Spare106                                   : BIT; //Y11.9
-        bShippingTransCV_Leftside_Allow            : BIT; //Y11.10
+        bShippingTransCV_Leftside_Allow            : BIT; //Y11.10		// 我方給大族，左邊輸送帶的允許移動訊號
         Spare108                                   : BIT; //Y11.11
-        bShippingTransCV_Rightside_Allow           : BIT; //Y11.12
+        bShippingTransCV_Rightside_Allow           : BIT; //Y11.12		// 我方給大族，右邊輸送帶的允許移動訊號
         Spare110                                   : BIT; //Y11.13
         Spare111                                   : BIT; //Y11.14
         Spare112                                   : BIT; //Y11.15

@@ -165,11 +165,11 @@
         spare159                                      : BIT; //X11.14
         spare160                                      : BIT; //X11.15
         spare161                      				  : BIT; //X4.0
-        bShippingTransCV_Rightside_Arrived            : BIT; //X4.1
+        bShippingTransCV_Rightside_Arrived            : BIT; //X4.1		// 大族給我方的左邊到位訊號，
         spare163						              : BIT; //X4.2
-        bShippingTransCV_Leftside_Arrived             : BIT; //X4.3
+        bShippingTransCV_Leftside_Arrived             : BIT; //X4.3		// 大族給我方的左邊到位訊號，
         spare165                                      : BIT; //X4.4
-        bHansLaserMachineError                        : BIT; //X4.5
+        bHansLaserMachineError                        : BIT; //X4.5		// 大族給我方的機台錯誤訊號
         spare167                                      : BIT; //X4.6
         spare168                                      : BIT; //X4.7
         spare169                                      : BIT; //X4.8
