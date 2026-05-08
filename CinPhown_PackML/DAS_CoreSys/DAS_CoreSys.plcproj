@@ -1001,10 +1001,6 @@
     <Compile Include="Library\20_MachineUnits\21_StorageArea\210_Cabinet\Services\FB_ReloadBox.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_CabinetJob.TcDUT">
-      <SubType>Code</SubType>
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </Compile>
     <Compile Include="Library\20_MachineUnits\21_StorageArea\Duts\E_FeedInAction.TcDUT">
       <SubType>Code</SubType>
     </Compile>
