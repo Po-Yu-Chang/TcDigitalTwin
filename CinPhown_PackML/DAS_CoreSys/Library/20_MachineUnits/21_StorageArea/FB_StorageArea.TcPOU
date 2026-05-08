@@ -261,7 +261,6 @@ fbBoxSupplyCtrl(Execute           := TRUE,
                 Status            =>,
                 UniqueErrorCode   =>,
                 Cylinder          := Cylinder,
-                Motor             := Motor,
                 CurrentData       := CurrentData,
                 Input             := Input,
                 Output            := OutPut,
@@ -987,7 +986,7 @@ M_StateComplete();]]></ST>
       <LineId Id="3306" Count="0" />
       <LineId Id="3308" Count="2" />
       <LineId Id="3312" Count="0" />
-      <LineId Id="3314" Count="1" />
+      <LineId Id="3314" Count="0" />
       <LineId Id="3317" Count="1" />
       <LineId Id="3320" Count="7" />
       <LineId Id="3514" Count="0" />
@@ -1043,7 +1042,7 @@ M_StateComplete();]]></ST>
       <LineId Id="3577" Count="0" />
       <LineId Id="3579" Count="17" />
       <LineId Id="3578" Count="0" />
-      <LineId Id="3639" Count="0" />
+      <LineId Id="3639" Count="1" />
     </LineIds>
     <LineIds Name="FB_StorageArea.M_Aborted">
       <LineId Id="6" Count="1" />
