@@ -1227,7 +1227,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[Error  := FALSE;
 Done   := FALSE;
-Busy   := FALSE;
+Busy   := TRUE;
 _Error := FALSE;
 
 CASE uiResettingStep OF
@@ -1253,6 +1253,7 @@ CASE uiResettingStep OF
 		END_IF
 
 	9999:
+		Busy := FALSE;
 		_ResetCompleted := TRUE;
 END_CASE
 
