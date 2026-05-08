@@ -1253,11 +1253,11 @@ CASE uiResettingStep OF
 		END_IF
 
 	9999:
-		Busy := FALSE;
 		_ResetCompleted := TRUE;
 END_CASE
 
-IF _ResetCompleted THEN
+IF _ResetCompleted AND NOT Execute THEN
+	Busy := FALSE;
 	eState := STATE_DORMANT;
 END_IF
 ]]></ST>
