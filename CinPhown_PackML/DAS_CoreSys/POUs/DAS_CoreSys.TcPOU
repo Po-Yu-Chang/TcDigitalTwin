@@ -10,6 +10,7 @@ VAR
 	CoreSys_Start : BOOL;
 	CoreSys_Estop : BOOL;
 	OP_Mode : E_UnitMode := E_UnitMode.Manual;
+	trigResetForRS485 : R_TRIG;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -1259,6 +1260,26 @@ IF PackTags[0].Status.UnitModeCurrent = E_UnitMode.Auto THEN
 				PackTags[0].Command.CntrlCmd := ePMLCommand_Unsuspend;
 			END_IF
 	END_CASE
+END_IF
+
+// === 光電板斷點重啟 ===
+// 按 Reset 時若有 851~854 alarm,順便 power cycle Y10.5/Y10.6,
+// 合併到既有 Reset 流程,不用操作員另外去找 Reboot Modbus 按鈕。
+// R_TRIG 抓上升緣 + Status.Busy 雙重保險避免連續觸發。
+trigResetForRS485(CLK := CoreSys_Reset);
+IF trigResetForRS485.Q AND
+   (   (MAIN2_RS485.RS485_V2[1].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_1)
+    OR (MAIN2_RS485.RS485_V2[2].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_2)
+    OR (MAIN2_RS485.RS485_V2[3].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_3)
+    OR (MAIN2_RS485.RS485_V2[4].bError AND NOT GVL_HMI.Setup.Mechanical.stModbusByPass.switchOff_4))
+   AND NOT GVL_ADS.RebootModbusDevices.Status.Busy
+THEN
+    GVL_ADS.RebootModbusDevices.Command.Execute := TRUE;
+END_IF
+
+// reboot 完成自動清 Execute,讓下次 Reset 還能觸發
+IF GVL_ADS.RebootModbusDevices.Status.Done THEN
+    GVL_ADS.RebootModbusDevices.Command.Execute := FALSE;
 END_IF
 
  //Stop
