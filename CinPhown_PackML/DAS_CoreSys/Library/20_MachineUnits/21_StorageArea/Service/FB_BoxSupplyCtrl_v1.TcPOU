@@ -14,6 +14,7 @@ VAR_INPUT
 
 
 	Cylinder				:REFERENCE TO UNI_CylinderList;
+	Motor					:REFERENCE TO UNI_MotorList;
 	Input 					:REFERENCE TO ST_InputTable;
 	Output					:REFERENCE TO ST_OutputTable;
 	fbstorageHome			: REFERENCE TO FB_StorageHoming;
@@ -51,7 +52,10 @@ VAR
 	strStatus	: STRING;
 	uiResumeStep : UINT;
 	ExcutingStep :E_RackState;
-	trigBTN			:R_TRIG;
+	ftrigBTN		:F_TRIG;			// 放開瞬間判讀短按
+	tonLongPress	:TON;				// 長按 3s 啟動 NG 軌道後退
+	bLongPressActive	:BOOL;			// 長按已生效中,期間 LowCV 持續後退
+	trigBTN_ShortPress	:BOOL;			// 短按事件 (放開且未進入長按)
 	trigRequest		:R_TRIG;
 	tonBtnCtrl		:ton;
 	tonBtnMotorCtrl	:ton;
@@ -70,7 +74,28 @@ SUPER^.A10_StateControl();]]></ST>
       <Implementation>
         <ST><![CDATA[tonBtnCtrl(PT:=T#5S);
 tonBtnMotorCtrl(PT :=T#90S);
-ErrorID := 2800;]]></ST>
+ErrorID := 2800;
+
+// 長按 3s 觸發 NG 軌道(LowCV)後退;放開即停。短按沿用 (放開瞬間且 NOT bLongPressActive)。
+ftrigBTN(CLK := Input.bStorage_StackPushPb);
+trigBTN_ShortPress := ftrigBTN.Q AND NOT bLongPressActive;
+
+tonLongPress(IN := Input.bStorage_StackPushPb AND StroageRegionMode = E_UnitMode.Auto,
+             PT := T#3S);
+IF tonLongPress.Q AND StroageRegionMode = E_UnitMode.Auto THEN
+    bLongPressActive := TRUE;
+END_IF
+
+IF NOT Input.bStorage_StackPushPb OR StroageRegionMode <> E_UnitMode.Auto THEN
+    IF bLongPressActive THEN
+        Motor.List.LowCV.M_MotorStop();
+        bLongPressActive := FALSE;
+    END_IF
+END_IF
+
+IF bLongPressActive THEN
+    Motor.List.LowCV.M_MoveBackward();
+END_IF]]></ST>
       </Implementation>
     </Action>
     <Method Name="GetModelState" Id="{4267a49d-0356-49cd-b4a8-19cde37ac0cb}">
@@ -333,7 +358,7 @@ END_VAR]]></Declaration>
 //	trigBTN(CLK:= (SupplyBTN.P_ButtonState));
 //END_IF //Make sure BTN is referenced otherwise exception occur
 
-	trigBTN(CLK:= ( Input.bStorage_StackPushPb));
+	// trigBTN_ShortPress 由 A00_BasicUnits 中 ftrigBTN 計算 (放開瞬間且未進長按)
 trigRequest(CLK :=(AddBoxes_Status.InterventionRequest AND bFreeState));
 
 // Force state control
@@ -390,15 +415,15 @@ CASE ExcutingStep OF
 		M_Blink();
 		bFreeState:=FALSE;
 		AxisRackMotorBTNHomeRequest :=false;
-			IF	trigBTN.Q THEN				
-				ExcutingStep :=E_RackState.TransitingFree;	
+			IF	trigBTN_ShortPress THEN
+				ExcutingStep :=E_RackState.TransitingFree;
 			END_IF
 			
 	E_RackState.Free:
 	// Rack is free , User is allow to ask to suply box by push the suplyBTN
 		M_TurnOn();
 		bFreeState:=TRUE;
-			 IF trigBTN.Q OR trigRequest.Q THEN
+			 IF trigBTN_ShortPress OR trigRequest.Q THEN
 				 uiTransitingStep:=0;
 				 ExcutingStep := E_RackState.TransitingFeedBox;
 			 END_IF
