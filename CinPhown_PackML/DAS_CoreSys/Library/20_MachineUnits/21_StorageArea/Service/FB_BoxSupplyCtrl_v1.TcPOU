@@ -80,17 +80,14 @@ ErrorID := 2800;
 ftrigBTN(CLK := Input.bStorage_StackPushPb);
 trigBTN_ShortPress := ftrigBTN.Q AND NOT bLongPressActive;
 
-tonLongPress(IN := Input.bStorage_StackPushPb AND StroageRegionMode = E_UnitMode.Auto,
-             PT := T#3S);
-IF tonLongPress.Q AND StroageRegionMode = E_UnitMode.Auto THEN
+tonLongPress(IN := Input.bStorage_StackPushPb, PT := T#3S);
+IF tonLongPress.Q THEN
     bLongPressActive := TRUE;
 END_IF
 
-IF NOT Input.bStorage_StackPushPb OR StroageRegionMode <> E_UnitMode.Auto THEN
-    IF bLongPressActive THEN
-        Motor.List.LowCV.M_MotorStop();
-        bLongPressActive := FALSE;
-    END_IF
+IF NOT Input.bStorage_StackPushPb AND bLongPressActive THEN
+    Motor.List.LowCV.M_MotorStop();
+    bLongPressActive := FALSE;
 END_IF
 
 IF bLongPressActive THEN
