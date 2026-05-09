@@ -1051,9 +1051,8 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=_Error;
-Done :=_Executed;
-Busy := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := _Error;
 
 // Timer 確保歸零
 tonTimeOut(IN:=FALSE);
@@ -1069,6 +1068,8 @@ CASE uiResettingStep OF
 		uiResettingStep:=9999;
 
 	9999:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 

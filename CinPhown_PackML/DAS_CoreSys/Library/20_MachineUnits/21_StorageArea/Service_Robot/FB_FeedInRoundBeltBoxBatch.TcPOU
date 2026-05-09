@@ -481,17 +481,18 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CASE uiResettingStep OF
+        <ST><![CDATA[Busy := TRUE;
+
+CASE uiResettingStep OF
 	0:
-		//Done := FALSE;	//done 留到dormant 關閉。
 		Error := FALSE;
 		Aborted := FALSE;
 		tonTimeOut.IN := FALSE;
-	
+
 		fbSingleFlow();
 		fbSingleFlow.Execute := FALSE;
 		uiResettingStep := 50;
-	
+
 	50:
 //		// 每 scan call fbSingleFlow 推進其內部 RESETTING → DORMANT
 //		// (移除 A00 的 freerun call 後,這裡是 RESETTING 期間唯一的驅動點)
@@ -507,10 +508,12 @@ END_VAR
 		IF fbSingleFlow.eState = STATE_DORMANT THEN
 			uiResettingStep := 100;
 		END_IF
-	
+
 	100:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted := TRUE;
-	
+
 END_CASE
 
 IF _ResetCompleted THEN

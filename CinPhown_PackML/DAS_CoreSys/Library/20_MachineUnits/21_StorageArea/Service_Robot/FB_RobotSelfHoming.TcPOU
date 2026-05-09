@@ -492,8 +492,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CASE uiResettingStep OF
-	
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
+
+CASE uiResettingStep OF
+
 	0:
 			TON_RobotRebootDelay.IN 	:= FALSE;
 			TON_RobotRebootTimeOut.IN	:= FALSE;
@@ -501,11 +504,13 @@ END_VAR
 			TON_ServiceTimeOut.IN		:= FALSE;
 			TON_RobotFeedOutCommand.IN	:= FALSE;
 			TON_RobotTimeOut.IN			:= FALSE;
-			
+
 			_fbRobotRegionMove_FeedInConveyor.M_ResetHomingFeedOut();
-			
+
 			uiResettingStep := 9999;
 	9999:
+			Done := FALSE;
+			Busy := FALSE;
 			_ResetCompleted:=TRUE;
 END_CASE
 

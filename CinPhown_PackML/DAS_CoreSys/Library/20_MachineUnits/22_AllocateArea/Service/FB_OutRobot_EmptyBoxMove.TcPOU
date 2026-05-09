@@ -1050,9 +1050,8 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=_Error;
-Done :=_Executed;
-Busy := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := _Error;
 
 // Timer 確保歸零 (避免 RESET→DORMANT→EXECUTING 殘留)
 tonTimeOut(IN:=FALSE);
@@ -1062,7 +1061,7 @@ tonLeaveDebounce(IN:=FALSE);
 CASE uiResettingStep OF
 
 	0:
-		
+
 		IF __ISVALIDREF(ConveyorMotor) THEN
 			ConveyorMotor.M_MotorStop();
 		END_IF
@@ -1077,6 +1076,8 @@ CASE uiResettingStep OF
 		uiResettingStep:=9999;
 
 	9999:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 IF _ResetCompleted THEN

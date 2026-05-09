@@ -898,13 +898,12 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=FALSE;
-Done :=FALSE;
-Busy := FALSE;
-_Error :=FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
+_Error := FALSE;
 
 CASE uiResettingStep OF
-	
+
 	0:
 		bTimeOutIN :=FALSE;
 		bRobotTimeoutIN :=FALSE;
@@ -919,9 +918,11 @@ CASE uiResettingStep OF
 		BClampMoveDone := FALSE;
 		_AClampDoingWork := FALSE;
 		_BClampDoingWork := FALSE;
-		
+
 	9999:
 //		Robot.M_CycleStop(FALSE);
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 IF _ResetCompleted THEN

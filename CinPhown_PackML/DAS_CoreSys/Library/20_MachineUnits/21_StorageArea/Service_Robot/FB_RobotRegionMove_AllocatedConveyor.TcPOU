@@ -1101,13 +1101,12 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=FALSE;
-Done :=FALSE;
-Busy := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
 
 
 CASE uiResettingStep OF
-	
+
 	0:
 		tonTimeOut.IN:=FALSE;
 		tonDelay_SameSizeDelayBox.IN :=FALSE;
@@ -1119,11 +1118,13 @@ CASE uiResettingStep OF
 		cylinder.List.fbSameSizeCV_Press3.M_Retract();
 		cylinder.List.fbSameSizeCV_Press4.M_Retract();
 		uiResettingStep:=100;
-		
-	100:	
-	
+
+	100:
+
 		uiResettingStep:=9999;
 	9999:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 IF _ResetCompleted THEN

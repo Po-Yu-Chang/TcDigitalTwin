@@ -419,19 +419,22 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[
-Error :=FALSE;
-_Error :=FALSE;
+Busy := TRUE;
+Error := FALSE;
+_Error := FALSE;
 
 CASE uiResettingStep OF
-	
+
 	0:
 		IF Cylinder.List.fbShippingBuffer_Press.InRearPosition THEN
 			uiResettingStep := 9999;
 		ELSE
 			Cylinder.List.fbShippingBuffer_Press.M_Retract();
 		END_IF
-	
+
 	9999:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 

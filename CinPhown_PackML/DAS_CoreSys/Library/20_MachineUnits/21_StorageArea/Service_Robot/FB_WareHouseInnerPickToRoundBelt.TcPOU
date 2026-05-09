@@ -2569,7 +2569,8 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF _Executed THEN Done := TRUE; END_IF
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
 
 CASE uiResettingStep OF
 0:
@@ -2598,6 +2599,8 @@ CASE uiResettingStep OF
 //	END_IF
 	uiResettingStep := 100;
 100:
+	Done := FALSE;
+	Busy := FALSE;
 	_ResetCompleted := TRUE;
 END_CASE
 

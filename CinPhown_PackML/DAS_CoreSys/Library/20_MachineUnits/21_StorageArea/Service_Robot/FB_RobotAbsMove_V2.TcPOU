@@ -1096,13 +1096,12 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=FALSE;
-Done :=FALSE;
-Busy := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
 
 
 CASE uiResettingStep OF
-	
+
 	0:
 		bTimeOutIN:=FALSE;
 		tonDelay.IN := FALSE	;
@@ -1113,12 +1112,14 @@ CASE uiResettingStep OF
 		BClampMoveDone	:= FALSE;
 		_AClampDoingWork	:= FALSE;
 		_BClampDoingWork	:= FALSE;
-		
+
 	100:
-		
-		LowerConveyor.M_MotorStop();	
+
+		LowerConveyor.M_MotorStop();
 		uiResettingStep:=9999;
 	9999:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 IF _ResetCompleted THEN

@@ -725,9 +725,8 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error := FALSE;
-Done := FALSE;
-Busy := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
 
 CASE uiResettingStep OF
 
@@ -744,6 +743,8 @@ CASE uiResettingStep OF
         DAS_CoreSys.MachineControl.fbAllocateArea.M_StopStoragePulloutAction();
         uiResettingStep := 9999;
     9999:
+        Done := FALSE;
+        Busy := FALSE;
         _ResetCompleted := TRUE;
 END_CASE
 

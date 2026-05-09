@@ -458,21 +458,22 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=FALSE;
-Done :=FALSE;
-Busy := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
 
 
 CASE uiResettingStep OF
-	
+
 	0:
 		tonTimeOut.IN:=FALSE;
 		//Robot.M_ResetAllCommand();
 		ConveyorMotor.M_MotorStop();
 		Robot.M_ResetRobotAbsMove(TRUE,TRUE);
-		
+
 		uiResettingStep:=9999;
 	9999:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 IF _ResetCompleted THEN

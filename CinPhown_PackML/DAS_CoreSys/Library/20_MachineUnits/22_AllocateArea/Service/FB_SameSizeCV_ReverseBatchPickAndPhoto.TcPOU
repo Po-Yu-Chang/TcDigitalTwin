@@ -955,11 +955,12 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CASE uiResettingStep OF
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
+Aborted := FALSE;
+
+CASE uiResettingStep OF
 0:
-	Done := FALSE;
-	Error := FALSE;
-	Aborted := FALSE;
 	tonTimeOut.IN := FALSE;
 
 	// 清除所有 Timer
@@ -969,7 +970,7 @@ END_VAR
 	TON_ConfigTimeout.IN		:= FALSE;
 	TON_WaitPairTimeout.IN		:= FALSE;
 	TON_CameraClearTimeout.IN	:= FALSE;
-	
+
 	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
 	Cylinder.List.fbSameSizeCV_Press1.M_Retract();
 
@@ -985,6 +986,8 @@ END_VAR
 	uiResettingStep := 100;
 
 100:
+	Done := FALSE;
+	Busy := FALSE;
 	_ResetCompleted := TRUE;
 END_CASE
 

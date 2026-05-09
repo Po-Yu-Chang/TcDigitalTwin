@@ -554,19 +554,20 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Error :=_Error;
-Done :=_Executed;
-Busy := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := _Error;
 
 
 CASE uiResettingStep OF
-	
+
 	0:
 		M_RecoveryAllObjects();
 		uiResettingStep:=9999;
 
 
 	9999:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 IF _ResetCompleted THEN

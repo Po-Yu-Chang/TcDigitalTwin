@@ -1130,7 +1130,8 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF _Executed THEN Done :=TRUE; END_IF
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
 
 CASE uiResettingStep OF
 	0:
@@ -1139,11 +1140,13 @@ CASE uiResettingStep OF
 		_AClampDoingWork	:= FALSE;
 		_BClampDoingWork	:= FALSE;
 		DAS_CoreSys.MachineControl.fbAllocateArea.M_ResetReloadRoundBeltAction();
-		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );       
+		DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(ControlAccess :=E_RoundBeltControlAccess.FanucRobot );
 		WareHouse.M_ResetReloadBox();
 		Robot.M_ResetAllCommand();
 		uiResettingStep := 100;
 	100:
+		Done := FALSE;
+		Busy := FALSE;
 		_ResetCompleted := TRUE;
 END_CASE
 IF _ResetCompleted THEN

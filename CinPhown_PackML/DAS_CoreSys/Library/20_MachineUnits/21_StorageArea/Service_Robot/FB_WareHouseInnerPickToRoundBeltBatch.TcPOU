@@ -643,9 +643,10 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CASE uiResettingStep OF
+        <ST><![CDATA[Busy := TRUE;
+
+CASE uiResettingStep OF
 0:
-	//Done := FALSE;	//done 留到dormant 關閉。
 	Error := FALSE;
 	Aborted := FALSE;
 	tonTimeOut.IN := FALSE;
@@ -654,7 +655,7 @@ END_VAR
 	//fbSingleFlow.Reset := TRUE;
 	fbSingleFlow();
 	fbSingleFlow.Execute := FALSE;
-	
+
 
 	// _bRetry = TRUE: 由 ABORTED 狀態透過 Reset 觸發
 	// 無論 retry 或正常 reset,都要先等 fbSingleFlow 真的回到 DORMANT,
@@ -680,9 +681,11 @@ END_VAR
 	END_IF
 
 100:
+	Done := FALSE;
+	Busy := FALSE;
 	_ResetCompleted := TRUE;
 END_CASE
-IF _ResetCompleted THEN 
+IF _ResetCompleted THEN
 	eState := STATE_DORMANT;
 END_IF
 ]]></ST>

@@ -802,20 +802,20 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CASE uiResettingStep OF
-0:
-	Done := FALSE;
-	Error := FALSE;
-	Aborted := FALSE;
+        <ST><![CDATA[Busy := TRUE;
+Error := FALSE;
+Aborted := FALSE;
 
+CASE uiResettingStep OF
+0:
 	TON_TimeOut.IN := FALSE;
 	TON_ConveyorTimeOut.IN := FALSE;
 	TON_RobotResetTimeOut.IN := FALSE;
-	
+
 	TON_CVmovedelay.IN 			 := FALSE;
 	tonDelay_SameSizeDelayBox.IN := FALSE;
 	tonDelay_SameSizeGetBox.IN 	 := FALSE;
-	
+
 	StorageRobot.M_ResetAllCommand();
 	WareHouse.M_ResetFeedInBox();
 	NGRegionMove.Execute := FALSE;
@@ -824,6 +824,8 @@ END_VAR
 	uiResettingStep := 100;
 
 100:
+	Done := FALSE;
+	Busy := FALSE;
 	_ResetCompleted := TRUE;
 END_CASE
 
