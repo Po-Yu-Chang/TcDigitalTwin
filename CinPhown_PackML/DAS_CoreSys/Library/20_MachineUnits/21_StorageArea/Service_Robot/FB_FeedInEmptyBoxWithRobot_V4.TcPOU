@@ -500,8 +500,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := FALSE;
-Done := TRUE;
+        <ST><![CDATA[Busy   := FALSE;
+_Error := Error := FALSE;
+_Abort := Abort := FALSE;
+Done   := TRUE;
+
 IF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF
@@ -2524,8 +2527,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := TRUE;
-Error := FALSE;
+        <ST><![CDATA[// Done := false 更改到Dormant 清除確保，上位檢查到done 後可以直接下Execute
 
 CASE uiResettingStep OF
 	0:
@@ -2550,8 +2552,6 @@ CASE uiResettingStep OF
 		_BClampDoingWork	:= FALSE;
 		uiResettingStep := 100;
 	100:
-		Done := FALSE;
-		Busy := FALSE;
 		_ResetCompleted := TRUE;
 END_CASE
 IF _ResetCompleted THEN
@@ -2725,7 +2725,10 @@ END_CASE]]></ST>
       <LineId Id="252" Count="0" />
     </LineIds>
     <LineIds Name="FB_FeedInEmptyBoxWithRobot_V4.M_STATE_DONE">
-      <LineId Id="6" Count="3" />
+      <LineId Id="14" Count="2" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="8" Count="1" />
       <LineId Id="5" Count="0" />
       <LineId Id="10" Count="0" />
     </LineIds>
@@ -3198,6 +3201,7 @@ END_CASE]]></ST>
       <LineId Id="1709" Count="21" />
       <LineId Id="1746" Count="65" />
       <LineId Id="11466" Count="0" />
+      <LineId Id="11512" Count="0" />
     </LineIds>
     <LineIds Name="FB_FeedInEmptyBoxWithRobot_V4.M_STATE_HELD">
       <LineId Id="3" Count="14" />
@@ -3208,8 +3212,8 @@ END_CASE]]></ST>
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_FeedInEmptyBoxWithRobot_V4.M_STATE_RESETTING">
-      <LineId Id="26" Count="0" />
-      <LineId Id="11" Count="1" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="12" Count="0" />
       <LineId Id="34" Count="0" />
       <LineId Id="21" Count="0" />
       <LineId Id="30" Count="0" />
@@ -3223,9 +3227,9 @@ END_CASE]]></ST>
       <LineId Id="20" Count="0" />
       <LineId Id="13" Count="3" />
       <LineId Id="5" Count="0" />
-      <LineId Id="29" Count="0" />
-      <LineId Id="63" Count="0" />
       <LineId Id="2" Count="0" />
+      <LineId Id="32" Count="1" />
+      <LineId Id="64" Count="1" />
     </LineIds>
     <LineIds Name="FB_FeedInEmptyBoxWithRobot_V4.M_STATE_UNHOLD">
       <LineId Id="3" Count="8" />

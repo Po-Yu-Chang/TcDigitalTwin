@@ -269,8 +269,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := FALSE;
-Done := TRUE;
+        <ST><![CDATA[Busy   := FALSE;
+_Error := Error := FALSE;
+_Abort := Abort := FALSE;
+Done   := TRUE;
+
 IF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF]]></ST>
@@ -1031,9 +1034,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := TRUE;
-Error := FALSE;
-
+        <ST><![CDATA[// Done := false 更改到Dormant 清除確保，上位檢查到done 後可以直接下Execute
 
 CASE uiResettingStep OF
 
@@ -1050,8 +1051,8 @@ CASE uiResettingStep OF
 		LowerConveyor.M_MotorStop();
 		uiResettingStep:=9999;
 	9999:
-		Done := FALSE;
-		Busy := FALSE;
+//		Done := FALSE;
+//		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 IF _ResetCompleted THEN
@@ -1145,7 +1146,10 @@ END_IF]]></ST>
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_FeedInConveyor_V2.M_STATE_DONE">
-      <LineId Id="6" Count="3" />
+      <LineId Id="13" Count="2" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="8" Count="1" />
       <LineId Id="5" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_FeedInConveyor_V2.M_STATE_DORMANT">
@@ -1189,7 +1193,8 @@ END_IF]]></ST>
       <LineId Id="26" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotRegionMove_FeedInConveyor_V2.M_STATE_RESETTING">
-      <LineId Id="11" Count="7" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="14" Count="4" />
       <LineId Id="45" Count="0" />
       <LineId Id="34" Count="0" />
       <LineId Id="30" Count="0" />
@@ -1200,6 +1205,7 @@ END_IF]]></ST>
       <LineId Id="40" Count="0" />
       <LineId Id="21" Count="5" />
       <LineId Id="5" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

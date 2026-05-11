@@ -330,8 +330,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := FALSE;
-Done := TRUE;
+        <ST><![CDATA[Busy   := FALSE;
+_Error := Error := FALSE;
+_Abort := Abort := FALSE;
+Done   := TRUE;
+
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
 END_IF
@@ -2569,8 +2572,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := TRUE;
-Error := FALSE;
+        <ST><![CDATA[// Done := false 更改到Dormant 清除確保，上位檢查到done 後可以直接下Execute
 
 CASE uiResettingStep OF
 0:
@@ -2599,8 +2601,8 @@ CASE uiResettingStep OF
 //	END_IF
 	uiResettingStep := 100;
 100:
-	Done := FALSE;
-	Busy := FALSE;
+//	Done := FALSE;
+//	Busy := FALSE;
 	_ResetCompleted := TRUE;
 END_CASE
 
@@ -2639,7 +2641,10 @@ END_IF
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_DONE">
-      <LineId Id="3" Count="4" />
+      <LineId Id="12" Count="2" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="5" Count="2" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_DORMANT">
@@ -2658,8 +2663,9 @@ END_IF
       <LineId Id="1963" Count="31" />
     </LineIds>
     <LineIds Name="FB_WareHouseInnerPickToRoundBelt.M_STATE_RESETTING">
-      <LineId Id="3" Count="34" />
+      <LineId Id="4" Count="33" />
       <LineId Id="2" Count="0" />
+      <LineId Id="39" Count="2" />
     </LineIds>
   </POU>
 </TcPlcObject>

@@ -148,8 +148,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := FALSE;
-Done := TRUE;
+        <ST><![CDATA[Busy   := FALSE;
+_Error := Error := FALSE;
+_Abort := Abort := FALSE;
+Done   := TRUE;
+
 IF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF
@@ -229,8 +232,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[
-busy := true;
+        <ST><![CDATA[busy := true;
 
 // 暫停
 IF Pause THEN 
@@ -492,8 +494,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := TRUE;
-Error := FALSE;
+        <ST><![CDATA[// Done := false 更改到Dormant 清除確保，上位檢查到done 後可以直接下Execute
 
 CASE uiResettingStep OF
 
@@ -509,8 +510,8 @@ CASE uiResettingStep OF
 
 			uiResettingStep := 9999;
 	9999:
-			Done := FALSE;
-			Busy := FALSE;
+//			Done := FALSE;
+//			Busy := FALSE;
 			_ResetCompleted:=TRUE;
 END_CASE
 
@@ -588,7 +589,10 @@ END_IF
       <LineId Id="10" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotSelfHoming.M_STATE_DONE">
-      <LineId Id="15" Count="3" />
+      <LineId Id="25" Count="2" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="17" Count="1" />
       <LineId Id="12" Count="0" />
       <LineId Id="21" Count="0" />
       <LineId Id="11" Count="0" />
@@ -621,7 +625,6 @@ END_IF
       <LineId Id="11" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotSelfHoming.M_STATE_EXECUTING">
-      <LineId Id="10" Count="0" />
       <LineId Id="13" Count="0" />
       <LineId Id="38" Count="0" />
       <LineId Id="20" Count="0" />
@@ -693,7 +696,7 @@ END_IF
       <LineId Id="23" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotSelfHoming.M_STATE_RESETTING">
-      <LineId Id="52" Count="2" />
+      <LineId Id="53" Count="1" />
       <LineId Id="69" Count="4" />
       <LineId Id="65" Count="0" />
       <LineId Id="78" Count="1" />
@@ -701,6 +704,8 @@ END_IF
       <LineId Id="55" Count="6" />
       <LineId Id="9" Count="0" />
       <LineId Id="42" Count="0" />
+      <LineId Id="24" Count="3" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_RobotSelfHoming.M_STATE_UNHOLD">
       <LineId Id="39" Count="0" />
