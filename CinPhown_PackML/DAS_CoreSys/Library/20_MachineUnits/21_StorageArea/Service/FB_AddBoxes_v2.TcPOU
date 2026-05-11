@@ -72,13 +72,8 @@ VAR
 	// 馬達/輸出狀態保存
 	bSaved_MoveConveyor			: BOOL;
 
-	// RackMotor 軸狀態保存
-	lrSaved_RackPosition		: LREAL;
-	rSaved_RackVelocity			: REAL;
-	rSaved_RackAcc				: REAL;
-	rSaved_RackDec				: REAL;
-	rSaved_RackJerk				: REAL;
-	bSaved_RackMoving			: BOOL;
+	// 從 EXECUTING.VAR_INST 提到 FB-level (A01_PauseControl 需 access)
+	bMoveConveyor				: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -192,18 +187,10 @@ IF Pause AND NOT _bPauseEdge THEN
 		// 停止上層輸送帶 (DC 馬達)
 		Motor.List.UpCV.M_MotorStop();
 
-		// 保存並停止 RackMotor 軸 (僅當軸正在移動)
-		IF arAxisStatus_gb[AxisNo.RackMotor].Admin.Moving THEN
-			lrSaved_RackPosition := arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Position;
-			rSaved_RackVelocity := arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Velocity;
-			rSaved_RackAcc := arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Acc;
-			rSaved_RackDec := arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Dec;
-			rSaved_RackJerk := arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Jerk;
-			bSaved_RackMoving := TRUE;
-
-			// 減速停止,激磁保持位置
-			arAxisCtrl_gb[AxisNo.RackMotor].Admin.Stop := TRUE;
-		END_IF
+		// 注意:RackMotor 不主動 halt
+		// (1) 本 codebase 軸 API 沒有 Admin.Stop,要 halt 必須切 _OpMode.en := ModeAH 但 resume 後要重 issue 太複雜
+		// (2) 暫停期間 SUPER^.A10_StateControl 不執行,軸完成 in-flight 移動後 state machine 不會推進
+		// (3) Resume 時 step 210/610 直接看到 CmdDone 立即過 step,行為等價
 	END_IF
 END_IF
 
@@ -217,16 +204,7 @@ IF NOT Pause AND _bPauseEdge AND GVL_ADS.OpPannel_Status.StartBtnStatus THEN
 		// 恢復上層輸送帶: 透過 bMoveConveyor 在 EXECUTING preamble 自動 M_MoveForward
 		bMoveConveyor := bSaved_MoveConveyor;
 
-		// 恢復 RackMotor 軸: 解除停止 + 回填原目標
-		IF bSaved_RackMoving THEN
-			arAxisCtrl_gb[AxisNo.RackMotor].Admin.Stop := FALSE;
-			arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Position := lrSaved_RackPosition;
-			arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Velocity := rSaved_RackVelocity;
-			arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Acc := rSaved_RackAcc;
-			arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Dec := rSaved_RackDec;
-			arAxisCtrl_gb[AxisNo.RackMotor].PosMode.Jerk := rSaved_RackJerk;
-			bSaved_RackMoving := FALSE;
-		END_IF
+		// 軸:暫停時沒主動 halt,resume 不需要 restore (對應上方 pause 注意事項)
 
 		// 恢復計時器 (使用剩餘時間,A00 完成後切回原 PT)
 		IF bWasActive_tonAddBoxTimeOut THEN
@@ -576,7 +554,6 @@ VAR_INPUT
 END_VAR
 VAR_INST
 	uiTargetStation	: UINT;
-	bMoveConveyor	:BOOL;
 END_VAR
 VAR
 	bMotionDone : BOOL;
