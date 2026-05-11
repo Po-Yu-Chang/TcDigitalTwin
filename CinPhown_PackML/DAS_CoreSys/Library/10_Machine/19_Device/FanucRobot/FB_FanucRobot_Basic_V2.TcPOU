@@ -1455,19 +1455,79 @@ M_ResetAllCommand := TRUE; // Method end]]></ST>
 VAR_INPUT
 END_VAR
 VAR
-	EmptyWH  : ST_Fanuc_WarehouseHandshake;
-	EmptyAbs : ST_Fanuc_AbsMove;
+	bWHClear  : BOOL;
+	bAbsClear : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[M_CheckResetAllCommand :=
-	(_DO1 = EmptyWH) AND
-	(_DO2 = EmptyWH) AND
-	(_DO3 = EmptyAbs) AND
-	(_DO4 = EmptyAbs) AND
+        <ST><![CDATA[bWHClear :=
+	NOT _DO1.nLayer1 AND
+	NOT _DO1.nLayer2 AND
+	NOT _DO1.nLayer3 AND
+	NOT _DO1.nLayer4 AND
+	NOT _DO1.nSlide1 AND
+	NOT _DO1.nSlide2 AND
+	NOT _DO1.nSlide3 AND
+	NOT _DO1.nSlide4 AND
+	NOT _DO1.nSlide5 AND
+	NOT _DO1.bTargetWareHouseA AND
+	NOT _DO1.bTargetWareHouseB AND
+	NOT _DO1.bGet AND
+	NOT _DO1.bReserve1 AND
 	NOT _DO1.bExecute AND
+	NOT _DO1.bContinue AND
+	NOT _DO1.bReserve2 AND
+	NOT _DO2.nLayer1 AND
+	NOT _DO2.nLayer2 AND
+	NOT _DO2.nLayer3 AND
+	NOT _DO2.nLayer4 AND
+	NOT _DO2.nSlide1 AND
+	NOT _DO2.nSlide2 AND
+	NOT _DO2.nSlide3 AND
+	NOT _DO2.nSlide4 AND
+	NOT _DO2.nSlide5 AND
+	NOT _DO2.bTargetWareHouseA AND
+	NOT _DO2.bTargetWareHouseB AND
+	NOT _DO2.bGet AND
+	NOT _DO2.bReserve1 AND
 	NOT _DO2.bExecute AND
+	NOT _DO2.bContinue AND
+	NOT _DO2.bReserve2;
+
+bAbsClear :=
+	NOT _DO3.nArea1 AND
+	NOT _DO3.nArea2 AND
+	NOT _DO3.nArea3 AND
+	NOT _DO3.nArea4 AND
+	NOT _DO3.nAddress1 AND
+	NOT _DO3.nAddress2 AND
+	NOT _DO3.nAddress3 AND
+	NOT _DO3.nAddress4 AND
+	NOT _DO3.nAddress5 AND
+	NOT _DO3.nAddress6 AND
+	NOT _DO3.nAddress7 AND
+	NOT _DO3.bGet AND
+	NOT _DO3.bReserve1 AND
 	NOT _DO3.bExecute AND
-	NOT _DO4.bExecute;]]></ST>
+	NOT _DO3.bContinue AND
+	NOT _DO3.bReserve2 AND
+	NOT _DO4.nArea1 AND
+	NOT _DO4.nArea2 AND
+	NOT _DO4.nArea3 AND
+	NOT _DO4.nArea4 AND
+	NOT _DO4.nAddress1 AND
+	NOT _DO4.nAddress2 AND
+	NOT _DO4.nAddress3 AND
+	NOT _DO4.nAddress4 AND
+	NOT _DO4.nAddress5 AND
+	NOT _DO4.nAddress6 AND
+	NOT _DO4.nAddress7 AND
+	NOT _DO4.bGet AND
+	NOT _DO4.bReserve1 AND
+	NOT _DO4.bExecute AND
+	NOT _DO4.bContinue AND
+	NOT _DO4.bReserve2;
+
+M_CheckResetAllCommand := bWHClear AND bAbsClear;]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_ResetMoveBoxToFeedInConveyor_ClampA" Id="{3fdff994-4c03-410e-8b67-0a65dd7ab89c}" FolderPath="Method\MoveBoxToFeedInConveyor\">
