@@ -1450,6 +1450,26 @@ M_ResetAbsMoveCommand();
 M_ResetAllCommand := TRUE; // Method end]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_CheckResetAllCommand" Id="{4f0eeb7c-ae1a-4f02-8479-69d5b6e0d8de}" FolderPath="Method\RobotAction\Reset\">
+      <Declaration><![CDATA[METHOD M_CheckResetAllCommand : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	EmptyWH  : ST_Fanuc_WarehouseHandshake;
+	EmptyAbs : ST_Fanuc_AbsMove;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_CheckResetAllCommand :=
+	(_DO1 = EmptyWH) AND
+	(_DO2 = EmptyWH) AND
+	(_DO3 = EmptyAbs) AND
+	(_DO4 = EmptyAbs) AND
+	NOT _DO1.bExecute AND
+	NOT _DO2.bExecute AND
+	NOT _DO3.bExecute AND
+	NOT _DO4.bExecute;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_ResetMoveBoxToFeedInConveyor_ClampA" Id="{3fdff994-4c03-410e-8b67-0a65dd7ab89c}" FolderPath="Method\MoveBoxToFeedInConveyor\">
       <Declaration><![CDATA[METHOD M_ResetMoveBoxToFeedInConveyor_ClampA : BOOL
 VAR_INPUT

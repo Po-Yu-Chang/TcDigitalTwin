@@ -1828,15 +1828,6 @@
     <SubObject Include="FB_FanucRobot_Basic.M_ControlRSR03">
       <ExcludeFromBuild>true</ExcludeFromBuild>
     </SubObject>
-    <SubObject Include="FB_FanucRobot_Basic_V2.A20_StateControl">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_FanucRobot_Basic_V2.M_ActiveRSR03">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_FanucRobot_Basic_V2.M_ControlRSR03">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
   </ItemGroup>
   <ProjectExtensions>
     <PlcProjectOptions>
