@@ -39,28 +39,93 @@ VAR
 	tonFeedInUseAddBoxesDelay :TON;
 	strStatus	:STRING;
 //	_Abort		:BOOL;
-	uiResumeStep : UDINT;
 	CurrStation : UINT;
 	bInterventionRequest	 : BOOL;
 	trigClearInterventionRequest : R_TRIG;
 	_bClearInterventionRequestLast :BOOL;
-	ftrigRackStateLeaveFeedBox		:F_Trig;	
+	ftrigRackStateLeaveFeedBox		:F_Trig;
 	_UniqueErrorCode : STRING;
 	_RetryCompleted	 : BOOL; // FB Aboted STATE use
+
+	// ===== Pause / Resume framework =====
+	_bPaused					: BOOL;
+	_bPauseEdge					: BOOL;
+
+	// 計時器活動狀態保存
+	bWasActive_tonAddBoxTimeOut			: BOOL;
+	bWasActive_tonDetectSensor			: BOOL;
+	bWasActive_tonConveyorTimeOut		: BOOL;
+	bWasActive_tonFeedInUseAddBoxesDelay : BOOL;
+
+	// 計時器剩餘時間保存
+	tRemaining_tonAddBoxTimeOut			: TIME;
+	tRemaining_tonDetectSensor			: TIME;
+	tRemaining_tonConveyorTimeOut		: TIME;
+	tRemaining_tonFeedInUseAddBoxesDelay : TIME;
+
+	// 恢復後使用調整 PT 旗標 (Q 觸發或被外部關掉就清除)
+	bUseAdjustedPT_tonAddBoxTimeOut		: BOOL;
+	bUseAdjustedPT_tonDetectSensor		: BOOL;
+	bUseAdjustedPT_tonConveyorTimeOut	: BOOL;
+	bUseAdjustedPT_tonFeedInUseAddBoxesDelay : BOOL;
+
+	// 馬達/輸出狀態保存
+	bSaved_MoveConveyor			: BOOL;
+
+	// 從 EXECUTING.VAR_INST 提到 FB-level (A01_PauseControl 需 access)
+	bMoveConveyor				: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[A00_BasicUnits();
-SUPER^.A10_StateControl();]]></ST>
+A01_PauseControl();
+
+// 暫停時不執行狀態機
+IF NOT _bPaused THEN
+	SUPER^.A10_StateControl();
+END_IF]]></ST>
     </Implementation>
     <Folder Name="Private" Id="{2ce1c8cb-b732-4dc9-877e-291d3e9b7568}" />
     <Folder Name="STATE" Id="{8f45b950-0851-424e-829e-bd5e5f7ff7e1}" />
     <Action Name="A00_BasicUnits" Id="{1ddad176-be7b-474e-9872-dfb34dcf8407}">
       <Implementation>
-        <ST><![CDATA[tonAddBoxTimeOut(PT:=T#120S);
-tonDetectSensor(PT:=T#1S);
-tonConveyorTimeOut(PT:=T#5S);
-tonFeedInUseAddBoxesDelay(PT:=T#1S);
+        <ST><![CDATA[// 計時器 PT 設定 - 恢復後使用剩餘時間,完成後切回原 PT
+IF bUseAdjustedPT_tonAddBoxTimeOut THEN
+	tonAddBoxTimeOut(PT := tRemaining_tonAddBoxTimeOut);
+	IF tonAddBoxTimeOut.Q OR NOT tonAddBoxTimeOut.IN THEN
+		bUseAdjustedPT_tonAddBoxTimeOut := FALSE;
+	END_IF
+ELSE
+	tonAddBoxTimeOut(PT:=T#120S);
+END_IF
+
+IF bUseAdjustedPT_tonDetectSensor THEN
+	tonDetectSensor(PT := tRemaining_tonDetectSensor);
+	IF tonDetectSensor.Q OR NOT tonDetectSensor.IN THEN
+		bUseAdjustedPT_tonDetectSensor := FALSE;
+	END_IF
+ELSE
+	tonDetectSensor(PT:=T#1S);
+END_IF
+
+IF bUseAdjustedPT_tonConveyorTimeOut THEN
+	tonConveyorTimeOut(PT := tRemaining_tonConveyorTimeOut);
+	IF tonConveyorTimeOut.Q OR NOT tonConveyorTimeOut.IN THEN
+		bUseAdjustedPT_tonConveyorTimeOut := FALSE;
+	END_IF
+ELSE
+	tonConveyorTimeOut(PT:=T#5S);
+END_IF
+
+IF bUseAdjustedPT_tonFeedInUseAddBoxesDelay THEN
+	tonFeedInUseAddBoxesDelay(PT := tRemaining_tonFeedInUseAddBoxesDelay);
+	IF tonFeedInUseAddBoxesDelay.Q OR NOT tonFeedInUseAddBoxesDelay.IN THEN
+		bUseAdjustedPT_tonFeedInUseAddBoxesDelay := FALSE;
+	END_IF
+ELSE
+	tonFeedInUseAddBoxesDelay(PT:=T#1S);
+END_IF
+
 ErrorID := 2700;
 
 InterventionRequest:=bInterventionRequest;
@@ -71,6 +136,103 @@ END_IF
 
 FeedingBoxes := eRackState=E_RackState.FeedBox;
 ]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A01_PauseControl" Id="{a01a0001-add9-0001-0001-000000000001}">
+      <Implementation>
+        <ST><![CDATA[// A01_PauseControl - 暫停控制邏輯
+// 依 PauseResume_Implementation_Guide.md 標準框架實作
+// 控制對象: tonAddBoxTimeOut/tonDetectSensor/tonConveyorTimeOut/tonFeedInUseAddBoxesDelay 4 個計時器
+//          Motor.List.UpCV (DC 馬達, 透過 bMoveConveyor 控制)
+//          arAxisCtrl_gb[AxisNo.RackMotor] (伺服軸)
+
+Paused := _bPaused;
+
+// 只在執行狀態處理暫停
+IF eState <> STATE_EXECUTING THEN
+	_bPaused := FALSE;
+	_bPauseEdge := FALSE;
+	RETURN;
+END_IF
+
+// ===== 進入暫停 (上升邊緣) =====
+IF Pause AND NOT _bPauseEdge THEN
+	_bPauseEdge := TRUE;
+
+	IF NOT _bPaused THEN
+		_bPaused := TRUE;
+
+		// 保存計時器活動狀態和剩餘時間
+		bWasActive_tonAddBoxTimeOut := tonAddBoxTimeOut.IN;
+		tRemaining_tonAddBoxTimeOut := T#120S - tonAddBoxTimeOut.ET;
+
+		bWasActive_tonDetectSensor := tonDetectSensor.IN;
+		tRemaining_tonDetectSensor := T#1S - tonDetectSensor.ET;
+
+		bWasActive_tonConveyorTimeOut := tonConveyorTimeOut.IN;
+		tRemaining_tonConveyorTimeOut := T#5S - tonConveyorTimeOut.ET;
+
+		bWasActive_tonFeedInUseAddBoxesDelay := tonFeedInUseAddBoxesDelay.IN;
+		tRemaining_tonFeedInUseAddBoxesDelay := T#1S - tonFeedInUseAddBoxesDelay.ET;
+
+		// 停止所有計時器 (避免暫停期間 Timeout)
+		tonAddBoxTimeOut.IN := FALSE;
+		tonDetectSensor.IN := FALSE;
+		tonConveyorTimeOut.IN := FALSE;
+		tonFeedInUseAddBoxesDelay.IN := FALSE;
+
+		// 保存上層輸送帶狀態
+		bSaved_MoveConveyor := bMoveConveyor;
+
+		// 停止上層輸送帶 (DC 馬達)
+		Motor.List.UpCV.M_MotorStop();
+
+		// 注意:RackMotor 不主動 halt
+		// (1) 本 codebase 軸 API 沒有 Admin.Stop,要 halt 必須切 _OpMode.en := ModeAH 但 resume 後要重 issue 太複雜
+		// (2) 暫停期間 SUPER^.A10_StateControl 不執行,軸完成 in-flight 移動後 state machine 不會推進
+		// (3) Resume 時 step 210/610 直接看到 CmdDone 立即過 step,行為等價
+	END_IF
+END_IF
+
+// ===== 離開暫停 (下降邊緣) - 必須等 Start 按鈕觸發 =====
+IF NOT Pause AND _bPauseEdge AND GVL_ADS.OpPannel_Status.StartBtnStatus THEN
+	_bPauseEdge := FALSE;
+
+	IF _bPaused THEN
+		_bPaused := FALSE;
+
+		// 恢復上層輸送帶: 透過 bMoveConveyor 在 EXECUTING preamble 自動 M_MoveForward
+		bMoveConveyor := bSaved_MoveConveyor;
+
+		// 軸:暫停時沒主動 halt,resume 不需要 restore (對應上方 pause 注意事項)
+
+		// 恢復計時器 (使用剩餘時間,A00 完成後切回原 PT)
+		IF bWasActive_tonAddBoxTimeOut THEN
+			bUseAdjustedPT_tonAddBoxTimeOut := TRUE;
+			tonAddBoxTimeOut.IN := TRUE;
+		END_IF
+
+		IF bWasActive_tonDetectSensor THEN
+			bUseAdjustedPT_tonDetectSensor := TRUE;
+			tonDetectSensor.IN := TRUE;
+		END_IF
+
+		IF bWasActive_tonConveyorTimeOut THEN
+			bUseAdjustedPT_tonConveyorTimeOut := TRUE;
+			tonConveyorTimeOut.IN := TRUE;
+		END_IF
+
+		IF bWasActive_tonFeedInUseAddBoxesDelay THEN
+			bUseAdjustedPT_tonFeedInUseAddBoxesDelay := TRUE;
+			tonFeedInUseAddBoxesDelay.IN := TRUE;
+		END_IF
+	END_IF
+END_IF
+
+// 邊緣重置
+IF NOT Pause THEN
+	_bPauseEdge := FALSE;
+END_IF]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_CheckCommand" Id="{794a08ec-bc7b-4c3e-86ee-7581fc56f7b9}">
@@ -203,32 +365,50 @@ uiAbortingStep := 0;
 _AbortCompleted := FALSE;
 
 
-CASE uiExecutingStep OF 
-	
+CASE uiExecutingStep OF
+	0, 10:
+			// init 階段 abort -> 從頭重跑
+			_RetryCompleted := TRUE;
+			uiExecutingStep := 0;
+			strStatus := 'FB_AddBoxes_v2 init step: retrying from 0';
+
 	100:
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 100;
 			strStatus := 'FB_AddBoxes_v2 Step 100: no error , retrying';
-			
-	210:
+
+	200, 210:
+			// 軸移動階段 abort -> 退到 200 重新發送移動指令
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 200;
-			strStatus := 'FB_AddBoxes_v2 Step 210: no error , retrying';
-			
+			strStatus := 'FB_AddBoxes_v2 Step 200/210: no error , retrying motion';
+
 	300:
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 300;
 			strStatus := 'FB_AddBoxes_v2 Step 300: no error , retrying';
-			
-	500:
+
+	400, 500:
+			// sensor 檢查階段 abort -> 退到 400 重新檢查
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 400;
-			strStatus := 'FB_AddBoxes_v2 Step 500: no error , retrying';
-			
-	610:
+			strStatus := 'FB_AddBoxes_v2 Step 400/500: no error , retrying refill check';
+
+	600, 610:
+			// 歸零移動階段 abort -> 退到 600 重新發送
 			_RetryCompleted := TRUE;
 			uiExecutingStep := 600;
-			strStatus := 'FB_AddBoxes_v2 Step 610: no error , retrying';
+			strStatus := 'FB_AddBoxes_v2 Step 600/610: no error , retrying home move';
+
+	1000, 1100:
+			// 收尾階段 abort -> 從 1000 完成停輸送帶
+			_RetryCompleted := TRUE;
+			uiExecutingStep := 1000;
+			strStatus := 'FB_AddBoxes_v2 Step 1000/1100: no error , finishing';
+ELSE
+			// 未涵蓋的 step -> 不允許續作,只能放開 Execute 走 RESETTING 重跑
+			_RetryCompleted := FALSE;
+			strStatus := 'FB_AddBoxes_v2 unexpected step at aborted';
 END_CASE
 
 IF NOT Execute THEN
@@ -313,7 +493,6 @@ strStatus  := 'No error';
 uiExecutingStep := 0;
 uiResettingStep := 0;
 uiAbortingStep:=0;
-uiResumeStep:=0;
 _ResetCompleted := FALSE;
 _RetryCompleted := FALSE;
 _AbortCompleted := FALSE;
@@ -323,7 +502,11 @@ tonDetectSensor.IN:=FALSE;
 tonFeedInUseAddBoxesDelay.IN :=FALSE;
 _UniqueErrorCode :='0';
 
-IF Execute  THEN 
+// 重置暫停相關變數
+_bPaused := FALSE;
+_bPauseEdge := FALSE;
+
+IF Execute  THEN
 	IF eRackState = E_RackState.FeedBox THEN
 		eState:= STATE_ERROR;
 		strStatus :='FB_AddBoxes_v2: Rack occupied by user Push FeedButton';
@@ -350,8 +533,18 @@ END_VAR
 Busy :=FALSE;
 Status :=strStatus;
 UniqueErrorCode:=_UniqueErrorCode;
+
 IF NOT Execute THEN
 	eSTATE :=STATE_RESETTING;
+END_IF
+
+// 對稱 ABORTED 的 retry: 維持 Execute + 按 Reset 從 step 0 重跑
+// 目前唯一 ERROR 觸發點 (step 0 wrong command) 由此處重試
+IF Execute AND Reset THEN
+	_Error := FALSE;
+	Error := FALSE;
+	uiExecutingStep := 0;
+	eSTATE := STATE_EXECUTING;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -361,7 +554,6 @@ VAR_INPUT
 END_VAR
 VAR_INST
 	uiTargetStation	: UINT;
-	bMoveConveyor	:BOOL;
 END_VAR
 VAR
 	bMotionDone : BOOL;
@@ -370,12 +562,17 @@ END_VAR
 
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := TRUE; 
+        <ST><![CDATA[// 暫停中直接返回
+IF _bPaused THEN
+	RETURN;
+END_IF
+
+Busy := TRUE;
 IF NOT _bForceUpperCV_Use THEN
 	IF bMoveConveyor THEN
-		Motor.List.UpCV.M_MoveForward();	
-//	ELSE		
-//		Motor.List.UpCV.M_MotorStop();	
+		Motor.List.UpCV.M_MoveForward();
+//	ELSE
+//		Motor.List.UpCV.M_MotorStop();
 	END_IF
 END_IF
 CASE uiExecutingStep OF			
@@ -424,7 +621,6 @@ CASE uiExecutingStep OF
 		
 		IF tonAddBoxTimeOut.Q THEN
 			strStatus := 'FB_AddBoxes_v2 Step 100: RackPusher move back timeout';
-			uiResumeStep:=100;
             _Abort := TRUE;
 		END_IF
 		
@@ -466,7 +662,6 @@ CASE uiExecutingStep OF
 		END_IF
 		IF tonAddBoxTimeOut.Q THEN
 			strStatus := 'FB_AddBoxes_v2 Step 300: RackPusher move forward timeout';
-			uiResumeStep:=300;
             _Abort := TRUE;
 		END_IF
 		
@@ -498,7 +693,6 @@ CASE uiExecutingStep OF
 		
 		IF tonAddBoxTimeOut.Q THEN
 			strStatus := 'FB_AddBoxes_v2 Step 500: RackPusher move back timeout';
-			uiResumeStep:=400;
             _Abort := TRUE;
 		END_IF
 	600:
@@ -519,7 +713,6 @@ CASE uiExecutingStep OF
 		END_IF
  		IF tonAddBoxTimeOut.Q THEN
 			strStatus := 'FB_AddBoxes_v2 Step 610: RackPusher move back timeout';
-			uiResumeStep:=400;
             _Abort := TRUE;
 		END_IF
 	1000:
