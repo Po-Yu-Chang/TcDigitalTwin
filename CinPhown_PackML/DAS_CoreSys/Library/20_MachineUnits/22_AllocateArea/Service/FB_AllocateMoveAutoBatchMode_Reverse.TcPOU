@@ -313,8 +313,8 @@ RoundBeltMoveJob.HandShake.Execute:=FALSE;
 RoundBeltMoveJob_Ctrl.Execute:= RoundBeltMoveJob.HandShake.Execute;
 
 DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(E_RoundBeltControlAccess.Allocating);
-IF NOT Execute THEN
-    eState := STATE_RESETTING;
+IF Done AND NOT Execute THEN
+    eState := STATE_DORMANT;
 END_IF
 
 ]]></ST>
@@ -1239,7 +1239,8 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy                         := TRUE;
+        <ST><![CDATA[Busy                         := FALSE;
+Done                         := FALSE;
 Error                        := FALSE;
 _Error                       := FALSE;
 tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
@@ -1260,8 +1261,8 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
                 IF M_CheckClipsNoError() AND_THEN
                    M_CheckCylindersNoError()
                 THEN
-                    // no error -> no need to reset, jump to step 9000 to clear Done/Busy
-                    uiResettingStep := 9000;
+                    // no error -> no need to reset
+                    bResettingCompleted := TRUE;
                 ELSE
                     uiResettingStep := 1000;
                 END_IF
@@ -1279,29 +1280,27 @@ tAutoAllocationJobBatchTimeOut_Reverse.IN := FALSE;
 //                END_FOR
 				DAS_CoreSys.MachineControl.fbAllocateArea.M_ReleaseRoundBeltAccess(E_RoundBeltControlAccess.Allocating);
                 uiResettingStep := 2000;
-
+			
 			2000:
 //					IF TurnTable.Motor.Error THEN
 //					TurnTable.Motor.Reset();
 //				END_IF
-
+				
 //				IF  AllocateRobot.axX.Error THEN
 //					  AllocateRobot.axX.Reset();
 //				END_IF
-
+				
 //				IF  AllocateRobot.axY.Error THEN
 //					  AllocateRobot.axY.Reset();
 //				END_IF
-
+				
 //				IF RoundBelt.Motor.Error THEN
-//					RoundBelt.Motor.Reset();
+//					RoundBelt.Motor.Reset();			
 //				END_IF
 				uiResettingStep := 9000;
-
+				
             9000:
                 // Resetting process is finished
-                Done := FALSE;
-                Busy := FALSE;
                 bResettingCompleted := TRUE;
         END_CASE
 
