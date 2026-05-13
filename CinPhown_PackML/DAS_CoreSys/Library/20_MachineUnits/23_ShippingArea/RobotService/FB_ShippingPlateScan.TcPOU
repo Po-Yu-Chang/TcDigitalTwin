@@ -4,13 +4,15 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingPlateScan EXTENDS FB_ObjectBase_V2
 VAR_INPUT
 	Robot			: REFERENCE TO FB_FanucRobot_Basic_V2;
+	Motor			: REFERENCE TO UNI_MotorList;			// 同尺寸軌道馬達 (放盒用)
+	Input			: REFERENCE TO ST_InputTable;			// SameSizeCV BoxNearShipping sensor
 	Side			: E_ShippingPlateSide;		// Left=0 / Right=1
 	PlateIndex		: E_ShippingPlateIndex;		// Plate1..Plate4 (enum 值 = 手臂 Position)
 	ReadComplete	: BOOL;						// 上位讀完 PlateHasBox 後回 TRUE
 END_VAR
 VAR_OUTPUT
 	PlateHasBox		: BOOL;		// Robot._DI13.9 (bClampA1_Laser_DetectStatus)
-	FeedBack		: BOOL;		// 掃完待讀,等 ReadComplete
+	FeedBack		: BOOL;		// 做完待上位讀,等 ReadComplete (做完才給,不是掃完)
 END_VAR
 VAR
 	Area						: E_RobotArea;
@@ -19,6 +21,12 @@ VAR
 	TON_RobotActionTimeOut		: TON;
 	TON_CheckRobotDoneTimeOut	: TON;
 	TON_ScanTimeOut				: TON;
+	TON_MechTimeOut				: TON;		// 軌道機構動作 watchdog (30s)
+	tonBoxArriveDelay			: TON;		// Put 階段等盒到位 debounce (1s)
+
+	// 同尺寸軌道控制 (參考 FB_ShippingRobotTransfer pattern)
+	bMoveConveyorForward		: BOOL;
+	bMoveConveyorBackward		: BOOL;
 
 	// Resume / Retry framework (對齊 FB_ShippingRobotTransfer 續做 pattern)
 	uiResumeStep				: UDINT;	// retry / 續做進入點
@@ -45,7 +53,21 @@ SUPER^.A10_StateControl();
       <Implementation>
         <ST><![CDATA[TON_RobotActionTimeOut(PT := T#60S);
 TON_CheckRobotDoneTimeOut(PT := T#30S);
-TON_ScanTimeOut(PT := T#30S);]]></ST>
+TON_ScanTimeOut(PT := T#30S);
+TON_MechTimeOut(PT := T#30S);
+tonBoxArriveDelay(PT := T#1S);
+
+// 同尺寸軌道持續驅動邏輯 (對齊 FB_ShippingRobotTransfer A00_BasicUnits)
+IF bMoveConveyorForward AND __ISVALIDREF(Motor) THEN
+	IF NOT Motor.List.TransmitSameSideCV.InBackWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveForward();
+	END_IF
+END_IF
+IF bMoveConveyorBackward AND __ISVALIDREF(Motor) THEN
+	IF NOT Motor.List.TransmitSameSideCV.InForWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveBackward();
+	END_IF
+END_IF]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_ResolveAddress" Id="{c5a8d319-6e2f-4b7c-8d4a-9f1e3b6c5d72}" FolderPath="Method\">
@@ -137,6 +159,14 @@ CASE uiAbortingStep OF
 		TON_RobotActionTimeOut.IN    := FALSE;
 		TON_CheckRobotDoneTimeOut.IN := FALSE;
 		TON_ScanTimeOut.IN           := FALSE;
+		TON_MechTimeOut.IN           := FALSE;
+		tonBoxArriveDelay.IN         := FALSE;
+		// 停 SameSize 軌道馬達
+		bMoveConveyorForward  := FALSE;
+		bMoveConveyorBackward := FALSE;
+		IF __ISVALIDREF(Motor) THEN
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+		END_IF
 		// 中斷 robot AbsMove 命令,避免 abort 期間 robot 還在跑舊軌跡
 		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		uiAbortingStep := 50;
@@ -239,6 +269,11 @@ uiResumeStep    := 0;
 TON_RobotActionTimeOut.IN    := FALSE;
 TON_CheckRobotDoneTimeOut.IN := FALSE;
 TON_ScanTimeOut.IN           := FALSE;
+TON_MechTimeOut.IN           := FALSE;
+tonBoxArriveDelay.IN         := FALSE;
+
+bMoveConveyorForward  := FALSE;
+bMoveConveyorBackward := FALSE;
 
 PlateHasBox := FALSE;
 FeedBack    := FALSE;
@@ -328,6 +363,8 @@ CASE uiExecutingStep OF
 		IF M_ResolveAddress() THEN
 			bScanCompleted := FALSE;
 			bAllowContinue := FALSE;
+			bMoveConveyorForward  := FALSE;
+			bMoveConveyorBackward := FALSE;
 			uiExecutingStep := 1000;
 		ELSE
 			Status           := strStatus;
@@ -358,15 +395,14 @@ CASE uiExecutingStep OF
 			_Abort := TRUE;
 		END_IF
 
-	1100:	// 等 A2 (掃描完成旗標) → 讀 A1 → 寫 PlateHasBox + FeedBack
+	1100:	// 等 A2 (掃描完成旗標) → 讀 A1 latch PlateHasBox (FeedBack 不在這給,做完才給)
 		IF Robot.bClampA2_Laser_DetectStatus THEN
 			PlateHasBox    := Robot.bClampA1_Laser_DetectStatus;
-			FeedBack       := TRUE;
 			bScanCompleted := TRUE;
 			TON_ScanTimeOut.IN := FALSE;
 			IF NOT PlateHasBox THEN
-				// 沒盒 → 不下 continue,直接收尾
-				uiExecutingStep := 3000;
+				// 沒盒 → 跳過取盒/放盒/軌道,直接 step 5000 reset robot 後收尾
+				uiExecutingStep := 5000;
 			ELSE
 				bAllowContinue := TRUE;
 				uiExecutingStep := 2000;
@@ -411,7 +447,7 @@ CASE uiExecutingStep OF
 
 		IF Robot._DI1.Done THEN
 			TON_RobotActionTimeOut.IN := FALSE;
-			uiExecutingStep := 3000;
+			uiExecutingStep := 2100;
 		END_IF
 
 		IF TON_RobotActionTimeOut.Q THEN
@@ -429,7 +465,115 @@ CASE uiExecutingStep OF
 			_Abort := TRUE;
 		END_IF
 
-	3000:	// Reset AbsMove → 等 Robot.Done 降回
+	2100:	// Reset FROM AbsMove → 等 Robot.Done 降 (手臂從鐵盤離開準備放盒)
+		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+		TON_CheckRobotDoneTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiExecutingStep := 3000;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 2100;
+			strStatus := 'FB_ShippingPlateScan Step 2100: Wait Robot done (after fetch) timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
+			_Error := TRUE;
+		END_IF
+
+	// ===========================================================
+	// Phase 2 (TO):放盒到同尺寸軌道 TransmitCV_End Pos 1 SameSize
+	// 對齊 FB_ShippingRobotTransfer step 10300/15000/15100/20000
+	// ===========================================================
+	3000:	// TO 前置:啟動軌道 backward + 等放盒位 sensor 清空
+		bMoveConveyorBackward := TRUE;
+		TON_MechTimeOut.IN := TRUE;
+		IF __ISVALIDREF(Motor) AND Motor.List.TransmitSameSideCV.InBackWard
+		   AND NOT Input.bSameSizeCV_BoxNearShippingSensor THEN
+			TON_MechTimeOut.IN := FALSE;
+			uiExecutingStep := 3100;
+		END_IF
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 3000;
+			strStatus := 'FB_ShippingPlateScan Step 3000: SameSizeCV backward / sensor clear timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_CV_BACKWARD_TIMEOUT';
+			_Abort := TRUE;
+		END_IF
+
+	3100:	// AbsMove 到 TransmitCV_End Pos 1 放盒,BoxReady=tonBoxArriveDelay.Q (等盒到位 debounce)
+		TON_RobotActionTimeOut.IN := TRUE;
+		tonBoxArriveDelay.IN := Input.bSameSizeCV_BoxNearShippingSensor;
+		IF NOT Robot._DI1.Done THEN
+			Robot.M_StartRobotAbsMove(
+				GetBox         := FALSE,
+				UseClampA      := TRUE,
+				UseClampB      := FALSE,
+				Area           := E_RobotArea.TransmitCV_End,
+				ClampA_Address := 1,
+				ClampB_Address := 0,
+				BoxReady_1     := tonBoxArriveDelay.Q,
+				BoxReady_2     := FALSE);
+		ELSE
+			TON_RobotActionTimeOut.IN := FALSE;
+			tonBoxArriveDelay.IN      := FALSE;
+			uiExecutingStep := 3200;
+		END_IF
+
+		IF TON_RobotActionTimeOut.Q THEN
+			uiResumeStep := 3100;
+			strStatus := 'FB_ShippingPlateScan Step 3100: Robot put to SameSizeCV timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_PUT_TIMEOUT';
+			_Abort := TRUE;
+		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 3100;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 3100: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
+
+	3200:	// Reset TO AbsMove → 等 Robot.Done 降
+		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+		TON_CheckRobotDoneTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiExecutingStep := 3300;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 3200;
+			strStatus := 'FB_ShippingPlateScan Step 3200: Wait Robot done (after put) timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
+			_Error := TRUE;
+		END_IF
+
+	3300:	// TO 後置:停 backward,啟 forward 推走盒子
+		bMoveConveyorBackward := FALSE;
+		bMoveConveyorForward  := TRUE;
+		uiExecutingStep := 3400;
+
+	3400:	// 等馬達 forward 起步 → 停 motor → 收尾 (短行程,不等 sensor 避免卡)
+		TON_MechTimeOut.IN := TRUE;
+		IF __ISVALIDREF(Motor) AND Motor.List.TransmitSameSideCV.InForWard THEN
+			TON_MechTimeOut.IN   := FALSE;
+			bMoveConveyorForward := FALSE;
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+			uiExecutingStep := 4000;
+		END_IF
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 3400;
+			strStatus := 'FB_ShippingPlateScan Step 3400: SameSizeCV forward timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_CV_FORWARD_TIMEOUT';
+			_Abort := TRUE;
+		END_IF
+
+	// ===========================================================
+	// 沒盒 path:跳過取盒/放盒/軌道,直接 reset robot 進收尾
+	// ===========================================================
+	5000:	// Reset robot 命令 → 等 Done 降 (沒盒專用)
 		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		TON_CheckRobotDoneTimeOut.IN := TRUE;
 		IF NOT Robot._DI1.Done THEN
@@ -437,14 +581,18 @@ CASE uiExecutingStep OF
 			uiExecutingStep := 4000;
 		END_IF
 		IF TON_CheckRobotDoneTimeOut.Q THEN
-			uiResumeStep := 3000;
-			strStatus := 'FB_ShippingPlateScan Step 3000: Wait Robot done timeout';
+			uiResumeStep := 5000;
+			strStatus := 'FB_ShippingPlateScan Step 5000: Wait Robot done (no box) timeout';
 			Status := strStatus;
 			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
 			_Error := TRUE;
 		END_IF
 
-	4000:	// 等上位回 ReadComplete → 清 FeedBack
+	// ===========================================================
+	// 收尾:做完才給 FeedBack → 等 ReadComplete → 清 FeedBack
+	// ===========================================================
+	4000:	// 整個動作完成 → FeedBack:=TRUE 通知上位讀 PlateHasBox
+		FeedBack := TRUE;
 		IF ReadComplete THEN
 			FeedBack := FALSE;
 			uiExecutingStep := 90000;
@@ -523,6 +671,14 @@ END_VAR
 		TON_RobotActionTimeOut.IN    := FALSE;
 		TON_CheckRobotDoneTimeOut.IN := FALSE;
 		TON_ScanTimeOut.IN           := FALSE;
+		TON_MechTimeOut.IN           := FALSE;
+		tonBoxArriveDelay.IN         := FALSE;
+		// 停 SameSize 軌道馬達
+		bMoveConveyorForward  := FALSE;
+		bMoveConveyorBackward := FALSE;
+		IF __ISVALIDREF(Motor) THEN
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+		END_IF
 		PlateHasBox := FALSE;
 		FeedBack    := FALSE;
 		uiResettingStep := 100;

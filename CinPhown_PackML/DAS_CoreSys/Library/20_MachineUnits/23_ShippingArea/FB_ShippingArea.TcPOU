@@ -265,6 +265,8 @@ fbShippingPlateScan(
 	Status=> Service.AutoMode_ShippingPlateScan.Status.Status,
 	UniqueErrorCode=> ,
 	Robot:= FanucRobot,
+	Motor:= Motor,
+	Input:= INPUT,
 	Side:= Service.AutoMode_ShippingPlateScan.Side,
 	PlateIndex:= Service.AutoMode_ShippingPlateScan.PlateIndex,
 	ReadComplete:= Service.AutoMode_ShippingPlateScan.ReadComplete,
