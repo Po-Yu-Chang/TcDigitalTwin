@@ -160,8 +160,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[Busy := FALSE;
-Done := TRUE;
+        <ST><![CDATA[Busy   := FALSE;
+_Error := Error := FALSE;
+_Abort := Abort := FALSE;
+Done   := TRUE;
+
 IF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF]]></ST>

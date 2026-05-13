@@ -121,9 +121,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[
-Busy := FALSE;
-Done := TRUE;
+        <ST><![CDATA[Busy   := FALSE;
+_Error := Error := FALSE;
+_Abort := Abort := FALSE;
+Done   := TRUE;
+
 IF NOT Execute THEN
     eState := STATE_RESETTING;
 END_IF
@@ -338,19 +340,24 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[
-Busy := TRUE;
-Error := FALSE;
-_Error := FALSE;
+        <ST><![CDATA[// Done := false 更改到Dormant 清除確保，上位檢查到done 後可以直接下Execute
 
 CASE uiResettingStep OF
 
 	0:
-		uiResettingStep := 9999;
+		TON_RobotActionTimeOut.IN	:= FALSE;
+		TON_CheckRobotDoneTimeOut.IN:= FALSE;
+		uiResettingStep := 100;
+
+	100:
+		Robot.M_ResetAllCommand();
+		IF Robot.M_CheckResetAllCommand() THEN
+			uiResettingStep := 9999;
+		END_IF
 
 	9999:
-		Done := FALSE;
-		Busy := FALSE;
+//		Done := FALSE;
+//		Busy := FALSE;
 		_ResetCompleted:=TRUE;
 END_CASE
 
