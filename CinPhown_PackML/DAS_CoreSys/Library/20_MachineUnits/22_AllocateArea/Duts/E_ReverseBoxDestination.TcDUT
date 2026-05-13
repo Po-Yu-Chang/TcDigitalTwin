@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_ReverseBoxDestination" Id="{e1a2b3c4-d5e6-4f7a-8b9c-1d2e3f4a5b60}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+(* 同尺寸軌道逆向送盒目的地
+   WareHouse  : 入倉 (走 WareHouse.M_StartFeedInBox + StorageRobot.M_StartWareHousePlaceBox)
+   PullOut    : 回拔輸送帶 (走 FB_RobotRegionMove_PullOutConveyor)
+   NGConveyor : 倉儲區軌道 NG 位置 (E_RobotArea.InOutConveyor Position 3,走 FB_RobotRegionMove_FeedInConveyor_V2)
+*)
+TYPE E_ReverseBoxDestination :
+(
+	WareHouse	:= 0,
+	PullOut		:= 1,
+	NGConveyor	:= 2
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

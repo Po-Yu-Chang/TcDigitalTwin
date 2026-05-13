@@ -1164,6 +1164,9 @@
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_AutoMode_ReverseBatchPick.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\E_ReverseBoxDestination.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\20_MachineUnits\22_AllocateArea\Duts\ST_AutoMode_ReverseBoxToWareHouse.TcDUT">
       <SubType>Code</SubType>
     </Compile>
