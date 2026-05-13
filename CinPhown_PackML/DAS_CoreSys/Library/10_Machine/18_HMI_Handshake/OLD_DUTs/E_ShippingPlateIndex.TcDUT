@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_ShippingPlateIndex" Id="{a3e2d6b1-8c5f-4b73-9d6a-1f4c8e7b9a05}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+(* enum 值 = 手臂 Position，PLC 內可直接 INT(PlateIndex) 送 robot *)
+TYPE E_ShippingPlateIndex :
+(
+	Plate1	:= 1,
+	Plate2	:= 2,
+	Plate3	:= 3,
+	Plate4	:= 4
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

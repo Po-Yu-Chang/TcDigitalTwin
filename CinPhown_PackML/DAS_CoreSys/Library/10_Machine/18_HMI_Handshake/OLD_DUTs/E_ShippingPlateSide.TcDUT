@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="E_ShippingPlateSide" Id="{c1f5e8a2-7d3b-4a91-9c4e-2f8b6d1a4e92}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_ShippingPlateSide :
+(
+	Left	:= 0,
+	Right	:= 1
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

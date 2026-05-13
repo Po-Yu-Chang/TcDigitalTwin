@@ -12,6 +12,7 @@
 		AutoMode_ShippingRobot_Buffer		 	: REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
 		AutoMode_ShippingRobot_PhotoStandByPos	: REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
 		AutoMode_ShippingRobotTransfer			: REFERENCE TO ST_AutoMode_ShippingRobotTransfer;
+		AutoMode_ShippingPlateScan				: REFERENCE TO ST_ShippingPlateToConveyor;
     END_STRUCT
 END_TYPE
 ]]></Declaration>

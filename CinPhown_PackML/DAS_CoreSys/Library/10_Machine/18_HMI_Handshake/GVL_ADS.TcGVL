@@ -146,6 +146,8 @@ VAR_GLOBAL
 	AutoMode_ShippingRobot_PhotoStandByPos	: ST_AutoMode_ShippingRobot_MoveAbs;
 	//AutoModeUse------- 出貨區搬運 (合併)
 	AutoMode_ShippingRobotTransfer			: ST_AutoMode_ShippingRobotTransfer;
+	//AutoModeUse------- 出貨區小手臂鐵盤掃描
+	AutoMode_ShippingPlateScan				: ST_ShippingPlateToConveyor;
 	//AutoModeUse------- 手臂單獨回原點
 	AutoMode_RobotSelfHoming				: ST_AutoMode_RobotSelfHoming;
 	//BuzzCtrl 

@@ -143,6 +143,8 @@
 	AutoMode_ShippingRobot_PhotoStandByPos	:REFERENCE TO ST_AutoMode_ShippingRobot_MoveAbs;
 	//AutoModeUse------- 出貨區搬運 (合併)
 	AutoMode_ShippingRobotTransfer			:REFERENCE TO ST_AutoMode_ShippingRobotTransfer;
+	//AutoModeUse------- 出貨區小手臂鐵盤掃描
+	AutoMode_ShippingPlateScan				: REFERENCE TO ST_ShippingPlateToConveyor;
 	//AutoMode---------- 倉儲區手臂單獨回原點
 	AutoMode_RobotSelfHoming				: REFERENCE to ST_AutoMode_RobotSelfHoming;
 	//AutoModeUse------逆向拍照批次入料

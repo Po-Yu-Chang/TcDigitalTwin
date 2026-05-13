@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_ShippingPlateScan" Id="{b8f3c14a-9d6b-4e7a-8c52-1f29a4b8e36d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingPlateScan EXTENDS FB_ObjectBase_V2
+VAR_INPUT
+	Robot			: REFERENCE TO FB_FanucRobot_Basic_V2;
+	Side			: E_ShippingPlateSide;		// Left=0 / Right=1
+	PlateIndex		: E_ShippingPlateIndex;		// Plate1..Plate4 (enum 值 = 手臂 Position)
+	ReadComplete	: BOOL;						// 上位讀完 PlateHasBox 後回 TRUE
+END_VAR
+VAR_OUTPUT
+	PlateHasBox		: BOOL;		// Robot._DI13.9 (bClampA1_Laser_DetectStatus)
+	FeedBack		: BOOL;		// 掃完待讀,等 ReadComplete
+END_VAR
+VAR
+	Area						: E_RobotArea;
+	Address_A					: INT;
+
+	TON_RobotActionTimeOut		: TON;
+	TON_CheckRobotDoneTimeOut	: TON;
+	TON_ScanTimeOut				: TON;
+
+	// Resume / Retry framework (對齊 FB_ShippingRobotTransfer 續做 pattern)
+	uiResumeStep				: UDINT;	// retry / 續做進入點
+	_bRetry						: BOOL;		// STATE_ABORTED 收到 Reset 後置 TRUE,觸發 retry
+	strStatus					: STRING;
+	_UniqueErrorCode			: STRING;
+	PreviousStrStatus			: STRING;
+	PreviousErrorCode			: STRING;
+
+	// Error blinking (Reset 後閃爍 1 秒,避開瞬間錯誤閃爍)
+	trigErrorReset				: R_TRIG;
+	tonErrorResetDelay			: TON;
+	bErrorBlinking				: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[A00_BasicUnits();
+SUPER^.A10_StateControl();
+]]></ST>
+    </Implementation>
+    <Folder Name="Method" Id="{a26b48e0-3b91-4d33-9a55-7e2c8d1f4b6a}" />
+    <Folder Name="STATE" Id="{f73d92c1-4a8b-4e5c-b182-3d6f8a9e7c14}" />
+    <Action Name="A00_BasicUnits" Id="{d4e8b2a9-7f1c-4b65-9a83-2e5d6c4f1b8a}">
+      <Implementation>
+        <ST><![CDATA[TON_RobotActionTimeOut(PT := T#60S);
+TON_CheckRobotDoneTimeOut(PT := T#30S);
+TON_ScanTimeOut(PT := T#30S);]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="M_ResolveAddress" Id="{c5a8d319-6e2f-4b7c-8d4a-9f1e3b6c5d72}" FolderPath="Method\">
+      <Declaration><![CDATA[METHOD PRIVATE M_ResolveAddress : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Side → Area
+CASE Side OF
+	E_ShippingPlateSide.Left:
+		Area := E_RobotArea.ShippingRobotLeft;
+	E_ShippingPlateSide.Right:
+		Area := E_RobotArea.ShippingRobotRight;
+ELSE
+	strStatus := 'FB_ShippingPlateScan: invalid Side enum, not can retry';
+	M_ResolveAddress := FALSE;
+	RETURN;
+END_CASE
+
+// PlateIndex → Address (enum value 1..4 直接 = Position)
+CASE PlateIndex OF
+	E_ShippingPlateIndex.Plate1: Address_A := 1;
+	E_ShippingPlateIndex.Plate2: Address_A := 2;
+	E_ShippingPlateIndex.Plate3: Address_A := 3;
+	E_ShippingPlateIndex.Plate4: Address_A := 4;
+ELSE
+	strStatus := 'FB_ShippingPlateScan: invalid PlateIndex enum, not can retry';
+	M_ResolveAddress := FALSE;
+	RETURN;
+END_CASE
+
+// Get=TRUE 需要爪是開的 (否則手臂在抓時會撞)
+IF NOT Robot._DI1.ClampA_Open THEN
+	strStatus := 'FB_ShippingPlateScan: ClampA must be open for scan/get';
+	M_ResolveAddress := FALSE;
+	RETURN;
+END_IF
+
+M_ResolveAddress := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTED" Id="{a1d92e34-5b8c-4f7d-8e6a-9c2b4d5e7f1a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_ABORTED
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _bRetry THEN
+	Busy    := FALSE;
+	Error   := TRUE;
+	Aborted := TRUE;
+	uiAbortingStep  := 0;
+	_AbortCompleted := FALSE;
+END_IF
+
+IF Reset THEN
+	_bRetry := TRUE;
+	Error   := FALSE;
+	Aborted := FALSE;
+END_IF
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
+	// 續做:從上次 uiResumeStep 標的失敗點接續
+	uiExecutingStep   := uiResumeStep;
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	Status            := 'FB_ShippingPlateScan: no error';
+	_bRetry           := FALSE;
+	eState            := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ABORTING" Id="{b2e83f45-6c9d-4a8b-9f7c-8d3e5a6b9c2d}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_ABORTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// 對齊 FB_ShippingRobotTransfer ABORTING:reset robot 命令 → 等 Done 降 → Robot Error Recovery 循環
+CASE uiAbortingStep OF
+	0:
+		_Abort := FALSE;
+		Abort  := FALSE;
+		TON_RobotActionTimeOut.IN    := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		TON_ScanTimeOut.IN           := FALSE;
+		// 中斷 robot AbsMove 命令,避免 abort 期間 robot 還在跑舊軌跡
+		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+		uiAbortingStep := 50;
+
+	50:	// 等 robot 命令真的被 reset 掉 (Done 降) 再進入錯誤檢查
+		TON_CheckRobotDoneTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiAbortingStep := 100;
+		ELSIF TON_CheckRobotDoneTimeOut.Q THEN
+			// reset 超時也繼續,後續 step 100 會處理 Robot.Error 路徑
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiAbortingStep := 100;
+		END_IF
+
+	100:	// 看 robot 自己是否在 Error 狀態,需 robot error recovery
+		IF Robot._DI1.Error THEN
+			uiAbortingStep := 200;
+		ELSE
+			uiAbortingStep := 9999;
+		END_IF
+
+	200:	// Robot Error Recovery:對 robot 下 Reset 命令
+		IF DAS_CoreSys.MachineControl.M_ShippingRobotResetCmd() THEN
+			uiAbortingStep := 300;
+		END_IF
+
+	300:	// 對 robot 下 Start 命令重啟 prog
+		IF DAS_CoreSys.MachineControl.M_ShippingRobotStartCmd() THEN
+			uiAbortingStep := 400;
+		END_IF
+
+	400:	// 確認 robot 已脫離 error,還有就再循環一次
+		IF Robot._DI1.Error THEN
+			uiAbortingStep := 200;
+		ELSE
+			uiAbortingStep := 9999;
+		END_IF
+
+	9999:
+		_AbortCompleted := TRUE;
+END_CASE
+
+IF _AbortCompleted THEN
+	eState := STATE_ABORTED;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DONE" Id="{c3f94a56-7d8b-4e9c-9a3d-7e4f8b5c6d3e}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_DONE
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy   := FALSE;
+_Error := Error := FALSE;
+_Abort := Abort := FALSE;
+Done   := TRUE;
+
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_DORMANT" Id="{d4a95b67-8e9c-4f1d-8b4e-7f5a9b6c8d4f}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_DORMANT
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy            := FALSE;
+Done            := FALSE;
+Aborted         := FALSE;
+Error           := FALSE;
+Paused          := FALSE;
+ErrorID         := 0;
+Status          := '';
+UniqueErrorCode := '';
+
+_Executed         := FALSE;
+_Error            := FALSE;
+_Abort            := FALSE;
+_ResetCompleted   := FALSE;
+_AbortCompleted   := FALSE;
+_HoldingCompleted := FALSE;
+_HeldCompleted    := FALSE;
+_UnholdCompleted  := FALSE;
+_bRetry           := FALSE;
+
+uiExecutingStep := 0;
+uiResettingStep := 0;
+uiAbortingStep  := 0;
+uiHoldingStep   := 0;
+uiHeldStep      := 0;
+uiUnholdStep    := 0;
+uiResumeStep    := 0;
+
+TON_RobotActionTimeOut.IN    := FALSE;
+TON_CheckRobotDoneTimeOut.IN := FALSE;
+TON_ScanTimeOut.IN           := FALSE;
+
+PlateHasBox := FALSE;
+FeedBack    := FALSE;
+
+PreviousStrStatus := '';
+PreviousErrorCode := '';
+_UniqueErrorCode  := '0';
+bErrorBlinking    := FALSE;
+tonErrorResetDelay.IN := FALSE;
+
+IF Execute THEN
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_ERROR" Id="{e5b96c78-9f1d-4a2e-9c5f-8e6a7b8c9d5a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_ERROR
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Error  := TRUE;
+Busy   := FALSE;
+_Error := FALSE;
+Status := strStatus;
+
+// Reset 上升緣 → 1 秒閃爍 + retry 觸發 (與 FB_ShippingRobotTransfer 對齊)
+trigErrorReset(CLK := Reset);
+IF trigErrorReset.Q THEN
+	bErrorBlinking := TRUE;
+END_IF
+tonErrorResetDelay(IN := bErrorBlinking, PT := T#1S);
+IF tonErrorResetDelay.Q THEN
+	bErrorBlinking := FALSE;
+END_IF
+IF bErrorBlinking THEN
+	Error := FALSE;
+END_IF
+
+IF NOT Execute THEN
+	Error  := FALSE;
+	bErrorBlinking := FALSE;
+	tonErrorResetDelay.IN := FALSE;
+	eState := STATE_RESETTING;
+ELSIF trigErrorReset.Q AND Execute AND NOT Robot._DI1.Error THEN
+	// Retry 對稱:Reset 上升緣 (edge) 才觸發,避免 Reset 持續 TRUE 多 cycle 重複切換造成 race
+	uiExecutingStep   := uiResumeStep;
+	PreviousStrStatus := strStatus;
+	PreviousErrorCode := _UniqueErrorCode;
+	Status            := 'FB_ShippingPlateScan: no error';
+	Error             := FALSE;
+	bErrorBlinking    := FALSE;
+	tonErrorResetDelay.IN := FALSE;
+	eState            := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_EXECUTING" Id="{f6ca7d89-a12e-4b3f-8d6a-9f7b8c9d6e5b}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_EXECUTING
+VAR_INPUT
+END_VAR
+VAR_INST
+	bScanCompleted		: BOOL;		// A2 升 → 已讀 A1 latch,防 A2 transient 重複讀
+	bAllowContinue		: BOOL;		// 掃到盒子才 TRUE,送到 _DO3.bContinue 讓手臂繼續夾
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy := TRUE;
+
+// 暫停
+IF Pause THEN
+	_HoldingCompleted := FALSE;
+	_HeldCompleted    := FALSE;
+	_UnholdCompleted  := FALSE;
+	uiHoldingStep := 0;
+	uiHeldStep    := 0;
+	uiUnholdStep  := 0;
+	eState := STATE_Holding;
+	RETURN;
+END_IF
+
+CASE uiExecutingStep OF
+
+	0:	// 命令驗證 + Side→Area + PlateIndex→Address_A
+		IF M_ResolveAddress() THEN
+			bScanCompleted := FALSE;
+			bAllowContinue := FALSE;
+			uiExecutingStep := 1000;
+		ELSE
+			Status           := strStatus;
+			_UniqueErrorCode := 'E_INVALID_CMD';
+			uiResumeStep     := 0;
+			_Error := TRUE;
+		END_IF
+
+	1000:	// 送一次 AbsMove(BoxReady=FALSE) → 手臂走到 safe pos 等 continue 開始掃描
+		TON_ScanTimeOut.IN := TRUE;		// 等 A2 掃完旗標 watchdog (給 step 1100 用)
+
+		Robot.M_StartRobotAbsMove(
+			GetBox         := TRUE,
+			UseClampA      := TRUE,
+			UseClampB      := FALSE,
+			Area           := Area,
+			ClampA_Address := Address_A,
+			ClampB_Address := 0,
+			BoxReady_1     := FALSE,	// 還沒掃完不下 continue
+			BoxReady_2     := FALSE);
+		uiExecutingStep := 1100;
+
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 1000;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 1000: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
+
+	1100:	// 等 A2 (掃描完成旗標) → 讀 A1 → 寫 PlateHasBox + FeedBack
+		IF Robot.bClampA2_Laser_DetectStatus THEN
+			PlateHasBox    := Robot.bClampA1_Laser_DetectStatus;
+			FeedBack       := TRUE;
+			bScanCompleted := TRUE;
+			TON_ScanTimeOut.IN := FALSE;
+			IF NOT PlateHasBox THEN
+				// 沒盒 → 不下 continue,直接收尾
+				uiExecutingStep := 3000;
+			ELSE
+				bAllowContinue := TRUE;
+				uiExecutingStep := 2000;
+			END_IF
+		END_IF
+
+		// 早 fail:手臂已 Done 但 A2 從未升起 (Pause 期間手臂跑完命令 / robot prog bug)
+		IF Robot._DI1.Done AND NOT bScanCompleted THEN
+			uiResumeStep := 1000;
+			strStatus := 'FB_ShippingPlateScan Step 1100: Robot done but scan flag (A2) never raised, can retry';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_SCAN_MISSED';
+			_Abort := TRUE;
+		END_IF
+		IF TON_ScanTimeOut.Q THEN
+			uiResumeStep := 1000;	// retry 整個 AbsMove + 掃描流程
+			strStatus := 'FB_ShippingPlateScan Step 1100: Scan complete (A2) timeout, can retry';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_SCAN_TIMEOUT';
+			_Abort := TRUE;
+		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 1000;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 1100: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
+
+	2000:	// 送一次 AbsMove(BoxReady=TRUE) → 手臂收 continue 訊號繼續夾取 → 等 Robot.Done
+		TON_RobotActionTimeOut.IN := TRUE;		// 等 Robot.Done watchdog
+
+		Robot.M_StartRobotAbsMove(
+			GetBox         := TRUE,
+			UseClampA      := TRUE,
+			UseClampB      := FALSE,
+			Area           := Area,
+			ClampA_Address := Address_A,
+			ClampB_Address := 0,
+			BoxReady_1     := TRUE,		// 下 continue,手臂繼續夾
+			BoxReady_2     := FALSE);
+
+		IF Robot._DI1.Done THEN
+			TON_RobotActionTimeOut.IN := FALSE;
+			uiExecutingStep := 3000;
+		END_IF
+
+		IF TON_RobotActionTimeOut.Q THEN
+			uiResumeStep := 2000;
+			strStatus := 'FB_ShippingPlateScan Step 2000: Robot fetch timeout, can retry';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_FETCH_TIMEOUT';
+			_Abort := TRUE;
+		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 2000;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 2000: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
+
+	3000:	// Reset AbsMove → 等 Robot.Done 降回
+		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
+		TON_CheckRobotDoneTimeOut.IN := TRUE;
+		IF NOT Robot._DI1.Done THEN
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiExecutingStep := 4000;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 3000;
+			strStatus := 'FB_ShippingPlateScan Step 3000: Wait Robot done timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
+			_Error := TRUE;
+		END_IF
+
+	4000:	// 等上位回 ReadComplete → 清 FeedBack
+		IF ReadComplete THEN
+			FeedBack := FALSE;
+			uiExecutingStep := 90000;
+		END_IF
+
+	90000:
+		Status    := 'FB_ShippingPlateScan: Process completed';
+		_Executed := TRUE;
+END_CASE
+
+// 狀態機切換
+IF NOT Execute THEN
+	eState := STATE_RESETTING;
+ELSIF _Error THEN
+	eState := STATE_ERROR;
+ELSIF _Abort THEN
+	eState := STATE_ABORTING;
+ELSIF _Executed THEN
+	eState := STATE_DONE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HELD" Id="{a7db8e9a-b23f-4c4a-9e7b-a8c9d6e7f1c2}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_HELD
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Busy   := FALSE;
+Paused := TRUE;
+
+CASE uiHeldStep OF
+	0:
+		uiHeldStep := 9999;
+	9999:
+		_HeldCompleted := TRUE;
+END_CASE
+
+IF _HeldCompleted AND NOT Pause THEN
+	eState := STATE_UnHold;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_HOLDING" Id="{b8ec9fab-c34a-4d5b-9f8c-b9d1e7f8a2d3}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_HOLDING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiHoldingStep OF
+	0:
+		TON_RobotActionTimeOut.IN    := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		TON_ScanTimeOut.IN           := FALSE;
+		uiHoldingStep := 9999;
+	9999:
+		_HoldingCompleted := TRUE;
+END_CASE
+
+IF _HoldingCompleted THEN
+	eState := STATE_Held;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_RESETTING" Id="{c9fda1bc-d45b-4e6c-8a9d-ca2e8f9b3e4a}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_RESETTING
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiResettingStep OF
+	0:
+		TON_RobotActionTimeOut.IN    := FALSE;
+		TON_CheckRobotDoneTimeOut.IN := FALSE;
+		TON_ScanTimeOut.IN           := FALSE;
+		PlateHasBox := FALSE;
+		FeedBack    := FALSE;
+		uiResettingStep := 100;
+
+	100:
+		Robot.M_ResetAllCommand();
+		IF Robot.M_CheckResetAllCommand() THEN
+			uiResettingStep := 9999;
+		END_IF
+
+	9999:
+		_ResetCompleted := TRUE;
+END_CASE
+
+IF _ResetCompleted THEN
+	eState := STATE_DORMANT;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_STATE_UNHOLD" Id="{da1eb2cd-e56c-4f7d-9b1a-db3f9a1c4f5b}" FolderPath="STATE\">
+      <Declaration><![CDATA[METHOD M_STATE_UNHOLD
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE uiUnholdStep OF
+	0:
+		uiUnholdStep := 9999;
+	9999:
+		_UnholdCompleted := TRUE;
+END_CASE
+
+IF _UnholdCompleted THEN
+	Paused := FALSE;
+	eState := STATE_EXECUTING;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

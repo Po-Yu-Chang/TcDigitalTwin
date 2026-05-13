@@ -35,7 +35,8 @@ VAR
 	fbShippingRobot_Buffer			: FB_ShippingRobot_Buffer;
 	fbShippingRobot_PhotoStandByPos	: FB_ShippingRobot_PhotoStandByPos;
 	fbShippingRobotTransfer			: FB_ShippingRobotTransfer;
-	
+	fbShippingPlateScan				: FB_ShippingPlateScan;
+
 	//HansLaser HandShake TransCV Service
 	fbShippingLeftSideTransCV		: FB_ShippingTransCV_LeftSide;
 	fbShippingRightSideTransCV		: FB_ShippingTransCV_RightSide;
@@ -242,12 +243,33 @@ fbShippingRobot_PhotoStandByPos(
 	Paused=> , 
 	ErrorID=> , 
 	Status=> Service.AutoMode_ShippingRobot_PhotoStandByPos.Status.Status, 
-	UniqueErrorCode=> , 
-	Robot:= , 
-	Info:= Service.AutoMode_ShippingRobot_PhotoStandByPos.Info, 
-	Stop:= , 
+	UniqueErrorCode=> ,
+	Robot:= ,
+	Info:= Service.AutoMode_ShippingRobot_PhotoStandByPos.Info,
+	Stop:= ,
 	Input:= INPUT,
-	Output:= OUTPUT);]]></ST>
+	Output:= OUTPUT);
+
+fbShippingPlateScan(
+	Execute:= Service.AutoMode_ShippingPlateScan.Command.Execute,
+	Abort:= Service.AutoMode_ShippingPlateScan.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
+	Reset:= Reset OR Service.AutoMode_ShippingPlateScan.Command.Reset,
+	Pause:= bStopMem,
+	ObjectName:= 'FB_ShippingPlateScan',
+	Busy=> Service.AutoMode_ShippingPlateScan.Status.Busy,
+	Done=> Service.AutoMode_ShippingPlateScan.Status.Done,
+	Aborted=> ,
+	Error=> Service.AutoMode_ShippingPlateScan.Status.Error,
+	Paused=> ,
+	ErrorID=> ,
+	Status=> Service.AutoMode_ShippingPlateScan.Status.Status,
+	UniqueErrorCode=> ,
+	Robot:= FanucRobot,
+	Side:= Service.AutoMode_ShippingPlateScan.Side,
+	PlateIndex:= Service.AutoMode_ShippingPlateScan.PlateIndex,
+	ReadComplete:= Service.AutoMode_ShippingPlateScan.ReadComplete,
+	PlateHasBox=> Service.AutoMode_ShippingPlateScan.PlateHasBox,
+	FeedBack=> Service.AutoMode_ShippingPlateScan.FeedBack);]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_Aborted" Id="{3b7aeb74-3c46-4095-9c8f-17f92de17ccd}" FolderPath="States\">

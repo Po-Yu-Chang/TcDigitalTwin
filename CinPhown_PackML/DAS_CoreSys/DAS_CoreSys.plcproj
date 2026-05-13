@@ -577,6 +577,15 @@
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoMode_WareHouseInnerPickToRoundBelt.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_ShippingPlateIndex.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\E_ShippingPlateSide.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_ShippingPlateToConveyor.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\18_HMI_Handshake\OLD_DUTs\ST_AutoPullOutConveyor.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -1282,6 +1291,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingRobot_Buffer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingPlateScan.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Library\20_MachineUnits\23_ShippingArea\RobotService\FB_ShippingRobot_Left.TcPOU">

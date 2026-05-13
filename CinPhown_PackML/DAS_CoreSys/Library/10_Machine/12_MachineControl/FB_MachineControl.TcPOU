@@ -4055,6 +4055,7 @@ Service_Handshake.AutoMode_ShippingRightSideTransCV 	REF= GVL_ADS.AutoMode_Shipp
 Service_Handshake.AutoMode_ShippingRobot_Buffer REF= GVL_ADS.AutoMode_ShippingRobot_Buffer;
 Service_Handshake.AutoMode_ShippingRobot_PhotoStandByPos REF= GVL_ADS.AutoMode_ShippingRobot_PhotoStandByPos;
 Service_Handshake.AutoMode_ShippingRobotTransfer REF= GVL_ADS.AutoMode_ShippingRobotTransfer;
+Service_Handshake.AutoMode_ShippingPlateScan REF= GVL_ADS.AutoMode_ShippingPlateScan;
 
 Service_Handshake.AutoMode_FeedInRoundBeltBoxToWareHouse REF= GVL_ADS.AutoMode_FeedInRoundBeltBoxToWareHouse;
 Service_Handshake.AutoMode_WareHouseInnerPickToRoundBelt REF= GVL_ADS.AutoMode_WareHouseInnerPickToRoundBelt;
@@ -4089,7 +4090,8 @@ ShippingService.AutoMode_ShippingTransCV_LeftSide 		REF= Service_Handshake.AutoM
 ShippingService.AutoMode_ShippingTransCV_RightSide 		REF= Service_Handshake.AutoMode_ShippingRightSideTransCV;
 ShippingService.AutoMode_ShippingRobot_Buffer			REF= Service_Handshake.AutoMode_ShippingRobot_Buffer;
 ShippingService.AutoMode_ShippingRobot_PhotoStandByPos  REF= Service_Handshake.AutoMode_ShippingRobot_PhotoStandByPos;
-ShippingService.AutoMode_ShippingRobotTransfer			REF= Service_Handshake.AutoMode_ShippingRobotTransfer;]]></ST>
+ShippingService.AutoMode_ShippingRobotTransfer			REF= Service_Handshake.AutoMode_ShippingRobotTransfer;
+ShippingService.AutoMode_ShippingPlateScan				REF= Service_Handshake.AutoMode_ShippingPlateScan;]]></ST>
       </Implementation>
     </Method>
     <Method Name="RefStorageService" Id="{1a766cf2-e5ed-4657-8a78-f09a69ade618}" FolderPath="Privite\HMI_Handshake\">

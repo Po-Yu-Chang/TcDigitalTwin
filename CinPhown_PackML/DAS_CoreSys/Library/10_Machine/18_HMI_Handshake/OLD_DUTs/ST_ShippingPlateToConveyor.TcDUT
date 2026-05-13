@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_ShippingPlateToConveyor" Id="{facaca8b-eedb-40fa-b035-30d85cc0bb6a}">
+    <Declaration><![CDATA[TYPE ST_ShippingPlateToConveyor :
+STRUCT
+	Command			: ST_CommandBasic;
+	Status			: ST_StatusBasic;
+
+	// C# >> PLC (上位決定)
+	Side			: E_ShippingPlateSide;		// Left=0 / Right=1
+	PlateIndex		: E_ShippingPlateIndex;		// Plate1..Plate4
+	ReadComplete	: BOOL;						// 上位讀完 PlateHasBox 後回 TRUE
+
+	// PLC >> C#
+	PlateHasBox		: BOOL;		// 該次掃描有沒有盒子 (Robot._DI13.9)
+	FeedBack		: BOOL;		// 掃完待讀,等 ReadComplete
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
