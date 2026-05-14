@@ -1898,7 +1898,7 @@ ErrMsg := xErrorMsg;]]></ST>
     <Method Name="M_Aborted" Id="{07590437-cdc2-4926-8c27-767ace7419e7}" FolderPath="States\">
       <Declaration><![CDATA[METHOD M_Aborted
 VAR
-	CylinderIndex :INT;
+	CylinderIndex :UDINT;
 	MotorIndex : INT;
 	ServoIndex : INT;
 END_VAR]]></Declaration>
@@ -1946,7 +1946,7 @@ END_CASE]]></ST>
     <Method Name="M_Aborting" Id="{8655fba0-b509-44e8-9ec4-a94584b04c87}" FolderPath="States\">
       <Declaration><![CDATA[METHOD M_Aborting
 VAR
-	CylinderIndex :INT;
+	CylinderIndex :UDINT;
 	MotorIndex : INT;
 	ServoIndex : INT;
 END_VAR]]></Declaration>
@@ -2400,7 +2400,7 @@ END_IF
     <Method Name="M_Clearing" Id="{f7b9b0cb-7b5c-4dcd-9a94-060df5e92c19}" FolderPath="States\">
       <Declaration><![CDATA[METHOD M_Clearing
 VAR
-	CylinderIndex : INT;
+	CylinderIndex : UDINT;
 	MotorIndex : INT;
 	ServoIndex : INT;
 END_VAR
@@ -3640,7 +3640,7 @@ Service_Handshake.StorageRegionHome.Homed := fbStorageArea.Homed;]]></ST>
     <Method Name="M_Resetting" Id="{8a313413-a9db-4d95-862c-f955afe04d5f}" FolderPath="States\">
       <Declaration><![CDATA[METHOD M_Resetting
 VAR
-	CylinderIndex : INT;
+	CylinderIndex : UDINT;
 	MotorIndex : INT;
 END_VAR]]></Declaration>
       <Implementation>
@@ -3826,7 +3826,7 @@ END_VAR
     <Method Name="M_Stopped" Id="{cd99af5a-54e9-48b9-8604-5ab42447d75f}" FolderPath="States\">
       <Declaration><![CDATA[METHOD M_Stopped
 VAR
-	CylinderIndex : INT;
+	CylinderIndex : UDINT;
 	MotorIndex : INT;
 	ServoIndex : INT;
 END_VAR]]></Declaration>
@@ -3872,7 +3872,7 @@ END_CASE]]></ST>
     <Method Name="M_Stopping" Id="{13bedb0a-797e-46e7-b980-19fbd19b81d3}" FolderPath="States\">
       <Declaration><![CDATA[METHOD M_Stopping
 VAR
-	CylinderIndex :INT;
+	CylinderIndex :UDINT;
 	MotorIndex : INT;
 END_VAR]]></Declaration>
       <Implementation>
