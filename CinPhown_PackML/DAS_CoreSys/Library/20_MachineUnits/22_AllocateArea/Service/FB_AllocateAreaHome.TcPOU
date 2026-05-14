@@ -122,8 +122,7 @@ CASE uiCyclicStep OF
 				Cylinder.arCylinder[CylinderIndex].M_Reset();
 			END_IF
 		END_FOR
-		// Idx 53 (fbSameSizeCV_Block3) 本機未實裝,排除避免空殼 cylinder 拖垮 Homing
-		FOR CylinderIndex:=27 TO 52 DO
+		FOR CylinderIndex:=27 TO 53 DO
 			bCylinderCheck:=bCylinderCheck AND NOT Cylinder.arCylinder[CylinderIndex].xError;
 			IF Cylinder.arCylinder[CylinderIndex].xError THEN
 				Cylinder.arCylinder[CylinderIndex].M_Reset();
@@ -139,8 +138,7 @@ CASE uiCyclicStep OF
 			bCylinderCheck:=bCylinderCheck AND Cylinder.arCylinder[CylinderIndex].InRearPosition;
 			Cylinder.arCylinder[CylinderIndex].M_Retract();
 		END_FOR
-		// Idx 53 (fbSameSizeCV_Block3) 本機未實裝,排除避免 InRearPosition 永遠 FALSE 卡住
-		FOR CylinderIndex:=27 TO 52 DO
+		FOR CylinderIndex:=27 TO 53 DO
 			bCylinderCheck:=bCylinderCheck AND Cylinder.arCylinder[CylinderIndex].InRearPosition;
 			Cylinder.arCylinder[CylinderIndex].M_Retract();
 		END_FOR

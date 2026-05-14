@@ -60,7 +60,7 @@ VAR
     // 一次性 latch:首次 ShippingPlateScan 觸發時 Press1 / Press3 伸出擋盒,之後 FB_ShippingPlateScan 不再重伸 (避免每次都動造成問題)。FALSE 預設,PLC boot 後第一次 ShippingScan 自動 latch 為 TRUE。
     bSameSizeCV_Press1_AlreadyExtended : BOOL;
     bSameSizeCV_Press3_AlreadyExtended : BOOL;
-    CylinderManualCtrl : ARRAY[1..53] OF FB_CylinderManualCtrl;
+    CylinderManualCtrl : ARRAY[1..udiMax_CylinderNum] OF FB_CylinderManualCtrl;
 	MotorManualCtrl    : ARRAY[1..26] OF 	FB_MotorManualCtrl;
     // Wheelhouse Sensor
     WheelhouseSensor : UNI_HMI_WheelHouseInput;
@@ -1959,7 +1959,7 @@ END_VAR]]></Declaration>
         GVL_Machine.PackTags[UnitNo.Storage].Command.CntrlCmd  := ePMLCommand_Abort;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.UnitMode := E_UnitMode.Manual;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.CntrlCmd := ePMLCommand_Abort;
-		FOR CylinderIndex := 1 TO 53 DO
+		FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
 			Cylinder.arCylinder[CylinderIndex].xEnable := FALSE;
 		END_FOR
 		FOR MotorIndex := 1 TO 26 DO
@@ -1983,7 +1983,7 @@ END_VAR]]></Declaration>
         GVL_Machine.PackTags[UnitNo.Storage].Command.CntrlCmd  := ePMLCommand_Abort;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.UnitMode := E_UnitMode.Auto;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.CntrlCmd := ePMLCommand_Abort;
-		FOR CylinderIndex := 1 TO 53 DO
+		FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
 			Cylinder.arCylinder[CylinderIndex].xEnable := FALSE;
 		END_FOR
 		FOR MotorIndex := 1 TO 26 DO
@@ -2411,7 +2411,7 @@ VAR_INST
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// Disable all cylinder 
-FOR CylinderIndex := 1 TO 53 DO
+FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
     Cylinder.arCylinder[CylinderIndex].xEnable := FALSE;
 END_FOR
 
@@ -2421,7 +2421,7 @@ FOR MotorIndex := 1 TO 26 DO
 END_FOR
 
 // Check cylinder no error
-FOR CylinderIndex := 1 TO 53 DO
+FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
     IF Cylinder.arCylinder[CylinderIndex].xError THEN
         AllCylinderNoError := FALSE;
         EXIT;
@@ -3644,13 +3644,13 @@ VAR
 	MotorIndex : INT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR CylinderIndex := 1 TO 53 DO
+        <ST><![CDATA[FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
 	fbAllocateArea.M_TransCVCameraPress_ManualMode();
     //Cylinder.arCylinder[CylinderIndex].xEnable := TRUE;
 	CylinderManualCtrl[CylinderIndex].Cylinder REF= Cylinder.arCylinder[CylinderIndex];
 END_FOR
 
-FOR CylinderIndex := 1 TO 53 DO
+FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
     Cylinder.arCylinder[CylinderIndex].EnableSimulation := EnableSimulation;
 END_FOR
 
@@ -3884,7 +3884,7 @@ END_VAR]]></Declaration>
         GVL_Machine.PackTags[UnitNo.Storage].Command.CntrlCmd  := ePMLCommand_Stop;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.UnitMode := E_UnitMode.Manual;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.CntrlCmd := ePMLCommand_Stop;
-		FOR CylinderIndex := 1 TO 53 DO
+		FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
 			Cylinder.arCylinder[CylinderIndex].xEnable := FALSE;
 		END_FOR
 		FOR MotorIndex := 1 TO 26 DO
@@ -3908,7 +3908,7 @@ END_VAR]]></Declaration>
         GVL_Machine.PackTags[UnitNo.Storage].Command.CntrlCmd  := ePMLCommand_Stop;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.UnitMode := E_UnitMode.Auto;
         GVL_Machine.PackTags[UnitNo.Shipping].Command.CntrlCmd := ePMLCommand_Stop;
-		FOR CylinderIndex := 1 TO 53 DO
+		FOR CylinderIndex := 1 TO udiMax_CylinderNum DO
 			Cylinder.arCylinder[CylinderIndex].xEnable := FALSE;
 		END_FOR
 		FOR MotorIndex := 1 TO 26 DO

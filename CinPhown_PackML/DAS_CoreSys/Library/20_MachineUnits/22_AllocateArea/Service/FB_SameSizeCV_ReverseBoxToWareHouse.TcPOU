@@ -195,13 +195,6 @@ END_VAR
 
 100:
 	// 機構復位
-//	Cylinder.List.fbSameSizeCV_Block3.M_Retract();
-//	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
-//	IF Cylinder.List.fbSameSizeCV_Block3.InRearPosition AND
-//	   Cylinder.List.fbSameSizeCV_Press3.InRearPosition AND
-//	   Motor.List.TransmitSameSideCV.InStopped THEN
-//		uiAbortingStep := 9999;
-//	END_IF
 	uiAbortingStep := 9999;
 9999:
 	_AbortCompleted := TRUE;
@@ -373,28 +366,15 @@ CASE uiExecutingStep OF
 	uiExecutingStep := 1000;
 
 {region '=== Phase 1: 第一盒送到 NearStorage ==='}
-// 流程: 馬達先動 → 等盒到 Detect6 → Block3 擋 → Press3 壓 → Block3 放 → 送到 NearStorage
+// 流程: 馬達先動 → 等盒到 Detect6 → Press3 壓 → 送到 NearStorage
+// TODO: 缺擋盒邏輯 — 之後 ref FB_RobotRegionMove_AllocatedConveyor (Press3 + Press4 + tonDelay_SameSizeGetBox) 補
 
 1000:	// 請求軌道 backward (Phase 2:設 local intent,A00 在 Busy 時 propagate)
 	bIntent_NeedBackward := TRUE;
 	bIntent_HoldStill    := FALSE;
 	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
 	TON_ConveyorTimeOut.IN := TRUE;
-	uiExecutingStep := 1100;
-
-1100:	// Block3 extend (擋住盒子)
-	TON_TimeOut.IN := TRUE;
-	Cylinder.List.fbSameSizeCV_Block3.M_Extend();
-	IF Cylinder.List.fbSameSizeCV_Block3.InFrontPosition THEN
-		TON_TimeOut.IN := FALSE;
-		uiExecutingStep := 1200;
-	END_IF
-	IF TON_TimeOut.Q THEN
-		uiResumeStep := uiExecutingStep;
-		strStatus := 'Block3 extend timeout';
-		_UniqueErrorCode := 'E_CYL_TIMEOUT';
-		_Abort := TRUE;
-	END_IF
+	uiExecutingStep := 1200;
 
 1200:	// 等待盒子到達 BoxDetect6
 	 TON_ConveyorTimeOut.IN := TRUE;
@@ -416,25 +396,11 @@ CASE uiExecutingStep OF
 	Cylinder.List.fbSameSizeCV_Press3.M_Extend();
 	IF Cylinder.List.fbSameSizeCV_Press3.InFrontPosition THEN
 		TON_TimeOut.IN := FALSE;
-		uiExecutingStep := 1400;
-	END_IF
-	IF TON_TimeOut.Q THEN
-		uiResumeStep := uiExecutingStep;
-		strStatus := 'Press3 extend timeout';
-		_UniqueErrorCode := 'E_CYL_TIMEOUT';
-		_Abort := TRUE;
-	END_IF
-
-1400:	// Block3 retract (放開擋塊)
-	TON_TimeOut.IN := TRUE;
-	Cylinder.List.fbSameSizeCV_Block3.M_Retract();
-	IF Cylinder.List.fbSameSizeCV_Block3.InRearPosition THEN
-		TON_TimeOut.IN := FALSE;
 		uiExecutingStep := 1500;
 	END_IF
 	IF TON_TimeOut.Q THEN
 		uiResumeStep := uiExecutingStep;
-		strStatus := 'Block3 retract timeout';
+		strStatus := 'Press3 extend timeout';
 		_UniqueErrorCode := 'E_CYL_TIMEOUT';
 		_Abort := TRUE;
 	END_IF
@@ -528,28 +494,15 @@ CASE uiExecutingStep OF
 {endregion}
 
 {region '=== Phase 3: 第二盒送到 NearStorage (雙爪) ==='}
-// 流程: 馬達先動 → 等盒到 Detect6 → Block3 擋 → Press3 壓 → Block3 放 → 送到 NearStorage
+// 流程: 馬達先動 → 等盒到 Detect6 → Press3 壓 → 送到 NearStorage
+// TODO: 缺擋盒邏輯 — 之後 ref FB_RobotRegionMove_AllocatedConveyor (Press3 + Press4 + tonDelay_SameSizeGetBox) 補
 
 3000:	// 請求軌道 backward (Phase 2:設 local intent,第二盒)
 	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
 	bIntent_NeedBackward := TRUE;
 	bIntent_HoldStill    := FALSE;
 	TON_ConveyorTimeOut.IN := TRUE;
-	uiExecutingStep := 3100;
-
-3100:	// Block3 extend (擋住第二盒)
-	TON_TimeOut.IN := TRUE;
-	Cylinder.List.fbSameSizeCV_Block3.M_Extend();
-	IF Cylinder.List.fbSameSizeCV_Block3.InFrontPosition THEN
-		TON_TimeOut.IN := FALSE;
-		uiExecutingStep := 3200;
-	END_IF
-	IF TON_TimeOut.Q THEN
-		uiResumeStep := uiExecutingStep;
-		strStatus := 'Block3 extend timeout (2nd box)';
-		_UniqueErrorCode := 'E_CYL_TIMEOUT';
-		_Abort := TRUE;
-	END_IF
+	uiExecutingStep := 3200;
 
 3200:	// 等待第二盒到達 BoxDetect6
 	 TON_ConveyorTimeOut.IN := TRUE;
@@ -569,25 +522,11 @@ CASE uiExecutingStep OF
 	Cylinder.List.fbSameSizeCV_Press3.M_Extend();
 	IF Cylinder.List.fbSameSizeCV_Press3.InFrontPosition THEN
 		TON_TimeOut.IN := FALSE;
-		uiExecutingStep := 3400;
-	END_IF
-	IF TON_TimeOut.Q THEN
-		uiResumeStep := uiExecutingStep;
-		strStatus := 'Press3 extend timeout (2nd box)';
-		_UniqueErrorCode := 'E_CYL_TIMEOUT';
-		_Abort := TRUE;
-	END_IF
-
-3400:	// Block3 retract (放開)
-	TON_TimeOut.IN := TRUE;
-	Cylinder.List.fbSameSizeCV_Block3.M_Retract();
-	IF Cylinder.List.fbSameSizeCV_Block3.InRearPosition THEN
-		TON_TimeOut.IN := FALSE;
 		uiExecutingStep := 3500;
 	END_IF
 	IF TON_TimeOut.Q THEN
 		uiResumeStep := uiExecutingStep;
-		strStatus := 'Block3 retract timeout (2nd box)';
+		strStatus := 'Press3 extend timeout (2nd box)';
 		_UniqueErrorCode := 'E_CYL_TIMEOUT';
 		_Abort := TRUE;
 	END_IF
@@ -984,17 +923,13 @@ CASE uiExecutingStep OF
 {region '=== Phase 9: 復位 ==='}
 
 9000:	// 復位機構 (Phase 2:清 local intent,Busy 仍 TRUE 時 A00 會 propagate FALSE)
-	Cylinder.List.fbSameSizeCV_Block3.M_Retract();
-	//Cylinder.List.fbSameSizeCV_Press3.M_Retract();
 	bIntent_NeedBackward := FALSE;
 	bIntent_HoldStill    := FALSE;
 	uiExecutingStep := 9100;
 
 9100:	// 等待復位完成
 	TON_TimeOut.IN := TRUE;
-	IF Cylinder.List.fbSameSizeCV_Block3.InRearPosition AND
-	   //Cylinder.List.fbSameSizeCV_Press3.InRearPosition AND
-	   Motor.List.TransmitSameSideCV.InStopped THEN
+	IF Motor.List.TransmitSameSideCV.InStopped THEN
 		TON_TimeOut.IN := FALSE;
 		_Executed := TRUE;
 	END_IF

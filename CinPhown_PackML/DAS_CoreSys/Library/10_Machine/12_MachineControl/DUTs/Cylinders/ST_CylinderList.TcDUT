@@ -56,7 +56,6 @@
         fbSameSizeCV_Press1             : FB_Cylinder;
         fbSameSizeCV_Block2             : FB_Cylinder;
         fbSameSizeCV_Block1             : FB_Cylinder;
-        fbSameSizeCV_Block3             : FB_Cylinder;		// Added: FB_SameSizeCV_ReverseBoxToWareHouse 用於擋第二盒;若機台沒有實體 cylinder 則空殼,runtime 會 timeout
         fbTurntable_Press               : FB_Cylinder;
 		fbShippingBuffer_Press			: FB_Cylinder;		// Edited by Gamin 20260410 新增，空指向僅建立空殼防止編譯錯誤。
     END_STRUCT
