@@ -11,6 +11,7 @@ VAR_INPUT
 	Input		: ST_InputTable;
 	OutPut		: ST_OutputTable;
 	Motor		: REFERENCE to UNI_MotorList;
+	SameSizeCVRequest : REFERENCE TO ST_SameSizeCVRequest;	// Phase 2 仲裁:寫 bCamera_NeedBackward / bCamera_HoldStill
 	BoxCameraDone :BOOL;
 END_VAR
 VAR_OUTPUT
@@ -104,26 +105,28 @@ UseBoxCamera 	:= FALSE;
 BoxCameraDone 	:= FALSE;
 
 // 機械復位到安全狀態
+// Block1 / Press2 不由本 FB 管理 (上游 FB 持壓),cleanup 不縮回,避免盒子失壓往前溜
 IF NOT xExecute THEN
-	Cylinder.List.fbSameSizeCV_Block1.M_Retract();
 	Cylinder.List.fbSameSizeCV_Block2.M_Retract();
 	Cylinder.List.fbTransmitCV_CamaraHoriz.M_Retract();
 END_IF
-Cylinder.List.fbSameSizeCV_Press2.M_Retract();
-Motor.List.TransmitSameSideCV.M_MotorStop();
+
+// Phase 2:cleanup 期間撤銷軌道請求 (xBusy gate),讓 arbiter 自然停 motor。
+// xBusy 在 cleanup 期間 TRUE、idle FALSE,確保兩個 instance 不互相 stomp。
+IF xBusy AND __ISVALIDREF(SameSizeCVRequest) THEN
+	SameSizeCVRequest.bCamera_NeedBackward := FALSE;
+	SameSizeCVRequest.bCamera_HoldStill    := FALSE;
+END_IF
 
 // 等待機械復位完成
 IF NOT xExecute THEN
 	IF Cylinder.List.fbSameSizeCV_Block2.InRearPosition AND
-	   Cylinder.List.fbSameSizeCV_Block1.InRearPosition AND
-	   Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND
 	   Cylinder.List.fbTransmitCV_CamaraHoriz.InRearPosition AND
 	   Motor.List.TransmitSameSideCV.InStopped THEN
 		xComplete := TRUE;
 	END_IF
 ELSE
-	IF  Cylinder.List.fbSameSizeCV_Press2.InRearPosition AND
-	   Motor.List.TransmitSameSideCV.InStopped THEN
+	IF Motor.List.TransmitSameSideCV.InStopped THEN
 		xComplete := TRUE;
 	END_IF
 END_IF]]></ST>
@@ -143,10 +146,9 @@ VAR_INST
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[xComplete := FALSE;
-IF bMoveConveyorBackward THEN
-	IF NOT Motor.List.TransmitSameSideCV.InForWard THEN
-		Motor.List.TransmitSameSideCV.M_MoveBackward();
-	END_IF
+// Phase 2:寫請求,由 FB_MachineControl.A20_ConveyorArbitration 驅動 motor
+IF __ISVALIDREF(SameSizeCVRequest) THEN
+	SameSizeCVRequest.bCamera_NeedBackward := bMoveConveyorBackward;
 END_IF
 
 CASE uiCyclicStep OF
@@ -182,7 +184,7 @@ CASE uiCyclicStep OF
 			iErrorID := 10;
 		END_IF
 
-	1100:	// 檢查盒子到達擋塊
+	1100:	// 檢查盒子到達擋塊 (Phase 2:撤銷 backward + 請求 HoldStill 拍照位)
 		TON_ArriviedTimeOut.IN:=TRUE;
 		TON_DelaySensor.IN:=Input.bSameSizeCV_BoxDetect2_Sensor;
 		IF TON_DelaySensor.Q THEN
@@ -190,7 +192,10 @@ CASE uiCyclicStep OF
 			TON_ArriviedTimeOut.IN :=FALSE;
 			Cylinder.List.fbSameSizeCV_Press1.M_Extend();
 			bMoveConveyorBackward:=FALSE;
-			Motor.List.TransmitSameSideCV.M_MotorStop();
+			IF __ISVALIDREF(SameSizeCVRequest) THEN
+				SameSizeCVRequest.bCamera_NeedBackward := FALSE;
+				SameSizeCVRequest.bCamera_HoldStill    := TRUE;	// 拍照位必須靜止
+			END_IF
 			uiCyclicStep :=1200;
 		END_IF
 		IF TON_ArriviedTimeOut.Q THEN
@@ -211,12 +216,15 @@ CASE uiCyclicStep OF
 			iErrorID := 10;
 		END_IF
 
-	1300:	// 等待 C# 拍照完成 (Camera 錯誤不可續做)
+	1300:	// 等待 C# 拍照完成 (Camera 錯誤不可續做) — Phase 2:解 HoldStill,再次請求 backward
 		TON_CameraTimeOut.IN:=TRUE;
 		IF BoxCameraDone THEN
 			TON_CameraTimeOut.IN :=FALSE;
 			Cylinder.List.fbSameSizeCV_Block2.M_Retract();
 			bMoveConveyorBackward:=TRUE;
+			IF __ISVALIDREF(SameSizeCVRequest) THEN
+				SameSizeCVRequest.bCamera_HoldStill := FALSE;
+			END_IF
 			uiCyclicStep :=1400;
 		END_IF
 		IF TON_CameraTimeOut.Q THEN
@@ -235,18 +243,22 @@ CASE uiCyclicStep OF
 			iErrorID := 12;
 		END_IF
 
-	1500:	// 離開感測器後停止馬達
+	1500:	// 離開感測器後撤銷 backward (Phase 2:arbiter 自動停)
 		TON_DelaySensor.IN :=TRUE;
 		IF NOT Input.bSameSizeCV_BoxDetect3_Sensor THEN
 			TON_DelaySensor.IN :=FALSE;
 			bMoveConveyorBackward:=FALSE;
-			Motor.List.TransmitSameSideCV.M_MotorStop();
+			IF __ISVALIDREF(SameSizeCVRequest) THEN
+				SameSizeCVRequest.bCamera_NeedBackward := FALSE;
+			END_IF
 			uiCyclicStep :=1600;
 		END_IF
 		IF TON_DelaySensor.Q THEN
 			TON_DelaySensor.IN:=FALSE;
 			bMoveConveyorBackward:=FALSE;
-			Motor.List.TransmitSameSideCV.M_MotorStop();
+			IF __ISVALIDREF(SameSizeCVRequest) THEN
+				SameSizeCVRequest.bCamera_NeedBackward := FALSE;
+			END_IF
 			uiCyclicStep :=1600;
 		END_IF
 

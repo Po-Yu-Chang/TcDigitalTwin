@@ -55,6 +55,11 @@ VAR
     Cylinder           : UNI_CylinderList;
     Motor              : UNI_MotorList;
     FanucRobot         : UNI_FanucRobotList;
+    // 同尺寸軌道仲裁 request (Phase 2 集中式 motor control,各 sub-FB 寫請求,由 A20_ConveyorArbitration 仲裁)
+    SameSizeCVRequest  : ST_SameSizeCVRequest;
+    // 一次性 latch:首次 ShippingPlateScan 觸發時 Press1 / Press3 伸出擋盒,之後 FB_ShippingPlateScan 不再重伸 (避免每次都動造成問題)。FALSE 預設,PLC boot 後第一次 ShippingScan 自動 latch 為 TRUE。
+    bSameSizeCV_Press1_AlreadyExtended : BOOL;
+    bSameSizeCV_Press3_AlreadyExtended : BOOL;
     CylinderManualCtrl : ARRAY[1..53] OF FB_CylinderManualCtrl;
 	MotorManualCtrl    : ARRAY[1..26] OF 	FB_MotorManualCtrl;
     // Wheelhouse Sensor
@@ -130,6 +135,7 @@ tonDelayErrorHandle(IN:=TRUE, PT:=T#5S); // Delay 5s after PLC run then check er
 A00_BaseUnits();
 A01_Cylinder();
 A02_Motor();
+A20_ConveyorArbitration();
 A03_FanucRobot();
 A04_OpPannel();
 A05_Light();
@@ -199,6 +205,7 @@ fbAllocateArea(eModeCommand :=,
 			   OUTPUT :=InternalOutput,
 			   Cylinder := Cylinder,
 			   Motor := Motor,
+			   SameSizeCVRequest := SameSizeCVRequest,
 			   Reset := Machine_Reset,
 			   Stop := Machine_Stop,
 			   bStopMem:=bStopMem,
@@ -215,6 +222,9 @@ fbShippingArea(eModeCommand :=,
 			   OUTPUT := InternalOutput,
 			   Motor := Motor,
 			   Cylinder := Cylinder,
+			   SameSizeCVRequest := SameSizeCVRequest,
+			   SameSizeCV_Press1_AlreadyExtended := bSameSizeCV_Press1_AlreadyExtended,
+			   SameSizeCV_Press3_AlreadyExtended := bSameSizeCV_Press3_AlreadyExtended,
 			   Reset := Machine_Reset,
 			   Stop := Machine_Stop,
 			   bStopMem:=bStopMem,
@@ -1338,6 +1348,47 @@ Motor.List.TransmitDifferentSideCV(xDone =>,
 									InStopped =>MotorStatus.TransmitDifferentSideCV.InStopped,
 									ForWardOutput =>InternalOutput.bTransmitCV_DifferentSide_Fwd,
 									BackWardOutput =>InternalOutput.bTransmitCV_DifferentSide_Rev);
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A20_ConveyorArbitration" Id="{a2c1d2e3-f4a5-4b6c-9d8e-1f2a3b4c5d6e}">
+      <Implementation>
+        <ST><![CDATA[// 同尺寸軌道集中式仲裁 (Phase 2)
+// 取各 sub-FB 的請求 flag 做 OR,優先序:HoldStill > 方向衝突 (停) > Backward > Forward > 預設停。
+// Sub-FB 不再直接 call M_MoveBackward / M_MotorStop。
+
+// 手動模式 yield:MotorManualCtrl[25] 在 manual 命令按下時負責驅動 motor,A20 不干涉避免 M_MotorStop 蓋掉 manual。
+IF AllocateManualCommand.TransCV.TransmitSameSideCV.Forward
+   OR AllocateManualCommand.TransCV.TransmitSameSideCV.Backward
+   OR AllocateManualCommand.TransCV.TransmitSameSideCV.Stopped THEN
+	RETURN;
+END_IF
+
+IF SameSizeCVRequest.bCamera_HoldStill OR SameSizeCVRequest.bWareHouse_HoldStill THEN
+	// 任何 sub-FB 要靜止 (拍照 / 取盒對位) — 強制停
+	Motor.List.TransmitSameSideCV.M_MotorStop();
+ELSIF (SameSizeCVRequest.bScan_NeedBackward
+       OR SameSizeCVRequest.bShippingTransfer_NeedBackward
+       OR SameSizeCVRequest.bCamera_NeedBackward
+       OR SameSizeCVRequest.bWareHouse_NeedBackward)
+      AND SameSizeCVRequest.bShippingTransfer_NeedForward THEN
+	// 方向衝突 (不應該發生) — 安全起見停下,讓 sub-FB 自己解
+	Motor.List.TransmitSameSideCV.M_MotorStop();
+ELSIF SameSizeCVRequest.bScan_NeedBackward
+      OR SameSizeCVRequest.bShippingTransfer_NeedBackward
+      OR SameSizeCVRequest.bCamera_NeedBackward
+      OR SameSizeCVRequest.bWareHouse_NeedBackward THEN
+	IF NOT Motor.List.TransmitSameSideCV.InForWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveBackward();
+	END_IF
+ELSIF SameSizeCVRequest.bShippingTransfer_NeedForward THEN
+	IF NOT Motor.List.TransmitSameSideCV.InBackWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveForward();
+	END_IF
+ELSE
+	// 沒人要 → 停 (例:本批做完所有 sub-FB 進 DONE,flag 自動清)
+	Motor.List.TransmitSameSideCV.M_MotorStop();
+END_IF
 ]]></ST>
       </Implementation>
     </Action>

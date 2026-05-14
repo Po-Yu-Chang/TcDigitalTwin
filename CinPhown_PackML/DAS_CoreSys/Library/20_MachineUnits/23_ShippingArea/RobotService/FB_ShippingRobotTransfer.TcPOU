@@ -9,6 +9,7 @@ VAR_INPUT
 	Input		: REFERENCE TO ST_InputTable;
 	Output		: REFERENCE TO ST_OutputTable;
 	Motor		: REFERENCE TO UNI_MotorList;
+	SameSizeCVRequest : REFERENCE TO ST_SameSizeCVRequest;	// Phase 2 仲裁 (僅 SameSize / pos=1 用,DifferentSize 仍直接驅動)
 	Cylinder	: REFERENCE TO UNI_CylinderList;
 	Buzz		: REFERENCE TO BOOL;
 	RedLamp		: REFERENCE TO BOOL;
@@ -46,6 +47,7 @@ VAR
 	ConveyorMotor		: REFERENCE TO FB_Motor;
 	bMoveConveyorForward	: BOOL;
 	bMoveConveyorBackward	: BOOL;
+	bIsSameSize			: BOOL;	// Phase 2:ConveyorMotor 指向 TransmitSameSideCV (Position=1) — A00 寫請求,而非直接驅動
 
 	// Buffer cylinder
 	uiGetStep	: UDINT;
@@ -100,15 +102,24 @@ ELSE
 	bTransCVInPosition_Right := Input.bShippingTransCV_Rightside_Arrived;
 END_IF
 
-// 輸送帶持續驅動邏輯
-IF bMoveConveyorForward AND __ISVALIDREF(ConveyorMotor) THEN
-	IF NOT ConveyorMotor.InBackWard THEN
-		ConveyorMotor.M_MoveForward();
+// 輸送帶持續驅動邏輯 (Phase 2)
+// SameSize:Busy 期間寫請求,由 FB_MachineControl.A20_ConveyorArbitration 驅動;非 Busy 不寫,避免本 FB 兩個 instance 互相 stomp。
+// DifferentSize:本地直接驅動。
+IF bIsSameSize THEN
+	IF Busy AND __ISVALIDREF(SameSizeCVRequest) THEN
+		SameSizeCVRequest.bShippingTransfer_NeedForward  := bMoveConveyorForward;
+		SameSizeCVRequest.bShippingTransfer_NeedBackward := bMoveConveyorBackward;
 	END_IF
-END_IF
-IF bMoveConveyorBackward AND __ISVALIDREF(ConveyorMotor) THEN
-	IF NOT ConveyorMotor.InForWard THEN
-		ConveyorMotor.M_MoveBackward();
+ELSE
+	IF bMoveConveyorForward AND __ISVALIDREF(ConveyorMotor) THEN
+		IF NOT ConveyorMotor.InBackWard THEN
+			ConveyorMotor.M_MoveForward();
+		END_IF
+	END_IF
+	IF bMoveConveyorBackward AND __ISVALIDREF(ConveyorMotor) THEN
+		IF NOT ConveyorMotor.InForWard THEN
+			ConveyorMotor.M_MoveBackward();
+		END_IF
 	END_IF
 END_IF
 ]]></ST>
@@ -224,9 +235,11 @@ END_VAR
 1:
 	SensorToBeCheck := Input.bSameSizeCV_BoxNearShippingSensor;
 	ConveyorMotor REF= Motor.List.TransmitSameSideCV;
+	bIsSameSize := TRUE;
 2:
 	SensorToBeCheck := Input.bDifferentSizeCV_BoxNearShippingSensor;
 	ConveyorMotor REF= Motor.List.TransmitDifferentSideCV;
+	bIsSameSize := FALSE;
 END_CASE
 ]]></ST>
       </Implementation>
@@ -280,7 +293,13 @@ END_VAR
 			TON_ServiceWatchDog.IN       := FALSE;
 			bMoveConveyorForward  := FALSE;
 			bMoveConveyorBackward := FALSE;
-			IF __ISVALIDREF(ConveyorMotor) THEN
+			// Phase 2:SameSize 撤銷請求 (arbiter 自動停),DifferentSize 直接停
+			IF bIsSameSize THEN
+				IF __ISVALIDREF(SameSizeCVRequest) THEN
+					SameSizeCVRequest.bShippingTransfer_NeedForward  := FALSE;
+					SameSizeCVRequest.bShippingTransfer_NeedBackward := FALSE;
+				END_IF
+			ELSIF __ISVALIDREF(ConveyorMotor) THEN
 				ConveyorMotor.M_MotorStop();
 			END_IF
 			// 中斷 robot AbsMove 命令，避免 abort 期間 robot 還在跑舊軌跡
@@ -396,6 +415,9 @@ TON_ServiceWatchDog.IN       := FALSE;
 
 bMoveConveyorForward  := FALSE;
 bMoveConveyorBackward := FALSE;
+bIsSameSize := FALSE;
+// Phase 2:DORMANT 只清 local intent (bMoveConveyor*),不動 shared SameSizeCVRequest
+// 本 FB 有兩個 instance,idle 不能 stomp 其他 instance 的 request。A00 已用 Busy gate 確保 idle 不寫 shared flag。
 BoxReady_1st := FALSE;
 
 // Buzz / Lamp 閃爍預設次數 (各 3 次 = 約 1.8 秒警示)
@@ -434,10 +456,15 @@ Busy   := FALSE;
 _Error := FALSE;
 Status := strStatus;
 
-// 停止各項輸出 (輸送帶等)
+// 停止各項輸出 (輸送帶等) — Phase 2 同 ABORTING
 bMoveConveyorForward  := FALSE;
 bMoveConveyorBackward := FALSE;
-IF __ISVALIDREF(ConveyorMotor) THEN
+IF bIsSameSize THEN
+	IF __ISVALIDREF(SameSizeCVRequest) THEN
+		SameSizeCVRequest.bShippingTransfer_NeedForward  := FALSE;
+		SameSizeCVRequest.bShippingTransfer_NeedBackward := FALSE;
+	END_IF
+ELSIF __ISVALIDREF(ConveyorMotor) THEN
 	ConveyorMotor.M_MotorStop();
 END_IF
 
@@ -637,9 +664,8 @@ CASE uiExecutingStep OF
 			E_RobotArea.TransmitCV_End:
 				M_SensorUpdate(_fromPos);
 				IF _fromGet THEN
-					// Get: 啟動輸送帶正轉
+					// Get: 啟動輸送帶正轉 (A00 propagates flag → arbiter/direct)
 					bMoveConveyorForward := TRUE;
-					ConveyorMotor.M_MoveForward();
 					uiExecutingStep := 5000;
 				ELSE
 					// Put: 啟動輸送帶反轉 + 等 sensor 清除
@@ -730,7 +756,6 @@ CASE uiExecutingStep OF
 				M_SensorUpdate(_fromPos);
 				tonBoxArriveDelay.IN := SensorToBeCheck;
 				bMoveConveyorForward := TRUE;
-				ConveyorMotor.M_MoveForward();
 				Robot.M_StartRobotAbsMove(
 					GetBox       := _fromGet,
 					UseClampA    := TRUE,
@@ -816,11 +841,16 @@ CASE uiExecutingStep OF
 	// Phase 1 (FROM): 區域後置作業
 	// ============================================================
 	6000: // FROM 後置
-		// TransmitCVEnd: 停止輸送帶
+		// TransmitCVEnd: 停止輸送帶 — Phase 2 SameSize 撤銷請求,DifferentSize 直接停
 		IF _fromArea = E_RobotArea.TransmitCV_End THEN
 			bMoveConveyorForward  := FALSE;
 			bMoveConveyorBackward := FALSE;
-			IF __ISVALIDREF(ConveyorMotor) THEN
+			IF bIsSameSize THEN
+				IF __ISVALIDREF(SameSizeCVRequest) THEN
+					SameSizeCVRequest.bShippingTransfer_NeedForward  := FALSE;
+					SameSizeCVRequest.bShippingTransfer_NeedBackward := FALSE;
+				END_IF
+			ELSIF __ISVALIDREF(ConveyorMotor) THEN
 				ConveyorMotor.M_MotorStop();
 			END_IF
 		END_IF
@@ -865,7 +895,6 @@ CASE uiExecutingStep OF
 				M_SensorUpdate(_toPos);
 				IF _toGet THEN
 					bMoveConveyorForward := TRUE;
-					ConveyorMotor.M_MoveForward();
 					uiExecutingStep := 15000;
 				ELSE
 					bMoveConveyorBackward := TRUE;
@@ -1052,11 +1081,16 @@ CASE uiExecutingStep OF
 	// Phase 2 (TO): 區域後置作業
 	// ============================================================
 	20000: // TO 後置
-		// TransmitCVEnd: 停止輸送帶
+		// TransmitCVEnd: 停止輸送帶 — Phase 2 SameSize 撤銷請求,DifferentSize 直接停
 		IF _toArea = E_RobotArea.TransmitCV_End THEN
 			bMoveConveyorForward  := FALSE;
 			bMoveConveyorBackward := FALSE;
-			IF __ISVALIDREF(ConveyorMotor) THEN
+			IF bIsSameSize THEN
+				IF __ISVALIDREF(SameSizeCVRequest) THEN
+					SameSizeCVRequest.bShippingTransfer_NeedForward  := FALSE;
+					SameSizeCVRequest.bShippingTransfer_NeedBackward := FALSE;
+				END_IF
+			ELSIF __ISVALIDREF(ConveyorMotor) THEN
 				ConveyorMotor.M_MotorStop();
 			END_IF
 		END_IF
@@ -1095,10 +1129,15 @@ CASE uiExecutingStep OF
 	// 完成
 	// ============================================================
 	98000:	// 完成前驗證 — 機構靜止 + 警示輸出歸零後才允許進 99000
-		// 主動下停止指令
+		// 主動下停止指令 — Phase 2 SameSize 撤銷請求,DifferentSize 直接停
 		bMoveConveyorForward  := FALSE;
 		bMoveConveyorBackward := FALSE;
-		IF __ISVALIDREF(ConveyorMotor) THEN
+		IF bIsSameSize THEN
+			IF __ISVALIDREF(SameSizeCVRequest) THEN
+				SameSizeCVRequest.bShippingTransfer_NeedForward  := FALSE;
+				SameSizeCVRequest.bShippingTransfer_NeedBackward := FALSE;
+			END_IF
+		ELSIF __ISVALIDREF(ConveyorMotor) THEN
 			ConveyorMotor.M_MotorStop();
 		END_IF
 		// 強制關 Buzz / RedLamp，避免 step 25000 離開時殘留 HIGH
@@ -1238,9 +1277,12 @@ CASE uiResettingStep OF
 		TON_CheckRobotDoneTimeOut.IN := FALSE;
 		TON_BlinkDelay.IN            := FALSE;
 
-		// 停止輸送帶
+		// 停止輸送帶 — Phase 2:DifferentSide 直接停;SameSide 撤銷請求 (arbiter 看到沒人 request 會自動停)
 		Motor.List.TransmitDifferentSideCV.M_MotorStop();
-		Motor.List.TransmitSameSideCV.M_MotorStop();
+		IF __ISVALIDREF(SameSizeCVRequest) THEN
+			SameSizeCVRequest.bShippingTransfer_NeedForward  := FALSE;
+			SameSizeCVRequest.bShippingTransfer_NeedBackward := FALSE;
+		END_IF
 		uiResettingStep := 200;
 
 	200:

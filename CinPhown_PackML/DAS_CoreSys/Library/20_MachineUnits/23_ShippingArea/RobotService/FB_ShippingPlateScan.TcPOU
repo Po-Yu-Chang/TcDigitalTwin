@@ -4,7 +4,11 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingPlateScan EXTENDS FB_ObjectBase_V2
 VAR_INPUT
 	Robot			: REFERENCE TO FB_FanucRobot_Basic_V2;
-	Motor			: REFERENCE TO UNI_MotorList;			// 同尺寸軌道馬達 (放盒用)
+	Motor			: REFERENCE TO UNI_MotorList;			// 同尺寸軌道馬達 (Phase 2:只讀 InBackWard 狀態,不直接驅動)
+	Cylinder		: REFERENCE TO UNI_CylinderList;		// Press1 / Press3 一次性伸出用
+	SameSizeCVRequest	: REFERENCE TO ST_SameSizeCVRequest;	// Phase 2 仲裁:寫 bScan_NeedBackward,由 FB_MachineControl.A20_ConveyorArbitration 仲裁
+	SameSizeCV_Press1_AlreadyExtended : REFERENCE TO BOOL;	// 一次性 latch (Press1):FALSE = 還沒伸過,本 FB 伸出後置 TRUE;TRUE = 跳過避免重伸
+	SameSizeCV_Press3_AlreadyExtended : REFERENCE TO BOOL;	// 一次性 latch (Press3):同上
 	Input			: REFERENCE TO ST_InputTable;			// SameSizeCV BoxNearShipping sensor
 	Side			: E_ShippingPlateSide;		// Left=0 / Right=1
 	PlateIndex		: E_ShippingPlateIndex;		// Plate1..Plate4 (enum 值 = 手臂 Position)
@@ -23,10 +27,6 @@ VAR
 	TON_ScanTimeOut				: TON;
 	TON_MechTimeOut				: TON;		// 軌道機構動作 watchdog (30s)
 	tonBoxArriveDelay			: TON;		// Put 階段等盒到位 debounce (1s)
-
-	// 同尺寸軌道控制 (參考 FB_ShippingRobotTransfer pattern)
-	bMoveConveyorForward		: BOOL;
-	bMoveConveyorBackward		: BOOL;
 
 	// Resume / Retry framework (對齊 FB_ShippingRobotTransfer 續做 pattern)
 	uiResumeStep				: UDINT;	// retry / 續做進入點
@@ -58,17 +58,7 @@ TON_ScanTimeOut(PT := T#30S);
 TON_MechTimeOut(PT := T#30S);
 tonBoxArriveDelay(PT := T#1S);
 
-// 同尺寸軌道持續驅動邏輯 (對齊 FB_ShippingRobotTransfer A00_BasicUnits)
-IF bMoveConveyorForward AND __ISVALIDREF(Motor) THEN
-	IF NOT Motor.List.TransmitSameSideCV.InBackWard THEN
-		Motor.List.TransmitSameSideCV.M_MoveForward();
-	END_IF
-END_IF
-IF bMoveConveyorBackward AND __ISVALIDREF(Motor) THEN
-	IF NOT Motor.List.TransmitSameSideCV.InForWard THEN
-		Motor.List.TransmitSameSideCV.M_MoveBackward();
-	END_IF
-END_IF]]></ST>
+// Phase 2:軌道驅動移到 FB_MachineControl.A20_ConveyorArbitration,本 FB 只寫 SameSizeCVRequest.bScan_NeedBackward。]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_ResolveAddress" Id="{c5a8d319-6e2f-4b7c-8d4a-9f1e3b6c5d72}" FolderPath="Method\">
@@ -162,11 +152,9 @@ CASE uiAbortingStep OF
 		TON_ScanTimeOut.IN           := FALSE;
 		TON_MechTimeOut.IN           := FALSE;
 		tonBoxArriveDelay.IN         := FALSE;
-		// 停 SameSize 軌道馬達
-		bMoveConveyorForward  := FALSE;
-		bMoveConveyorBackward := FALSE;
-		IF __ISVALIDREF(Motor) THEN
-			Motor.List.TransmitSameSideCV.M_MotorStop();
+		// 撤銷軌道請求 (arbiter 看到沒人 request 會自動停)
+		IF __ISVALIDREF(SameSizeCVRequest) THEN
+			SameSizeCVRequest.bScan_NeedBackward := FALSE;
 		END_IF
 		_bAbsMoveStarted := FALSE;
 		// 中斷 robot AbsMove 命令,避免 abort 期間 robot 還在跑舊軌跡
@@ -229,11 +217,9 @@ _Error := Error := FALSE;
 _Abort := Abort := FALSE;
 Done   := TRUE;
 
-// 軌道做完才停 (user spec):進 STATE_DONE 才主動停 + 壓住 flag 避免 A00 再驅動
-bMoveConveyorForward  := FALSE;
-bMoveConveyorBackward := FALSE;
-IF __ISVALIDREF(Motor) THEN
-	Motor.List.TransmitSameSideCV.M_MotorStop();
+// Phase 2:撤銷軌道請求 (arbiter 仲裁,本 FB 不直接停 motor — 其他 FB 還在 request 時不應被影響)
+IF __ISVALIDREF(SameSizeCVRequest) THEN
+	SameSizeCVRequest.bScan_NeedBackward := FALSE;
 END_IF
 
 IF NOT Execute THEN
@@ -282,8 +268,10 @@ TON_ScanTimeOut.IN           := FALSE;
 TON_MechTimeOut.IN           := FALSE;
 tonBoxArriveDelay.IN         := FALSE;
 
-bMoveConveyorForward  := FALSE;
-bMoveConveyorBackward := FALSE;
+// Phase 2:撤銷軌道請求
+IF __ISVALIDREF(SameSizeCVRequest) THEN
+	SameSizeCVRequest.bScan_NeedBackward := FALSE;
+END_IF
 
 PlateHasBox := FALSE;
 FeedBack    := FALSE;
@@ -373,14 +361,59 @@ CASE uiExecutingStep OF
 		IF M_ResolveAddress() THEN
 			bScanCompleted := FALSE;
 			bAllowContinue := FALSE;
-			bMoveConveyorForward  := FALSE;
-			bMoveConveyorBackward := FALSE;
-			uiExecutingStep := 1000;
+			IF __ISVALIDREF(SameSizeCVRequest) THEN
+				SameSizeCVRequest.bScan_NeedBackward := FALSE;
+			END_IF
+			uiExecutingStep := 100;
 		ELSE
 			Status           := strStatus;
 			_UniqueErrorCode := 'E_INVALID_CMD';
 			uiResumeStep     := 0;
 			_Error := TRUE;
+		END_IF
+
+	100:	// Press1 + Press3 一次性伸出 (擋盒避免回流壓到前盒) — 平行處理,兩個都到位才走
+			// 用 FB_MachineControl.bSameSizeCV_Press*_AlreadyExtended REFERENCE 做 latch:FALSE → 伸出 + 置 TRUE;TRUE → 跳過
+		IF __ISVALIDREF(Cylinder)
+		   AND __ISVALIDREF(SameSizeCV_Press1_AlreadyExtended)
+		   AND __ISVALIDREF(SameSizeCV_Press3_AlreadyExtended) THEN
+			IF SameSizeCV_Press1_AlreadyExtended AND SameSizeCV_Press3_AlreadyExtended THEN
+				// 兩個都已 latch,直接跳
+				TON_MechTimeOut.IN := FALSE;
+				uiExecutingStep := 1000;
+			ELSE
+				TON_MechTimeOut.IN := TRUE;
+				// Press1
+				IF NOT SameSizeCV_Press1_AlreadyExtended THEN
+					Cylinder.List.fbSameSizeCV_Press1.M_Extend();
+					IF Cylinder.List.fbSameSizeCV_Press1.InFrontPosition THEN
+						SameSizeCV_Press1_AlreadyExtended := TRUE;
+					END_IF
+				END_IF
+				// Press3
+				IF NOT SameSizeCV_Press3_AlreadyExtended THEN
+					Cylinder.List.fbSameSizeCV_Press3.M_Extend();
+					IF Cylinder.List.fbSameSizeCV_Press3.InFrontPosition THEN
+						SameSizeCV_Press3_AlreadyExtended := TRUE;
+					END_IF
+				END_IF
+				// 兩個都到位 → 跳 step 1000
+				IF SameSizeCV_Press1_AlreadyExtended AND SameSizeCV_Press3_AlreadyExtended THEN
+					TON_MechTimeOut.IN := FALSE;
+					uiExecutingStep := 1000;
+				END_IF
+				IF TON_MechTimeOut.Q THEN
+					uiResumeStep := 100;
+					strStatus := 'FB_ShippingPlateScan Step 100: Press1/Press3 extend timeout';
+					Status := strStatus;
+					_UniqueErrorCode := 'E_PRESS_TIMEOUT';
+					_Abort := TRUE;
+				END_IF
+			END_IF
+		ELSE
+			// ref 無效 (容錯),直接跳到正式流程
+			TON_MechTimeOut.IN := FALSE;
+			uiExecutingStep := 1000;
 		END_IF
 
 	1000:	// 送一次 AbsMove(BoxReady=FALSE) → 手臂走到 safe pos 等 continue 開始掃描
@@ -494,8 +527,10 @@ CASE uiExecutingStep OF
 	// Phase 2 (TO):放盒到同尺寸軌道 TransmitCV_End Pos 1 SameSize
 	// 對齊 FB_ShippingRobotTransfer step 10300/15000/15100/20000
 	// ===========================================================
-	3000:	// TO 前置:啟動軌道 backward + 等放盒位 sensor 清空
-		bMoveConveyorBackward := TRUE;
+	3000:	// TO 前置:請求 backward (arbiter 驅動) + 等放盒位 sensor 清空
+		IF __ISVALIDREF(SameSizeCVRequest) THEN
+			SameSizeCVRequest.bScan_NeedBackward := TRUE;
+		END_IF
 		TON_MechTimeOut.IN := TRUE;
 		IF __ISVALIDREF(Motor) AND Motor.List.TransmitSameSideCV.InBackWard
 		   AND NOT Input.bSameSizeCV_BoxNearShippingSensor THEN
@@ -565,9 +600,10 @@ CASE uiExecutingStep OF
 			_Error := TRUE;
 		END_IF
 
-	3300:	// TO 後置:確保 backward 持續驅動 (推走剛放的盒子)
-		bMoveConveyorForward  := FALSE;
-		bMoveConveyorBackward := TRUE;
+	3300:	// TO 後置:確保 backward 持續請求 (推走剛放的盒子,arbiter 驅動)
+		IF __ISVALIDREF(SameSizeCVRequest) THEN
+			SameSizeCVRequest.bScan_NeedBackward := TRUE;
+		END_IF
 		uiExecutingStep := 3400;
 
 	3400:	// 等馬達 backward 起步 → 進 FeedBack (軌道不停,持續推到 STATE_DONE 才停)
@@ -687,11 +723,9 @@ END_VAR
 		TON_ScanTimeOut.IN           := FALSE;
 		TON_MechTimeOut.IN           := FALSE;
 		tonBoxArriveDelay.IN         := FALSE;
-		// 停 SameSize 軌道馬達
-		bMoveConveyorForward  := FALSE;
-		bMoveConveyorBackward := FALSE;
-		IF __ISVALIDREF(Motor) THEN
-			Motor.List.TransmitSameSideCV.M_MotorStop();
+		// 撤銷軌道請求 (arbiter 看到沒人 request 會自動停)
+		IF __ISVALIDREF(SameSizeCVRequest) THEN
+			SameSizeCVRequest.bScan_NeedBackward := FALSE;
 		END_IF
 		_bAbsMoveStarted := FALSE;
 		PlateHasBox := FALSE;

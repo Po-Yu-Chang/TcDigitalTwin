@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_SameSizeCVRequest" Id="{a5f1e2c3-4b6d-4789-a012-3c4d5e6f7a8b}">
+    <Declaration><![CDATA[// 同尺寸軌道仲裁 request struct (Phase 2 集中式 motor control)
+// 各 sub-FB 只寫請求 flag,不直接操作 Motor.List.TransmitSameSideCV。
+// 由 FB_MachineControl.A20_ConveyorArbitration 每 scan 仲裁,真正下 M_MoveBackward / M_MoveForward / M_MotorStop。
+// 仲裁優先序:HoldStill > 方向衝突 (停) > Backward / Forward > 預設停。
+TYPE
+    ST_SameSizeCVRequest :
+    STRUCT
+        // ===== Backward 請求 (倒帶方向 — 送盒入倉 / 推走 / 入鏡頭) =====
+        bScan_NeedBackward              : BOOL;     // FB_ShippingPlateScan Phase 2 放盒
+        bShippingTransfer_NeedBackward  : BOOL;     // FB_ShippingRobotTransfer Put 到 TransmitCV_End
+        bCamera_NeedBackward            : BOOL;     // FB_SameSizeCVCamera_Reverse 送盒到拍照位 / 離開
+        bWareHouse_NeedBackward         : BOOL;     // FB_SameSizeCV_ReverseBoxToWareHouse Phase 1/3 送盒到 NearStorage
+
+        // ===== Forward 請求 (極少用 — Get from TransmitCV_End 場景) =====
+        bShippingTransfer_NeedForward   : BOOL;     // FB_ShippingRobotTransfer Get from TransmitCV_End
+
+        // ===== HoldStill 請求 (強制停 — 對位 / 拍照 / 取盒) =====
+        bCamera_HoldStill               : BOOL;     // 拍照時必須靜止
+        bWareHouse_HoldStill            : BOOL;     // 大手臂取盒時必須靜止
+    END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

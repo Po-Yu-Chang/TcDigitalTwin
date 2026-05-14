@@ -9,6 +9,9 @@ VAR_INPUT
 	OUTPUT			: REFERENCE TO ST_OutputTable;
 	Motor    		: REFERENCE TO UNI_MotorList;
 	Cylinder		: REFERENCE TO UNI_CylinderList;
+	SameSizeCVRequest : REFERENCE TO ST_SameSizeCVRequest;	// Phase 2 仲裁,傳到 fbShippingRobotTransfer / fbShippingPlateScan
+	SameSizeCV_Press1_AlreadyExtended : REFERENCE TO BOOL;	// 一次性 latch (傳給 fbShippingPlateScan):首次 Scan 觸發 Press1 伸出後固定 TRUE
+	SameSizeCV_Press3_AlreadyExtended : REFERENCE TO BOOL;	// 一次性 latch (傳給 fbShippingPlateScan):首次 Scan 觸發 Press3 伸出後固定 TRUE
     Reset           : REFERENCE TO BOOL;
 	Stop 			: REFERENCE TO BOOL;
     bStopMem 		: REFERENCE TO BOOL;
@@ -201,6 +204,7 @@ fbShippingRobotTransfer(
 	Input:= INPUT,
 	Output:= OUTPUT,
 	Motor:= Motor,
+	SameSizeCVRequest:= SameSizeCVRequest,
 	Cylinder:= Cylinder,
 	Buzz:= DAS_CoreSys.MachineControl._Buzz,
 	RedLamp:= DAS_CoreSys.MachineControl._RedLamp,
@@ -266,6 +270,10 @@ fbShippingPlateScan(
 	UniqueErrorCode=> ,
 	Robot:= FanucRobot,
 	Motor:= Motor,
+	SameSizeCVRequest:= SameSizeCVRequest,
+	Cylinder:= Cylinder,
+	SameSizeCV_Press1_AlreadyExtended:= SameSizeCV_Press1_AlreadyExtended,
+	SameSizeCV_Press3_AlreadyExtended:= SameSizeCV_Press3_AlreadyExtended,
 	Input:= INPUT,
 	Side:= Service.AutoMode_ShippingPlateScan.Side,
 	PlateIndex:= Service.AutoMode_ShippingPlateScan.PlateIndex,

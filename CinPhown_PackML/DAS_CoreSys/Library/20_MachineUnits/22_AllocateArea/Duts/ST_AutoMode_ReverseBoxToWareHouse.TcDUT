@@ -1,32 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
   <DUT Name="ST_AutoMode_ReverseBoxToWareHouse" Id="{c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f}">
     <Declaration><![CDATA[// ST_AutoMode_ReverseBoxToWareHouse
-// 逆向拍照批次 — 大手臂搬運入倉/NG 的 ADS Handshake 結構
+// 逆向拍照批次 — 大手臂搬運入倉 / PullOut / NG 的 ADS Handshake 結構
 // C# HMI 透過 ADS 讀寫此結構，對應 FB_SameSizeCV_ReverseBoxToWareHouse
 // 支援: 單爪A / 單爪B / 雙爪 (A+B 兩盒連續搬運)
+//
+// 介面變更 (2026-05-13): bBoxA/B_IsOK BOOL 改成 eBoxA/B_Destination enum,新增 PullOut 目的地
 TYPE ST_AutoMode_ReverseBoxToWareHouse :
 STRUCT
 	Command		: ST_CommandBasic;		// [ADS Write] C# → PLC : Execute=啟動, Reset=復位, Abort=中止
 	Status		: ST_StatusBasic;		// [ADS Read]  PLC → C# : Done=完成, Busy=執行中, Error=異常
 
 	// ===== A爪 盒子資訊 (C# → PLC, ADS Write) =====
-	bBoxA_Enable	: BOOL;				// TRUE=A爪有盒子要處理, FALSE=不使用A爪
-	bBoxA_IsOK		: BOOL;				// TRUE=拍照OK需入倉, FALSE=NG送NG區
-	iBoxA_Warehouse	: INT;				// 目標倉別 E_WareHouse: 1=WareHouseA, 2=WareHouseB (OK時有效)
-	iBoxA_Level		: INT;				// 目標層 E_WareHouseLayer: 1~10 (OK時有效)
-	iBoxA_Track		: INT;				// 目標軌 E_WareHouseSlide: 1~20 (OK時有效)
+	bBoxA_Enable		: BOOL;						// TRUE=A爪有盒子要處理, FALSE=不使用A爪
+	eBoxA_Destination	: E_ReverseBoxDestination;	// A爪目的地: WareHouse / PullOut / NGConveyor
+	iBoxA_Warehouse		: INT;						// (僅 Destination=WareHouse) 目標倉別 E_WareHouse: 1=A, 2=B
+	iBoxA_Level			: INT;						// (僅 Destination=WareHouse) 目標層 1~10
+	iBoxA_Track			: INT;						// (僅 Destination=WareHouse) 目標軌 1~20
+	iBoxA_PullOutSide	: INT;						// (僅 Destination=PullOut) 1=I3_Slide 左 / 2=I4_Slide 右
 
 	// ===== B爪 盒子資訊 (C# → PLC, ADS Write) =====
-	bBoxB_Enable	: BOOL;				// TRUE=B爪有盒子要處理, FALSE=不使用B爪 (單爪模式)
-	bBoxB_IsOK		: BOOL;				// TRUE=拍照OK需入倉, FALSE=NG送NG區
-	iBoxB_Warehouse	: INT;				// 目標倉別 E_WareHouse: 1=WareHouseA, 2=WareHouseB (OK時有效)
-	iBoxB_Level		: INT;				// 目標層 E_WareHouseLayer: 1~10 (OK時有效)
-	iBoxB_Track		: INT;				// 目標軌 E_WareHouseSlide: 1~20 (OK時有效)
+	bBoxB_Enable		: BOOL;						// TRUE=B爪有盒子要處理, FALSE=不使用B爪 (單爪模式)
+	eBoxB_Destination	: E_ReverseBoxDestination;
+	iBoxB_Warehouse		: INT;
+	iBoxB_Level			: INT;
+	iBoxB_Track			: INT;
+	iBoxB_PullOutSide	: INT;						// 1=I3_Slide 左 / 2=I4_Slide 右
 
 	// ===== 狀態回饋 (PLC → C#, ADS Read) =====
-	bBoxA_Done		: BOOL;				// A爪盒子搬運完成 (入倉或NG放置皆算完成)
-	bBoxB_Done		: BOOL;				// B爪盒子搬運完成 (入倉或NG放置皆算完成)
+	bBoxA_Done			: BOOL;						// A爪搬運完成 (入倉/PullOut/NG 三路皆算完成)
+	bBoxB_Done			: BOOL;						// B爪搬運完成
 END_STRUCT
 END_TYPE
 ]]></Declaration>

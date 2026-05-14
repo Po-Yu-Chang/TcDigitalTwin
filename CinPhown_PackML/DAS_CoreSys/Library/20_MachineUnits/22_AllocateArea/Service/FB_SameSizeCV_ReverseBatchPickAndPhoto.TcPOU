@@ -36,6 +36,7 @@ VAR_INPUT
 	// ===== 硬體 REFERENCE =====
 	Cylinder			: REFERENCE TO UNI_CylinderList;
 	Motor				: REFERENCE TO UNI_MotorList;
+	SameSizeCVRequest	: REFERENCE TO ST_SameSizeCVRequest;	// Phase 2 仲裁,傳到 3 個 sub-FB
 	Input				: ST_InputTable;
 	OutPut				: ST_OutputTable;
 	StorageRobot		: REFERENCE TO FB_FanucRobot_Basic_V2;
@@ -151,14 +152,15 @@ ShippingTransfer(
 	ErrorID=> , 
 	Status=> , 
 	UniqueErrorCode=> , 
-	Robot:= ShippingRobot, 
-	Info:= , 
-	Stop:= Stop, 
-	Input:= INPUT, 
-	Output:= OUTPUT, 
-	Motor:= Motor, 
-	Cylinder:= Cylinder, 
-	Buzz:= , 
+	Robot:= ShippingRobot,
+	Info:= ,
+	Stop:= Stop,
+	Input:= INPUT,
+	Output:= OUTPUT,
+	Motor:= Motor,
+	SameSizeCVRequest:= SameSizeCVRequest,
+	Cylinder:= Cylinder,
+	Buzz:= ,
 	RedLamp:= , 
 	bCompleteRequest:= , 
 	fbShippingHomingBusy:= , 
@@ -179,26 +181,30 @@ BoxToWareHouse(
 	ErrorID=> , 
 	Status=> , 
 	UniqueErrorCode=> , 
-	bBoxA_Enable:= , 
-	bBoxA_IsOK:= , 
-	iBoxA_Warehouse:= , 
-	iBoxA_Level:= , 
-	iBoxA_Track:= , 
-	bBoxB_Enable:= , 
-	bBoxB_IsOK:= , 
-	iBoxB_Warehouse:= , 
-	iBoxB_Level:= , 
-	iBoxB_Track:= , 
-	NGAreaPosition:= , 
-	PickupPosition:= , 
-	Cylinder:= Cylinder, 
-	Motor:= Motor, 
-	Input:= Input, 
-	OutPut:= OutPut, 
-	StorageRobot:= StorageRobot, 
-	WareHouse:= WareHouse, 
-	Stop:= Stop, 
-	bBoxA_Done=> , 
+	bBoxA_Enable:= ,
+	eBoxA_Destination:= ,
+	iBoxA_Warehouse:= ,
+	iBoxA_Level:= ,
+	iBoxA_Track:= ,
+	iBoxA_PullOutSide:= ,
+	bBoxB_Enable:= ,
+	eBoxB_Destination:= ,
+	iBoxB_Warehouse:= ,
+	iBoxB_Level:= ,
+	iBoxB_Track:= ,
+	iBoxB_PullOutSide:= ,
+	NGAreaPosition:= ,
+	PickupPosition:= ,
+	Cylinder:= Cylinder,
+	Motor:= Motor,
+	SameSizeCVRequest:= SameSizeCVRequest,
+	Input:= Input,
+	OutPut:= OutPut,
+	StorageRobot:= StorageRobot,
+	WareHouse:= WareHouse,
+	PullOutConveyor:= ,
+	Stop:= Stop,
+	bBoxA_Done=> ,
 	bBoxB_Done=> );
 	
 _fbSameSizeCV_ReverseCamera(
@@ -208,12 +214,13 @@ _fbSameSizeCV_ReverseCamera(
 	xExecute:= , 
 	xAbort:= , 
 	xReset:= , 
-	Cylinder:= Cylinder, 
-	TimeOut:= , 
-	Input:= input, 
-	OutPut:= output, 
-	Motor:= Motor, 
-	BoxCameraDone:= , 
+	Cylinder:= Cylinder,
+	TimeOut:= ,
+	Input:= input,
+	OutPut:= output,
+	Motor:= Motor,
+	SameSizeCVRequest:= SameSizeCVRequest,
+	BoxCameraDone:= ,
 	xAborted=> , 
 	iErrorID=> , 
 	ErrorMsg=> , 
@@ -867,16 +874,24 @@ CASE uiExecutingStep OF
 			bTransportBusy := TRUE;
 			uiTransportStep := 200;
 
-		200:	// 啟動 BoxToWareHouse
+		200:	// 啟動 BoxToWareHouse — Batch 拍照流程 bIsOK 二分:TRUE=WareHouse / FALSE=NGConveyor (不走 PullOut)
 			BoxToWareHouse.bBoxA_Enable		:= TRUE;
-			BoxToWareHouse.bBoxA_IsOK		:= stGripA.bIsOK;
+			IF stGripA.bIsOK THEN
+				BoxToWareHouse.eBoxA_Destination := E_ReverseBoxDestination.WareHouse;
+			ELSE
+				BoxToWareHouse.eBoxA_Destination := E_ReverseBoxDestination.NGConveyor;
+			END_IF
 			BoxToWareHouse.iBoxA_Warehouse	:= stGripA.iWarehouse;
 			BoxToWareHouse.iBoxA_Level		:= stGripA.iLevel;
 			BoxToWareHouse.iBoxA_Track		:= stGripA.iTrack;
 
 			BoxToWareHouse.bBoxB_Enable		:= bUseDualGrip;
 			IF bUseDualGrip THEN
-				BoxToWareHouse.bBoxB_IsOK		:= stGripB.bIsOK;
+				IF stGripB.bIsOK THEN
+					BoxToWareHouse.eBoxB_Destination := E_ReverseBoxDestination.WareHouse;
+				ELSE
+					BoxToWareHouse.eBoxB_Destination := E_ReverseBoxDestination.NGConveyor;
+				END_IF
 				BoxToWareHouse.iBoxB_Warehouse	:= stGripB.iWarehouse;
 				BoxToWareHouse.iBoxB_Level		:= stGripB.iLevel;
 				BoxToWareHouse.iBoxB_Track		:= stGripB.iTrack;

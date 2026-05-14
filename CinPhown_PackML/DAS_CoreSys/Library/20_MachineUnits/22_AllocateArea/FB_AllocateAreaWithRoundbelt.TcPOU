@@ -10,6 +10,7 @@ VAR_INPUT
     Cylinder 	: REFERENCE TO UNI_CylinderList;
     Service  	: REFERENCE TO ST_AllocateService;
     Motor    	: REFERENCE TO UNI_MotorList;
+    SameSizeCVRequest : REFERENCE TO ST_SameSizeCVRequest;	// Phase 2 仲裁,傳到 fbReverseBatchPickAndPhoto / fbReverseBoxToWareHouse / fbSameSizeCVCamera_Reverse
     Reset       : REFERENCE TO BOOL;
 	Stop 		: REFERENCE TO BOOL;
 	bStopMem 	: REFERENCE TO BOOL;
@@ -417,6 +418,7 @@ fbOutRobot_TurnTableToRoundBelt(
 		Input:= INPUT,
 		OutPut:= OUTPUT,
 		Motor:= Motor,
+		SameSizeCVRequest:= SameSizeCVRequest,
 		BoxCameraDone:= Service.AutoMode_SameSizeCVCamera_Reverse.BoxCameraDone,
 		xAborted=> ,
 		iErrorID=> ,
@@ -434,24 +436,28 @@ fbOutRobot_TurnTableToRoundBelt(
 		Abort := Service.AutoMode_ReverseBoxToWareHouse.Command.Abort OR THIS^.Abort OR _bAnyServiceError,
 		Reset := Service.AutoMode_ReverseBoxToWareHouse.Command.Reset,
 		ObjectName := 'Reverse box to warehouse',
-		// 盒子資訊 (C# → PLC)
+		// 盒子資訊 (C# → PLC) — 介面變更:eBoxA/B_Destination enum 三選一 (WareHouse / PullOut / NGConveyor) + 新增 iBoxA/B_PullOutSide
 		bBoxA_Enable := Service.AutoMode_ReverseBoxToWareHouse.bBoxA_Enable,
-		bBoxA_IsOK := Service.AutoMode_ReverseBoxToWareHouse.bBoxA_IsOK,
+		eBoxA_Destination := Service.AutoMode_ReverseBoxToWareHouse.eBoxA_Destination,
 		iBoxA_Warehouse := Service.AutoMode_ReverseBoxToWareHouse.iBoxA_Warehouse,
 		iBoxA_Level := Service.AutoMode_ReverseBoxToWareHouse.iBoxA_Level,
 		iBoxA_Track := Service.AutoMode_ReverseBoxToWareHouse.iBoxA_Track,
+		iBoxA_PullOutSide := Service.AutoMode_ReverseBoxToWareHouse.iBoxA_PullOutSide,
 		bBoxB_Enable := Service.AutoMode_ReverseBoxToWareHouse.bBoxB_Enable,
-		bBoxB_IsOK := Service.AutoMode_ReverseBoxToWareHouse.bBoxB_IsOK,
+		eBoxB_Destination := Service.AutoMode_ReverseBoxToWareHouse.eBoxB_Destination,
 		iBoxB_Warehouse := Service.AutoMode_ReverseBoxToWareHouse.iBoxB_Warehouse,
 		iBoxB_Level := Service.AutoMode_ReverseBoxToWareHouse.iBoxB_Level,
 		iBoxB_Track := Service.AutoMode_ReverseBoxToWareHouse.iBoxB_Track,
+		iBoxB_PullOutSide := Service.AutoMode_ReverseBoxToWareHouse.iBoxB_PullOutSide,
 		// 硬體
 		Cylinder := Cylinder,
 		Motor := Motor,
+		SameSizeCVRequest := SameSizeCVRequest,
 		Input := INPUT,
 		OutPut := OUTPUT,
 		StorageRobot := DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot,
 		WareHouse := DAS_CoreSys.MachineControl.fbStorageArea.fbWarehouse,
+		PullOutConveyor := fbPulloutCV,
 		Stop := bStopMem,
 		// Status output (PLC → C#)
 		bBoxA_Done => Service.AutoMode_ReverseBoxToWareHouse.bBoxA_Done,
@@ -485,6 +491,7 @@ fbOutRobot_TurnTableToRoundBelt(
 		// 硬體
 		Cylinder := Cylinder,
 		Motor := Motor,
+		SameSizeCVRequest := SameSizeCVRequest,
 		Input := INPUT,
 		OutPut := OUTPUT,
 		StorageRobot := DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot,

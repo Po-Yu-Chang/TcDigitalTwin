@@ -103,6 +103,9 @@
     <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Motor\UNI_MotorList.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Motor\ST_SameSizeCVRequest.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Library\10_Machine\12_MachineControl\DUTs\Service\ST_ServiceCtrl_Base.TcDUT">
       <SubType>Code</SubType>
     </Compile>

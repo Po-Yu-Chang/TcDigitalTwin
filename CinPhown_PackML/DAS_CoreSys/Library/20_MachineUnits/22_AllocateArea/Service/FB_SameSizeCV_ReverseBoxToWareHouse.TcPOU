@@ -13,35 +13,39 @@ FUNCTION_BLOCK FB_SameSizeCV_ReverseBoxToWareHouse EXTENDS FB_ObjectBase_V2 IMPL
 
 VAR_INPUT
 	// ===== 盒子資訊 (由上層 FB 設定) =====
-	bBoxA_Enable	: BOOL;				// A爪有盒子要處理
-	bBoxA_IsOK		: BOOL;				// A爪: TRUE=OK入倉, FALSE=NG
-	iBoxA_Warehouse	: INT;				// A爪: 倉 (E_WareHouse: 1=A, 2=B)
-	iBoxA_Level		: INT;				// A爪: 層 (1~10)
-	iBoxA_Track		: INT;				// A爪: 軌 (1~20)
+	bBoxA_Enable		: BOOL;						// A爪有盒子要處理
+	eBoxA_Destination	: E_ReverseBoxDestination;	// A爪目的地: WareHouse / PullOut / NGConveyor
+	iBoxA_Warehouse		: INT;						// (僅 Destination=WareHouse) 倉 (E_WareHouse: 1=A, 2=B)
+	iBoxA_Level			: INT;						// (僅 Destination=WareHouse) 層 (1~10)
+	iBoxA_Track			: INT;						// (僅 Destination=WareHouse) 軌 (1~20)
+	iBoxA_PullOutSide	: INT;						// (僅 Destination=PullOut) 1=I3_Slide 左 / 2=I4_Slide 右
 
-	bBoxB_Enable	: BOOL;				// B爪有盒子要處理 (FALSE=單爪)
-	bBoxB_IsOK		: BOOL;
-	iBoxB_Warehouse	: INT;
-	iBoxB_Level		: INT;
-	iBoxB_Track		: INT;
+	bBoxB_Enable		: BOOL;						// B爪有盒子要處理 (FALSE=單爪)
+	eBoxB_Destination	: E_ReverseBoxDestination;
+	iBoxB_Warehouse		: INT;
+	iBoxB_Level			: INT;
+	iBoxB_Track			: INT;
+	iBoxB_PullOutSide	: INT;						// 1=I3_Slide 左 / 2=I4_Slide 右
 
-	NGAreaPosition	: INT := 3;			// NG 區 InOutConveyor Position
-	PickupPosition	: INT := 2;			// 同尺寸輸送帶 為2
+	NGAreaPosition		: INT := 3;					// NG 區 InOutConveyor Position
+	PickupPosition		: INT := 2;					// 同尺寸輸送帶 為 2
 
 	// ===== 硬體 REFERENCE =====
-	Cylinder		: REFERENCE TO UNI_CylinderList;
-	Motor			: REFERENCE TO UNI_MotorList;
-	Input			: ST_InputTable;
-	OutPut			: ST_OutputTable;
-	StorageRobot	: REFERENCE TO FB_FanucRobot_Basic_V2;
-	WareHouse		: REFERENCE TO FB_WareHouse;
-	
-	Stop			: BOOL;
+	Cylinder			: REFERENCE TO UNI_CylinderList;
+	Motor				: REFERENCE TO UNI_MotorList;
+	SameSizeCVRequest	: REFERENCE TO ST_SameSizeCVRequest;	// Phase 2 仲裁:本 FB 寫 bWareHouse_NeedBackward / bWareHouse_HoldStill
+	Input				: ST_InputTable;
+	OutPut				: ST_OutputTable;
+	StorageRobot		: REFERENCE TO FB_FanucRobot_Basic_V2;
+	WareHouse			: REFERENCE TO FB_WareHouse;
+	PullOutConveyor		: REFERENCE TO FB_PullOutConveyorAction;	// PullOut 目的地需要
+
+	Stop				: BOOL;
 END_VAR
 
 VAR_OUTPUT
-	bBoxA_Done			: BOOL;				// A爪盒子搬運完成 (入倉或NG放置皆算完成)
-	bBoxB_Done			: BOOL;				// B爪盒子搬運完成 (入倉或NG放置皆算完成)
+	bBoxA_Done			: BOOL;				// A爪搬運完成 (入倉/PullOut/NG 三路皆算完成)
+	bBoxB_Done			: BOOL;				// B爪搬運完成
 END_VAR
 
 VAR
@@ -55,30 +59,33 @@ VAR
 	stWareHouseCoord	: ST_WareHouseCoordinates;
 
 	// Timers
-	TON_TimeOut				: TON;
-	TON_ConveyorTimeOut		: TON;
-	TON_RobotResetTimeOut 	: TON;
-	TON_ArrivedDelay		: TON;
+	TON_TimeOut			: TON;
+	TON_ConveyorTimeOut	: TON;
+	TON_RobotResetTimeOut : TON;
+	TON_ArrivedDelay	: TON;
 
-	tonDelay_SameSizeGetBox 	: TON;
-	tonDelay_SameSizeDelayBox 	: TON;
-	TON_CVmovedelay				: TON;
-	
 	// Resume
 	uiResumeStep		: UDINT := 0;
-	
-	NGRegionMove	: FB_RobotRegionMove_FeedInConveyor_V2;
+
+	// Region move helpers
+	NGRegionMove		: FB_RobotRegionMove_FeedInConveyor_V2;		// NG 目的地用 (InOutConveyor Pos 3)
+	PullOutRegionMove	: FB_RobotRegionMove_PullOutConveyor;		// PullOut 目的地用 (新加)
+
+	// STATE_ERROR retry framework (對齊 FB_ShippingRobotTransfer)
+	trigErrorReset		: R_TRIG;
+	tonErrorResetDelay	: TON;
+	bErrorBlinking		: BOOL;
+
+	// Phase 2:本 FB 有兩個 instance (Direct 在 FB_AllocateAreaWithRoundbelt + Orchestrator 在 FB_SameSizeCV_ReverseBatchPickAndPhoto)
+	// shared SameSizeCVRequest flag 不能被 idle instance stomp。Step 寫 local intent,A00 + Busy gate 才 propagate。
+	bIntent_NeedBackward	: BOOL;
+	bIntent_HoldStill		: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[SUPER^.A10_StateControl();
 A00_BasicUnits();
-
-(*============================================================
-Create Date : 2026/04/13
-Last Update	: 2026/04/13
-Change Log  : 2026/04/13，移植泰興鏡射機版本，修正輸送帶盒子定位邏輯，每一台輸送帶的機構不同需要客製化針盒定位邏輯。 	edited by Gamin
-============================================================*)]]></ST>
+]]></ST>
     </Implementation>
     <Folder Name="State" Id="{f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c}" />
     <Action Name="A00_BasicUnits" Id="{a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d}">
@@ -87,27 +94,35 @@ Change Log  : 2026/04/13，移植泰興鏡射機版本，修正輸送帶盒子�
 TON_ConveyorTimeOut(PT := T#60S);
 TON_RobotResetTimeOut(PT := T#30S);
 TON_ArrivedDelay(PT:= T#300MS);
-tonDelay_SameSizeDelayBox(PT:=T#800MS);
-tonDelay_SameSizeGetBox(PT:=T#50MS);
-TON_CVmovedelay(PT:= T#500mS);
+
+// Phase 2:Busy 期間才 propagate local intent 到 shared request flag,避免 idle instance stomp 別人的請求
+IF Busy AND __ISVALIDREF(SameSizeCVRequest) THEN
+	SameSizeCVRequest.bWareHouse_NeedBackward := bIntent_NeedBackward;
+	SameSizeCVRequest.bWareHouse_HoldStill    := bIntent_HoldStill;
+END_IF
 
 NGRegionMove(
-	Execute:= , 
-	Abort:= , 
-	Reset:= , 
-	ObjectName:= , 
-	Busy=> , 
-	Done=> , 
-	Aborted=> , 
-	Error=> , 
-	ErrorID=> , 
-	Status=> , 
-	UniqueErrorCode=> , 
-	Robot:= StorageRobot, 
-	LowerConveyor:= Motor.List.LowCV, 
-	Input:= input, 
-	Info:= , 
-	Stop:= );]]></ST>
+	Execute:= ,
+	Abort:= ,
+	Reset:= ,
+	ObjectName:= ,
+	Busy=> ,
+	Done=> ,
+	Aborted=> ,
+	Error=> ,
+	ErrorID=> ,
+	Status=> ,
+	UniqueErrorCode=> ,
+	Robot:= StorageRobot,
+	LowerConveyor:= Motor.List.LowCV,
+	Input:= input,
+	Info:= ,
+	Stop:= );
+
+PullOutRegionMove(
+	Robot:= StorageRobot,
+	PullOutConveyor:= PullOutConveyor,
+	Stop:= Stop);]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_STATE_ABORTED" Id="{00000001-e3f4-4a5b-6c7d-8e9f0a1b2c3d}" FolderPath="State\">
@@ -166,13 +181,15 @@ END_VAR
 	TON_ConveyorTimeOut.IN := FALSE;
 	TON_RobotResetTimeOut.IN := FALSE;
 
-	// 停止手臂 + 倉儲 + NG
+	// 停止手臂 + 倉儲 + NG + PullOut
 	//StorageRobot.M_ResetAllCommand();		續做盡量不要清除掉手臂的command 保持原狀，如要清除把Continue 拔掉即可。
 	WareHouse.M_ResetFeedInBox();
 	NGRegionMove.Execute := FALSE;
+	PullOutRegionMove.Execute := FALSE;
 
-	// 停止馬達
-	Motor.List.TransmitSameSideCV.M_MotorStop();
+	// Phase 2:清 local intent (A00 在 Busy 時 propagate FALSE,本 instance 收手不影響別人)
+	bIntent_NeedBackward := FALSE;
+	bIntent_HoldStill    := FALSE;
 
 	uiAbortingStep := 100;
 
@@ -248,10 +265,15 @@ TON_TimeOut.IN			:= FALSE;
 TON_ConveyorTimeOut.IN	:= FALSE;
 TON_RobotResetTimeOut.IN := FALSE;
 TON_ArrivedDelay.IN		:= FALSE;
+tonErrorResetDelay.IN	:= FALSE;
+bErrorBlinking			:= FALSE;
 
-TON_CVmovedelay.IN 			 := FALSE;
-tonDelay_SameSizeDelayBox.IN := FALSE;
-tonDelay_SameSizeGetBox.IN 	 := FALSE;
+PullOutRegionMove.Execute := FALSE;
+NGRegionMove.Execute      := FALSE;
+
+// Phase 2:DORMANT 只清 local intent,不動 shared SameSizeCVRequest flag (本 FB 有兩個 instance,idle 不能 stomp 其他 instance 的 request)
+bIntent_NeedBackward := FALSE;
+bIntent_HoldStill    := FALSE;
 
 _AbortCompleted		:= FALSE;
 
@@ -259,7 +281,7 @@ _AbortCompleted		:= FALSE;
 IF Execute AND NOT Stop THEN
 	// 啟動前檢查
 	IF NOT bBoxA_Enable AND NOT bBoxB_Enable THEN
-		strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse: No box enabled';
+		strStatus := 'No box enabled';
 		_UniqueErrorCode := 'E_NO_BOX';
 		_Abort := TRUE;
 		RETURN;
@@ -288,8 +310,32 @@ END_VAR
 Error := TRUE;
 Status := strStatus;
 
+// Reset 上升緣 → 1 秒閃爍 (對齊 FB_ShippingRobotTransfer)
+trigErrorReset(CLK := Reset);
+IF trigErrorReset.Q THEN
+	bErrorBlinking := TRUE;
+END_IF
+tonErrorResetDelay(IN := bErrorBlinking, PT := T#1S);
+IF tonErrorResetDelay.Q THEN
+	bErrorBlinking := FALSE;
+END_IF
+IF bErrorBlinking THEN
+	Error := FALSE;
+END_IF
+
 IF NOT Execute THEN
+	Error := FALSE;
+	bErrorBlinking := FALSE;
+	tonErrorResetDelay.IN := FALSE;
 	eState := STATE_RESETTING;
+ELSIF trigErrorReset.Q AND Execute AND NOT StorageRobot._DI1.Error THEN
+	// Retry 對稱:Reset 上升緣 (edge) 才觸發,從 uiResumeStep 續做
+	uiExecutingStep := uiResumeStep;
+	Status := '';
+	Error := FALSE;
+	bErrorBlinking := FALSE;
+	tonErrorResetDelay.IN := FALSE;
+	eState := STATE_EXECUTING;
 END_IF
 ]]></ST>
       </Implementation>
@@ -319,467 +365,647 @@ IF Stop THEN
 END_IF
 
 CASE uiExecutingStep OF
-			
-		0:	// 初始化
-				bBoxReady := FALSE;
-				bBoxA_Done := FALSE;
-				bBoxB_Done := FALSE;
-				uiExecutingStep := 1000;
-		
-		{region '=== Phase 1: 第一盒送到 NearStorage ==='}
-		// 流程: 馬達先動 → 等盒到 Detect6 → Block3 擋 → Press3 壓 → Block3 放 → 送到 NearStorage
-					
-		1000:	// 啟動軌道馬達
-				Motor.List.TransmitSameSideCV.M_MoveBackward();
-				cylinder.List.fbSameSizeCV_Press3.M_Retract();
-				cylinder.List.fbSameSizeCV_Press4.M_Retract();
-				TON_ConveyorTimeOut.IN := TRUE;
-				uiExecutingStep := 1100;
-		
-		1100:	// 等待盒子到達 BoxDetect6，延遲50ms 擋住第二盒，泰興機沒有檔盒
-				tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
-				IF tonDelay_SameSizeGetBox.Q THEN
-					cylinder.List.fbSameSizeCV_Press3.M_Extend();
-					uiExecutingStep :=1200;
-				END_IF
-		
-		1200:	// 盒子觸底後，延遲800ms
-				tonDelay_SameSizeGetBox.IN:=FALSE;
-				tonDelay_SameSizeDelayBox.IN :=Input.bSameSizeCV_BoxNearStorageSensor;
-				IF 	tonDelay_SameSizeDelayBox.Q THEN
-					uiExecutingStep :=1300;
-				END_IF
-		
-		1300:	// 壓盒壓上，檢測第二盒是否在後面，
-				cylinder.List.fbSameSizeCV_Press4.M_Extend();
-				IF NOT Input.bSameSizeCV_BoxDetect6_Sensor THEN
-					uiExecutingStep := 1400;
-				ELSE 
-					// 如果有盒，壓盒收回，馬達停止
-					cylinder.List.fbSameSizeCV_Press3.M_Retract();
-					Motor.List.TransmitSameSideCV.M_MotorStop();
-					uiExecutingStep := 1325;
-				END_IF
-					 
-		1325:	// 正轉輸送帶將第二盒退後。
-				Motor.List.TransmitSameSideCV.M_MoveForward();
-				IF Motor.List.TransmitSameSideCV.InForWard THEN
-					uiExecutingStep := 1350;
-				END_IF
-		
-		1350:	//  檢測是否離開第二盒Sensor 位置，偵測到延遲 1秒確保離開
-			 	TON_CVmovedelay.IN := NOT Input.bSameSizeCV_BoxDetect6_Sensor;
-				IF TON_CVmovedelay.Q THEN
-					cylinder.List.fbSameSizeCV_Press3.M_Extend();
-					Motor.List.TransmitSameSideCV.M_MotorStop();
-					uiExecutingStep := 1375;
-				END_IF
-				  
-		1375:	
-				TON_CVmovedelay.IN := FALSE;
-				Motor.List.TransmitSameSideCV.M_MoveBackward();
-				IF Motor.List.TransmitSameSideCV.InBackWard THEN
-					uiExecutingStep := 1400;
-				END_IF
-		1400:
-			 	TON_CVmovedelay.IN := TRUE;
-				Motor.List.TransmitSameSideCV.M_MotorStop();
-				IF TON_CVmovedelay.Q THEN
-					cylinder.List.fbSameSizeCV_Press4.M_Retract();
-					uiExecutingStep := 1500;
-				END_IF
-			
-		1500:
-			 	TON_CVmovedelay.IN 			 := FALSE;
-				tonDelay_SameSizeDelayBox.IN := FALSE;
-				tonDelay_SameSizeGetBox.IN 	 := FALSE;
-				uiExecutingStep	   			 := 2000;
 
-				 
-		{endregion}
-		
-		{region '=== Phase 2: 大手臂取第一盒 ==='}
-		
-		2000:	// Robot AbsMove 取盒
-			TON_TimeOut.IN := TRUE;
-			IF NOT StorageRobot._DI1.Done THEN
-				StorageRobot.M_StartRobotAbsMove(
-					GetBox			:= TRUE,
-					UseClampA		:= bFirstClampIsA,
-					UseClampB		:= FALSE,
-					Area			:= E_RobotArea.TransmitCV,
-					ClampA_Address	:= PickupPosition,
-					ClampB_Address	:= 99,
-					BoxReady_1		:= bFirstClampIsA,
-					BoxReady_2		:= FALSE);
-			ELSE
-				TON_TimeOut.IN := FALSE;
-				uiExecutingStep := 2100;
-			END_IF
-			IF TON_TimeOut.Q OR StorageRobot.Error THEN
-				uiResumeStep := uiExecutingStep;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 2000: Robot pick first box timeout';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		2100:	// Reset Robot
-			StorageRobot.M_ResetAllCommand();
-			IF NOT StorageRobot._DI1.Done THEN
-				IF bDualGrip THEN
-					uiExecutingStep := 3000;
-				ELSE
-					uiExecutingStep := 5000;
-				END_IF
-			END_IF
-		
-		{endregion}
-		
-		{region '=== Phase 3: 第二盒送到 NearStorage (雙爪) ==='}
-		// 流程: 馬達先動 → 等盒到 Detect6 → Block3 擋 → Press3 壓 → Block3 放 → 送到 NearStorage
-		
-		3000:	// 啟動軌道馬達
-				Cylinder.List.fbSameSizeCV_Press3.M_Retract();
-				Motor.List.TransmitSameSideCV.M_MoveBackward();
-  				TON_CVmovedelay.IN 			 := FALSE;
-				tonDelay_SameSizeDelayBox.IN := FALSE;
-				tonDelay_SameSizeGetBox.IN 	 := FALSE;
-				uiExecutingStep := 3100;
-		
-		3100:	// Block3 extend (擋住第二盒)
-				tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
-				IF tonDelay_SameSizeGetBox.Q THEN
-					cylinder.List.fbSameSizeCV_Press3.M_Extend();
-					uiExecutingStep :=3200;
-				END_IF
-		
-		3200:	// 等待第二盒到達 BoxDetect6
-			 	tonDelay_SameSizeGetBox.IN:=FALSE;
-				tonDelay_SameSizeDelayBox.IN :=Input.bSameSizeCV_BoxNearStorageSensor;
-				IF 	tonDelay_SameSizeDelayBox.Q THEN
-					uiExecutingStep :=3300;
-				END_IF 
-				  
-		3300:	// Press3 壓住第二盒
-				cylinder.List.fbSameSizeCV_Press4.M_Extend();
-				IF NOT Input.bSameSizeCV_BoxDetect6_Sensor THEN
-					uiExecutingStep := 3400;
-				ELSE
-					cylinder.List.fbSameSizeCV_Press3.M_Retract();
-					Motor.List.TransmitSameSideCV.M_MotorStop();
-					uiExecutingStep := 3325;
-				END_IF
-		
-		3325:	// Block3 retract (放開)
-				Motor.List.TransmitSameSideCV.M_MoveForward();
-				IF Motor.List.TransmitSameSideCV.InForWard THEN
-					uiExecutingStep := 3350;
-				END_IF
-		
-		3350:	// 軌道往前送到 NearStorage + Press3 縮回
-				TON_CVmovedelay.IN := NOT Input.bSameSizeCV_BoxDetect6_Sensor;
-				IF TON_CVmovedelay.Q THEN
-					cylinder.List.fbSameSizeCV_Press3.M_Extend();
-					Motor.List.TransmitSameSideCV.M_MotorStop();
-					uiExecutingStep := 3375;
-				END_IF
-		
-		3375:	// 等待馬達停止
-			 	TON_CVmovedelay.IN := FALSE;
-				Motor.List.TransmitSameSideCV.M_MoveBackward();
-				IF Motor.List.TransmitSameSideCV.InBackWard THEN
-					uiExecutingStep := 3400;
-				END_IF
-				
-		3400:
-			 	TON_CVmovedelay.IN := TRUE;
-				Motor.List.TransmitSameSideCV.M_MotorStop();
-				IF TON_CVmovedelay.Q THEN
-					cylinder.List.fbSameSizeCV_Press4.M_Retract();
-					uiExecutingStep := 3500;
-				END_IF
-					 
-		3500:
-			 	TON_CVmovedelay.IN 			 := FALSE;
-				tonDelay_SameSizeDelayBox.IN := FALSE;
-				tonDelay_SameSizeGetBox.IN 	 := FALSE;
-				uiExecutingStep	   			 := 4000;
-					
-		
-		{endregion}
-		
-		{region '=== Phase 4: 大手臂取第二盒 ==='}
-		
-		4000:	// Robot AbsMove 第二爪
-			TON_TimeOut.IN := TRUE;
-			IF NOT StorageRobot._DI1.Done THEN
-				StorageRobot.M_StartRobotAbsMove(
-					GetBox			:= TRUE,
-					UseClampA		:= FALSE,
-					UseClampB		:= bFirstClampIsA,
-					Area			:= E_RobotArea.TransmitCV,
-					ClampA_Address	:= 99,
-					ClampB_Address	:= PickupPosition,
-					BoxReady_1		:= FALSE,
-					BoxReady_2		:= bFirstClampIsA);
-			ELSE
-				TON_TimeOut.IN := FALSE;
-				uiExecutingStep := 4100;
-			END_IF
-			IF TON_TimeOut.Q OR StorageRobot.Error THEN
-				uiResumeStep := uiExecutingStep;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 4000: Robot pick second box timeout';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		4100:	// Reset Robot
-			StorageRobot.M_ResetAllCommand();
-			IF NOT StorageRobot._DI1.Done THEN
-				uiExecutingStep := 5000;
-			END_IF
-		
-		{endregion}
-		
-		{region '=== Phase 5: 放 ClampA ==='}
-		
-		5000:	// 清除 Robot 命令
-			TON_RobotResetTimeOut.IN := TRUE;
-			StorageRobot.M_ResetAllCommand();
-			IF NOT StorageRobot._DI1.Done AND
-				NOT (StorageRobot._DI1.AbsMoveA OR StorageRobot._DI1.AbsMoveB OR
-					 StorageRobot._DI1.WarehouseA OR StorageRobot._DI1.WarehouseB) THEN
-				TON_RobotResetTimeOut.IN := FALSE;
-				bBoxReady := FALSE;
-				IF bBoxA_Enable THEN
-					uiExecutingStep := 5100;
-				ELSE
-					uiExecutingStep := 6000;
-				END_IF
-			END_IF
-			IF TON_RobotResetTimeOut.Q THEN
-				uiResumeStep := 5000;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5000: Robot reset timeout (phase 5)';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		5100:	// ClampA: OK → 入倉, NG → NG區
-			IF bBoxA_IsOK THEN
-				uiExecutingStep := 5200;
-			ELSE
-				uiExecutingStep := 5300;
-			END_IF
-		
-		5200:	// ClampA OK → 入倉
-			TON_TimeOut.IN := TRUE;
-			stWareHouseCoord.Layer := iBoxA_Level;
-			stWareHouseCoord.Slide := iBoxA_Track;
-			IF iBoxA_Warehouse = 1 THEN
-				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := stWareHouseCoord);
-				IF WareHouse.bFeedInBox_Completed THEN
-					bBoxReady := TRUE;
-				END_IF
-				StorageRobot.M_StartWareHousePlaceBox_ClampA(
-					WareHouseSelect := E_WareHouse.WareHouseA,
-					Info := stWareHouseCoord,
-					BoxReady_1st := bBoxReady);
-			ELSIF iBoxA_Warehouse = 2 THEN
-				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := stWareHouseCoord);
-				IF WareHouse.bFeedInBox_Completed THEN
-					bBoxReady := TRUE;
-				END_IF
-				StorageRobot.M_StartWareHousePlaceBox_ClampA(
-					WareHouseSelect := E_WareHouse.WareHouseB,
-					Info := stWareHouseCoord,
-					BoxReady_1st := bBoxReady);
-			ELSE
-				uiResumeStep := 5200;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5200: Invalid BoxA warehouse value';
-				_UniqueErrorCode := 'E_INVALID_WAREHOUSE';
-				_Abort := TRUE;
-				RETURN;
-			END_IF
-			IF StorageRobot._DI1.Done THEN
-				TON_TimeOut.IN := FALSE;
-				bBoxA_Done := TRUE;
-				uiExecutingStep := 5500;
-			END_IF
-			IF TON_TimeOut.Q OR StorageRobot.Error THEN
-				uiResumeStep := 5200;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5200: ClampA place to warehouse timeout';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		5300:	// ClampA NG → NG區
-			NGRegionMove.Info.Get := FALSE;
-			NGRegionMove.Info.UseA := TRUE;
-			NGRegionMove.Info.UseB := FALSE;
-			NGRegionMove.Info.A_Position := NGAreaPosition;
-			NGRegionMove.Info.B_Position := 0;
-			NGRegionMove.Execute := TRUE;
-			uiExecutingStep := 5310;
-		
-		5310:	// 等待 NG RegionMove 完成
-			IF NGRegionMove.Done THEN
-				NGRegionMove.Execute := FALSE;
-				bBoxA_Done := TRUE;
-				uiExecutingStep := 5320;
-			END_IF
-			IF NGRegionMove.Error OR NGRegionMove.Aborted THEN
-				NGRegionMove.Execute := FALSE;
-				uiResumeStep := 5300;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 5300: ClampA NG region move failed';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		5320:	// 等待 DORMANT
-			IF NOT NGRegionMove.Busy AND NOT NGRegionMove.Done THEN
-				uiExecutingStep := 5600;
-			END_IF
-		
-		5500:	// ClampA OK 完成 → Reset
-			StorageRobot.M_ResetAllCommand();
-			WareHouse.M_ResetFeedInBox();
-			IF NOT StorageRobot._DI1.Done THEN
-				uiExecutingStep := 5600;
-			END_IF
-		
-		5600:	// 繼續 ClampB?
-			IF bDualGrip THEN
-				bBoxReady := FALSE;
-				uiExecutingStep := 6000;
-			ELSE
-				uiExecutingStep := 9000;
-			END_IF
-		
-		{endregion}
-		
-		{region '=== Phase 6: 放 ClampB ==='}
-		
-		6000:	// 準備放 ClampB
-			TON_RobotResetTimeOut.IN := TRUE;
-			StorageRobot.M_ResetAllCommand();
-			IF NOT StorageRobot._DI1.Done AND
-				NOT (StorageRobot._DI1.AbsMoveA OR StorageRobot._DI1.AbsMoveB OR
-					 StorageRobot._DI1.WarehouseA OR StorageRobot._DI1.WarehouseB) THEN
-				TON_RobotResetTimeOut.IN := FALSE;
-				uiExecutingStep := 6100;
-			END_IF
-			IF TON_RobotResetTimeOut.Q THEN
-				uiResumeStep := 6000;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6000: Robot reset timeout (phase 6)';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		6100:	// ClampB: OK → 入倉, NG → NG區
-			IF bBoxB_IsOK THEN
-				uiExecutingStep := 6200;
-			ELSE
-				uiExecutingStep := 6300;
-			END_IF
-		
-		6200:	// ClampB OK → 入倉
-			TON_TimeOut.IN := TRUE;
-			stWareHouseCoord.Layer := iBoxB_Level;
-			stWareHouseCoord.Slide := iBoxB_Track;
-			IF iBoxB_Warehouse = 1 THEN
-				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := stWareHouseCoord);
-				IF WareHouse.bFeedInBox_Completed THEN
-					bBoxReady := TRUE;
-				END_IF
-				StorageRobot.M_StartWareHousePlaceBox_ClampB(
-					WareHouseSelect := E_WareHouse.WareHouseA,
-					Info := stWareHouseCoord,
-					BoxReady_2nd := bBoxReady);
-			ELSIF iBoxB_Warehouse = 2 THEN
-				WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := stWareHouseCoord);
-				IF WareHouse.bFeedInBox_Completed THEN
-					bBoxReady := TRUE;
-				END_IF
-				StorageRobot.M_StartWareHousePlaceBox_ClampB(
-					WareHouseSelect := E_WareHouse.WareHouseB,
-					Info := stWareHouseCoord,
-					BoxReady_2nd := bBoxReady);
-			ELSE
-				uiResumeStep := 6200;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6200: Invalid BoxB warehouse value';
-				_UniqueErrorCode := 'E_INVALID_WAREHOUSE';
-				_Abort := TRUE;
-				RETURN;
-			END_IF
-			IF StorageRobot._DI1.Done THEN
-				TON_TimeOut.IN := FALSE;
-				bBoxB_Done := TRUE;
-				uiExecutingStep := 6500;
-			END_IF
-			IF TON_TimeOut.Q OR StorageRobot.Error THEN
-				uiResumeStep := 6200;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6200: ClampB place to warehouse timeout';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		6300:	// ClampB NG → NG區
-			NGRegionMove.Info.Get := FALSE;
-			NGRegionMove.Info.UseA := FALSE;
-			NGRegionMove.Info.UseB := TRUE;
-			NGRegionMove.Info.A_Position := 0;
-			NGRegionMove.Info.B_Position := NGAreaPosition;
-			NGRegionMove.Execute := TRUE;
-			uiExecutingStep := 6310;
-		
-		6310:	// 等待 NG 完成
-			IF NGRegionMove.Done THEN
-				NGRegionMove.Execute := FALSE;
-				bBoxB_Done := TRUE;
-				uiExecutingStep := 6320;
-			END_IF
-			IF NGRegionMove.Error OR NGRegionMove.Aborted THEN
-				NGRegionMove.Execute := FALSE;
-				uiResumeStep := 6300;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 6300: ClampB NG region move failed';
-				_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		6320:	// 等待 DORMANT
-			IF NOT NGRegionMove.Busy AND NOT NGRegionMove.Done THEN
-				uiExecutingStep := 9000;
-			END_IF
-		
-		6500:	// ClampB OK 完成 → Reset
-			StorageRobot.M_ResetAllCommand();
-			WareHouse.M_ResetFeedInBox();
-			IF NOT StorageRobot._DI1.Done THEN
-				uiExecutingStep := 9000;
-			END_IF
-		
-		{endregion}
-		
-		{region '=== Phase 9: 復位 ==='}
-		
-		9000:	// 復位機構
-			Motor.List.TransmitSameSideCV.M_MotorStop();
-			uiExecutingStep := 9100;
-		
-		9100:	// 等待復位完成
-			TON_TimeOut.IN := TRUE;
-			IF  Motor.List.TransmitSameSideCV.InStopped THEN
-				TON_TimeOut.IN := FALSE;
-				_Executed := TRUE;
-			END_IF
-			IF TON_TimeOut.Q THEN
-				uiResumeStep := uiExecutingStep;
-				strStatus := 'FB_SameSizeCV_ReverseBoxToWareHouse Step 9100: Mechanism reset timeout';
-				_UniqueErrorCode := 'E_CYL_TIMEOUT';
-				_Abort := TRUE;
-			END_IF
-		
-		{endregion}
+0:	// 初始化
+	bBoxReady := FALSE;
+	bBoxA_Done := FALSE;
+	bBoxB_Done := FALSE;
+	uiExecutingStep := 1000;
+
+{region '=== Phase 1: 第一盒送到 NearStorage ==='}
+// 流程: 馬達先動 → 等盒到 Detect6 → Block3 擋 → Press3 壓 → Block3 放 → 送到 NearStorage
+
+1000:	// 請求軌道 backward (Phase 2:設 local intent,A00 在 Busy 時 propagate)
+	bIntent_NeedBackward := TRUE;
+	bIntent_HoldStill    := FALSE;
+	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+	TON_ConveyorTimeOut.IN := TRUE;
+	uiExecutingStep := 1100;
+
+1100:	// Block3 extend (擋住盒子)
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Block3.M_Extend();
+	IF Cylinder.List.fbSameSizeCV_Block3.InFrontPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 1200;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Block3 extend timeout';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+1200:	// 等待盒子到達 BoxDetect6
+	 TON_ConveyorTimeOut.IN := TRUE;
+	IF Input.bSameSizeCV_BoxDetect6_Sensor THEN
+		TON_ConveyorTimeOut.IN := FALSE;
+		uiExecutingStep := 1300;
+	END_IF
+	IF TON_ConveyorTimeOut.Q THEN
+		uiResumeStep := 1000;
+		strStatus := 'Box not arrived at Detect6';
+		_UniqueErrorCode := 'E_BOX_NOT_ARRIVED';
+		_Abort := TRUE;
+	END_IF
+
+
+
+1300:	// Press3 extend (壓住盒子)
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Press3.M_Extend();
+	IF Cylinder.List.fbSameSizeCV_Press3.InFrontPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 1400;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Press3 extend timeout';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+1400:	// Block3 retract (放開擋塊)
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Block3.M_Retract();
+	IF Cylinder.List.fbSameSizeCV_Block3.InRearPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 1500;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Block3 retract timeout';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+1500:	// 軌道往前送到 NearStorage + Press3 縮回 (Phase 2:設 local intent)
+	TON_ConveyorTimeOut.IN := TRUE;
+	TON_ArrivedDelay.IN := Input.bSameSizeCV_BoxNearStorageSensor;
+	IF TON_ArrivedDelay.Q THEN
+		TON_ConveyorTimeOut.IN := FALSE;
+		bIntent_NeedBackward := FALSE;
+		bIntent_HoldStill    := TRUE;	// 大手臂取盒前要靜止
+		uiExecutingStep := 1600;
+	END_IF
+	IF TON_ConveyorTimeOut.Q THEN
+		bIntent_NeedBackward := FALSE;
+		uiResumeStep := 1000;	// retry 從馬達啟動重來
+		strStatus := 'Box cross conveyor timeout';
+		_UniqueErrorCode := 'E_BOX_CROSS_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+1600:	// 等待馬達停止
+	 TON_ArrivedDelay.IN := FALSE;
+	IF Motor.List.TransmitSameSideCV.InStopped THEN
+		//uiExecutingStep := 1650;
+		uiExecutingStep := 2000;
+	END_IF
+1650:	// dead code (1600 直接跳 2000),保留以維持原邏輯 — Destination=WareHouse 視同舊 IsOK=TRUE
+	 IF eBoxA_Destination = E_ReverseBoxDestination.WareHouse THEN
+	  	uiExecutingStep := 2000;
+	 ELSE
+		uiExecutingStep := 1700;
+  	 END_IF
+	 
+1700:
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Press4.M_Extend();
+	IF Cylinder.List.fbSameSizeCV_Press4.InFrontPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 1800;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Press4 Extend timeout';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+1800:
+	Cylinder.List.fbSameSizeCV_Press4.M_Retract();
+	IF Cylinder.List.fbSameSizeCV_Press4.InRearPosition THEN				
+		uiExecutingStep := 2000;
+	END_IF
+		 
+{endregion}
+
+{region '=== Phase 2: 大手臂取第一盒 ==='}
+
+2000:	// Robot AbsMove 取盒
+	TON_TimeOut.IN := TRUE;
+	IF NOT StorageRobot._DI1.Done THEN
+		StorageRobot.M_StartRobotAbsMove(
+			GetBox			:= TRUE,
+			UseClampA		:= bFirstClampIsA,
+			UseClampB		:= FALSE,
+			Area			:= E_RobotArea.TransmitCV,
+			ClampA_Address	:= PickupPosition,
+			ClampB_Address	:= 99,
+			BoxReady_1		:= bFirstClampIsA,
+			BoxReady_2		:= FALSE);
+	ELSE
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 2100;
+	END_IF
+	IF TON_TimeOut.Q OR StorageRobot.Error THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Robot pick first box timeout';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+2100:	// Reset Robot
+	StorageRobot.M_ResetAllCommand();
+	IF NOT StorageRobot._DI1.Done THEN
+		IF bDualGrip THEN
+			uiExecutingStep := 3000;
+		ELSE
+			uiExecutingStep := 5000;
+		END_IF
+	END_IF
+
+{endregion}
+
+{region '=== Phase 3: 第二盒送到 NearStorage (雙爪) ==='}
+// 流程: 馬達先動 → 等盒到 Detect6 → Block3 擋 → Press3 壓 → Block3 放 → 送到 NearStorage
+
+3000:	// 請求軌道 backward (Phase 2:設 local intent,第二盒)
+	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+	bIntent_NeedBackward := TRUE;
+	bIntent_HoldStill    := FALSE;
+	TON_ConveyorTimeOut.IN := TRUE;
+	uiExecutingStep := 3100;
+
+3100:	// Block3 extend (擋住第二盒)
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Block3.M_Extend();
+	IF Cylinder.List.fbSameSizeCV_Block3.InFrontPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 3200;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Block3 extend timeout (2nd box)';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+3200:	// 等待第二盒到達 BoxDetect6
+	 TON_ConveyorTimeOut.IN := TRUE;
+	IF Input.bSameSizeCV_BoxDetect6_Sensor THEN
+		TON_ConveyorTimeOut.IN := FALSE;
+		uiExecutingStep := 3300;
+	END_IF
+	IF TON_ConveyorTimeOut.Q THEN
+		uiResumeStep := 3000;
+		strStatus := 'Box 2 not arrived at Detect6';
+		_UniqueErrorCode := 'E_BOX_NOT_ARRIVED';
+		_Abort := TRUE;
+	END_IF	 
+		  
+3300:	// Press3 壓住第二盒
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Press3.M_Extend();
+	IF Cylinder.List.fbSameSizeCV_Press3.InFrontPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 3400;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Press3 extend timeout (2nd box)';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+3400:	// Block3 retract (放開)
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Block3.M_Retract();
+	IF Cylinder.List.fbSameSizeCV_Block3.InRearPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 3500;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Block3 retract timeout (2nd box)';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+3500:	// 軌道往前送到 NearStorage + Press3 縮回 (Phase 2:設 local intent,第二盒)
+	TON_ConveyorTimeOut.IN := TRUE;
+	TON_ArrivedDelay.IN := Input.bSameSizeCV_BoxNearStorageSensor;
+	IF TON_ArrivedDelay.Q THEN
+		TON_ConveyorTimeOut.IN := FALSE;
+		bIntent_NeedBackward := FALSE;
+		bIntent_HoldStill    := TRUE;	// 大手臂取盒前要靜止
+		uiExecutingStep := 3600;
+	END_IF
+	IF TON_ConveyorTimeOut.Q THEN
+		bIntent_NeedBackward := FALSE;
+		uiResumeStep := 3000;	// retry 從馬達啟動重來
+		strStatus := 'Box 2 cross conveyor timeout';
+		_UniqueErrorCode := 'E_BOX_CROSS_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+3600:	// 等待馬達停止
+	 TON_ArrivedDelay.IN := FALSE;
+	IF Motor.List.TransmitSameSideCV.InStopped THEN
+		//uiExecutingStep := 3650;
+		uiExecutingStep := 4000;
+	END_IF
+3650:	// dead code,保留 — Destination=WareHouse 視同舊 IsOK=TRUE
+	 IF eBoxB_Destination = E_ReverseBoxDestination.WareHouse THEN
+	  	uiExecutingStep := 4000;
+	 ELSE
+		uiExecutingStep := 3700;
+  	 END_IF
+	 
+3700:
+	TON_TimeOut.IN := TRUE;
+	Cylinder.List.fbSameSizeCV_Press4.M_Extend();
+	IF Cylinder.List.fbSameSizeCV_Press4.InFrontPosition THEN
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 3800;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Press4 Extend timeout';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+3800:
+	Cylinder.List.fbSameSizeCV_Press4.M_Retract();
+	IF Cylinder.List.fbSameSizeCV_Press4.InRearPosition THEN				
+		uiExecutingStep := 4000;
+	END_IF
+
+{endregion}
+
+{region '=== Phase 4: 大手臂取第二盒 ==='}
+
+4000:	// Robot AbsMove 第二爪
+	TON_TimeOut.IN := TRUE;
+	IF NOT StorageRobot._DI1.Done THEN
+		StorageRobot.M_StartRobotAbsMove(
+			GetBox			:= TRUE,
+			UseClampA		:= FALSE,
+			UseClampB		:= bFirstClampIsA,
+			Area			:= E_RobotArea.TransmitCV,
+			ClampA_Address	:= 99,
+			ClampB_Address	:= PickupPosition,
+			BoxReady_1		:= FALSE,
+			BoxReady_2		:= bFirstClampIsA);
+	ELSE
+		TON_TimeOut.IN := FALSE;
+		uiExecutingStep := 4100;
+	END_IF
+	IF TON_TimeOut.Q OR StorageRobot.Error THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Robot pick second box timeout';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+4100:	// Reset Robot
+	StorageRobot.M_ResetAllCommand();
+	IF NOT StorageRobot._DI1.Done THEN
+		uiExecutingStep := 5000;
+	END_IF
+
+{endregion}
+
+{region '=== Phase 5: 放 ClampA ==='}
+
+5000:	// 清除 Robot 命令
+	TON_RobotResetTimeOut.IN := TRUE;
+	StorageRobot.M_ResetAllCommand();
+	IF NOT StorageRobot._DI1.Done AND
+		NOT (StorageRobot._DI1.AbsMoveA OR StorageRobot._DI1.AbsMoveB OR
+			 StorageRobot._DI1.WarehouseA OR StorageRobot._DI1.WarehouseB) THEN
+		TON_RobotResetTimeOut.IN := FALSE;
+		bBoxReady := FALSE;
+		IF bBoxA_Enable THEN
+			uiExecutingStep := 5100;
+		ELSE
+			uiExecutingStep := 6000;
+		END_IF
+	END_IF
+	IF TON_RobotResetTimeOut.Q THEN
+		uiResumeStep := 5000;
+		strStatus := 'Robot reset timeout (phase 5)';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+5100:	// ClampA Destination 三選一
+	CASE eBoxA_Destination OF
+		E_ReverseBoxDestination.WareHouse:
+			uiExecutingStep := 5200;
+		E_ReverseBoxDestination.PullOut:
+			uiExecutingStep := 5400;
+		E_ReverseBoxDestination.NGConveyor:
+			uiExecutingStep := 5300;
+	ELSE
+		uiResumeStep := 5100;
+		strStatus := 'Invalid BoxA destination enum';
+		_UniqueErrorCode := 'E_INVALID_DEST';
+		_Abort := TRUE;
+	END_CASE
+
+5200:	// ClampA OK → 入倉
+	TON_TimeOut.IN := TRUE;
+	stWareHouseCoord.Layer := iBoxA_Level;
+	stWareHouseCoord.Slide := iBoxA_Track;
+	IF iBoxA_Warehouse = 1 THEN
+		WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := stWareHouseCoord);
+		IF WareHouse.bFeedInBox_Completed THEN
+			bBoxReady := TRUE;
+		END_IF
+		StorageRobot.M_StartWareHousePlaceBox_ClampA(
+			WareHouseSelect := E_WareHouse.WareHouseA,
+			Info := stWareHouseCoord,
+			BoxReady_1st := bBoxReady);
+	ELSIF iBoxA_Warehouse = 2 THEN
+		WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := stWareHouseCoord);
+		IF WareHouse.bFeedInBox_Completed THEN
+			bBoxReady := TRUE;
+		END_IF
+		StorageRobot.M_StartWareHousePlaceBox_ClampA(
+			WareHouseSelect := E_WareHouse.WareHouseB,
+			Info := stWareHouseCoord,
+			BoxReady_1st := bBoxReady);
+	ELSE
+		uiResumeStep := 5200;
+		strStatus := 'Invalid BoxA warehouse value';
+		_UniqueErrorCode := 'E_INVALID_WAREHOUSE';
+		_Abort := TRUE;
+		RETURN;
+	END_IF
+	IF StorageRobot._DI1.Done THEN
+		TON_TimeOut.IN := FALSE;
+		bBoxA_Done := TRUE;
+		uiExecutingStep := 5500;
+	END_IF
+	IF TON_TimeOut.Q OR StorageRobot.Error THEN
+		uiResumeStep := 5200;
+		strStatus := 'ClampA place to warehouse timeout';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+5300:	// ClampA NG → NG區
+	NGRegionMove.Info.Get := FALSE;
+	NGRegionMove.Info.UseA := TRUE;
+	NGRegionMove.Info.UseB := FALSE;
+	NGRegionMove.Info.A_Position := NGAreaPosition;
+	NGRegionMove.Info.B_Position := 0;
+	NGRegionMove.Execute := TRUE;
+	uiExecutingStep := 5310;
+
+5310:	// 等待 NG RegionMove 完成
+	IF NGRegionMove.Done THEN
+		NGRegionMove.Execute := FALSE;
+		bBoxA_Done := TRUE;
+		uiExecutingStep := 5320;
+	END_IF
+	IF NGRegionMove.Error OR NGRegionMove.Aborted THEN
+		NGRegionMove.Execute := FALSE;
+		uiResumeStep := 5300;
+		strStatus := 'ClampA NG region move failed';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+5320:	// 等待 DORMANT
+	IF NOT NGRegionMove.Busy AND NOT NGRegionMove.Done THEN
+		uiExecutingStep := 5600;
+	END_IF
+
+5400:	// ClampA PullOut → PullOutConveyor 區 (Side 1=I3_Slide 左, 2=I4_Slide 右)
+	IF iBoxA_PullOutSide < 1 OR iBoxA_PullOutSide > 2 THEN
+		uiResumeStep := 5400;
+		strStatus := 'Invalid BoxA PullOut side (must be 1 or 2)';
+		_UniqueErrorCode := 'E_INVALID_PULLOUT_SIDE';
+		_Abort := TRUE;
+	ELSE
+		PullOutRegionMove.Info.Get := FALSE;
+		PullOutRegionMove.Info.UseA := TRUE;
+		PullOutRegionMove.Info.UseB := FALSE;
+		PullOutRegionMove.Info.A_Position := iBoxA_PullOutSide;
+		PullOutRegionMove.Info.B_Position := 0;
+		PullOutRegionMove.Execute := TRUE;
+		uiExecutingStep := 5410;
+	END_IF
+
+5410:	// 等待 PullOut RegionMove 完成
+	IF PullOutRegionMove.Done THEN
+		PullOutRegionMove.Execute := FALSE;
+		bBoxA_Done := TRUE;
+		uiExecutingStep := 5420;
+	END_IF
+	IF PullOutRegionMove.Error OR PullOutRegionMove.Aborted THEN
+		PullOutRegionMove.Execute := FALSE;
+		uiResumeStep := 5400;
+		strStatus := 'ClampA PullOut region move failed';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+5420:	// 等待 DORMANT
+	IF NOT PullOutRegionMove.Busy AND NOT PullOutRegionMove.Done THEN
+		uiExecutingStep := 5600;
+	END_IF
+
+5500:	// ClampA OK 完成 → Reset
+	StorageRobot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	IF NOT StorageRobot._DI1.Done THEN
+		uiExecutingStep := 5600;
+	END_IF
+
+5600:	// 繼續 ClampB?
+	IF bDualGrip THEN
+		bBoxReady := FALSE;
+		uiExecutingStep := 6000;
+	ELSE
+		uiExecutingStep := 9000;
+	END_IF
+
+{endregion}
+
+{region '=== Phase 6: 放 ClampB ==='}
+
+6000:	// 準備放 ClampB
+	TON_RobotResetTimeOut.IN := TRUE;
+	StorageRobot.M_ResetAllCommand();
+	IF NOT StorageRobot._DI1.Done AND
+		NOT (StorageRobot._DI1.AbsMoveA OR StorageRobot._DI1.AbsMoveB OR
+			 StorageRobot._DI1.WarehouseA OR StorageRobot._DI1.WarehouseB) THEN
+		TON_RobotResetTimeOut.IN := FALSE;
+		uiExecutingStep := 6100;
+	END_IF
+	IF TON_RobotResetTimeOut.Q THEN
+		uiResumeStep := 6000;
+		strStatus := 'Robot reset timeout (phase 6)';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+6100:	// ClampB Destination 三選一
+	CASE eBoxB_Destination OF
+		E_ReverseBoxDestination.WareHouse:
+			uiExecutingStep := 6200;
+		E_ReverseBoxDestination.PullOut:
+			uiExecutingStep := 6400;
+		E_ReverseBoxDestination.NGConveyor:
+			uiExecutingStep := 6300;
+	ELSE
+		uiResumeStep := 6100;
+		strStatus := 'Invalid BoxB destination enum';
+		_UniqueErrorCode := 'E_INVALID_DEST';
+		_Abort := TRUE;
+	END_CASE
+
+6200:	// ClampB OK → 入倉
+	TON_TimeOut.IN := TRUE;
+	stWareHouseCoord.Layer := iBoxB_Level;
+	stWareHouseCoord.Slide := iBoxB_Track;
+	IF iBoxB_Warehouse = 1 THEN
+		WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseA, WarehouseCoordinates := stWareHouseCoord);
+		IF WareHouse.bFeedInBox_Completed THEN
+			bBoxReady := TRUE;
+		END_IF
+		StorageRobot.M_StartWareHousePlaceBox_ClampB(
+			WareHouseSelect := E_WareHouse.WareHouseA,
+			Info := stWareHouseCoord,
+			BoxReady_2nd := bBoxReady);
+	ELSIF iBoxB_Warehouse = 2 THEN
+		WareHouse.M_StartFeedInBox(WareHouseSelect := E_WareHouse.WareHouseB, WarehouseCoordinates := stWareHouseCoord);
+		IF WareHouse.bFeedInBox_Completed THEN
+			bBoxReady := TRUE;
+		END_IF
+		StorageRobot.M_StartWareHousePlaceBox_ClampB(
+			WareHouseSelect := E_WareHouse.WareHouseB,
+			Info := stWareHouseCoord,
+			BoxReady_2nd := bBoxReady);
+	ELSE
+		uiResumeStep := 6200;
+		strStatus := 'Invalid BoxB warehouse value';
+		_UniqueErrorCode := 'E_INVALID_WAREHOUSE';
+		_Abort := TRUE;
+		RETURN;
+	END_IF
+	IF StorageRobot._DI1.Done THEN
+		TON_TimeOut.IN := FALSE;
+		bBoxB_Done := TRUE;
+		uiExecutingStep := 6500;
+	END_IF
+	IF TON_TimeOut.Q OR StorageRobot.Error THEN
+		uiResumeStep := 6200;
+		strStatus := 'ClampB place to warehouse timeout';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+6300:	// ClampB NG → NG區
+	NGRegionMove.Info.Get := FALSE;
+	NGRegionMove.Info.UseA := FALSE;
+	NGRegionMove.Info.UseB := TRUE;
+	NGRegionMove.Info.A_Position := 0;
+	NGRegionMove.Info.B_Position := NGAreaPosition;
+	NGRegionMove.Execute := TRUE;
+	uiExecutingStep := 6310;
+
+6310:	// 等待 NG 完成
+	IF NGRegionMove.Done THEN
+		NGRegionMove.Execute := FALSE;
+		bBoxB_Done := TRUE;
+		uiExecutingStep := 6320;
+	END_IF
+	IF NGRegionMove.Error OR NGRegionMove.Aborted THEN
+		NGRegionMove.Execute := FALSE;
+		uiResumeStep := 6300;
+		strStatus := 'ClampB NG region move failed';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+6320:	// 等待 DORMANT
+	IF NOT NGRegionMove.Busy AND NOT NGRegionMove.Done THEN
+		uiExecutingStep := 9000;
+	END_IF
+
+6400:	// ClampB PullOut → PullOutConveyor 區 (Side 1=I3_Slide 左, 2=I4_Slide 右)
+	IF iBoxB_PullOutSide < 1 OR iBoxB_PullOutSide > 2 THEN
+		uiResumeStep := 6400;
+		strStatus := 'Invalid BoxB PullOut side (must be 1 or 2)';
+		_UniqueErrorCode := 'E_INVALID_PULLOUT_SIDE';
+		_Abort := TRUE;
+	ELSE
+		PullOutRegionMove.Info.Get := FALSE;
+		PullOutRegionMove.Info.UseA := FALSE;
+		PullOutRegionMove.Info.UseB := TRUE;
+		PullOutRegionMove.Info.A_Position := 0;
+		PullOutRegionMove.Info.B_Position := iBoxB_PullOutSide;
+		PullOutRegionMove.Execute := TRUE;
+		uiExecutingStep := 6410;
+	END_IF
+
+6410:	// 等待 PullOut 完成
+	IF PullOutRegionMove.Done THEN
+		PullOutRegionMove.Execute := FALSE;
+		bBoxB_Done := TRUE;
+		uiExecutingStep := 6420;
+	END_IF
+	IF PullOutRegionMove.Error OR PullOutRegionMove.Aborted THEN
+		PullOutRegionMove.Execute := FALSE;
+		uiResumeStep := 6400;
+		strStatus := 'ClampB PullOut region move failed';
+		_UniqueErrorCode := 'E_BIGARM_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+6420:	// 等待 DORMANT
+	IF NOT PullOutRegionMove.Busy AND NOT PullOutRegionMove.Done THEN
+		uiExecutingStep := 9000;
+	END_IF
+
+6500:	// ClampB OK 完成 → Reset
+	StorageRobot.M_ResetAllCommand();
+	WareHouse.M_ResetFeedInBox();
+	IF NOT StorageRobot._DI1.Done THEN
+		uiExecutingStep := 9000;
+	END_IF
+
+{endregion}
+
+{region '=== Phase 9: 復位 ==='}
+
+9000:	// 復位機構 (Phase 2:清 local intent,Busy 仍 TRUE 時 A00 會 propagate FALSE)
+	Cylinder.List.fbSameSizeCV_Block3.M_Retract();
+	//Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+	bIntent_NeedBackward := FALSE;
+	bIntent_HoldStill    := FALSE;
+	uiExecutingStep := 9100;
+
+9100:	// 等待復位完成
+	TON_TimeOut.IN := TRUE;
+	IF Cylinder.List.fbSameSizeCV_Block3.InRearPosition AND
+	   //Cylinder.List.fbSameSizeCV_Press3.InRearPosition AND
+	   Motor.List.TransmitSameSideCV.InStopped THEN
+		TON_TimeOut.IN := FALSE;
+		_Executed := TRUE;
+	END_IF
+	IF TON_TimeOut.Q THEN
+		uiResumeStep := uiExecutingStep;
+		strStatus := 'Mechanism reset timeout';
+		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		_Abort := TRUE;
+	END_IF
+
+{endregion}
 
 END_CASE
 
@@ -812,14 +1038,13 @@ CASE uiResettingStep OF
 	TON_ConveyorTimeOut.IN := FALSE;
 	TON_RobotResetTimeOut.IN := FALSE;
 
-	TON_CVmovedelay.IN 			 := FALSE;
-	tonDelay_SameSizeDelayBox.IN := FALSE;
-	tonDelay_SameSizeGetBox.IN 	 := FALSE;
-
 	StorageRobot.M_ResetAllCommand();
 	WareHouse.M_ResetFeedInBox();
 	NGRegionMove.Execute := FALSE;
-	Motor.List.TransmitSameSideCV.M_MotorStop();
+	PullOutRegionMove.Execute := FALSE;
+	// Phase 2:清 local intent (Busy=FALSE A00 不會寫,不影響別 instance shared flag)
+	bIntent_NeedBackward := FALSE;
+	bIntent_HoldStill    := FALSE;
 
 	uiResettingStep := 100;
 
@@ -838,16 +1063,11 @@ END_IF
     <LineIds Name="FB_SameSizeCV_ReverseBoxToWareHouse">
       <LineId Id="9" Count="0" />
       <LineId Id="4" Count="0" />
-      <LineId Id="74" Count="0" />
-      <LineId Id="81" Count="3" />
-      <LineId Id="75" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_SameSizeCV_ReverseBoxToWareHouse.A00_BasicUnits">
       <LineId Id="1" Count="0" />
       <LineId Id="3" Count="2" />
-      <LineId Id="25" Count="0" />
-      <LineId Id="24" Count="0" />
-      <LineId Id="26" Count="0" />
       <LineId Id="7" Count="16" />
       <LineId Id="6" Count="0" />
     </LineIds>
@@ -894,8 +1114,6 @@ END_IF
       <LineId Id="1" Count="0" />
       <LineId Id="4" Count="25" />
       <LineId Id="56" Count="0" />
-      <LineId Id="61" Count="2" />
-      <LineId Id="60" Count="0" />
       <LineId Id="30" Count="22" />
       <LineId Id="2" Count="0" />
     </LineIds>
@@ -908,77 +1126,58 @@ END_IF
       <LineId Id="1" Count="0" />
       <LineId Id="4" Count="19" />
       <LineId Id="565" Count="0" />
-      <LineId Id="655" Count="0" />
       <LineId Id="24" Count="1" />
-      <LineId Id="533" Count="1" />
-      <LineId Id="669" Count="3" />
+      <LineId Id="533" Count="12" />
       <LineId Id="532" Count="0" />
       <LineId Id="26" Count="1" />
-      <LineId Id="673" Count="3" />
-      <LineId Id="667" Count="0" />
-      <LineId Id="54" Count="1" />
-      <LineId Id="677" Count="1" />
-      <LineId Id="680" Count="1" />
-      <LineId Id="724" Count="0" />
-      <LineId Id="682" Count="0" />
-      <LineId Id="686" Count="1" />
-      <LineId Id="67" Count="0" />
-      <LineId Id="723" Count="0" />
-      <LineId Id="688" Count="4" />
-      <LineId Id="68" Count="0" />
-      <LineId Id="693" Count="0" />
-      <LineId Id="696" Count="2" />
-      <LineId Id="701" Count="1" />
-      <LineId Id="695" Count="0" />
-      <LineId Id="694" Count="0" />
-      <LineId Id="703" Count="0" />
-      <LineId Id="706" Count="0" />
-      <LineId Id="708" Count="2" />
-      <LineId Id="705" Count="0" />
-      <LineId Id="704" Count="0" />
-      <LineId Id="712" Count="0" />
-      <LineId Id="722" Count="0" />
-      <LineId Id="713" Count="2" />
-      <LineId Id="711" Count="0" />
-      <LineId Id="716" Count="2" />
-      <LineId Id="720" Count="1" />
-      <LineId Id="719" Count="0" />
+      <LineId Id="546" Count="0" />
+      <LineId Id="28" Count="1" />
+      <LineId Id="31" Count="1" />
+      <LineId Id="547" Count="0" />
+      <LineId Id="33" Count="0" />
+      <LineId Id="36" Count="4" />
+      <LineId Id="53" Count="31" />
+      <LineId Id="548" Count="0" />
+      <LineId Id="87" Count="13" />
+      <LineId Id="564" Count="0" />
+      <LineId Id="101" Count="1" />
+      <LineId Id="640" Count="0" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="609" Count="2" />
+      <LineId Id="613" Count="1" />
+      <LineId Id="612" Count="0" />
+      <LineId Id="608" Count="0" />
+      <LineId Id="585" Count="3" />
+      <LineId Id="602" Count="1" />
+      <LineId Id="591" Count="5" />
+      <LineId Id="584" Count="0" />
+      <LineId Id="597" Count="1" />
+      <LineId Id="604" Count="0" />
+      <LineId Id="606" Count="0" />
       <LineId Id="599" Count="0" />
       <LineId Id="607" Count="0" />
       <LineId Id="105" Count="42" />
       <LineId Id="566" Count="0" />
-      <LineId Id="148" Count="0" />
-      <LineId Id="730" Count="1" />
-      <LineId Id="729" Count="0" />
-      <LineId Id="150" Count="0" />
-      <LineId Id="165" Count="1" />
-      <LineId Id="725" Count="3" />
-      <LineId Id="178" Count="0" />
+      <LineId Id="148" Count="2" />
+      <LineId Id="165" Count="13" />
       <LineId Id="549" Count="0" />
       <LineId Id="551" Count="0" />
-      <LineId Id="732" Count="3" />
+      <LineId Id="563" Count="0" />
+      <LineId Id="552" Count="1" />
+      <LineId Id="555" Count="2" />
+      <LineId Id="559" Count="3" />
       <LineId Id="179" Count="0" />
       <LineId Id="550" Count="0" />
-      <LineId Id="180" Count="0" />
-      <LineId Id="736" Count="6" />
-      <LineId Id="192" Count="2" />
-      <LineId Id="743" Count="2" />
-      <LineId Id="206" Count="2" />
-      <LineId Id="746" Count="4" />
-      <LineId Id="223" Count="2" />
-      <LineId Id="751" Count="3" />
+      <LineId Id="180" Count="29" />
+      <LineId Id="567" Count="0" />
+      <LineId Id="212" Count="13" />
+      <LineId Id="568" Count="0" />
+      <LineId Id="226" Count="1" />
+      <LineId Id="641" Count="0" />
       <LineId Id="228" Count="0" />
-      <LineId Id="755" Count="0" />
-      <LineId Id="757" Count="0" />
-      <LineId Id="759" Count="4" />
-      <LineId Id="758" Count="0" />
-      <LineId Id="764" Count="0" />
-      <LineId Id="766" Count="3" />
-      <LineId Id="765" Count="0" />
-      <LineId Id="756" Count="0" />
-      <LineId Id="229" Count="257" />
-      <LineId Id="489" Count="5" />
-      <LineId Id="497" Count="20" />
+      <LineId Id="616" Count="23" />
+      <LineId Id="615" Count="0" />
+      <LineId Id="229" Count="288" />
       <LineId Id="569" Count="1" />
       <LineId Id="518" Count="0" />
       <LineId Id="2" Count="0" />
@@ -986,9 +1185,6 @@ END_IF
     <LineIds Name="FB_SameSizeCV_ReverseBoxToWareHouse.M_STATE_RESETTING">
       <LineId Id="1" Count="0" />
       <LineId Id="4" Count="7" />
-      <LineId Id="47" Count="0" />
-      <LineId Id="49" Count="1" />
-      <LineId Id="48" Count="0" />
       <LineId Id="42" Count="0" />
       <LineId Id="40" Count="1" />
       <LineId Id="30" Count="0" />
