@@ -31,6 +31,7 @@ VAR
 	// Resume / Retry framework (對齊 FB_ShippingRobotTransfer 續做 pattern)
 	uiResumeStep				: UDINT;	// retry / 續做進入點
 	_bRetry						: BOOL;		// STATE_ABORTED 收到 Reset 後置 TRUE,觸發 retry
+	_bAbsMoveStarted			: BOOL;		// 真的呼叫過 M_StartRobotAbsMove 才置 TRUE,防 stale Done 造成 ghost completion (對齊 FB_ShippingRobotTransfer)
 	strStatus					: STRING;
 	_UniqueErrorCode			: STRING;
 	PreviousStrStatus			: STRING;
@@ -167,6 +168,7 @@ CASE uiAbortingStep OF
 		IF __ISVALIDREF(Motor) THEN
 			Motor.List.TransmitSameSideCV.M_MotorStop();
 		END_IF
+		_bAbsMoveStarted := FALSE;
 		// 中斷 robot AbsMove 命令,避免 abort 期間 robot 還在跑舊軌跡
 		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		uiAbortingStep := 50;
@@ -227,6 +229,10 @@ _Error := Error := FALSE;
 _Abort := Abort := FALSE;
 Done   := TRUE;
 
+// Done 期間壓住輸出,避免 A00_BasicUnits 因殘留 flag 再次驅動軌道
+bMoveConveyorForward  := FALSE;
+bMoveConveyorBackward := FALSE;
+
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
 END_IF
@@ -257,6 +263,7 @@ _HoldingCompleted := FALSE;
 _HeldCompleted    := FALSE;
 _UnholdCompleted  := FALSE;
 _bRetry           := FALSE;
+_bAbsMoveStarted  := FALSE;
 
 uiExecutingStep := 0;
 uiResettingStep := 0;
@@ -500,9 +507,10 @@ CASE uiExecutingStep OF
 			_Abort := TRUE;
 		END_IF
 
-	3100:	// AbsMove 到 TransmitCV_End Pos 1 放盒,BoxReady=tonBoxArriveDelay.Q (等盒到位 debounce)
+	3100:	// AbsMove 到 TransmitCV_End Pos 1 放盒
+			// Put 場景:step 3000 已驗證軌道反轉 + sensor 清,BoxReady 直接 TRUE (對齊 FB_ShippingRobotTransfer 15000 Put 分支)
+			// _bAbsMoveStarted 防 ghost completion:step 2100 ResetAbsMove 後 Done 可能殘留 TRUE
 		TON_RobotActionTimeOut.IN := TRUE;
-		tonBoxArriveDelay.IN := Input.bSameSizeCV_BoxNearShippingSensor;
 		IF NOT Robot._DI1.Done THEN
 			Robot.M_StartRobotAbsMove(
 				GetBox         := FALSE,
@@ -511,11 +519,16 @@ CASE uiExecutingStep OF
 				Area           := E_RobotArea.TransmitCV_End,
 				ClampA_Address := 1,
 				ClampB_Address := 0,
-				BoxReady_1     := tonBoxArriveDelay.Q,
+				BoxReady_1     := TRUE,
 				BoxReady_2     := FALSE);
+			_bAbsMoveStarted := TRUE;
+		ELSIF NOT _bAbsMoveStarted THEN
+			// Done=TRUE 但從未送過 Start → stale (step 2100 殘留),清掉 robot 命令等 Done 降
+			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		ELSE
+			// 真的完成 (Done 從 FALSE → TRUE)
 			TON_RobotActionTimeOut.IN := FALSE;
-			tonBoxArriveDelay.IN      := FALSE;
+			_bAbsMoveStarted          := FALSE;
 			uiExecutingStep := 3200;
 		END_IF
 
@@ -554,19 +567,40 @@ CASE uiExecutingStep OF
 		bMoveConveyorForward  := TRUE;
 		uiExecutingStep := 3400;
 
-	3400:	// 等馬達 forward 起步 → 停 motor → 收尾 (短行程,不等 sensor 避免卡)
+	3400:	// 等馬達 forward 起步 → 停 motor → 進 settle 驗證 (短行程,不等 sensor 避免卡)
 		TON_MechTimeOut.IN := TRUE;
 		IF __ISVALIDREF(Motor) AND Motor.List.TransmitSameSideCV.InForWard THEN
 			TON_MechTimeOut.IN   := FALSE;
 			bMoveConveyorForward := FALSE;
 			Motor.List.TransmitSameSideCV.M_MotorStop();
-			uiExecutingStep := 4000;
+			uiExecutingStep := 3500;
 		END_IF
 		IF TON_MechTimeOut.Q THEN
 			uiResumeStep := 3400;
 			strStatus := 'FB_ShippingPlateScan Step 3400: SameSizeCV forward timeout';
 			Status := strStatus;
 			_UniqueErrorCode := 'E_CV_FORWARD_TIMEOUT';
+			_Abort := TRUE;
+		END_IF
+
+	3500:	// Conveyor settle:強制壓住輸出 + 等馬達真的停 (對齊 FB_ShippingRobotTransfer step 98000)
+		bMoveConveyorForward  := FALSE;
+		bMoveConveyorBackward := FALSE;
+		IF __ISVALIDREF(Motor) THEN
+			Motor.List.TransmitSameSideCV.M_MotorStop();
+		END_IF
+		TON_MechTimeOut.IN := TRUE;
+		IF NOT __ISVALIDREF(Motor)
+		   OR (NOT Motor.List.TransmitSameSideCV.InForWard
+		       AND NOT Motor.List.TransmitSameSideCV.InBackWard) THEN
+			TON_MechTimeOut.IN := FALSE;
+			uiExecutingStep := 4000;
+		END_IF
+		IF TON_MechTimeOut.Q THEN
+			uiResumeStep := 3500;
+			strStatus := 'FB_ShippingPlateScan Step 3500: SameSizeCV settle timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_CV_SETTLE_TIMEOUT';
 			_Abort := TRUE;
 		END_IF
 
@@ -679,6 +713,7 @@ END_VAR
 		IF __ISVALIDREF(Motor) THEN
 			Motor.List.TransmitSameSideCV.M_MotorStop();
 		END_IF
+		_bAbsMoveStarted := FALSE;
 		PlateHasBox := FALSE;
 		FeedBack    := FALSE;
 		uiResettingStep := 100;
