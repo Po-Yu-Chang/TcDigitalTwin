@@ -3,7 +3,7 @@
   <POU Name="FB_SameSizeCV_ReverseBoxToWareHouse" Id="{e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b}" SpecialFunc="None">
     <Declaration><![CDATA[// FB_SameSizeCV_ReverseBoxToWareHouse
 // 同尺寸軌道逆向送盒入倉/NG 服務
-// 流程: Block3擋盒 → Press3壓住 → 軌道送到 NearStorage → 大手臂取盒 → 入倉 or NG區
+// 流程: 擋盒 SM (Press3 後壓 + Press4 擋第二盒, ref AllocatedConveyor) → 軌道送到 NearStorage → 大手臂取盒 → 入倉 or NG區
 // 支援: 單爪A / 單爪B / 雙爪 (2盒連續)
 //
 // 狀態機架構: FB_ObjectBase_V2 + IBasicElement
@@ -63,6 +63,11 @@ VAR
 	TON_ConveyorTimeOut	: TON;
 	TON_RobotResetTimeOut : TON;
 	TON_ArrivedDelay	: TON;
+	tonDelay_SameSizeGetBox		: TON;	// 擋盒 SM:Detect6 50ms debounce (ref FB_RobotRegionMove_AllocatedConveyor)
+	tonDelay_SameSizeDelayBox	: TON;	// 擋盒 SM:NearStorageSensor 1.5s 穩定確認
+
+	// 擋盒 sub state (Phase 1/3 step 1100/3100 共用) — ref AllocatedConveyor uiSameGetBoxStep 0/100/200/300/400 pattern
+	uiSameGetBoxStep	: UINT;
 
 	// Resume
 	uiResumeStep		: UDINT := 0;
@@ -94,6 +99,8 @@ A00_BasicUnits();
 TON_ConveyorTimeOut(PT := T#60S);
 TON_RobotResetTimeOut(PT := T#30S);
 TON_ArrivedDelay(PT:= T#300MS);
+tonDelay_SameSizeGetBox(PT := T#50MS);
+tonDelay_SameSizeDelayBox(PT := T#1500MS);
 
 // Phase 2:Busy 期間才 propagate local intent 到 shared request flag,避免 idle instance stomp 別人的請求
 IF Busy AND __ISVALIDREF(SameSizeCVRequest) THEN
@@ -180,6 +187,9 @@ END_VAR
 	TON_TimeOut.IN := FALSE;
 	TON_ConveyorTimeOut.IN := FALSE;
 	TON_RobotResetTimeOut.IN := FALSE;
+	tonDelay_SameSizeGetBox.IN := FALSE;
+	tonDelay_SameSizeDelayBox.IN := FALSE;
+	uiSameGetBoxStep := 0;
 
 	// 停止手臂 + 倉儲 + NG + PullOut
 	//StorageRobot.M_ResetAllCommand();		續做盡量不要清除掉手臂的command 保持原狀，如要清除把Continue 拔掉即可。
@@ -258,6 +268,9 @@ TON_TimeOut.IN			:= FALSE;
 TON_ConveyorTimeOut.IN	:= FALSE;
 TON_RobotResetTimeOut.IN := FALSE;
 TON_ArrivedDelay.IN		:= FALSE;
+tonDelay_SameSizeGetBox.IN	:= FALSE;
+tonDelay_SameSizeDelayBox.IN := FALSE;
+uiSameGetBoxStep		:= 0;
 tonErrorResetDelay.IN	:= FALSE;
 bErrorBlinking			:= FALSE;
 
@@ -366,46 +379,61 @@ CASE uiExecutingStep OF
 	uiExecutingStep := 1000;
 
 {region '=== Phase 1: 第一盒送到 NearStorage ==='}
-// 流程: 馬達先動 → 等盒到 Detect6 → Press3 壓 → 送到 NearStorage
-// TODO: 缺擋盒邏輯 — 之後 ref FB_RobotRegionMove_AllocatedConveyor (Press3 + Press4 + tonDelay_SameSizeGetBox) 補
+// 流程: 馬達 backward + 擋盒 state machine (Press3 後壓 + Press4 擋第二盒) → 送到 NearStorage → motor 停
+// 擋盒邏輯 ref FB_RobotRegionMove_AllocatedConveyor uiSameGetBoxStep 0/100/200/300/400 (省略 325/350/375 卡盒重推,Reverse 流程 motor 不能 forward)
 
-1000:	// 請求軌道 backward (Phase 2:設 local intent,A00 在 Busy 時 propagate)
+1000:	// 請求軌道 backward + 初始化擋盒 state machine
 	bIntent_NeedBackward := TRUE;
 	bIntent_HoldStill    := FALSE;
 	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+	Cylinder.List.fbSameSizeCV_Press4.M_Retract();
+	uiSameGetBoxStep := 0;
 	TON_ConveyorTimeOut.IN := TRUE;
-	uiExecutingStep := 1200;
+	uiExecutingStep := 1100;
 
-1200:	// 等待盒子到達 BoxDetect6
-	 TON_ConveyorTimeOut.IN := TRUE;
-	IF Input.bSameSizeCV_BoxDetect6_Sensor THEN
-		TON_ConveyorTimeOut.IN := FALSE;
-		uiExecutingStep := 1300;
-	END_IF
+1100:	// 擋盒 state machine
+	CASE uiSameGetBoxStep OF
+		0:	// 初始位置:兩支 retract
+			Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+			Cylinder.List.fbSameSizeCV_Press4.M_Retract();
+			uiSameGetBoxStep := 100;
+
+		100:	// 等盒到 Detect6 (50ms debounce) → Press3 extend 後壓
+			tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
+			IF tonDelay_SameSizeGetBox.Q THEN
+				Cylinder.List.fbSameSizeCV_Press3.M_Extend();
+				uiSameGetBoxStep := 200;
+			END_IF
+
+		200:	// 等 NearStorageSensor 穩定 1.5s 確認盒到位
+			tonDelay_SameSizeGetBox.IN := FALSE;
+			tonDelay_SameSizeDelayBox.IN := Input.bSameSizeCV_BoxNearStorageSensor;
+			IF tonDelay_SameSizeDelayBox.Q THEN
+				uiSameGetBoxStep := 300;
+			END_IF
+
+		300:	// Press4 extend 擋第二盒避免擠進來
+			Cylinder.List.fbSameSizeCV_Press4.M_Extend();
+			IF Cylinder.List.fbSameSizeCV_Press4.InFrontPosition THEN
+				uiSameGetBoxStep := 400;
+			END_IF
+
+		400:	// state machine 完成 → 進 1500 motor 停 + final settle
+			tonDelay_SameSizeDelayBox.IN := FALSE;
+			uiSameGetBoxStep := 0;
+			TON_ConveyorTimeOut.IN := FALSE;
+			uiExecutingStep := 1500;
+	END_CASE
+	// state machine 整段 60s timeout 保護
 	IF TON_ConveyorTimeOut.Q THEN
+		TON_ConveyorTimeOut.IN := FALSE;
 		uiResumeStep := 1000;
-		strStatus := 'Box not arrived at Detect6';
-		_UniqueErrorCode := 'E_BOX_NOT_ARRIVED';
+		strStatus := 'Phase 1 擋盒 state machine timeout';
+		_UniqueErrorCode := 'E_BLOCK_TIMEOUT';
 		_Abort := TRUE;
 	END_IF
 
-
-
-1300:	// Press3 extend (壓住盒子)
-	TON_TimeOut.IN := TRUE;
-	Cylinder.List.fbSameSizeCV_Press3.M_Extend();
-	IF Cylinder.List.fbSameSizeCV_Press3.InFrontPosition THEN
-		TON_TimeOut.IN := FALSE;
-		uiExecutingStep := 1500;
-	END_IF
-	IF TON_TimeOut.Q THEN
-		uiResumeStep := uiExecutingStep;
-		strStatus := 'Press3 extend timeout';
-		_UniqueErrorCode := 'E_CYL_TIMEOUT';
-		_Abort := TRUE;
-	END_IF
-
-1500:	// 軌道往前送到 NearStorage + Press3 縮回 (Phase 2:設 local intent)
+1500:	// 軌道 backward 推到 NearStorage final settle (Press3 後壓中, Press4 擋第二盒中)
 	TON_ConveyorTimeOut.IN := TRUE;
 	TON_ArrivedDelay.IN := Input.bSameSizeCV_BoxNearStorageSensor;
 	IF TON_ArrivedDelay.Q THEN
@@ -494,44 +522,59 @@ CASE uiExecutingStep OF
 {endregion}
 
 {region '=== Phase 3: 第二盒送到 NearStorage (雙爪) ==='}
-// 流程: 馬達先動 → 等盒到 Detect6 → Press3 壓 → 送到 NearStorage
-// TODO: 缺擋盒邏輯 — 之後 ref FB_RobotRegionMove_AllocatedConveyor (Press3 + Press4 + tonDelay_SameSizeGetBox) 補
+// 流程同 Phase 1:馬達 backward + 擋盒 state machine → 送到 NearStorage → motor 停
 
-3000:	// 請求軌道 backward (Phase 2:設 local intent,第二盒)
-	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+3000:	// 請求軌道 backward + 初始化擋盒 state machine (第二盒)
 	bIntent_NeedBackward := TRUE;
 	bIntent_HoldStill    := FALSE;
+	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+	Cylinder.List.fbSameSizeCV_Press4.M_Retract();
+	uiSameGetBoxStep := 0;
 	TON_ConveyorTimeOut.IN := TRUE;
-	uiExecutingStep := 3200;
+	uiExecutingStep := 3100;
 
-3200:	// 等待第二盒到達 BoxDetect6
-	 TON_ConveyorTimeOut.IN := TRUE;
-	IF Input.bSameSizeCV_BoxDetect6_Sensor THEN
-		TON_ConveyorTimeOut.IN := FALSE;
-		uiExecutingStep := 3300;
-	END_IF
+3100:	// 擋盒 state machine (第二盒) — ref AllocatedConveyor (與 Phase 1 step 1100 對稱)
+	CASE uiSameGetBoxStep OF
+		0:
+			Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+			Cylinder.List.fbSameSizeCV_Press4.M_Retract();
+			uiSameGetBoxStep := 100;
+
+		100:	// 等盒到 Detect6 (50ms debounce) → Press3 extend
+			tonDelay_SameSizeGetBox.IN := Input.bSameSizeCV_BoxDetect6_Sensor;
+			IF tonDelay_SameSizeGetBox.Q THEN
+				Cylinder.List.fbSameSizeCV_Press3.M_Extend();
+				uiSameGetBoxStep := 200;
+			END_IF
+
+		200:	// 等 NearStorageSensor 穩定 1.5s
+			tonDelay_SameSizeGetBox.IN := FALSE;
+			tonDelay_SameSizeDelayBox.IN := Input.bSameSizeCV_BoxNearStorageSensor;
+			IF tonDelay_SameSizeDelayBox.Q THEN
+				uiSameGetBoxStep := 300;
+			END_IF
+
+		300:	// Press4 extend
+			Cylinder.List.fbSameSizeCV_Press4.M_Extend();
+			IF Cylinder.List.fbSameSizeCV_Press4.InFrontPosition THEN
+				uiSameGetBoxStep := 400;
+			END_IF
+
+		400:	// 完成 → 進 3500
+			tonDelay_SameSizeDelayBox.IN := FALSE;
+			uiSameGetBoxStep := 0;
+			TON_ConveyorTimeOut.IN := FALSE;
+			uiExecutingStep := 3500;
+	END_CASE
 	IF TON_ConveyorTimeOut.Q THEN
+		TON_ConveyorTimeOut.IN := FALSE;
 		uiResumeStep := 3000;
-		strStatus := 'Box 2 not arrived at Detect6';
-		_UniqueErrorCode := 'E_BOX_NOT_ARRIVED';
-		_Abort := TRUE;
-	END_IF	 
-		  
-3300:	// Press3 壓住第二盒
-	TON_TimeOut.IN := TRUE;
-	Cylinder.List.fbSameSizeCV_Press3.M_Extend();
-	IF Cylinder.List.fbSameSizeCV_Press3.InFrontPosition THEN
-		TON_TimeOut.IN := FALSE;
-		uiExecutingStep := 3500;
-	END_IF
-	IF TON_TimeOut.Q THEN
-		uiResumeStep := uiExecutingStep;
-		strStatus := 'Press3 extend timeout (2nd box)';
-		_UniqueErrorCode := 'E_CYL_TIMEOUT';
+		strStatus := 'Phase 3 擋盒 state machine timeout';
+		_UniqueErrorCode := 'E_BLOCK_TIMEOUT';
 		_Abort := TRUE;
 	END_IF
 
-3500:	// 軌道往前送到 NearStorage + Press3 縮回 (Phase 2:設 local intent,第二盒)
+3500:	// 軌道 backward 推到 NearStorage final settle (第二盒)
 	TON_ConveyorTimeOut.IN := TRUE;
 	TON_ArrivedDelay.IN := Input.bSameSizeCV_BoxNearStorageSensor;
 	IF TON_ArrivedDelay.Q THEN
@@ -925,11 +968,15 @@ CASE uiExecutingStep OF
 9000:	// 復位機構 (Phase 2:清 local intent,Busy 仍 TRUE 時 A00 會 propagate FALSE)
 	bIntent_NeedBackward := FALSE;
 	bIntent_HoldStill    := FALSE;
+	Cylinder.List.fbSameSizeCV_Press3.M_Retract();
+	Cylinder.List.fbSameSizeCV_Press4.M_Retract();
 	uiExecutingStep := 9100;
 
-9100:	// 等待復位完成
+9100:	// 等待復位完成 (Press3 + Press4 縮回 + 馬達停)
 	TON_TimeOut.IN := TRUE;
-	IF Motor.List.TransmitSameSideCV.InStopped THEN
+	IF Cylinder.List.fbSameSizeCV_Press3.InRearPosition AND
+	   Cylinder.List.fbSameSizeCV_Press4.InRearPosition AND
+	   Motor.List.TransmitSameSideCV.InStopped THEN
 		TON_TimeOut.IN := FALSE;
 		_Executed := TRUE;
 	END_IF
@@ -972,6 +1019,9 @@ CASE uiResettingStep OF
 	TON_TimeOut.IN := FALSE;
 	TON_ConveyorTimeOut.IN := FALSE;
 	TON_RobotResetTimeOut.IN := FALSE;
+	tonDelay_SameSizeGetBox.IN := FALSE;
+	tonDelay_SameSizeDelayBox.IN := FALSE;
+	uiSameGetBoxStep := 0;
 
 	StorageRobot.M_ResetAllCommand();
 	WareHouse.M_ResetFeedInBox();
