@@ -272,6 +272,7 @@ ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
 	PreviousErrorCode := _UniqueErrorCode;
 	Status := 'FB_ShippingRobotTransfer: no error';
 	_bRetry := FALSE;	// retry 已啟動，清掉旗標讓下次 Abort 能正常標記 Error/Aborted
+	_bAbsMoveStarted := FALSE;	// retry 進 EXECUTING 前清掉,讓 step 5000/15000 ELSIF stale-Done 防護生效
 	eState := STATE_EXECUTING;
 END_IF
 ]]></ST>
@@ -287,6 +288,7 @@ END_VAR
 	0:
 			_Abort := FALSE;
 			Abort  := FALSE;
+			_bAbsMoveStarted := FALSE;	// Retry 前清掉 stale flag,避免 step 5000/15000 因 Done=TRUE 殘留誤判 ghost completion
 			TON_RobotActionTimeOut.IN    := FALSE;
 			TON_CheckRobotDoneTimeOut.IN := FALSE;
 			TON_MechTimeOut.IN           := FALSE;
