@@ -229,9 +229,12 @@ _Error := Error := FALSE;
 _Abort := Abort := FALSE;
 Done   := TRUE;
 
-// Done 期間壓住輸出,避免 A00_BasicUnits 因殘留 flag 再次驅動軌道
+// 軌道做完才停 (user spec):進 STATE_DONE 才主動停 + 壓住 flag 避免 A00 再驅動
 bMoveConveyorForward  := FALSE;
 bMoveConveyorBackward := FALSE;
+IF __ISVALIDREF(Motor) THEN
+	Motor.List.TransmitSameSideCV.M_MotorStop();
+END_IF
 
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
@@ -562,45 +565,22 @@ CASE uiExecutingStep OF
 			_Error := TRUE;
 		END_IF
 
-	3300:	// TO 後置:停 backward,啟 forward 推走盒子
-		bMoveConveyorBackward := FALSE;
-		bMoveConveyorForward  := TRUE;
+	3300:	// TO 後置:確保 backward 持續驅動 (推走剛放的盒子)
+		bMoveConveyorForward  := FALSE;
+		bMoveConveyorBackward := TRUE;
 		uiExecutingStep := 3400;
 
-	3400:	// 等馬達 forward 起步 → 停 motor → 進 settle 驗證 (短行程,不等 sensor 避免卡)
+	3400:	// 等馬達 backward 起步 → 進 FeedBack (軌道不停,持續推到 STATE_DONE 才停)
 		TON_MechTimeOut.IN := TRUE;
-		IF __ISVALIDREF(Motor) AND Motor.List.TransmitSameSideCV.InForWard THEN
-			TON_MechTimeOut.IN   := FALSE;
-			bMoveConveyorForward := FALSE;
-			Motor.List.TransmitSameSideCV.M_MotorStop();
-			uiExecutingStep := 3500;
-		END_IF
-		IF TON_MechTimeOut.Q THEN
-			uiResumeStep := 3400;
-			strStatus := 'FB_ShippingPlateScan Step 3400: SameSizeCV forward timeout';
-			Status := strStatus;
-			_UniqueErrorCode := 'E_CV_FORWARD_TIMEOUT';
-			_Abort := TRUE;
-		END_IF
-
-	3500:	// Conveyor settle:強制壓住輸出 + 等馬達真的停 (對齊 FB_ShippingRobotTransfer step 98000)
-		bMoveConveyorForward  := FALSE;
-		bMoveConveyorBackward := FALSE;
-		IF __ISVALIDREF(Motor) THEN
-			Motor.List.TransmitSameSideCV.M_MotorStop();
-		END_IF
-		TON_MechTimeOut.IN := TRUE;
-		IF NOT __ISVALIDREF(Motor)
-		   OR (NOT Motor.List.TransmitSameSideCV.InForWard
-		       AND NOT Motor.List.TransmitSameSideCV.InBackWard) THEN
+		IF __ISVALIDREF(Motor) AND Motor.List.TransmitSameSideCV.InBackWard THEN
 			TON_MechTimeOut.IN := FALSE;
 			uiExecutingStep := 4000;
 		END_IF
 		IF TON_MechTimeOut.Q THEN
-			uiResumeStep := 3500;
-			strStatus := 'FB_ShippingPlateScan Step 3500: SameSizeCV settle timeout';
+			uiResumeStep := 3400;
+			strStatus := 'FB_ShippingPlateScan Step 3400: SameSizeCV backward timeout';
 			Status := strStatus;
-			_UniqueErrorCode := 'E_CV_SETTLE_TIMEOUT';
+			_UniqueErrorCode := 'E_CV_BACKWARD_TIMEOUT';
 			_Abort := TRUE;
 		END_IF
 
