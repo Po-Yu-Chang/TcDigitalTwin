@@ -461,6 +461,7 @@ Status := strStatus;
 // 停止各項輸出 (輸送帶等) — Phase 2 同 ABORTING
 bMoveConveyorForward  := FALSE;
 bMoveConveyorBackward := FALSE;
+_bAbsMoveStarted := FALSE;	// 雙保險:ERROR 進入時清,避免下游若直接 retry 殘留 stale 旗標
 IF bIsSameSize THEN
 	IF __ISVALIDREF(SameSizeCVRequest) THEN
 		SameSizeCVRequest.bShippingTransfer_NeedForward  := FALSE;
@@ -1275,6 +1276,7 @@ CASE uiResettingStep OF
 		bCompleteRequest := FALSE;
 		bMoveConveyorForward  := FALSE;
 		bMoveConveyorBackward := FALSE;
+		_bAbsMoveStarted := FALSE;	// 雙保險:RESETTING → DORMANT 路徑,確保 stale ghost-completion flag 不殘留
 		TON_RobotActionTimeOut.IN    := FALSE;
 		TON_CheckRobotDoneTimeOut.IN := FALSE;
 		TON_BlinkDelay.IN            := FALSE;
