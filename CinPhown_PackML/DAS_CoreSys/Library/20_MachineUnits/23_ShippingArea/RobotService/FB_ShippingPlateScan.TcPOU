@@ -131,6 +131,7 @@ ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
 	PreviousErrorCode := _UniqueErrorCode;
 	Status            := 'FB_ShippingPlateScan: no error';
 	_bRetry           := FALSE;
+	_bAbsMoveStarted  := FALSE;	// retry 進 EXECUTING 前清掉,讓 step 3100 ELSIF stale-Done 防護生效
 	eState            := STATE_EXECUTING;
 END_IF
 ]]></ST>
@@ -326,6 +327,7 @@ ELSIF trigErrorReset.Q AND Execute AND NOT Robot._DI1.Error THEN
 	Error             := FALSE;
 	bErrorBlinking    := FALSE;
 	tonErrorResetDelay.IN := FALSE;
+	_bAbsMoveStarted  := FALSE;	// retry 進 EXECUTING 前清掉,讓 step 3100 ELSIF stale-Done 防護生效
 	eState            := STATE_EXECUTING;
 END_IF
 ]]></ST>
