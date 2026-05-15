@@ -2708,7 +2708,7 @@ External Setpoint Generation:
 		</Motion>
 		<Plc>
 			<Project GUID="{F0C6C3EF-6481-4440-89AE-361520A7C96C}" Name="DAS_CoreSys" PrjFilePath="DAS_CoreSys\DAS_CoreSys.plcproj" TmcFilePath="DAS_CoreSys\DAS_CoreSys.tmc" ReloadTmc="true" AmsPort="851" TargetArchiveSettings="#x0000" FileArchiveSettings="#x0000" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{181B04A8-8049-6F81-0A00-10968A73AF1E}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="DAS_CoreSys\DAS_CoreSys.tmc" TmcHash="{64BC490E-BF2B-CE2B-E2E6-CFF9AAA91D61}">
 					<Name>DAS_CoreSys Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
@@ -2876,12 +2876,12 @@ External Setpoint Generation:
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_UI</Name>
 							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._rawIn_UI</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._rawIn_UI</Name>
 							<Comment><![CDATA[ UI : Fanuc robot default input rawdate]]></Comment>
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
@@ -2906,12 +2906,12 @@ External Setpoint Generation:
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._FanucEIPState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._FanucEIPState</Name>
 							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[1]._FanucEIPState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.StorageRobot._FanucEIPState</Name>
 							<Comment><![CDATA[ EIP module links to FanucRobot state]]></Comment>
 							<Type>UINT</Type>
 						</Var>
@@ -2926,22 +2926,22 @@ External Setpoint Generation:
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_DI</Name>
-							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
-							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
-						</Var>
-						<Var>
 							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawIn_DI</Name>
 							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
 							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._EIPConnectionState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawIn_DI</Name>
+							<Comment><![CDATA[ DI : user define input rawdate]]></Comment>
+							<Type GUID="{A6CC6AFE-FE37-C02D-2C0C-FB1479660FEB}">ARRAY [0..31] OF BYTE</Type>
+						</Var>
+						<Var>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._EIPConnectionState</Name>
 							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._EIPConnectionState</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._EIPConnectionState</Name>
 							<Comment><![CDATA[ EIP connection State (EL6652 to Fanuc Robot)]]></Comment>
 							<Type>UINT</Type>
 						</Var>
@@ -3025,12 +3025,12 @@ External Setpoint Generation:
 							<Type GUID="{527C5C5C-1CF8-1963-ACDC-85B7B3E5B586}">ARRAY [0..3] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_DO</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_DO</Name>
 							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
 							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
 						<Var>
-							<Name>DAS_CoreSys.MachineControl.FanucRobot.List.ShippingRobot._rawOut_DO</Name>
+							<Name>DAS_CoreSys.MachineControl.FanucRobot.arFanucRobot[2]._rawOut_DO</Name>
 							<Comment><![CDATA[ DO : user define output rawdate]]></Comment>
 							<Type GUID="{41ED9519-F005-F75E-C949-7BAD9F19538C}">ARRAY [0..63] OF BYTE</Type>
 						</Var>
@@ -14833,7 +14833,7 @@ C:\TwinCAT\3.1\Config\Io\EtherNetIP\FANUCROBOT0301_R30IBP.EDS
 					</EthernetIp>
 				</Box>
 				<Ethernet DeviceDesc="EL6652 EtherNet/IP Scanner (Master)" SpecialTask="true" TaskPort="301"/>
-				<EtherNetIPMasterDev m_EthIpMasterDevPar="0300000053746f726167652046616e756320526f626f74202845434154204549502053630c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"/>
+				<EtherNetIPMasterDev m_EthIpMasterDevPar="0300000053746f726167652046616e756320526f626f74202845434154204549502053630c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001058331fd0400a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"/>
 			</Device>
 			<Device Id="6" DevType="151" AmsPort="28678" AmsNetId="169.254.53.69.7.1" RemoteName="Device 6 (ECAT EIP Scanner (EL6652))">
 				<Name>Device 6 (ECAT EIP Scanner (EL6652))</Name>
@@ -14925,7 +14925,7 @@ C:\TwinCAT\3.1\Config\Io\EtherNetIP\FANUCROBOT0301_R30IBP.EDS
 					</EthernetIp>
 				</Box>
 				<Ethernet DeviceDesc="EL6652 EtherNet/IP Scanner (Master)" SpecialTask="true" TaskPort="301"/>
-				<EtherNetIPMasterDev m_EthIpMasterDevPar="06000000446576696365203620284543415420454950205363616e6e65722028454c36360c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e00a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"/>
+				<EtherNetIPMasterDev m_EthIpMasterDevPar="06000000446576696365203620284543415420454950205363616e6e65722028454c36360c0000006c000000fa1900000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001058f29ef0e00a8c000ffffff000000000000800001001e000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"/>
 			</Device>
 			<Device Id="8" DevType="109" DevFlags="#x0004">
 				<Name>X001 (RT-Ethernet Adapter)</Name>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
   <POU Name="FB_ShippingPlateScan" Id="{b8f3c14a-9d6b-4e7a-8c52-1f29a4b8e36d}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_ShippingPlateScan EXTENDS FB_ObjectBase_V2
@@ -770,5 +770,57 @@ END_IF
 ]]></ST>
       </Implementation>
     </Method>
+    <LineIds Name="FB_ShippingPlateScan">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.A00_BasicUnits">
+      <LineId Id="2" Count="5" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_ResolveAddress">
+      <LineId Id="3" Count="31" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_ABORTED">
+      <LineId Id="3" Count="25" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_ABORTING">
+      <LineId Id="3" Count="60" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_DONE">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_DORMANT">
+      <LineId Id="3" Count="50" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_ERROR">
+      <LineId Id="3" Count="34" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_EXECUTING">
+      <LineId Id="3" Count="321" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_HELD">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_HOLDING">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_RESETTING">
+      <LineId Id="3" Count="28" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ShippingPlateScan.M_STATE_UNHOLD">
+      <LineId Id="3" Count="10" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
   </POU>
 </TcPlcObject>

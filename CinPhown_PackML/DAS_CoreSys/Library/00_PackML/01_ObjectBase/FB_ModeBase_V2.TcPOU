@@ -414,14 +414,29 @@ FOR iLoopIndex := 1 TO MaxAlarms DO
     END_IF
 END_FOR
 
+//IF NOT HasSameID THEN
+//    PackTag.Admin.Alarm[iErrorCount+1].ID := ID;
+//    PackTag.Admin.Alarm[iErrorCount+1].Value := value;
+//    PackTag.Admin.Alarm[iErrorCount+1].Message := Message;
+//    PackTag.Admin.Alarm[iErrorCount+1].Category := Category;
+//	arAlarmTrigPtr[iErrorCount+1] := ADR(Trigger);
+//	//arAlarmMsg[iErrorCount+1] := ADR(Message);
+//	iErrorCount := iErrorCount +1 ;
+//END_IF
+
 IF NOT HasSameID THEN
-    PackTag.Admin.Alarm[iErrorCount+1].ID := ID;
-    PackTag.Admin.Alarm[iErrorCount+1].Value := value;
-    PackTag.Admin.Alarm[iErrorCount+1].Message := Message;
-    PackTag.Admin.Alarm[iErrorCount+1].Category := Category;
-	arAlarmTrigPtr[iErrorCount+1] := ADR(Trigger);
-	//arAlarmMsg[iErrorCount+1] := ADR(Message);
-	iErrorCount := iErrorCount +1 ;
+    PackTag.Admin.Alarm[iErrorCount + 1].ID       := ID;
+    PackTag.Admin.Alarm[iErrorCount + 1].Value    := value;
+    PackTag.Admin.Alarm[iErrorCount + 1].Message  := Message;
+    PackTag.Admin.Alarm[iErrorCount + 1].Category := Category;
+    arAlarmTrigPtr[iErrorCount + 1]               := ADR(Trigger);
+    iErrorCount                                   := iErrorCount + 1;
+ELSE
+    // 找到既有 Alarm ID 時，也要回寫最新訊息，
+    // 避免初始化時的空字串一路保留到 ADS 顯示端。
+    PackTag.Admin.Alarm[FoundIndex].Value    := value;
+    PackTag.Admin.Alarm[FoundIndex].Message  := Message;
+    PackTag.Admin.Alarm[FoundIndex].Category := Category;
 END_IF
 
 ]]></ST>
@@ -550,6 +565,11 @@ END_IF
       <LineId Id="47" Count="0" />
       <LineId Id="76" Count="0" />
       <LineId Id="75" Count="0" />
+      <LineId Id="27" Count="3" />
+      <LineId Id="153" Count="13" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

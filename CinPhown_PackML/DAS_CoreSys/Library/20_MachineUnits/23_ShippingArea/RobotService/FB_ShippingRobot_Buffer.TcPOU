@@ -197,7 +197,7 @@ TON_CheckRobotDoneTimeOut.IN := FALSE;
 
 IF Execute AND HasBufferArea THEN
     eState := STATE_EXECUTING;
-ELSE
+ELSIF  Execute AND NOT HasBufferArea THEN
 	Status := 'FB_ShippingRobot_Buffer: Wrong Comman Not have bufferArea in ShippingArea';
 	eState := STATE_ERROR;
 END_IF
@@ -533,6 +533,8 @@ END_IF
       <LineId Id="20" Count="0" />
       <LineId Id="14" Count="0" />
       <LineId Id="13" Count="0" />
+      <LineId Id="21" Count="1" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_DORMANT">
       <LineId Id="11" Count="20" />
@@ -664,6 +666,8 @@ END_IF
       <LineId Id="56" Count="5" />
       <LineId Id="9" Count="0" />
       <LineId Id="42" Count="0" />
+      <LineId Id="24" Count="5" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingRobot_Buffer.M_STATE_UNHOLD">
       <LineId Id="27" Count="11" />

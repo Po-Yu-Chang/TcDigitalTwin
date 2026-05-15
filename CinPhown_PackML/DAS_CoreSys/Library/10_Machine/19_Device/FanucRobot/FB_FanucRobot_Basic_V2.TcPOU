@@ -169,7 +169,7 @@ bNeedle_LaserStatus	  :=_DI13.3;
 bConveyor_LaserStatus :=_DI13.4;
 bRemoval_LaserStatus  :=_DI13.5;
 
-bClampA1_Laser_DetectStatus		:=_DI13.9;
+bClampA1_Laser_DetectStatus		:=NOT _DI13.9;
 bClampB1_Laser_DetectStatus		:=_DI13.10;
 bClampA2_Laser_DetectStatus		:=_DI13.11;
 bClampB2_Laser_DetectStatus		:=_DI13.12;
