@@ -88,6 +88,8 @@ VAR_GLOBAL CONSTANT
     GC_ALARM_SHP_ROBOT_BUFFER            : DINT := 305;   // [Hold] 出貨機器人緩衝
     GC_ALARM_SHP_ROBOT_TRANSFER          : DINT := 306;   // [Hold] 出貨機器人轉移
 	GC_ALARM_SHP_ROBOT_PHOTOSTANDBYPOS   : DINT := 307;   // [Hold] 出貨機器人拍照等待位
+	GC_ALARM_SHP_ROBOT_SCANPICK		     : DINT := 308;   // [Hold] 出貨機器人大族輸送帶掃描取盒
+
     // 307-399: 預留出貨區服務擴充
 
     // =========================================================================

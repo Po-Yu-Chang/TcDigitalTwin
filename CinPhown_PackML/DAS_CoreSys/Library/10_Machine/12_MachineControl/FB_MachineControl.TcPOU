@@ -1351,47 +1351,6 @@ Motor.List.TransmitDifferentSideCV(xDone =>,
 ]]></ST>
       </Implementation>
     </Action>
-    <Action Name="A20_ConveyorArbitration" Id="{a2c1d2e3-f4a5-4b6c-9d8e-1f2a3b4c5d6e}">
-      <Implementation>
-        <ST><![CDATA[// 同尺寸軌道集中式仲裁 (Phase 2)
-// 取各 sub-FB 的請求 flag 做 OR,優先序:HoldStill > 方向衝突 (停) > Backward > Forward > 預設停。
-// Sub-FB 不再直接 call M_MoveBackward / M_MotorStop。
-
-// 手動模式 yield:MotorManualCtrl[25] 在 manual 命令按下時負責驅動 motor,A20 不干涉避免 M_MotorStop 蓋掉 manual。
-IF AllocateManualCommand.TransCV.TransmitSameSideCV.Forward
-   OR AllocateManualCommand.TransCV.TransmitSameSideCV.Backward
-   OR AllocateManualCommand.TransCV.TransmitSameSideCV.Stopped THEN
-	RETURN;
-END_IF
-
-IF SameSizeCVRequest.bCamera_HoldStill OR SameSizeCVRequest.bWareHouse_HoldStill THEN
-	// 任何 sub-FB 要靜止 (拍照 / 取盒對位) — 強制停
-	Motor.List.TransmitSameSideCV.M_MotorStop();
-ELSIF (SameSizeCVRequest.bScan_NeedBackward
-       OR SameSizeCVRequest.bShippingTransfer_NeedBackward
-       OR SameSizeCVRequest.bCamera_NeedBackward
-       OR SameSizeCVRequest.bWareHouse_NeedBackward)
-      AND SameSizeCVRequest.bShippingTransfer_NeedForward THEN
-	// 方向衝突 (不應該發生) — 安全起見停下,讓 sub-FB 自己解
-	Motor.List.TransmitSameSideCV.M_MotorStop();
-ELSIF SameSizeCVRequest.bScan_NeedBackward
-      OR SameSizeCVRequest.bShippingTransfer_NeedBackward
-      OR SameSizeCVRequest.bCamera_NeedBackward
-      OR SameSizeCVRequest.bWareHouse_NeedBackward THEN
-	IF NOT Motor.List.TransmitSameSideCV.InForWard THEN
-		Motor.List.TransmitSameSideCV.M_MoveBackward();
-	END_IF
-ELSIF SameSizeCVRequest.bShippingTransfer_NeedForward THEN
-	IF NOT Motor.List.TransmitSameSideCV.InBackWard THEN
-		Motor.List.TransmitSameSideCV.M_MoveForward();
-	END_IF
-ELSE
-	// 沒人要 → 停 (例:本批做完所有 sub-FB 進 DONE,flag 自動清)
-	Motor.List.TransmitSameSideCV.M_MotorStop();
-END_IF
-]]></ST>
-      </Implementation>
-    </Action>
     <Action Name="A03_FanucRobot" Id="{bb200e91-8356-4c56-8d68-26872b17f60a}">
       <Implementation>
         <ST><![CDATA[FanucRobot.List.StorageRobot(
@@ -1893,6 +1852,47 @@ END_IF
 Error := xError;
 ErrorID := xErrorID;
 ErrMsg := xErrorMsg;]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="A20_ConveyorArbitration" Id="{a2c1d2e3-f4a5-4b6c-9d8e-1f2a3b4c5d6e}">
+      <Implementation>
+        <ST><![CDATA[// 同尺寸軌道集中式仲裁 (Phase 2)
+// 取各 sub-FB 的請求 flag 做 OR,優先序:HoldStill > 方向衝突 (停) > Backward > Forward > 預設停。
+// Sub-FB 不再直接 call M_MoveBackward / M_MotorStop。
+
+// 手動模式 yield:MotorManualCtrl[25] 在 manual 命令按下時負責驅動 motor,A20 不干涉避免 M_MotorStop 蓋掉 manual。
+IF AllocateManualCommand.TransCV.TransmitSameSideCV.Forward
+   OR AllocateManualCommand.TransCV.TransmitSameSideCV.Backward
+   OR AllocateManualCommand.TransCV.TransmitSameSideCV.Stopped THEN
+	RETURN;
+END_IF
+
+IF SameSizeCVRequest.bCamera_HoldStill OR SameSizeCVRequest.bWareHouse_HoldStill THEN
+	// 任何 sub-FB 要靜止 (拍照 / 取盒對位) — 強制停
+	Motor.List.TransmitSameSideCV.M_MotorStop();
+ELSIF (SameSizeCVRequest.bScan_NeedBackward
+       OR SameSizeCVRequest.bShippingTransfer_NeedBackward
+       OR SameSizeCVRequest.bCamera_NeedBackward
+       OR SameSizeCVRequest.bWareHouse_NeedBackward)
+      AND SameSizeCVRequest.bShippingTransfer_NeedForward THEN
+	// 方向衝突 (不應該發生) — 安全起見停下,讓 sub-FB 自己解
+	Motor.List.TransmitSameSideCV.M_MotorStop();
+ELSIF SameSizeCVRequest.bScan_NeedBackward
+      OR SameSizeCVRequest.bShippingTransfer_NeedBackward
+      OR SameSizeCVRequest.bCamera_NeedBackward
+      OR SameSizeCVRequest.bWareHouse_NeedBackward THEN
+	IF NOT Motor.List.TransmitSameSideCV.InForWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveBackward();
+	END_IF
+ELSIF SameSizeCVRequest.bShippingTransfer_NeedForward THEN
+	IF NOT Motor.List.TransmitSameSideCV.InBackWard THEN
+		Motor.List.TransmitSameSideCV.M_MoveForward();
+	END_IF
+ELSE
+	// 沒人要 → 停 (例:本批做完所有 sub-FB 進 DONE,flag 自動清)
+	Motor.List.TransmitSameSideCV.M_MotorStop();
+END_IF
+]]></ST>
       </Implementation>
     </Action>
     <Method Name="M_Aborted" Id="{07590437-cdc2-4926-8c27-767ace7419e7}" FolderPath="States\">
@@ -2641,6 +2641,7 @@ RegisterAlarm(Trigger := fbShippingArea.fbShippingRightSideTransCV.xError ,		ID 
 RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_Buffer.Error ,			ID := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_BUFFER,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_Buffer.status,Category := 3);
 RegisterAlarm(Trigger := fbShippingArea.fbShippingRobotTransfer.Error,			ID := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_TRANSFER,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobotTransfer.Status,Category := 3);
 RegisterAlarm(Trigger := fbShippingArea.fbShippingRobot_PhotoStandByPos.Error,	ID := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_PHOTOSTANDBYPOS,value := E_Severity.Level3,Message := fbShippingArea.fbShippingRobot_PhotoStandByPos.Status,Category := 3);
+RegisterAlarm(Trigger := fbShippingArea.fbShippingPlateScan.Error,				ID := GVL_ErrorCode.GC_ALARM_SHP_ROBOT_SCANPICK,value := E_Severity.Level3,Message := fbShippingArea.fbShippingPlateScan.Status,Category := 3);
 
 
 // Cylinder Allocate Area component
@@ -4188,6 +4189,7 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="1058" Count="0" />
       <LineId Id="975" Count="1" />
       <LineId Id="510" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.A00_BaseUnits">
       <LineId Id="48" Count="1" />
@@ -4245,6 +4247,8 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="158" Count="0" />
       <LineId Id="161" Count="3" />
       <LineId Id="160" Count="0" />
+      <LineId Id="199" Count="2" />
+      <LineId Id="1" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.A01_Cylinder">
       <LineId Id="7180" Count="78" />
@@ -4469,6 +4473,10 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="29" Count="0" />
       <LineId Id="1" Count="0" />
     </LineIds>
+    <LineIds Name="FB_MachineControl.A20_ConveyorArbitration">
+      <LineId Id="2" Count="35" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
     <LineIds Name="FB_MachineControl.M_Aborted">
       <LineId Id="52" Count="36" />
       <LineId Id="7" Count="0" />
@@ -4562,8 +4570,12 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="19307" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_General_AlarmRegister">
-      <LineId Id="3313" Count="297" />
+      <LineId Id="3313" Count="77" />
+      <LineId Id="3621" Count="0" />
+      <LineId Id="3391" Count="219" />
       <LineId Id="3290" Count="0" />
+      <LineId Id="302" Count="2" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.M_GetCylinderError">
       <LineId Id="5" Count="0" />
@@ -4895,12 +4907,14 @@ StorageService.AutoMode_RobotSelfHoming REF= Service_Handshake.AutoMode_RobotSel
       <LineId Id="77" Count="1" />
       <LineId Id="76" Count="0" />
       <LineId Id="75" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.RefShippingService">
       <LineId Id="17" Count="2" />
       <LineId Id="23" Count="1" />
       <LineId Id="28" Count="1" />
       <LineId Id="9" Count="0" />
+      <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_MachineControl.RefStorageService">
       <LineId Id="5" Count="6" />
