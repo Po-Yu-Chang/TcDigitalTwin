@@ -27,6 +27,7 @@ VAR
 	TON_ScanTimeOut				: TON;
 	TON_MechTimeOut				: TON;		// 軌道機構動作 watchdog (30s)
 	tonBoxArriveDelay			: TON;		// Put 階段等盒到位 debounce (1s)
+	TON_RobotCommandDelay		: TON;		// 延遲清除手臂程式跳出命令，會互卡到手臂_DO3 Execute。
 
 	// Resume / Retry framework (對齊 FB_ShippingRobotTransfer 續做 pattern)
 	uiResumeStep				: UDINT;	// retry / 續做進入點
@@ -153,6 +154,7 @@ CASE uiAbortingStep OF
 		TON_ScanTimeOut.IN           := FALSE;
 		TON_MechTimeOut.IN           := FALSE;
 		tonBoxArriveDelay.IN         := FALSE;
+		TON_RobotCommandDelay.IN	 := FALSE;
 		// 撤銷軌道請求 (arbiter 看到沒人 request 會自動停)
 		IF __ISVALIDREF(SameSizeCVRequest) THEN
 			SameSizeCVRequest.bScan_NeedBackward := FALSE;
@@ -268,6 +270,7 @@ TON_CheckRobotDoneTimeOut.IN := FALSE;
 TON_ScanTimeOut.IN           := FALSE;
 TON_MechTimeOut.IN           := FALSE;
 tonBoxArriveDelay.IN         := FALSE;
+TON_RobotCommandDelay.IN	 := FALSE;
 
 // Phase 2:撤銷軌道請求
 IF __ISVALIDREF(SameSizeCVRequest) THEN
@@ -628,9 +631,9 @@ CASE uiExecutingStep OF
 	5000:	// Reset robot 命令 → 等 Done 降 (沒盒專用)
 		Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		TON_CheckRobotDoneTimeOut.IN := TRUE;
-		IF NOT Robot._DI1.Done THEN
+		IF NOT Robot._DI1.Done AND Robot.M_CheckResetAllCommand() THEN
 			TON_CheckRobotDoneTimeOut.IN := FALSE;
-			uiExecutingStep := 4000;
+			uiExecutingStep := 5100;
 		END_IF
 		IF TON_CheckRobotDoneTimeOut.Q THEN
 			uiResumeStep := 5000;
@@ -638,6 +641,39 @@ CASE uiExecutingStep OF
 			Status := strStatus;
 			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
 			_Error := TRUE;
+		END_IF
+		
+	5100:
+		TON_CheckRobotDoneTimeOut.IN := TRUE;
+		TON_RobotCommandDelay.IN     := TRUE;
+		IF Address_A = 4 AND NOT PlateHasBox THEN				//檢查是否是第四盒且沒有盒子
+			IF TON_RobotCommandDelay.Q THEN
+				IF Robot.M_ReleaseRobotInternalCycle() THEN		// 給手臂清除流程命令。
+					uiExecutingStep := 5200;
+				END_IF
+			END_IF
+		ELSE
+			uiExecutingStep := 4000;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 5100;
+			strStatus := 'FB_ShippingPlateScan Step 5100: Send Robot Clear Internal Cylce Timeout';
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
+			_Error := TRUE;
+		END_IF
+		
+	5200:
+		IF Robot._DI1.Done THEN
+			IF Robot.M_ResetInternalCycleCommand() THEN
+				uiExecutingStep := 5300;
+			END_IF
+		END_IF
+	
+	5300:
+		Robot.M_ResetInternalCycleCommand() ;
+		IF NOT Robot._DI1.Done THEN
+			uiExecutingStep := 4000;
 		END_IF
 
 	// ===========================================================
@@ -725,6 +761,7 @@ END_VAR
 		TON_ScanTimeOut.IN           := FALSE;
 		TON_MechTimeOut.IN           := FALSE;
 		tonBoxArriveDelay.IN         := FALSE;
+		TON_RobotCommandDelay.IN	 := FALSE;
 		// 撤銷軌道請求 (arbiter 看到沒人 request 會自動停)
 		IF __ISVALIDREF(SameSizeCVRequest) THEN
 			SameSizeCVRequest.bScan_NeedBackward := FALSE;
@@ -736,7 +773,7 @@ END_VAR
 
 	100:
 		Robot.M_ResetAllCommand();
-		IF Robot.M_CheckResetAllCommand() THEN
+		IF Robot.M_CheckResetAllCommand() AND Robot.M_ResetInternalCycleCommand()THEN
 			uiResettingStep := 9999;
 		END_IF
 
@@ -787,7 +824,9 @@ END_IF
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_ABORTING">
-      <LineId Id="3" Count="60" />
+      <LineId Id="3" Count="9" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="13" Count="50" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_DONE">
@@ -795,7 +834,9 @@ END_IF
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_DORMANT">
-      <LineId Id="3" Count="50" />
+      <LineId Id="3" Count="32" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="36" Count="17" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_ERROR">
@@ -803,7 +844,9 @@ END_IF
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_EXECUTING">
-      <LineId Id="3" Count="321" />
+      <LineId Id="3" Count="281" />
+      <LineId Id="332" Count="45" />
+      <LineId Id="298" Count="26" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_HELD">
@@ -815,7 +858,9 @@ END_IF
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_RESETTING">
-      <LineId Id="3" Count="28" />
+      <LineId Id="3" Count="6" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="10" Count="21" />
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_STATE_UNHOLD">

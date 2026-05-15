@@ -142,6 +142,8 @@ VAR
 	bNeedle_Vision_Status		: BOOL;
 	bRemoval_Vision_Status		: BOOL;
 	
+	bShippingRobot_SafetyCycleStop : BOOL;
+	
 	iRetryCnt : INT;
 	
 	bINP : BOOL;
@@ -190,7 +192,8 @@ _DO17.15 := bRoundBelt_LaserSwitch;
 _DO18.0 := bPrep_LaserSwitch;
 _DO18.1 := bNeedle_LaserSwitch;
 _DO18.2 := bConveyor_LaserSwitch;
-_DO18.3 := bRemoval_LaserSwitch;]]></ST>
+_DO18.3 := bRemoval_LaserSwitch;
+_DO18.4 := bShippingRobot_SafetyCycleStop; 	// 只有出貨區小手臂，用於大族輸送帶，讓小手臂內部跳出運作邏輯]]></ST>
     </Implementation>
     <Folder Name="Action" Id="{cb276f10-ba0c-420d-b693-c3ed88186172}" />
     <Folder Name="HandShake" Id="{e1dea49a-519d-4068-a110-3f88453f47a2}" />
@@ -205,6 +208,7 @@ _DO18.3 := bRemoval_LaserSwitch;]]></ST>
       <Folder Name="RobotAction" Id="{8edbc682-62f4-44bc-b4cb-0bd7b86f9e10}">
         <Folder Name="Reset" Id="{a74a37e1-3a7a-4b93-b002-be43b29154c4}" />
       </Folder>
+      <Folder Name="ShippingRobotAction" Id="{099c541b-ccb7-4755-84de-e892f4455303}" />
       <Folder Name="Warehouse PickupBox" Id="{e5de1fd4-e1a6-44f8-8306-7a04a63b9506}" />
       <Folder Name="Warehouse PlaceBox" Id="{9aff1c5b-54a4-4f10-aca8-eb5391878d40}" />
     </Folder>
@@ -1464,6 +1468,20 @@ bRemoval_Vision_Switch := ManualCtrl.bRemoval_Vision_Switch;
 ]]></ST>
       </Implementation>
     </Method>
+    <Method Name="M_ReleaseRobotInternalCycle" Id="{021b4c72-90a6-425c-a65b-affa6c1b2330}" FolderPath="Method\ShippingRobotAction\">
+      <Declaration><![CDATA[METHOD M_ReleaseRobotInternalCycle : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bShippingRobot_SafetyCycleStop := TRUE;
+_DO3.bExecute := TRUE;
+
+IF bShippingRobot_SafetyCycleStop AND _DO3.bExecute THEN
+	M_ReleaseRobotInternalCycle := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="M_Reset" Id="{d945901e-d9fe-42ce-8de4-ab43b85fae1b}" FolderPath="Method\">
       <Declaration><![CDATA[METHOD M_Reset : BOOL
 VAR_INPUT
@@ -1528,6 +1546,20 @@ M_ResetWareHouseCommand();
 M_ResetAbsMoveCommand();
 
 M_ResetAllCommand := TRUE; // Method end]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetInternalCycleCommand" Id="{1e8bf53f-2251-4e1a-8199-4992392cbf0c}" FolderPath="Method\ShippingRobotAction\">
+      <Declaration><![CDATA[METHOD M_ResetInternalCycleCommand : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bShippingRobot_SafetyCycleStop := FALSE;
+_DO3.bExecute := FALSE;
+
+IF NOT bShippingRobot_SafetyCycleStop AND NOT _DO3.bExecute THEN
+	M_ResetInternalCycleCommand := TRUE;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_ResetMoveBoxToFeedInConveyor_ClampA" Id="{3fdff994-4c03-410e-8b67-0a65dd7ab89c}" FolderPath="Method\MoveBoxToFeedInConveyor\">
@@ -4009,6 +4041,7 @@ END_VAR
       <LineId Id="489" Count="0" />
       <LineId Id="485" Count="0" />
       <LineId Id="490" Count="5" />
+      <LineId Id="645" Count="0" />
     </LineIds>
     <LineIds Name="FB_FanucRobot_Basic_V2.A00_BaseUnit">
       <LineId Id="156" Count="6" />
@@ -4381,6 +4414,12 @@ END_VAR
       <LineId Id="150" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic_V2.M_ReleaseRobotInternalCycle">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="9" Count="1" />
+    </LineIds>
     <LineIds Name="FB_FanucRobot_Basic_V2.M_Reset">
       <LineId Id="5" Count="0" />
       <LineId Id="10" Count="0" />
@@ -4410,6 +4449,13 @@ END_VAR
       <LineId Id="9" Count="0" />
       <LineId Id="7" Count="1" />
       <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FanucRobot_Basic_V2.M_ResetInternalCycleCommand">
+      <LineId Id="5" Count="1" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="10" Count="0" />
     </LineIds>
     <LineIds Name="FB_FanucRobot_Basic_V2.M_ResetMoveBoxToFeedInConveyor_ClampA">
       <LineId Id="13" Count="1" />
