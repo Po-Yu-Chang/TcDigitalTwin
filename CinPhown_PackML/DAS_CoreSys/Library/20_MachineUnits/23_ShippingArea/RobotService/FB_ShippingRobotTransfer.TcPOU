@@ -861,13 +861,10 @@ CASE uiExecutingStep OF
 		IF NOT Robot._DI1.Done THEN
 			TON_CheckRobotDoneTimeOut.IN := FALSE;
 			uiExecutingStep := 6000;
-		END_IF
-		IF TON_CheckRobotDoneTimeOut.Q THEN
-			uiResumeStep := 5100;
-			strStatus := 'FB_ShippingRobotTransfer Step 5100: Robot Reset timeout';
-			Status := strStatus;
-			Error := TRUE;
-			_Abort       := TRUE;
+		ELSIF TON_CheckRobotDoneTimeOut.Q THEN
+			// Reset timeout 也繼續:robot 可能 latched Done=TRUE,下游 step 15000 _bAbsMoveStarted guard 會處理 stale Done
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiExecutingStep := 6000;
 		END_IF
 		IF Robot._DI1.Error THEN
 			uiResumeStep := 5100;
@@ -1108,13 +1105,10 @@ CASE uiExecutingStep OF
 		IF NOT Robot._DI1.Done THEN
 			TON_CheckRobotDoneTimeOut.IN := FALSE;
 			uiExecutingStep := 20000;
-		END_IF
-		IF TON_CheckRobotDoneTimeOut.Q THEN
-			uiResumeStep := 15100;
-			strStatus := 'FB_ShippingRobotTransfer Step 15100: Robot Reset timeout';
-			Status := strStatus;
-			Error := TRUE;
-			_Abort       := TRUE;
+		ELSIF TON_CheckRobotDoneTimeOut.Q THEN
+			// Reset timeout 也繼續:robot 可能 latched Done=TRUE,下一輪 cycle step 5000 / step 15000 _bAbsMoveStarted guard 會處理 stale Done
+			TON_CheckRobotDoneTimeOut.IN := FALSE;
+			uiExecutingStep := 20000;
 		END_IF
 		IF Robot._DI1.Error THEN
 			uiResumeStep := 15100;
