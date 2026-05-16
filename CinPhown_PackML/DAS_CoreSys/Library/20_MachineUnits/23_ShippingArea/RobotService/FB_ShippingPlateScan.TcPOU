@@ -58,6 +58,7 @@ TON_CheckRobotDoneTimeOut(PT := T#30S);
 TON_ScanTimeOut(PT := T#30S);
 TON_MechTimeOut(PT := T#30S);
 tonBoxArriveDelay(PT := T#1S);
+TON_RobotCommandDelay(PT:= T#0.5S);
 
 // Phase 2:軌道驅動移到 FB_MachineControl.A20_ConveyorArbitration,本 FB 只寫 SameSizeCVRequest.bScan_NeedBackward。]]></ST>
       </Implementation>
@@ -646,7 +647,7 @@ CASE uiExecutingStep OF
 	5100:
 		TON_CheckRobotDoneTimeOut.IN := TRUE;
 		TON_RobotCommandDelay.IN     := TRUE;
-		IF Address_A = 4 AND NOT PlateHasBox THEN				//檢查是否是第四盒且沒有盒子
+		IF  NOT PlateHasBox THEN				//檢查是否是第四盒且沒有盒子
 			IF TON_RobotCommandDelay.Q THEN
 				IF Robot.M_ReleaseRobotInternalCycle() THEN		// 給手臂清除流程命令。
 					uiExecutingStep := 5200;
@@ -812,7 +813,9 @@ END_IF
       <LineId Id="2" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.A00_BasicUnits">
-      <LineId Id="2" Count="5" />
+      <LineId Id="2" Count="4" />
+      <LineId Id="8" Count="0" />
+      <LineId Id="7" Count="0" />
       <LineId Id="1" Count="0" />
     </LineIds>
     <LineIds Name="FB_ShippingPlateScan.M_ResolveAddress">

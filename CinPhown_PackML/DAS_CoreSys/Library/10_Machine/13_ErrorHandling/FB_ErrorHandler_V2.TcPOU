@@ -82,7 +82,7 @@ IF R_TRIG_Reset.Q THEN
     // 標記所有當前錯誤為待確認狀態
     FOR i := 0 TO TotalRecords - 1 DO
         ResetPendingList[i] := (HMI_AlarmMonitorList[i].ID <> 0);
-		HMI_AlarmMonitorList[i] :=defaultST_Alarm_Tmax; // remove error anyway
+		//HMI_AlarmMonitorList[i] :=defaultST_Alarm_Tmax; // remove error anyway
     END_FOR;
 END_IF;
 
