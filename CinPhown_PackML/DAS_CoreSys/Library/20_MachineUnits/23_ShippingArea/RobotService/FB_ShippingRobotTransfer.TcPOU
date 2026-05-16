@@ -833,39 +833,13 @@ CASE uiExecutingStep OF
 			// 先清掉 robot 命令，等 Done 變 FALSE 才能進入正常流程，避免 ghost completion
 			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		ELSE
-			// 真的完成（Done 從 FALSE → TRUE）→ 檢查 Get/Put 結果再轉 5100
-			// 對齊 FB_FeedInEmptyBoxWithRobot_V4 step 10000 pattern:
-			//   Get 成功 = ClampA_Sensor AND NOT ClampA_Open (夾爪閉合 + sensor 偵測到盒)
-			//   Put 成功 = NOT ClampA_Sensor AND ClampA_Open (夾爪打開 + sensor 沒偵測)
-			// ShippingCCDPos 是定位掃描,不做 sensor 驗證
-			IF Area <> E_RobotArea.ShippingCCDPos
-			   AND _fromGet
-			   AND NOT (Robot._DI1.ClampA_Sensor AND NOT Robot._DI1.ClampA_Open) THEN
-				// Get sensor miss → 假設是空盒 sensor 沒照到,改 destination = ShippingFeedOutEmptyBox
-				// user 按 reset 後 Path A 從 step 5100 開始,流程 5100 → 6000 → 7000 → 10000 (走 _toArea
-				// 新值 FeedOutEmptyBox 分支) → 15000 直接丟空盒,不再卡在原 Get 位置重試
-				_toArea := E_RobotArea.ShippingFeedOutEmptyBox;
-				_toPos  := 0;	// 拔針排空盒位置固定 = 0 (對齊 step 25 註解)
-				_toGet  := FALSE;	// 丟盒是 Put 操作
-				uiResumeStep := 5100;
-				strStatus := 'FB_ShippingRobotTransfer Step 5000: FROM Get sensor miss - redirect destination to FeedOutEmptyBox';
-				Status := strStatus;
-				Error := TRUE;
-				_Abort       := TRUE;
-			ELSIF Area <> E_RobotArea.ShippingCCDPos
-			   AND NOT _fromGet
-			   AND NOT (NOT Robot._DI1.ClampA_Sensor AND Robot._DI1.ClampA_Open) THEN
-				uiResumeStep := 5000;
-				strStatus := 'FB_ShippingRobotTransfer Step 5000: FROM Put failed - ClampA box not released (Sensor/Open mismatch)';
-				Status := strStatus;
-				Error := TRUE;
-				_Abort       := TRUE;
-			ELSE
-				TON_RobotActionTimeOut.IN := FALSE;
-				tonBoxArriveDelay.IN      := FALSE;
-				_bAbsMoveStarted          := FALSE;
-				uiExecutingStep := 5100;
-			END_IF
+			// 真的完成（Done 從 FALSE → TRUE）→ 轉 5100
+			// 不做手臂 ClampA_Sensor 驗證 — 軌道末端 BoxNearShippingSensor 已在 IF NOT Done 分支
+			// 透過 tonBoxArriveDelay + BoxReady_1 把關取盒時機,robot 端確認結束後 PLC 直接信任 Done
+			TON_RobotActionTimeOut.IN := FALSE;
+			tonBoxArriveDelay.IN      := FALSE;
+			_bAbsMoveStarted          := FALSE;
+			uiExecutingStep := 5100;
 		END_IF
 
 		IF TON_RobotActionTimeOut.Q THEN
@@ -889,12 +863,13 @@ CASE uiExecutingStep OF
 		IF NOT Robot._DI1.Done THEN
 			TON_CheckRobotDoneTimeOut.IN := FALSE;
 			uiExecutingStep := 6000;
-		ELSIF TON_CheckRobotDoneTimeOut.Q THEN
-			// 進來 5100 前 step 5000 ELSE sensor check 已確認真完成 (ClampA_Sensor / Open 對齊 Get/Put 預期),
-			// robot 身體已靜止,reset 安全。30s Done 沒降 = robot 端 latched 不是還在動,直接放行;
-			// 下游 step 15000 ELSIF _bAbsMoveStarted guard 會接 stale Done。
-			TON_CheckRobotDoneTimeOut.IN := FALSE;
-			uiExecutingStep := 6000;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 5100;
+			strStatus := 'FB_ShippingRobotTransfer Step 5100: Robot Reset timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
 		END_IF
 		IF Robot._DI1.Error THEN
 			uiResumeStep := 5100;
@@ -1107,33 +1082,12 @@ CASE uiExecutingStep OF
 			// 先清掉 robot 命令，等 Done 變 FALSE 才能進入正常流程，避免 ghost completion
 			Robot.M_ResetRobotAbsMove(TRUE, FALSE);
 		ELSE
-			// 真的完成（Done 從 FALSE → TRUE）→ 檢查 Get/Put 結果再轉 15100
-			// 對齊 FB_FeedInEmptyBoxWithRobot_V4 step 10000 pattern:
-			//   Get 成功 = ClampA_Sensor AND NOT ClampA_Open (夾爪閉合 + sensor 偵測到盒)
-			//   Put 成功 = NOT ClampA_Sensor AND ClampA_Open (夾爪打開 + sensor 沒偵測)
-			// ShippingCCDPos 是定位掃描,不做 sensor 驗證
-			IF Area <> E_RobotArea.ShippingCCDPos
-			   AND _toGet
-			   AND NOT (Robot._DI1.ClampA_Sensor AND NOT Robot._DI1.ClampA_Open) THEN
-				uiResumeStep := 15000;
-				strStatus := 'FB_ShippingRobotTransfer Step 15000: TO Get failed - ClampA no box (Sensor/Open mismatch)';
-				Status := strStatus;
-				Error := TRUE;
-				_Abort       := TRUE;
-			ELSIF Area <> E_RobotArea.ShippingCCDPos
-			   AND NOT _toGet
-			   AND NOT (NOT Robot._DI1.ClampA_Sensor AND Robot._DI1.ClampA_Open) THEN
-				uiResumeStep := 15000;
-				strStatus := 'FB_ShippingRobotTransfer Step 15000: TO Put failed - ClampA box not released (Sensor/Open mismatch)';
-				Status := strStatus;
-				Error := TRUE;
-				_Abort       := TRUE;
-			ELSE
-				TON_RobotActionTimeOut.IN := FALSE;
-				tonBoxArriveDelay.IN      := FALSE;
-				_bAbsMoveStarted          := FALSE;
-				uiExecutingStep := 15100;
-			END_IF
+			// 真的完成（Done 從 FALSE → TRUE）→ 轉 15100
+			// 不做手臂 ClampA_Sensor 驗證 — 對齊 step 5000 ELSE,軌道 sensor 把關時機,PLC 信任 Done
+			TON_RobotActionTimeOut.IN := FALSE;
+			tonBoxArriveDelay.IN      := FALSE;
+			_bAbsMoveStarted          := FALSE;
+			uiExecutingStep := 15100;
 		END_IF
 
 		IF TON_RobotActionTimeOut.Q THEN
@@ -1157,12 +1111,13 @@ CASE uiExecutingStep OF
 		IF NOT Robot._DI1.Done THEN
 			TON_CheckRobotDoneTimeOut.IN := FALSE;
 			uiExecutingStep := 20000;
-		ELSIF TON_CheckRobotDoneTimeOut.Q THEN
-			// 進來 15100 前 step 15000 ELSE sensor check 已確認真完成 (ClampA_Sensor / Open 對齊 Get/Put 預期),
-			// robot 身體已靜止,reset 安全。30s Done 沒降 = robot 端 latched 不是還在動,直接放行;
-			// 下一輪 cycle step 5000 / step 15000 ELSIF _bAbsMoveStarted guard 會接 stale Done。
-			TON_CheckRobotDoneTimeOut.IN := FALSE;
-			uiExecutingStep := 20000;
+		END_IF
+		IF TON_CheckRobotDoneTimeOut.Q THEN
+			uiResumeStep := 15100;
+			strStatus := 'FB_ShippingRobotTransfer Step 15100: Robot Reset timeout';
+			Status := strStatus;
+			Error := TRUE;
+			_Abort       := TRUE;
 		END_IF
 		IF Robot._DI1.Error THEN
 			uiResumeStep := 15100;
