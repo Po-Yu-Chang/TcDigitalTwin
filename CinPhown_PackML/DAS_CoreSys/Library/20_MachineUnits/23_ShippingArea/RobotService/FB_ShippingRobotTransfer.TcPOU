@@ -841,8 +841,14 @@ CASE uiExecutingStep OF
 			IF Area <> E_RobotArea.ShippingCCDPos
 			   AND _fromGet
 			   AND NOT (Robot._DI1.ClampA_Sensor AND NOT Robot._DI1.ClampA_Open) THEN
-				uiResumeStep := 5000;
-				strStatus := 'FB_ShippingRobotTransfer Step 5000: FROM Get failed - ClampA no box (Sensor/Open mismatch)';
+				// Get sensor miss → 假設是空盒 sensor 沒照到,改 destination = ShippingFeedOutEmptyBox
+				// user 按 reset 後 Path A 從 step 5100 開始,流程 5100 → 6000 → 7000 → 10000 (走 _toArea
+				// 新值 FeedOutEmptyBox 分支) → 15000 直接丟空盒,不再卡在原 Get 位置重試
+				_toArea := E_RobotArea.ShippingFeedOutEmptyBox;
+				_toPos  := 0;	// 拔針排空盒位置固定 = 0 (對齊 step 25 註解)
+				_toGet  := FALSE;	// 丟盒是 Put 操作
+				uiResumeStep := 5100;
+				strStatus := 'FB_ShippingRobotTransfer Step 5000: FROM Get sensor miss - redirect destination to FeedOutEmptyBox';
 				Status := strStatus;
 				Error := TRUE;
 				_Abort       := TRUE;
