@@ -28,11 +28,13 @@ VAR
 	TON_MechTimeOut				: TON;		// 軌道機構動作 watchdog (30s)
 	tonBoxArriveDelay			: TON;		// Put 階段等盒到位 debounce (1s)
 	TON_RobotCommandDelay		: TON;		// 延遲清除手臂程式跳出命令，會互卡到手臂_DO3 Execute。
+	TON_RSR02HomingTimeOut		: TON;		// ABORTING Error 8 (Not in Home Pos) 走 RSR02 回 home 超時 (120s)
 
 	// Resume / Retry framework (對齊 FB_ShippingRobotTransfer 續做 pattern)
 	uiResumeStep				: UDINT;	// retry / 續做進入點
 	_bRetry						: BOOL;		// STATE_ABORTED 收到 Reset 後置 TRUE,觸發 retry
 	_bAbsMoveStarted			: BOOL;		// 真的呼叫過 M_StartRobotAbsMove 才置 TRUE,防 stale Done 造成 ghost completion (對齊 FB_ShippingRobotTransfer)
+	uiAbortedStep				: UDINT;	// STATE_ABORTED 內 Error 8 RSR02 recovery sub-state counter
 	strStatus					: STRING;
 	_UniqueErrorCode			: STRING;
 	PreviousStrStatus			: STRING;
@@ -58,6 +60,7 @@ TON_CheckRobotDoneTimeOut(PT := T#30S);
 TON_ScanTimeOut(PT := T#30S);
 TON_MechTimeOut(PT := T#30S);
 tonBoxArriveDelay(PT := T#1S);
+TON_RSR02HomingTimeOut(PT := T#120S);	// ABORTING Error 8 RSR02 回 home 超時
 
 // Phase 2:軌道驅動移到 FB_MachineControl.A20_ConveyorArbitration,本 FB 只寫 SameSizeCVRequest.bScan_NeedBackward。]]></ST>
       </Implementation>
@@ -125,15 +128,55 @@ END_IF
 
 IF NOT Execute THEN
 	eState := STATE_RESETTING;
-ELSIF Execute AND _bRetry AND NOT Robot._DI1.Error THEN
-	// 續做:從上次 uiResumeStep 標的失敗點接續
-	uiExecutingStep   := uiResumeStep;
-	PreviousStrStatus := strStatus;
-	PreviousErrorCode := _UniqueErrorCode;
-	Status            := 'FB_ShippingPlateScan: no error';
-	_bRetry           := FALSE;
-	_bAbsMoveStarted  := FALSE;	// retry 進 EXECUTING 前清掉,讓 step 3100 ELSIF stale-Done 防護生效
-	eState            := STATE_EXECUTING;
+ELSIF Execute AND _bRetry THEN
+	// Retry 兩分支:
+	//   A. Robot 無 error  → 直接 resume EXECUTING (原本 retry 路徑)
+	//   B. Robot 有 error  → 一律跑 RSR02 sub-state 回 home,完成後下個 cycle 走 A
+	IF NOT Robot._DI1.Error THEN
+		// 路徑 A:續做從 uiResumeStep 失敗點接續
+		uiExecutingStep   := uiResumeStep;
+		PreviousStrStatus := strStatus;
+		PreviousErrorCode := _UniqueErrorCode;
+		Status            := 'FB_ShippingPlateScan: no error';
+		_bRetry           := FALSE;
+		_bAbsMoveStarted  := FALSE;
+		uiAbortedStep     := 0;
+		eState            := STATE_EXECUTING;
+	ELSE
+		// 路徑 B:任何 robot error 都走 RSR02 — 參考 FB_ShippingHoming step 500-1000
+		CASE uiAbortedStep OF
+			0:	// 切 RSR02 命令手臂回 home
+				Robot.OpMode := E_FanucRobotOpMode.RSR02;
+				TON_RSR02HomingTimeOut.IN := TRUE;
+				IF Robot._RSR2_Completed THEN
+					TON_RSR02HomingTimeOut.IN := FALSE;
+					uiAbortedStep := 100;
+				ELSIF TON_RSR02HomingTimeOut.Q THEN
+					// RSR02 超時:退回 ABORTED 等 user 介入
+					TON_RSR02HomingTimeOut.IN := FALSE;
+					strStatus := 'FB_ShippingPlateScan ABORTED: RSR02 homing timeout, manual intervention required';
+					Status    := strStatus;
+					_bRetry := FALSE;
+					Error   := TRUE;
+					Aborted := TRUE;
+					uiAbortedStep := 0;
+				END_IF
+			100:	// 切回 RSR01 工作模式
+				Robot.OpMode := E_FanucRobotOpMode.RSR01;
+				IF Robot._RSR1_Ready THEN
+					uiAbortedStep := 200;
+				END_IF
+			200:	// 確認 RSR01 切換完成 + 殘留 error 已清
+				IF Robot.OpMode = E_FanucRobotOpMode.RSR01
+					AND NOT Robot._DI1.Done
+					AND Robot._DI12.RSR1_Active
+					AND NOT Robot._DI1.Error
+				THEN
+					uiAbortedStep := 0;
+					// 下一個 cycle 走路徑 A 自動 resume EXECUTING
+				END_IF
+		END_CASE
+	END_IF
 END_IF
 ]]></ST>
       </Implementation>
@@ -155,6 +198,7 @@ CASE uiAbortingStep OF
 		TON_MechTimeOut.IN           := FALSE;
 		tonBoxArriveDelay.IN         := FALSE;
 		TON_RobotCommandDelay.IN	 := FALSE;
+		TON_RSR02HomingTimeOut.IN    := FALSE;
 		// 撤銷軌道請求 (arbiter 看到沒人 request 會自動停)
 		IF __ISVALIDREF(SameSizeCVRequest) THEN
 			SameSizeCVRequest.bScan_NeedBackward := FALSE;
@@ -175,29 +219,9 @@ CASE uiAbortingStep OF
 			uiAbortingStep := 100;
 		END_IF
 
-	100:	// 看 robot 自己是否在 Error 狀態,需 robot error recovery
-		IF Robot._DI1.Error THEN
-			uiAbortingStep := 200;
-		ELSE
-			uiAbortingStep := 9999;
-		END_IF
-
-	200:	// Robot Error Recovery:對 robot 下 Reset 命令
-		IF DAS_CoreSys.MachineControl.M_ShippingRobotResetCmd() THEN
-			uiAbortingStep := 300;
-		END_IF
-
-	300:	// 對 robot 下 Start 命令重啟 prog
-		IF DAS_CoreSys.MachineControl.M_ShippingRobotStartCmd() THEN
-			uiAbortingStep := 400;
-		END_IF
-
-	400:	// 確認 robot 已脫離 error,還有就再循環一次
-		IF Robot._DI1.Error THEN
-			uiAbortingStep := 200;
-		ELSE
-			uiAbortingStep := 9999;
-		END_IF
+	100:	// 任何 robot error 都直接跳 9999 進 ABORTED;
+		// 不在 ABORTING 嘗試一般 reset (200/300/400),所有 recovery 統一放在 ABORTED 內 user 按 reset 才執行 RSR02
+		uiAbortingStep := 9999;
 
 	9999:
 		_AbortCompleted := TRUE;
@@ -271,6 +295,7 @@ TON_ScanTimeOut.IN           := FALSE;
 TON_MechTimeOut.IN           := FALSE;
 tonBoxArriveDelay.IN         := FALSE;
 TON_RobotCommandDelay.IN	 := FALSE;
+TON_RSR02HomingTimeOut.IN    := FALSE;
 
 // Phase 2:撤銷軌道請求
 IF __ISVALIDREF(SameSizeCVRequest) THEN
@@ -527,6 +552,13 @@ CASE uiExecutingStep OF
 			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
 			_Error := TRUE;
 		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 2100;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 2100: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
 
 	// ===========================================================
 	// Phase 2 (TO):放盒到同尺寸軌道 TransmitCV_End Pos 1 SameSize
@@ -604,6 +636,13 @@ CASE uiExecutingStep OF
 			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
 			_Error := TRUE;
 		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 3200;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 3200: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
 
 	3300:	// TO 後置:確保 backward 持續請求 (推走剛放的盒子,arbiter 驅動)
 		IF __ISVALIDREF(SameSizeCVRequest) THEN
@@ -642,6 +681,13 @@ CASE uiExecutingStep OF
 			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
 			_Error := TRUE;
 		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 5000;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 5000: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
 		
 	5100:
 		TON_CheckRobotDoneTimeOut.IN := TRUE;
@@ -662,6 +708,13 @@ CASE uiExecutingStep OF
 			_UniqueErrorCode := 'E_ROBOT_DONE_TIMEOUT';
 			_Error := TRUE;
 		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 5100;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 5100: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
 		
 	5200:
 		IF Robot._DI1.Done THEN
@@ -669,11 +722,25 @@ CASE uiExecutingStep OF
 				uiExecutingStep := 5300;
 			END_IF
 		END_IF
-	
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 5200;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 5200: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
+		END_IF
+
 	5300:
 		Robot.M_ResetInternalCycleCommand() ;
 		IF NOT Robot._DI1.Done THEN
 			uiExecutingStep := 4000;
+		END_IF
+		IF Robot._DI1.Error THEN
+			uiResumeStep := 5300;
+			strStatus := CONCAT('FB_ShippingPlateScan Step 5300: Robot error ', Robot.ErrMsg);
+			Status := strStatus;
+			_UniqueErrorCode := 'E_ROBOT_ERROR';
+			_Abort := TRUE;
 		END_IF
 
 	// ===========================================================
@@ -762,6 +829,7 @@ END_VAR
 		TON_MechTimeOut.IN           := FALSE;
 		tonBoxArriveDelay.IN         := FALSE;
 		TON_RobotCommandDelay.IN	 := FALSE;
+		TON_RSR02HomingTimeOut.IN    := FALSE;
 		// 撤銷軌道請求 (arbiter 看到沒人 request 會自動停)
 		IF __ISVALIDREF(SameSizeCVRequest) THEN
 			SameSizeCVRequest.bScan_NeedBackward := FALSE;
