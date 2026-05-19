@@ -1,6 +1,12 @@
 # Claude Code config
 .claude.md
 
+# Python cache & generated outputs
+__pycache__/
+*.pyc
+*.new.sql
+*.new.csv
+
 ### TwinCAT3 ###
 # website: https://www.beckhoff.com/twincat3/
 
