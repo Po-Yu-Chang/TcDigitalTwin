@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="GVL_SimMode" Id="{a1b2c3d4-e5f6-7890-abcd-ef1234567890}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+    // TRUE = 數位孿生模擬模式；使用時在 DAS_CoreSys 傳入 MachineControl(EnableSimulation := GVL_SimMode.bSimMode)
+    bSimMode : BOOL := FALSE;
+END_VAR
+]]></Declaration>
+    <LineIds Name="GVL_SimMode">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </GVL>
+</TcPlcObject>

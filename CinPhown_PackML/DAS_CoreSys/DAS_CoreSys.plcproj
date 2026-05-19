@@ -1390,6 +1390,14 @@
     <Compile Include="Library\99_Utilities\F_FtoPT.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Library\30_Simulation\GVL_SimMode.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Library\30_Simulation\10_IOSim\FB_SimulatedIO.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Folder Include="Library\30_Simulation" />
+    <Folder Include="Library\30_Simulation\10_IOSim" />
     <Compile Include="ModbusTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>

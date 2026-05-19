@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_SimulatedIO" Id="{b2c3d4e5-f6a7-8901-bcde-f12345678901}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+    FB_SimulatedIO — 數位孿生 IO 模擬層
+    =====================================================
+    每個 PLC 週期：
+      1. 將所有安全門、氣壓 Input bit 強制為 TRUE（使機器可啟動）
+      2. 監看 GVL_Output.uniDO.stDO 的 Valve 輸出位元
+      3. 透過 TON 延遲後，回寫對應的 GVL_Input.uniDI.stDI 感測器位元
+    使用方式：在 FB_MachineControl 主體中：
+      IF EnableSimulation THEN fbSimulatedIO(); END_IF
+*)
+FUNCTION_BLOCK FB_SimulatedIO
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+    // ----- 安全輸入注入用旗標 -----
+    _tSafetyInject : TON; // 短延遲確保每次都會執行注入
+
+    // ----- Group 1: Double valve, FrontSensor + RearSensor -----
+    // fbUpCV_DiameterHoriz
+    tonDiamHoriz_Ext : TON;
+    tonDiamHoriz_Ret : TON;
+    // fbTransmitCV_CamaraHoriz
+    tonCamaraHoriz_Ext : TON;
+    tonCamaraHoriz_Ret : TON;
+
+    // ----- Group 2: Single valve, FrontSensor + RearSensor -----
+    // fbUpCV_DiameterVert
+    tonDiamVert_Ext : TON;
+    tonDiamVert_Ret : TON;
+    // fbStackPush
+    tonStackPush_Ext : TON;
+    tonStackPush_Ret : TON;
+    // fbAllocateRobot_LeftVert1
+    tonLV1_Ext : TON;
+    tonLV1_Ret : TON;
+    // fbAllocateRobot_LeftVert2
+    tonLV2_Ext : TON;
+    tonLV2_Ret : TON;
+    // fbAllocateRobot_RightVert1
+    tonRV1_Ext : TON;
+    tonRV1_Ret : TON;
+    // fbAllocateRobot_RightVert2
+    tonRV2_Ext : TON;
+    tonRV2_Ret : TON;
+    // fbRoundBelt_WorkZone_Plug
+    tonWZPlug_Ext : TON;
+    tonWZPlug_Ret : TON;
+    // fbRoundBelt_ChargeZone_Plug
+    tonCZPlug_Ext : TON;
+    tonCZPlug_Ret : TON;
+    // fbRoundBelt_TransmitCVZone_Plug
+    tonTCVPlug_Ext : TON;
+    tonTCVPlug_Ret : TON;
+    // fbOutRobot_AsideVert
+    tonAsideVert_Ext : TON;
+    tonAsideVert_Ret : TON;
+    // fbOutRobot_BsideVert
+    tonBsideVert_Ext : TON;
+    tonBsideVert_Ret : TON;
+
+    // ----- Group 3: Double valve, RearSensor only -----
+    // fbUpCV_Block1/2/3
+    tonUpBlock1_Ext : TON;
+    tonUpBlock1_Ret : TON;
+    tonUpBlock2_Ext : TON;
+    tonUpBlock2_Ret : TON;
+    tonUpBlock3_Ext : TON;
+    tonUpBlock3_Ret : TON;
+    // fbLowCV_Block1/2
+    tonLowBlock1_Ext : TON;
+    tonLowBlock1_Ret : TON;
+    tonLowBlock2_Ext : TON;
+    tonLowBlock2_Ret : TON;
+    // fbOutRobot_AsideClamp / BsideClamp
+    tonAsideClamp_Ext : TON;
+    tonAsideClamp_Ret : TON;
+    tonBsideClamp_Ext : TON;
+    tonBsideClamp_Ret : TON;
+
+    // ----- Group 4: Single valve, RearSensor only -----
+    // fbPullOutCV_AsideBlock / BsideBlock
+    tonPullAside_Ext : TON;
+    tonPullAside_Ret : TON;
+    tonPullBside_Ext : TON;
+    tonPullBside_Ret : TON;
+    // fbRoundBelt_WorkZone_Press
+    tonWZPress_Ext : TON;
+    tonWZPress_Ret : TON;
+    // fbDifferentSizeCV_Block1
+    tonDiffBlock1_Ext : TON;
+    tonDiffBlock1_Ret : TON;
+    // fbSameSizeCV_Block1 / Block2
+    tonSameBlock1_Ext : TON;
+    tonSameBlock1_Ret : TON;
+    tonSameBlock2_Ext : TON;
+    tonSameBlock2_Ret : TON;
+    // fbTurntable_Press
+    tonTTPress_Ext : TON;
+    tonTTPress_Ret : TON;
+END_VAR
+VAR CONSTANT
+    tCYL_DELAY : TIME := T#300MS; // 汽缸模擬動作延遲（可依需求調整）
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ═══════════════════════════════════════════════════════════════
+// 1. 安全輸入每週期強制 TRUE — 讓機器可以在無硬體下啟動
+// ═══════════════════════════════════════════════════════════════
+GVL_Input.uniDI.stDI.bSafetyDoor1  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor2  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor3  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor4  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor5  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor6  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor7  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor8  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor9  := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor10 := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor11 := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor12 := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor13 := TRUE;
+GVL_Input.uniDI.stDI.bSafetyDoor14 := TRUE;
+GVL_Input.uniDI.stDI.bAllocate_Electrical_Cabinet_SafetyDoor      := TRUE;
+GVL_Input.uniDI.stDI.bShippingRobot_ElectricalCabinet_SafetyDoor  := TRUE;
+GVL_Input.uniDI.stDI.bStorage_AirPressure_Ready   := TRUE;
+GVL_Input.uniDI.stDI.bAllocate_AirPressure_Ready  := TRUE;
+
+// ═══════════════════════════════════════════════════════════════
+// 2. 汽缸 IO 模擬  (讀 Output Valve → 延遲 → 寫 Input Sensor)
+//    每個 TON:  _Ext 監看伸出命令, _Ret 監看縮回命令
+// ═══════════════════════════════════════════════════════════════
+
+// ─── Group 1: Double valve, FrontSensor + RearSensor ─────────
+
+// fbUpCV_DiameterHoriz (雙閥, 兩端感測器)
+tonDiamHoriz_Ext(IN := GVL_Output.uniDO.stDO.bUpCV_DiameterHoriz_Extend_Valve, PT := tCYL_DELAY);
+tonDiamHoriz_Ret(IN := GVL_Output.uniDO.stDO.bUpCV_DiameterHoriz_Retract_Valve, PT := tCYL_DELAY);
+IF tonDiamHoriz_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_DiameterHoriz_FrontSensor := TRUE;
+    GVL_Input.uniDI.stDI.bUpCV_DiameterHoriz_RearSensor  := FALSE;
+ELSIF tonDiamHoriz_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_DiameterHoriz_FrontSensor := FALSE;
+    GVL_Input.uniDI.stDI.bUpCV_DiameterHoriz_RearSensor  := TRUE;
+END_IF
+
+// fbTransmitCV_CamaraHoriz (雙閥, 兩端感測器)
+tonCamaraHoriz_Ext(IN := GVL_Output.uniDO.stDO.bTransmitCV_CamaraHorizDifferentSide_Valve, PT := tCYL_DELAY);
+tonCamaraHoriz_Ret(IN := GVL_Output.uniDO.stDO.bTransmitCV_CamaraHorizSameSizeSide_Valve,  PT := tCYL_DELAY);
+IF tonCamaraHoriz_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bTransmit_CamaraHorizDifferentSizeSide_Sensor := TRUE;
+    GVL_Input.uniDI.stDI.bTransmit_CamaraHorizSameSizeSide_Sensor      := FALSE;
+ELSIF tonCamaraHoriz_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bTransmit_CamaraHorizDifferentSizeSide_Sensor := FALSE;
+    GVL_Input.uniDI.stDI.bTransmit_CamaraHorizSameSizeSide_Sensor      := TRUE;
+END_IF
+
+// ─── Group 2: Single valve, FrontSensor + RearSensor ─────────
+
+// fbUpCV_DiameterVert
+tonDiamVert_Ext(IN :=      GVL_Output.uniDO.stDO.bUpCV_DiameterVert_Valve, PT := tCYL_DELAY);
+tonDiamVert_Ret(IN := NOT  GVL_Output.uniDO.stDO.bUpCV_DiameterVert_Valve, PT := tCYL_DELAY);
+IF tonDiamVert_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_DiameterVert_FrontSensor := TRUE;
+    GVL_Input.uniDI.stDI.bUpCV_DiameterVert_RearSensor  := FALSE;
+ELSIF tonDiamVert_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_DiameterVert_FrontSensor := FALSE;
+    GVL_Input.uniDI.stDI.bUpCV_DiameterVert_RearSensor  := TRUE;
+END_IF
+
+// fbStackPush
+tonStackPush_Ext(IN :=      GVL_Output.uniDO.stDO.bStackPush_Valve, PT := tCYL_DELAY);
+tonStackPush_Ret(IN := NOT  GVL_Output.uniDO.stDO.bStackPush_Valve, PT := tCYL_DELAY);
+IF tonStackPush_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bStackPush_Pusher_FrontSensor := TRUE;
+    GVL_Input.uniDI.stDI.bStackPush_Pusher_RearSensor  := FALSE;
+ELSIF tonStackPush_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bStackPush_Pusher_FrontSensor := FALSE;
+    GVL_Input.uniDI.stDI.bStackPush_Pusher_RearSensor  := TRUE;
+END_IF
+
+// fbAllocateRobot_LeftVert1
+tonLV1_Ext(IN :=      GVL_Output.uniDO.stDO.bAllocateRobot_LeftVert1_Valve, PT := tCYL_DELAY);
+tonLV1_Ret(IN := NOT  GVL_Output.uniDO.stDO.bAllocateRobot_LeftVert1_Valve, PT := tCYL_DELAY);
+IF tonLV1_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert1_LowSensor  := TRUE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert1_HighSensor := FALSE;
+ELSIF tonLV1_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert1_LowSensor  := FALSE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert1_HighSensor := TRUE;
+END_IF
+
+// fbAllocateRobot_LeftVert2
+tonLV2_Ext(IN :=      GVL_Output.uniDO.stDO.bAllocateRobot_LeftVert2_Valve, PT := tCYL_DELAY);
+tonLV2_Ret(IN := NOT  GVL_Output.uniDO.stDO.bAllocateRobot_LeftVert2_Valve, PT := tCYL_DELAY);
+IF tonLV2_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert2_LowSensor  := TRUE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert2_HighSensor := FALSE;
+ELSIF tonLV2_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert2_LowSensor  := FALSE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_LeftVert2_HighSensor := TRUE;
+END_IF
+
+// fbAllocateRobot_RightVert1
+tonRV1_Ext(IN :=      GVL_Output.uniDO.stDO.bAllocateRobot_RightVert1_Valve, PT := tCYL_DELAY);
+tonRV1_Ret(IN := NOT  GVL_Output.uniDO.stDO.bAllocateRobot_RightVert1_Valve, PT := tCYL_DELAY);
+IF tonRV1_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert1_LowSensor  := TRUE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert1_HighSensor := FALSE;
+ELSIF tonRV1_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert1_LowSensor  := FALSE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert1_HighSensor := TRUE;
+END_IF
+
+// fbAllocateRobot_RightVert2
+tonRV2_Ext(IN :=      GVL_Output.uniDO.stDO.bAllocateRobot_RightVert2_Valve, PT := tCYL_DELAY);
+tonRV2_Ret(IN := NOT  GVL_Output.uniDO.stDO.bAllocateRobot_RightVert2_Valve, PT := tCYL_DELAY);
+IF tonRV2_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert2_LowSensor  := TRUE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert2_HighSensor := FALSE;
+ELSIF tonRV2_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert2_LowSensor  := FALSE;
+    GVL_Input.uniDI.stDI.bAllocateRobot_RightVert2_HighSensor := TRUE;
+END_IF
+
+// fbRoundBelt_WorkZone_Plug
+tonWZPlug_Ext(IN :=      GVL_Output.uniDO.stDO.bRoundBelt_WorkZone_Plug_Valve, PT := tCYL_DELAY);
+tonWZPlug_Ret(IN := NOT  GVL_Output.uniDO.stDO.bRoundBelt_WorkZone_Plug_Valve, PT := tCYL_DELAY);
+IF tonWZPlug_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_WorkZonePlug_frontSensor := TRUE;
+    GVL_Input.uniDI.stDI.bRoundBelt_WorkZonePlug_RearSensor  := FALSE;
+ELSIF tonWZPlug_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_WorkZonePlug_frontSensor := FALSE;
+    GVL_Input.uniDI.stDI.bRoundBelt_WorkZonePlug_RearSensor  := TRUE;
+END_IF
+
+// fbRoundBelt_ChargeZone_Plug
+tonCZPlug_Ext(IN :=      GVL_Output.uniDO.stDO.bRoundBelt_ChargeZone_Plug_Valve, PT := tCYL_DELAY);
+tonCZPlug_Ret(IN := NOT  GVL_Output.uniDO.stDO.bRoundBelt_ChargeZone_Plug_Valve, PT := tCYL_DELAY);
+IF tonCZPlug_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_ChangeZonePlug_FrontSensor := TRUE;
+    GVL_Input.uniDI.stDI.bRoundBelt_ChangeZonePlug_RearSensor  := FALSE;
+ELSIF tonCZPlug_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_ChangeZonePlug_FrontSensor := FALSE;
+    GVL_Input.uniDI.stDI.bRoundBelt_ChangeZonePlug_RearSensor  := TRUE;
+END_IF
+
+// fbRoundBelt_TransmitCVZone_Plug
+tonTCVPlug_Ext(IN :=      GVL_Output.uniDO.stDO.bRoundBelt_TransmitCVZone_Plug_Valve, PT := tCYL_DELAY);
+tonTCVPlug_Ret(IN := NOT  GVL_Output.uniDO.stDO.bRoundBelt_TransmitCVZone_Plug_Valve, PT := tCYL_DELAY);
+IF tonTCVPlug_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_TransmitCVZonePlug_FrontSensor := TRUE;
+    GVL_Input.uniDI.stDI.bRoundBelt_TransmitCVZonePlug_RearSensor  := FALSE;
+ELSIF tonTCVPlug_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_TransmitCVZonePlug_FrontSensor := FALSE;
+    GVL_Input.uniDI.stDI.bRoundBelt_TransmitCVZonePlug_RearSensor  := TRUE;
+END_IF
+
+// fbOutRobot_AsideVert (FrontSensor=Low, RearSensor=High)
+tonAsideVert_Ext(IN :=      GVL_Output.uniDO.stDO.bOutRobot_AsideVert_Valve, PT := tCYL_DELAY);
+tonAsideVert_Ret(IN := NOT  GVL_Output.uniDO.stDO.bOutRobot_AsideVert_Valve, PT := tCYL_DELAY);
+IF tonAsideVert_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_AsideVert_LowSensor  := TRUE;
+    GVL_Input.uniDI.stDI.bOutRobot_AsideVert_HighSensor := FALSE;
+ELSIF tonAsideVert_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_AsideVert_LowSensor  := FALSE;
+    GVL_Input.uniDI.stDI.bOutRobot_AsideVert_HighSensor := TRUE;
+END_IF
+
+// fbOutRobot_BsideVert (FrontSensor=Low, RearSensor=High)
+tonBsideVert_Ext(IN :=      GVL_Output.uniDO.stDO.bOutRobot_BsideVert_Valve, PT := tCYL_DELAY);
+tonBsideVert_Ret(IN := NOT  GVL_Output.uniDO.stDO.bOutRobot_BsideVert_Valve, PT := tCYL_DELAY);
+IF tonBsideVert_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_BsideVert_LowSensor  := TRUE;
+    GVL_Input.uniDI.stDI.bOutRobot_BsideVert_HighSensor := FALSE;
+ELSIF tonBsideVert_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_BsideVert_LowSensor  := FALSE;
+    GVL_Input.uniDI.stDI.bOutRobot_BsideVert_HighSensor := TRUE;
+END_IF
+
+// ─── Group 3: Double valve, RearSensor only ───────────────────
+
+// fbUpCV_Block1  (Up=Extend=front, Down=Retract=rear)
+tonUpBlock1_Ext(IN := GVL_Output.uniDO.stDO.bUpCV_Block1_Up_Valve,   PT := tCYL_DELAY);
+tonUpBlock1_Ret(IN := GVL_Output.uniDO.stDO.bUpCV_Block1_Down_Valve, PT := tCYL_DELAY);
+IF tonUpBlock1_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_Block1_RearSensor := FALSE;
+ELSIF tonUpBlock1_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_Block1_RearSensor := TRUE;
+END_IF
+
+// fbUpCV_Block2
+tonUpBlock2_Ext(IN := GVL_Output.uniDO.stDO.bUpCV_Block2_Up_Valve,   PT := tCYL_DELAY);
+tonUpBlock2_Ret(IN := GVL_Output.uniDO.stDO.bUpCV_Block2_Down_Valve, PT := tCYL_DELAY);
+IF tonUpBlock2_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_Block2_RearSensor := FALSE;
+ELSIF tonUpBlock2_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_Block2_RearSensor := TRUE;
+END_IF
+
+// fbUpCV_Block3
+tonUpBlock3_Ext(IN := GVL_Output.uniDO.stDO.bUpCV_Block3_Up_Valve,   PT := tCYL_DELAY);
+tonUpBlock3_Ret(IN := GVL_Output.uniDO.stDO.bUpCV_Block3_Down_Valve, PT := tCYL_DELAY);
+IF tonUpBlock3_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_Block3_RearSensor := FALSE;
+ELSIF tonUpBlock3_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bUpCV_Block3_RearSensor := TRUE;
+END_IF
+
+// fbLowCV_Block1  (Down=Extend, Up=Retract=rear)
+tonLowBlock1_Ext(IN := GVL_Output.uniDO.stDO.bLowCV_Block1_Down_Valve, PT := tCYL_DELAY);
+tonLowBlock1_Ret(IN := GVL_Output.uniDO.stDO.bLowCV_Block1_Up_Valve,   PT := tCYL_DELAY);
+IF tonLowBlock1_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bLowCV_Block1_RearSensor := FALSE;
+ELSIF tonLowBlock1_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bLowCV_Block1_RearSensor := TRUE;
+END_IF
+
+// fbLowCV_Block2
+tonLowBlock2_Ext(IN := GVL_Output.uniDO.stDO.bLowCV_Block2_Down_Valve, PT := tCYL_DELAY);
+tonLowBlock2_Ret(IN := GVL_Output.uniDO.stDO.bLowCV_Block2_Up_Valve,   PT := tCYL_DELAY);
+IF tonLowBlock2_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bLowCV_Block2_RearSensor := FALSE;
+ELSIF tonLowBlock2_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bLowCV_Block2_RearSensor := TRUE;
+END_IF
+
+// fbOutRobot_AsideClamp  (Close=Extend=front, Open=Retract=rear)
+tonAsideClamp_Ext(IN := GVL_Output.uniDO.stDO.bOutRobot_AsideClamp_Close_Valve, PT := tCYL_DELAY);
+tonAsideClamp_Ret(IN := GVL_Output.uniDO.stDO.bOutRobot_AsideClamp_Open_Valve,  PT := tCYL_DELAY);
+IF tonAsideClamp_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_AsideClamp_RearSensor := FALSE;
+ELSIF tonAsideClamp_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_AsideClamp_RearSensor := TRUE;
+END_IF
+
+// fbOutRobot_BsideClamp
+tonBsideClamp_Ext(IN := GVL_Output.uniDO.stDO.bOutRobot_BsideClamp_Close_Valve, PT := tCYL_DELAY);
+tonBsideClamp_Ret(IN := GVL_Output.uniDO.stDO.bOutRobot_BsideClamp_Open_Valve,  PT := tCYL_DELAY);
+IF tonBsideClamp_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_BsideClamp_RearSensor := FALSE;
+ELSIF tonBsideClamp_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bOutRobot_BsideClamp_RearSensor := TRUE;
+END_IF
+
+// ─── Group 4: Single valve, RearSensor only ───────────────────
+
+// fbPullOutCV_AsideBlock
+tonPullAside_Ext(IN :=      GVL_Output.uniDO.stDO.bPullOutCV_AsideBlock_Valve, PT := tCYL_DELAY);
+tonPullAside_Ret(IN := NOT  GVL_Output.uniDO.stDO.bPullOutCV_AsideBlock_Valve, PT := tCYL_DELAY);
+IF tonPullAside_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bPullOutCV_AsideBlock_RearSensor := FALSE;
+ELSIF tonPullAside_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bPullOutCV_AsideBlock_RearSensor := TRUE;
+END_IF
+
+// fbPullOutCV_BsideBlock
+tonPullBside_Ext(IN :=      GVL_Output.uniDO.stDO.bPullOutCV_BsideBlock_Valve, PT := tCYL_DELAY);
+tonPullBside_Ret(IN := NOT  GVL_Output.uniDO.stDO.bPullOutCV_BsideBlock_Valve, PT := tCYL_DELAY);
+IF tonPullBside_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bPullOutCV_BsideBlock_RearSensor := FALSE;
+ELSIF tonPullBside_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bPullOutCV_BsideBlock_RearSensor := TRUE;
+END_IF
+
+// fbRoundBelt_WorkZone_Press (只有 RearSensor)
+tonWZPress_Ext(IN :=      GVL_Output.uniDO.stDO.bRoundBelt_WorkZone_Press_Valve, PT := tCYL_DELAY);
+tonWZPress_Ret(IN := NOT  GVL_Output.uniDO.stDO.bRoundBelt_WorkZone_Press_Valve, PT := tCYL_DELAY);
+IF tonWZPress_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_WorkZonePress_RearSensor := FALSE;
+ELSIF tonWZPress_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bRoundBelt_WorkZonePress_RearSensor := TRUE;
+END_IF
+
+// fbDifferentSizeCV_Block1
+tonDiffBlock1_Ext(IN :=      GVL_Output.uniDO.stDO.bDifferentSizeCV_Block1_Valve, PT := tCYL_DELAY);
+tonDiffBlock1_Ret(IN := NOT  GVL_Output.uniDO.stDO.bDifferentSizeCV_Block1_Valve, PT := tCYL_DELAY);
+IF tonDiffBlock1_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bDifferentCV_Block_RearSensor := FALSE;
+ELSIF tonDiffBlock1_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bDifferentCV_Block_RearSensor := TRUE;
+END_IF
+
+// fbSameSizeCV_Block1
+tonSameBlock1_Ext(IN :=      GVL_Output.uniDO.stDO.bSameSizeCV_Block1_Valve, PT := tCYL_DELAY);
+tonSameBlock1_Ret(IN := NOT  GVL_Output.uniDO.stDO.bSameSizeCV_Block1_Valve, PT := tCYL_DELAY);
+IF tonSameBlock1_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bSameSizeCVBlock1_RearSensor := FALSE;
+ELSIF tonSameBlock1_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bSameSizeCVBlock1_RearSensor := TRUE;
+END_IF
+
+// fbSameSizeCV_Block2
+tonSameBlock2_Ext(IN :=      GVL_Output.uniDO.stDO.bSameSizeCV_Block2_Valve, PT := tCYL_DELAY);
+tonSameBlock2_Ret(IN := NOT  GVL_Output.uniDO.stDO.bSameSizeCV_Block2_Valve, PT := tCYL_DELAY);
+IF tonSameBlock2_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bSameSizeCVBlock2_RearSensor := FALSE;
+ELSIF tonSameBlock2_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bSameSizeCVBlock2_RearSensor := TRUE;
+END_IF
+
+// fbTurntable_Press (只有 RearSensor)
+tonTTPress_Ext(IN :=      GVL_Output.uniDO.stDO.bTurntable_Press_Valve, PT := tCYL_DELAY);
+tonTTPress_Ret(IN := NOT  GVL_Output.uniDO.stDO.bTurntable_Press_Valve, PT := tCYL_DELAY);
+IF tonTTPress_Ext.Q THEN
+    GVL_Input.uniDI.stDI.bTurnTable_Press_RearSensor := FALSE;
+ELSIF tonTTPress_Ret.Q THEN
+    GVL_Input.uniDI.stDI.bTurnTable_Press_RearSensor := TRUE;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_SimulatedIO">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

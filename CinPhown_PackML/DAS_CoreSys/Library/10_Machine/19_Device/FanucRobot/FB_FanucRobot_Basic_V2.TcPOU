@@ -9,6 +9,7 @@ VAR_INPUT
     Reset  : BOOL; // Reset Fanuc Robot prog
     Hold   : BOOL; // PLC - > Robot send hold command
 	ManualCtrl : REFERENCE TO ST_Manual_FanucRobot;
+    SimMode    : BOOL := FALSE; // TRUE = 數位孿生模式，繞過 EtherCAT 硬體握手
 END_VAR
 
 VAR_OUTPUT
@@ -147,6 +148,8 @@ VAR
 	iRetryCnt : INT;
 	
 	bINP : BOOL;
+    // 模擬模式用 TON — 模擬機械臂動作完成
+    tonSimMoveDone : TON;
 END_VAR
 VAR CONSTANT
     RetryMaxTimes   : INT  := 3;
@@ -223,6 +226,29 @@ Ton_START_SwitchDelay(PT := T#1S); // Fanuc Robot need on 0.3s and then set off 
 Ton_Reset_SwitchDelay(PT:=T#2S);
 E_Stop_Output := _DI12.E_Stop;
 tofTempOffFaultReport(PT:=T#2s);]]></ST>
+
+        // ── 數位孿生 SimMode：繞過所有 EtherCAT 硬體握手 ──────────────
+        IF SimMode THEN
+            _UO1.UO01_CmdEnabled := TRUE;
+            _UO1.UO02_SystemReady := TRUE;
+            _UO1.UO11_ACK1        := TRUE;
+            _UO1.UO07_AtPerch     := TRUE;
+            E_Stop_Output         := FALSE;
+            // 跳過啟動握手流程 (step 100~599)，直接進入等待命令狀態 (step 600)
+            IF uiRobotExecutingStep >= 100 AND uiRobotExecutingStep < 600 THEN
+                uiRobotExecutingStep := 600;
+            END_IF
+            // 模擬動作完成：當任何移動命令被發出，500ms 後設 Done
+            tonSimMoveDone(
+                IN := _DO3.bExecute OR _DO4.bExecute OR _DO1.bExecute OR _DO2.bExecute,
+                PT  := T#500MS);
+            IF uiRobotExecutingStep = 600 THEN
+                _DI1.Done := tonSimMoveDone.Q;
+            ELSE
+                tonSimMoveDone(IN := FALSE, PT := T#500MS);
+                _DI1.Done := FALSE;
+            END_IF
+        END_IF]]></ST>
       </Implementation>
     </Action>
     <Action Name="A10_ModeControl" Id="{f8257065-0214-442d-a7cb-43b8b0292644}" FolderPath="Action\">
@@ -525,7 +551,8 @@ bConectionError := (iTestCnt >= 10);
 bRetryError := (iRetryCnt > 3);//Edited by Jidien Kachu in 2025/10/28
 tofTempOffFaultReport.IN := NOT _UI1.UI01_IMSP OR NOT _UI1.UI03_SFSP OR NOT _UI1.UI08_Enable;//Stop report for a while when twincat off the control flags by Albert 20250912
 //Edited by Jidien Kachu in 2025/10/28
-Fault:=((_UO1.UO06_Fault OR _UO1.UO09_BattAlarm OR _DI1.Error) (*AND (eState= E_MethodStatus_Basic.STATE_EXECUTING)*) AND NOT tofTempOffFaultReport.Q) OR bConectionError OR _UO1.UO08_TPEnabled OR bRetryError;]]></ST>
+        IF SimMode THEN Fault := FALSE; RETURN; END_IF
+        Fault:=((_UO1.UO06_Fault OR _UO1.UO09_BattAlarm OR _DI1.Error) (*AND (eState= E_MethodStatus_Basic.STATE_EXECUTING)*) AND NOT tofTempOffFaultReport.Q) OR bConectionError OR _UO1.UO08_TPEnabled OR bRetryError;]]></ST>
       </Implementation>
     </Method>
     <Method Name="GetModelState" Id="{84684909-97c4-4c1d-88c5-578deecdb205}" FolderPath="Method\">

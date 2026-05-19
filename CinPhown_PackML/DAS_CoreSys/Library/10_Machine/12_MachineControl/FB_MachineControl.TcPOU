@@ -125,6 +125,8 @@ VAR
 	
 	fbBuzzCtrl : FB_BuzzCtrl;
 	fbMachineModeSwitch : FB_MachineModeSwitch;
+    // 數位孿生 IO 模擬 FB
+    fbSimulatedIO : FB_SimulatedIO;
 	
 END_VAR
 ]]></Declaration>
@@ -146,7 +148,8 @@ END_IF
 IF NOT EnableSimulation THEN
     OUTPUT := InternalOutput;
 ELSE
-    M_ClearOutput();
+    OUTPUT := InternalOutput; // 模擬模式仍輸出（無實體硬體，安全無虞）；FB_SimulatedIO 才能讀到 Valve 狀態
+    fbSimulatedIO(); // 注入安全輸入 + 汽缸感測器回饋
 END_IF
 
 //WheelhouseSensor.arWheelHouseInput := ComModbusRTU.arr485sensor;
@@ -1362,27 +1365,29 @@ Motor.List.TransmitDifferentSideCV(xDone =>,
 	Reset:= Machine_Reset OR fbStorageArea.RobotResetCMD OR tofResetDelay.Q OR RobotService_ResetCmd, //Postpone reset signal to fanuc robot		
 	Hold:=   NOT FanucRobot.List.StorageRobot.Error AND_THEN Machine_Stop, 		//Transport form Kinsus version to taixin
 	ManualCtrl :=  GVL_HMI.Storage.Manual.FanucRobot,
-	qEnable=> , 
-	qFault=> ,
+            SimMode    := EnableSimulation,
+        	qEnable=> , 
+        	qFault=> ,
 
-	E_Stop_Output=> StorageRobot_EStop, 
-	Halt=> , 
-	Error=> , 
-	ErrorID=> );
+        	E_Stop_Output=> StorageRobot_EStop, 
+        	Halt=> , 
+        	Error=> , 
+        	ErrorID=> );
 
-FanucRobot.List.ShippingRobot(
-	Estop:= Machine_Estop (*OR Input.bStorage_EstopPb*), 
-	OpMode:= , 
-	Start:= Machine_Start OR ShippingRobotService_StartCmd, 
-	Reset:= Machine_Reset OR fbShippingArea.RobotResetCMD OR tofResetDelay.Q OR ShippingRobotService_ResetCmd, 			//
-	Hold:= NOT fanucrobot.List.ShippingRobot.Error AND_THEN Machine_Stop,
-	ManualCtrl:= GVL_HMI.Shipping.Manual.FanucRobot, 
-	qEnable=> , 
-	qFault=> , 
-	E_Stop_Output=> ShippingRobot_EStop, 
-	Halt=> , 
-	Error=> , 
-	ErrorID=> );]]></ST>
+        FanucRobot.List.ShippingRobot(
+        	Estop:= Machine_Estop (*OR Input.bStorage_EstopPb*), 
+        	OpMode:= , 
+        	Start:= Machine_Start OR ShippingRobotService_StartCmd, 
+        	Reset:= Machine_Reset OR fbShippingArea.RobotResetCMD OR tofResetDelay.Q OR ShippingRobotService_ResetCmd, 			//
+        	Hold:= NOT fanucrobot.List.ShippingRobot.Error AND_THEN Machine_Stop,
+        	ManualCtrl:= GVL_HMI.Shipping.Manual.FanucRobot,
+            SimMode    := EnableSimulation,
+        	qEnable=> , 
+        	qFault=> , 
+        	E_Stop_Output=> ShippingRobot_EStop, 
+        	Halt=> , 
+        	Error=> , 
+        	ErrorID=> );]]></ST>
       </Implementation>
     </Action>
     <Action Name="A04_OpPannel" Id="{bd9ff175-ff19-4976-8958-fe3c79e5468c}">
